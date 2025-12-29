@@ -1,0 +1,386 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fafbfc;
+  --foreground: #0f172a;
+  --light-gray: #f1f5f9;
+  --hot-pink: #ec4899;
+  --hot-pink-light: #fce7f3;
+  --hot-pink-dark: #db2777;
+  --gradient-primary: linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #fbbf24 100%);
+  --gradient-secondary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 0 20px rgba(236, 72, 153, 0.3);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* RTL Support */
+html[dir="rtl"] {
+  direction: rtl;
+}
+
+html[dir="rtl"] body {
+  direction: rtl;
+  text-align: right;
+}
+
+html[dir="rtl"] * {
+  direction: inherit;
+}
+
+body {
+  background: linear-gradient(135deg, #fafbfc 0%, #f1f5f9 100%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  direction: rtl;
+  text-align: right;
+}
+
+/* Force RTL for all text elements */
+p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a {
+  direction: rtl;
+  text-align: inherit;
+}
+
+/* Modern Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #ec4899, #f472b6);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #db2777, #ec4899);
+}
+
+/* Glassmorphism Effect */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Modern Card */
+.modern-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(236, 72, 153, 0.15);
+  border-color: rgba(236, 72, 153, 0.2);
+}
+
+/* Smooth Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(236, 72, 153, 0.5);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.5s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Modern Button */
+.btn-modern {
+  background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+  box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
+}
+
+.btn-modern:active {
+  transform: translateY(0);
+}
+
+/* RTL for all inputs and textareas */
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea,
+select {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+/* Fix Hebrew text input direction - use normal bidi for proper RTL */
+input[type="text"][dir="rtl"],
+input[type="email"][dir="rtl"],
+input[type="search"][dir="rtl"],
+textarea[dir="rtl"],
+input[type="text"][lang="he"],
+input[type="email"][lang="he"],
+input[type="search"][lang="he"],
+textarea[lang="he"] {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+/* Force RTL for textareas even with mixed content like @ mentions */
+textarea[dir="rtl"]::placeholder,
+textarea[lang="he"]::placeholder {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Ensure proper text direction for contenteditable */
+[contenteditable] {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Modern Input */
+.modern-input {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(236, 72, 153, 0.2);
+  transition: all 0.3s ease;
+  direction: rtl;
+  text-align: right;
+}
+
+.modern-input:focus {
+  outline: none;
+  border-color: #ec4899;
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+  background: rgba(255, 255, 255, 1);
+}
+
+/* Hide Scrollbar */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* RTL Calendar Styles */
+.rtl-calendar .react-datepicker {
+  direction: rtl;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.rtl-calendar .react-datepicker__header {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  padding-top: 0.75rem;
+  position: relative;
+}
+
+.rtl-calendar .react-datepicker__current-month {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #111827;
+}
+
+.rtl-calendar .react-datepicker__day-names {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 0.5rem;
+}
+
+.rtl-calendar .react-datepicker__day-name {
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+  width: 2rem;
+  line-height: 2rem;
+  margin: 0.166rem;
+}
+
+.rtl-calendar .react-datepicker__day {
+  width: 2rem;
+  line-height: 2rem;
+  margin: 0.166rem;
+  border-radius: 0.375rem;
+  color: #111827;
+}
+
+.rtl-calendar .react-datepicker__day:hover {
+  background-color: #f3f4f6;
+  border-radius: 0.375rem;
+}
+
+.rtl-calendar .react-datepicker__day--selected,
+.rtl-calendar .react-datepicker__day--keyboard-selected {
+  background-color: #3b82f6;
+  color: white;
+  border-radius: 0.375rem;
+}
+
+.rtl-calendar .react-datepicker__day--today {
+  font-weight: 600;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+}
+
+.rtl-calendar .react-datepicker__day--disabled {
+  color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.rtl-calendar .react-datepicker__navigation {
+  top: 0.75rem;
+}
+
+.rtl-calendar .react-datepicker__navigation--previous {
+  right: 1rem;
+  left: auto;
+}
+
+.rtl-calendar .react-datepicker__navigation--next {
+  left: 1rem;
+  right: auto;
+}
+
+.rtl-calendar .react-datepicker__time-container {
+  border-left: 1px solid #e5e7eb;
+}
+
+.rtl-calendar .react-datepicker__time-container .react-datepicker__time {
+  background: white;
+}
+
+.rtl-calendar .react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box {
+  width: 100%;
+}
+
+.rtl-calendar .react-datepicker__time-list-item {
+  height: 2rem;
+  padding: 0.5rem;
+}
+
+.rtl-calendar .react-datepicker__time-list-item:hover {
+  background-color: #f3f4f6;
+}
+
+.rtl-calendar .react-datepicker__time-list-item--selected {
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+}
+
+.rtl-calendar .react-datepicker__today-button {
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  cursor: pointer;
+  text-align: center;
+  font-weight: 500;
+  padding: 0.5rem;
+  color: #111827;
+}
+
+.rtl-calendar .react-datepicker__today-button:hover {
+  background: #f3f4f6;
+}
+
+/* RTL support for date picker input */
+.react-datepicker__input-container {
+  width: 100%;
+}
+
+.react-datepicker__input-container input {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  direction: rtl;
+  text-align: right;
+}
+
+.react-datepicker__input-container input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  ring: 1px solid #3b82f6;
+}
