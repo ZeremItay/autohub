@@ -185,8 +185,15 @@ export default function EventDetailPage() {
                   </div>
                 </div>
 
-                {/* Register/Join Button */}
-                {isEventStarted(event) && event.zoom_meeting_id ? (
+                {/* Register/Join/Recording Button */}
+                {event.status === 'completed' && event.recording_id ? (
+                  <Link
+                    href={`/recordings/${event.recording_id}`}
+                    className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-center block"
+                  >
+                    הלייב הסתיים, כאן אפשר לצפות בהקלטה
+                  </Link>
+                ) : (event.status === 'active' || (isEventStarted(event) && event.zoom_meeting_id)) ? (
                   <Link
                     href="/live-room"
                     className="w-full px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-semibold text-center block"

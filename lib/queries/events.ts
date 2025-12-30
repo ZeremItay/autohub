@@ -17,19 +17,27 @@ export interface Event {
   recurring_pattern?: string;
   zoom_meeting_id?: string;
   zoom_meeting_password?: string;
+  recording_id?: string;
+  status?: 'upcoming' | 'active' | 'completed' | 'cancelled' | 'deleted';
   created_at: string;
   updated_at: string;
 }
 
 // Get all events
-export async function getAllEvents() {
-  const { data, error } = await supabase
+export async function getAllEvents(includeDeleted: boolean = false) {
+  let query = supabase
     .from('events')
     .select('*')
     .order('event_date', { ascending: true })
     .order('event_time', { ascending: true })
     .limit(50);
   
+  // Filter out deleted events unless explicitly requested
+  if (!includeDeleted) {
+    query = query.or('status.is.null,status.neq.deleted');
+  }
+  
+  const { data, error } = await query;
   return { data, error };
 }
 
@@ -41,6 +49,7 @@ export async function getUpcomingEvents(limit?: number) {
     .from('events')
     .select('*')
     .gte('event_date', today)
+    .or('status.is.null,status.eq.upcoming,status.eq.active,status.eq.completed')
     .order('event_date', { ascending: true })
     .order('event_time', { ascending: true });
   
@@ -53,8 +62,8 @@ export async function getUpcomingEvents(limit?: number) {
 }
 
 // Get events for a specific date range
-export async function getEventsByDateRange(startDate: string, endDate: string) {
-  const { data, error } = await supabase
+export async function getEventsByDateRange(startDate: string, endDate: string, includeDeleted: boolean = false) {
+  let query = supabase
     .from('events')
     .select('*')
     .gte('event_date', startDate)
@@ -62,6 +71,12 @@ export async function getEventsByDateRange(startDate: string, endDate: string) {
     .order('event_date', { ascending: true })
     .order('event_time', { ascending: true });
   
+  // Filter out deleted events unless explicitly requested
+  if (!includeDeleted) {
+    query = query.or('status.is.null,status.neq.deleted');
+  }
+  
+  const { data, error } = await query;
   return { data, error };
 }
 
@@ -78,9 +93,15 @@ export async function getEventsByMonth(year: number, month: number) {
 
 // Create event
 export async function createEvent(event: Omit<Event, 'id' | 'created_at' | 'updated_at'>) {
+  // Set default status to 'upcoming' if not provided
+  const eventData = {
+    ...event,
+    status: event.status || 'upcoming'
+  };
+  
   const { data, error } = await supabase
     .from('events')
-    .insert([event])
+    .insert([eventData])
     .select()
     .single();
   
@@ -113,14 +134,23 @@ export async function getEventById(eventId: string) {
   return { data, error };
 }
 
-// Delete event
+// Delete event (soft delete - sets status to 'deleted')
 export async function deleteEvent(eventId: string) {
-  const { error } = await supabase
-    .from('events')
-    .delete()
-    .eq('id', eventId);
+  console.log('deleteEvent called with eventId:', eventId);
   
-  return { error };
+  // Use soft delete - set status to 'deleted' instead of actually deleting
+  const { data, error } = await supabase
+    .from('events')
+    .update({ 
+      status: 'deleted',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', eventId)
+    .select();
+  
+  console.log('deleteEvent result (soft delete):', { data, error, hasError: !!error });
+  
+  return { data, error };
 }
 
 // Get next live event (within 1 hour before or after start)
@@ -145,6 +175,7 @@ export async function getNextLiveEvent() {
     .select('*')
     .not('zoom_meeting_id', 'is', null)
     .gte('event_date', today)
+    .or('status.is.null,status.eq.upcoming,status.eq.active,status.eq.completed')
     .order('event_date', { ascending: true })
     .order('event_time', { ascending: true });
   
@@ -188,5 +219,74 @@ export async function getNextLiveEvent() {
   // #endregion
   
   return { data: nextEvent, error: null };
+}
+
+// Auto-update event statuses based on current time
+// This function checks all events and updates their status:
+// - 'upcoming' → 'active' when event starts
+// - 'active' → 'completed' when event ends
+// - 'upcoming' stays 'upcoming' if event hasn't started yet
+export async function updateEventStatuses() {
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  
+  // Get all events that might need status updates (upcoming or active, not deleted/cancelled)
+  const { data: events, error: fetchError } = await supabase
+    .from('events')
+    .select('*')
+    .or('status.is.null,status.eq.upcoming,status.eq.active')
+    .gte('event_date', today); // Only check future or today's events
+  
+  if (fetchError || !events || events.length === 0) {
+    return { updated: 0, error: fetchError };
+  }
+  
+  const updates: Array<{ id: string; status: string }> = [];
+  
+  for (const event of events) {
+    const eventDateTime = new Date(`${event.event_date}T${event.event_time}`);
+    const eventEndTime = new Date(eventDateTime.getTime() + 2 * 60 * 60 * 1000); // Assume 2 hour duration
+    const currentStatus = event.status || 'upcoming';
+    
+    let newStatus: string | null = null;
+    
+    // If event has started but not ended → should be 'active'
+    if (now >= eventDateTime && now < eventEndTime) {
+      if (currentStatus !== 'active') {
+        newStatus = 'active';
+      }
+    }
+    // If event has ended → should be 'completed'
+    else if (now >= eventEndTime) {
+      if (currentStatus !== 'completed') {
+        newStatus = 'completed';
+      }
+    }
+    // If event hasn't started yet → should be 'upcoming'
+    else if (now < eventDateTime) {
+      if (currentStatus !== 'upcoming') {
+        newStatus = 'upcoming';
+      }
+    }
+    
+    if (newStatus) {
+      updates.push({ id: event.id, status: newStatus });
+    }
+  }
+  
+  // Batch update all events that need status changes
+  if (updates.length > 0) {
+    for (const update of updates) {
+      await supabase
+        .from('events')
+        .update({ 
+          status: update.status as any,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', update.id);
+    }
+  }
+  
+  return { updated: updates.length, error: null };
 }
 

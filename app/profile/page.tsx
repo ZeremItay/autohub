@@ -44,6 +44,7 @@ import { useRef } from 'react'
 import { getUserForumPosts, getUserForumReplies } from '@/lib/queries/forums'
 import { getUserPointsHistory } from '@/lib/queries/gamification'
 import { getEnrolledCourses, getCompletedLessons, getCourseLessons } from '@/lib/queries/courses'
+import { getUserProjects, getProjectOffersByUser, getProjectOffers } from '@/lib/queries/projects'
 import { BookOpen } from 'lucide-react'
 import { formatTimeAgo as formatTimeAgoUtil } from '@/lib/utils/date'
 
@@ -51,7 +52,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'profile' | 'timeline' | 'messages' | 'forums' | 'points' | 'courses' | 'notifications'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'timeline' | 'messages' | 'forums' | 'points' | 'courses' | 'notifications' | 'projects'>('profile')
   const [editingDetails, setEditingDetails] = useState(false)
   const [editingPersonal, setEditingPersonal] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -69,6 +70,10 @@ export default function ProfilePage() {
   const [loadingCourses, setLoadingCourses] = useState(false)
   const [myOffers, setMyOffers] = useState<any[]>([])
   const [loadingOffers, setLoadingOffers] = useState(false)
+  const [myProjects, setMyProjects] = useState<any[]>([])
+  const [mySubmissions, setMySubmissions] = useState<any[]>([])
+  const [projectOffers, setProjectOffers] = useState<Record<string, any[]>>({})
+  const [loadingProjects, setLoadingProjects] = useState(false)
   const [userBadges, setUserBadges] = useState<any[]>([])
   const [highestBadge, setHighestBadge] = useState<any>(null)
   const [currentLoggedInUserId, setCurrentLoggedInUserId] = useState<string | null>(null)
@@ -78,6 +83,7 @@ export default function ProfilePage() {
   const [notificationsPage, setNotificationsPage] = useState(1)
   const [notificationsTotalPages, setNotificationsTotalPages] = useState(1)
   const [notificationsTotal, setNotificationsTotal] = useState(0)
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -136,6 +142,9 @@ export default function ProfilePage() {
     }
     if (profile && activeTab === 'profile') {
       loadMyOffers()
+    }
+    if (profile && activeTab === 'projects') {
+      loadProjectsData()
     }
   }, [profile, activeTab])
 
@@ -560,6 +569,52 @@ export default function ProfilePage() {
       setMyOffers([])
     } finally {
       setLoadingOffers(false)
+    }
+  }
+
+  async function loadProjectsData() {
+    if (!profile) return
+    setLoadingProjects(true)
+    try {
+      const userId = profile.user_id || profile.id
+      
+      // טעינת פרויקטים שהמשתמש פרסם
+      const { data: projects, error: projectsError } = await getUserProjects(userId)
+      if (projectsError) {
+        console.error('Error loading projects:', projectsError)
+        setMyProjects([])
+      } else {
+        setMyProjects(projects || [])
+        
+        // טעינת כל ההגשות לכל פרויקט של המשתמש
+        if (projects && projects.length > 0) {
+          const offersPromises = projects.map(async (project: any) => {
+            const { data } = await getProjectOffers(project.id)
+            return { projectId: project.id, offers: data || [] }
+          })
+          const offersResults = await Promise.all(offersPromises)
+          const offersMap = offersResults.reduce((acc, { projectId, offers }) => {
+            acc[projectId] = offers
+            return acc
+          }, {} as Record<string, any[]>)
+          setProjectOffers(offersMap)
+        }
+      }
+      
+      // טעינת הגשות שהמשתמש הגיש
+      const { data: submissions, error: submissionsError } = await getProjectOffersByUser(userId)
+      if (submissionsError) {
+        console.error('Error loading submissions:', submissionsError)
+        setMySubmissions([])
+      } else {
+        setMySubmissions(submissions || [])
+      }
+    } catch (error) {
+      console.error('Error loading projects data:', error)
+      setMyProjects([])
+      setMySubmissions([])
+    } finally {
+      setLoadingProjects(false)
     }
   }
 
@@ -1011,6 +1066,17 @@ export default function ProfilePage() {
                   <Bell className="w-5 h-5" />
                   <span className="font-medium">התראות</span>
                 </button>
+                <button
+                  onClick={() => { setActiveTab('projects'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    activeTab === 'projects'
+                      ? 'bg-[#F52F8E] text-white'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                  }`}
+                >
+                  <Briefcase className="w-5 h-5" />
+                  <span className="font-medium">פרויקטים</span>
+                </button>
               </div>
             )}
           </div>
@@ -1094,6 +1160,17 @@ export default function ProfilePage() {
               >
                 <Bell className="w-5 h-5" />
                 <span className="font-medium">התראות</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('projects')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  activeTab === 'projects'
+                    ? 'bg-[#F52F8E] text-white'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                }`}
+              >
+                <Briefcase className="w-5 h-5" />
+                <span className="font-medium">פרויקטים</span>
               </button>
             </div>
           </aside>
@@ -1836,6 +1913,182 @@ export default function ProfilePage() {
                     )}
                   </>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'projects' && (
+              <div className="space-y-6">
+                {/* פרויקטים שפרסמתי */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">פרויקטים שפרסמתי</h2>
+                  {loadingProjects ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F52F8E] mx-auto mb-4"></div>
+                      <p className="text-gray-600">טוען פרויקטים...</p>
+                    </div>
+                  ) : myProjects.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg mb-2">אין פרויקטים שפרסמת</p>
+                      <p className="text-sm">כשתיצור פרויקטים, הם יופיעו כאן</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {myProjects.map((project: any) => {
+                        const offers = projectOffers[project.id] || []
+                        const showOffers = expandedProjects.has(project.id)
+                        return (
+                          <div key={project.id} className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-gray-800 mb-1">{project.title}</h3>
+                                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{project.description}</p>
+                                <div className="flex items-center gap-3 text-xs text-gray-500">
+                                  <span className={`px-2 py-1 rounded ${
+                                    project.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                    project.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
+                                    project.status === 'closed' ? 'bg-red-100 text-red-700' :
+                                    'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {project.status === 'completed' ? 'הושלם' :
+                                     project.status === 'in_progress' ? 'בביצוע' :
+                                     project.status === 'closed' ? 'סגור' :
+                                     'פתוח'}
+                                  </span>
+                                  <span>{offers.length} הגשות</span>
+                                  {project.created_at && (
+                                    <span>{new Date(project.created_at).toLocaleDateString('he-IL')}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setExpandedProjects(prev => {
+                                    const next = new Set(prev)
+                                    if (next.has(project.id)) {
+                                      next.delete(project.id)
+                                    } else {
+                                      next.add(project.id)
+                                    }
+                                    return next
+                                  })
+                                }}
+                                className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                              >
+                                {showOffers ? 'הסתר' : 'הצג'} הגשות
+                              </button>
+                            </div>
+                            {showOffers && offers.length > 0 && (
+                              <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                                <h4 className="font-medium text-gray-700 mb-2">הגשות:</h4>
+                                {offers.map((offer: any) => (
+                                  <div key={offer.id} className="bg-gray-50 p-3 rounded-lg">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="font-medium text-sm">{offer.user?.display_name || 'משתמש לא ידוע'}</span>
+                                          {offer.offer_amount && (
+                                            <span className="text-[#F52F8E] font-semibold text-sm">
+                                              {offer.offer_amount} {offer.offer_currency || 'ILS'}
+                                            </span>
+                                          )}
+                                          <span className={`px-2 py-0.5 text-xs rounded ${
+                                            offer.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                                            offer.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                            'bg-yellow-100 text-yellow-700'
+                                          }`}>
+                                            {offer.status === 'accepted' ? 'אושר' :
+                                             offer.status === 'rejected' ? 'נדחה' :
+                                             'ממתין'}
+                                          </span>
+                                        </div>
+                                        {offer.message && (
+                                          <p className="text-sm text-gray-600 mb-1">{offer.message}</p>
+                                        )}
+                                        <span className="text-xs text-gray-400">
+                                          {offer.created_at ? new Date(offer.created_at).toLocaleDateString('he-IL') : '-'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {showOffers && offers.length === 0 && (
+                              <div className="mt-4 pt-4 border-t border-gray-200 text-center text-gray-500 text-sm">
+                                אין הגשות לפרויקט זה
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* פרויקטים שהגשתי להם מועמדות */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">פרויקטים שהגשתי להם מועמדות</h2>
+                  {loadingProjects ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F52F8E] mx-auto mb-4"></div>
+                      <p className="text-gray-600">טוען הגשות...</p>
+                    </div>
+                  ) : mySubmissions.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg mb-2">אין הגשות</p>
+                      <p className="text-sm">כשתיגש לפרויקטים, הם יופיעו כאן</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {mySubmissions.map((submission: any) => (
+                        <div key={submission.id} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-gray-800 mb-1">
+                                {submission.project?.title || 'פרויקט לא זמין'}
+                              </h3>
+                              {submission.project?.description && (
+                                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{submission.project.description}</p>
+                              )}
+                              <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                                {submission.offer_amount && (
+                                  <span className="text-[#F52F8E] font-semibold">
+                                    {submission.offer_amount} {submission.offer_currency || 'ILS'}
+                                  </span>
+                                )}
+                                <span className={`px-2 py-1 rounded ${
+                                  submission.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                                  submission.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                  'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {submission.status === 'accepted' ? 'אושר' :
+                                   submission.status === 'rejected' ? 'נדחה' :
+                                   'ממתין'}
+                                </span>
+                                {submission.created_at && (
+                                  <span>{new Date(submission.created_at).toLocaleDateString('he-IL')}</span>
+                                )}
+                              </div>
+                              {submission.message && (
+                                <p className="text-sm text-gray-600 mb-2">{submission.message}</p>
+                              )}
+                            </div>
+                            {submission.project?.id && (
+                              <Link
+                                href={`/projects`}
+                                className="px-3 py-1 text-sm bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                              >
+                                צפה בפרויקט
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </main>

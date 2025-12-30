@@ -71,7 +71,15 @@ export default function ProjectsPage() {
       ]);
 
       if (projectsRes.data) {
-        setProjects(projectsRes.data);
+        // Sort projects: closed projects go to the end
+        const sortedProjects = [...projectsRes.data].sort((a, b) => {
+          // If one is closed and the other is not, closed goes to the end
+          if (a.status === 'closed' && b.status !== 'closed') return 1;
+          if (a.status !== 'closed' && b.status === 'closed') return -1;
+          // Otherwise maintain original order (by created_at DESC from query)
+          return 0;
+        });
+        setProjects(sortedProjects);
       }
 
       if (eventsRes.data) {
@@ -143,11 +151,22 @@ export default function ProjectsPage() {
       console.log('Technologies input:', newProject.technologies);
       console.log('Technologies array:', technologies);
 
+      if (!currentUser) {
+        alert('אנא התחבר כדי ליצור פרויקט');
+        return;
+      }
+
+      const userId = currentUser.user_id || currentUser.id;
+      if (!userId) {
+        alert('שגיאה: לא נמצא מזהה משתמש');
+        return;
+      }
+
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: profiles[0].user_id,
+          user_id: userId,
           title: newProject.title,
           description: newProject.description,
           budget_min: newProject.budget_min ? parseFloat(newProject.budget_min) : null,
@@ -326,6 +345,12 @@ export default function ProjectsPage() {
     const project = projects.find(p => p.id === projectId);
     if (!project) {
       alert('פרויקט לא נמצא');
+      return;
+    }
+    
+    // Check if project is closed
+    if (project.status === 'closed') {
+      alert('לא ניתן להגיש הצעות לפרויקט סגור');
       return;
     }
     
@@ -538,20 +563,29 @@ export default function ProjectsPage() {
                           </div>
                         )}
                       </div>
-                      <ProtectedAction
-                        requireAuth={true}
-                        disabledMessage="התחבר כדי להגיש הצעה"
-                      >
+                      {project.status === 'closed' ? (
                         <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSubmitOffer(project.id);
-                          }}
-                          className="w-full btn-modern px-5 py-2.5 text-white rounded-xl text-sm font-medium"
+                          disabled
+                          className="w-full px-5 py-2.5 bg-gray-300 text-gray-500 rounded-xl text-sm font-medium cursor-not-allowed"
                         >
-                          הגש הצעה
+                          פרויקט סגור
                         </button>
-                      </ProtectedAction>
+                      ) : (
+                        <ProtectedAction
+                          requireAuth={true}
+                          disabledMessage="התחבר כדי להגיש הצעה"
+                        >
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSubmitOffer(project.id);
+                            }}
+                            className="w-full btn-modern px-5 py-2.5 text-white rounded-xl text-sm font-medium"
+                          >
+                            הגש הצעה
+                          </button>
+                        </ProtectedAction>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -611,20 +645,29 @@ export default function ProjectsPage() {
                           <span>{project.offers_count || 0} הצעות</span>
                         </div>
                       </div>
-                      <ProtectedAction
-                        requireAuth={true}
-                        disabledMessage="התחבר כדי להגיש הצעה"
-                      >
+                      {project.status === 'closed' ? (
                         <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSubmitOffer(project.id);
-                          }}
-                          className="btn-modern px-5 py-2.5 text-white rounded-xl text-sm font-medium"
+                          disabled
+                          className="px-5 py-2.5 bg-gray-300 text-gray-500 rounded-xl text-sm font-medium cursor-not-allowed"
                         >
-                          הגש הצעה
+                          פרויקט סגור
                         </button>
-                      </ProtectedAction>
+                      ) : (
+                        <ProtectedAction
+                          requireAuth={true}
+                          disabledMessage="התחבר כדי להגיש הצעה"
+                        >
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSubmitOffer(project.id);
+                            }}
+                            className="btn-modern px-5 py-2.5 text-white rounded-xl text-sm font-medium"
+                          >
+                            הגש הצעה
+                          </button>
+                        </ProtectedAction>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -842,6 +885,20 @@ export default function ProjectsPage() {
                     );
 
                     if (update.link) {
+                      // Check if it's a recording link and user is not premium
+                      if (update.type === 'recording' && !userIsPremium) {
+                        return (
+                          <div 
+                            key={update.id || idx}
+                            onClick={() => {
+                              alert('גישה להקלטות זמינה למנויי פרימיום בלבד. אנא שדרג את המנוי שלך כדי לצפות בהקלטות.');
+                            }}
+                          >
+                            {content}
+                          </div>
+                        );
+                      }
+                      
                       return (
                         <Link key={update.id || idx} href={update.link}>
                           {content}

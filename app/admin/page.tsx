@@ -7,9 +7,11 @@ import { getPosts, createPost } from '@/lib/queries/posts'
 import { getAllProfiles, getProfile, updateProfile } from '@/lib/queries/profiles'
 import { clearCache } from '@/lib/cache'
 import { getAllRoles } from '@/lib/queries/roles'
-import { getAllRecordings, createRecording, updateRecording, deleteRecording } from '@/lib/queries/recordings'
+import { getAllRecordings, getRecordingById, createRecording, updateRecording, deleteRecording } from '@/lib/queries/recordings'
 import { getAllCourses, createCourse, type Course } from '@/lib/queries/courses'
 import { getAllEvents, createEvent, updateEvent, deleteEvent, type Event } from '@/lib/queries/events'
+import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, getAllProjectOffers, getProjectOffers, updateProjectOffer, deleteProjectOffer, type Project, type ProjectOffer } from '@/lib/queries/projects'
+import { getAllTags, getTagById, createTag, updateTag, deleteTag, getUnapprovedTags, type Tag } from '@/lib/queries/tags'
 import { 
   Users, 
   FileText, 
@@ -28,7 +30,8 @@ import {
   CreditCard,
   Calendar,
   Download,
-  BookOpen
+  BookOpen,
+  Tag as TagIcon
 } from 'lucide-react'
 import Link from 'next/link'
 import DatePicker from 'react-datepicker'
@@ -46,7 +49,7 @@ export default function AdminPanel() {
     return null;
   })()}
   // #endregion
-  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags'>('users')
   const [users, setUsers] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [roles, setRoles] = useState<any[]>([])
@@ -61,10 +64,17 @@ export default function AdminPanel() {
   const [reports, setReports] = useState<any[]>([])
   const [news, setNews] = useState<any[]>([])
   const [events, setEvents] = useState<Event[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectOffers, setProjectOffers] = useState<Record<string, ProjectOffer[]>>({})
+  const [selectedProject, setSelectedProject] = useState<string | null>(null)
+  const [tags, setTags] = useState<Tag[]>([])
+  const [unapprovedTags, setUnapprovedTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<string | null>(null)
   const [formData, setFormData] = useState<any>({})
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [zoomMeetings, setZoomMeetings] = useState<any[]>([])
+  const [loadingZoomMeetings, setLoadingZoomMeetings] = useState(false)
   
   // Calculate selected date for events DatePicker
   const eventSelectedDate = useMemo(() => {
@@ -117,6 +127,68 @@ export default function AdminPanel() {
       loadData()
     }
   }, [activeTab, isAuthorized])
+
+  async function loadZoomMeetings() {
+    setLoadingZoomMeetings(true)
+    try {
+      const response = await fetch('/api/zoom/list-meetings')
+      const data = await response.json()
+      if (data.success && data.meetings) {
+        setZoomMeetings(data.meetings)
+      } else {
+        console.error('Failed to load Zoom meetings:', data.error)
+        setZoomMeetings([])
+      }
+    } catch (error) {
+      console.error('Error loading Zoom meetings:', error)
+      setZoomMeetings([])
+    } finally {
+      setLoadingZoomMeetings(false)
+    }
+  }
+
+  function handleZoomMeetingSelect(meetingId: string) {
+    const selectedMeeting = zoomMeetings.find(m => m.id === meetingId)
+    if (selectedMeeting) {
+      // Parse start_time from Zoom (format: "2024-01-15T14:30:00Z" or similar)
+      let eventDate = null
+      let eventTime = ''
+      let eventDatetime = null
+      
+      if (selectedMeeting.start_time) {
+        try {
+          const startDate = new Date(selectedMeeting.start_time)
+          if (!isNaN(startDate.getTime())) {
+            // Extract date in YYYY-MM-DD format
+            const year = startDate.getFullYear()
+            const month = String(startDate.getMonth() + 1).padStart(2, '0')
+            const day = String(startDate.getDate()).padStart(2, '0')
+            eventDate = `${year}-${month}-${day}`
+            
+            // Extract time in HH:MM format (24-hour)
+            const hours = String(startDate.getHours()).padStart(2, '0')
+            const minutes = String(startDate.getMinutes()).padStart(2, '0')
+            eventTime = `${hours}:${minutes}`
+            
+            // Create Date object for DatePicker
+            eventDatetime = new Date(startDate)
+          }
+        } catch (e) {
+          console.error('Error parsing meeting start_time:', e)
+        }
+      }
+      
+      setFormData({
+        ...formData,
+        title: selectedMeeting.topic || formData.title || '',
+        zoom_meeting_id: selectedMeeting.id,
+        zoom_meeting_password: selectedMeeting.password || '',
+        event_date: eventDate || formData.event_date,
+        event_time: eventTime || formData.event_time,
+        event_datetime: eventDatetime || formData.event_datetime,
+      })
+    }
+  }
 
   async function checkAuthorization() {
     try {
@@ -244,8 +316,46 @@ export default function AdminPanel() {
         const { data, error } = await getAllReportsForAdmin()
         if (!error) setReports(Array.isArray(data) ? data : [])
       } else if (activeTab === 'events') {
+        console.log('Loading events data...')
         const { data, error } = await getAllEvents()
-        if (!error) setEvents(data || [])
+        console.log('getAllEvents result:', { data: data?.length || 0, error, hasError: !!error })
+        if (!error) {
+          console.log('Setting events:', data?.length || 0, 'events')
+          setEvents(data || [])
+          console.log('Events state updated')
+        } else {
+          console.error('Error loading events:', error)
+        }
+        // Load Zoom meetings when events tab is active
+        loadZoomMeetings()
+        // Load recordings when events tab is active
+        const { data: recordingsData, error: recordingsError } = await getAllRecordings()
+        if (!recordingsError) {
+          setRecordings(recordingsData || [])
+        }
+      } else if (activeTab === 'projects') {
+        const { data: projectsData, error: projectsError } = await getAllProjects()
+        if (!projectsError && projectsData) {
+          setProjects(projectsData || [])
+          // Load offers for all projects
+          const offersMap: Record<string, ProjectOffer[]> = {}
+          for (const project of projectsData) {
+            const { data: offers } = await getProjectOffers(project.id)
+            if (offers) {
+              offersMap[project.id] = offers
+            }
+          }
+          setProjectOffers(offersMap)
+        }
+      } else if (activeTab === 'tags') {
+        const { data: tagsData, error: tagsError } = await getAllTags(true) // Include unapproved
+        if (!tagsError && tagsData) {
+          setTags(tagsData || [])
+        }
+        const { data: unapprovedData, error: unapprovedError } = await getUnapprovedTags()
+        if (!unapprovedError && unapprovedData) {
+          setUnapprovedTags(unapprovedData || [])
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -733,7 +843,9 @@ export default function AdminPanel() {
           is_recurring: formData.is_recurring || false,
           recurring_pattern: formData.recurring_pattern || undefined,
           zoom_meeting_id: formData.zoom_meeting_id || undefined,
-          zoom_meeting_password: formData.zoom_meeting_password || undefined
+          zoom_meeting_password: formData.zoom_meeting_password || undefined,
+          recording_id: formData.recording_id || undefined,
+          status: formData.status || 'upcoming'
         }
 
         const { data, error } = await createEvent(eventData)
@@ -746,6 +858,72 @@ export default function AdminPanel() {
           setEditing(null)
           setFormData({})
           alert('האירוע נוצר בהצלחה!')
+        }
+      } else if (activeTab === 'projects') {
+        if (!formData.title || !formData.description) {
+          alert('אנא מלא כותרת ותיאור')
+          return
+        }
+
+        // Parse technologies from comma-separated string to array
+        let technologies: string[] = []
+        if (formData.technologies && typeof formData.technologies === 'string') {
+          technologies = formData.technologies
+            .split(',')
+            .map((t: string) => t.trim())
+            .filter((t: string) => t.length > 0)
+        } else if (Array.isArray(formData.technologies)) {
+          technologies = formData.technologies
+        }
+
+        const projectData = {
+          user_id: formData.user_id || '',
+          title: formData.title || '',
+          description: formData.description || '',
+          status: formData.status || 'open',
+          budget_min: formData.budget_min ? parseFloat(formData.budget_min) : undefined,
+          budget_max: formData.budget_max ? parseFloat(formData.budget_max) : undefined,
+          budget_currency: formData.budget_currency || 'ILS',
+          technologies: technologies.length > 0 ? technologies : undefined,
+          offers_count: 0,
+          views: 0
+        }
+
+        const { data, error } = await createProject(projectData)
+        
+        if (error) {
+          console.error('Error creating project:', error)
+          alert(`שגיאה ביצירת הפרויקט: ${(error as any)?.message || 'שגיאה לא ידועה'}`)
+        } else {
+          await loadData()
+          setEditing(null)
+          setFormData({})
+          alert('הפרויקט נוצר בהצלחה!')
+        }
+      } else if (activeTab === 'tags') {
+        if (!formData.name || formData.name.trim() === '') {
+          alert('אנא הזן שם תגית')
+          return
+        }
+
+        const tagData = {
+          name: formData.name.trim(),
+          slug: formData.slug?.trim() || undefined,
+          description: formData.description?.trim() || undefined,
+          color: formData.color?.trim() || undefined,
+          icon: formData.icon?.trim() || undefined,
+          is_approved: formData.is_approved !== false
+        }
+
+        const { data, error } = await createTag(tagData)
+        if (error) {
+          console.error('Error creating tag:', error)
+          alert(`שגיאה ביצירת התגית: ${error?.message || 'שגיאה לא ידועה'}`)
+        } else {
+          await loadData()
+          setEditing(null)
+          setFormData({})
+          alert('התגית נוצרה בהצלחה!')
         }
       }
     } catch (error) {
@@ -1049,7 +1227,9 @@ export default function AdminPanel() {
           is_recurring: formData.is_recurring || false,
           recurring_pattern: formData.recurring_pattern || undefined,
           zoom_meeting_id: formData.zoom_meeting_id || undefined,
-          zoom_meeting_password: formData.zoom_meeting_password || undefined
+          zoom_meeting_password: formData.zoom_meeting_password || undefined,
+          recording_id: formData.recording_id || undefined,
+          status: formData.status || 'upcoming'
         }
 
         const { data, error } = await updateEvent(id, updateData)
@@ -1062,6 +1242,72 @@ export default function AdminPanel() {
           setEditing(null)
           setFormData({})
           alert('האירוע עודכן בהצלחה!')
+        }
+      } else if (activeTab === 'projects') {
+        // Parse technologies from comma-separated string to array
+        let technologies: string[] = []
+        if (formData.technologies && typeof formData.technologies === 'string') {
+          technologies = formData.technologies
+            .split(',')
+            .map((t: string) => t.trim())
+            .filter((t: string) => t.length > 0)
+        } else if (Array.isArray(formData.technologies)) {
+          technologies = formData.technologies
+        }
+
+        const updateData: any = {
+          title: formData.title || '',
+          description: formData.description || '',
+          status: formData.status || 'open',
+          budget_min: formData.budget_min ? parseFloat(formData.budget_min) : undefined,
+          budget_max: formData.budget_max ? parseFloat(formData.budget_max) : undefined,
+          budget_currency: formData.budget_currency || 'ILS',
+          technologies: technologies.length > 0 ? technologies : undefined
+        }
+
+        const { data, error } = await updateProject(id, updateData)
+        
+        if (error) {
+          console.error('Error updating project:', error)
+          alert(`שגיאה בעדכון הפרויקט: ${(error as any)?.message || 'שגיאה לא ידועה'}`)
+        } else {
+          // Update state immediately for better UX
+          if (data) {
+            setProjects(prevProjects => 
+              prevProjects.map(p => p.id === id ? { ...p, ...data } : p)
+            )
+          }
+          await loadData()
+          setEditing(null)
+          setFormData({})
+          alert('הפרויקט עודכן בהצלחה!')
+        }
+      } else if (activeTab === 'tags') {
+        if (!formData.name || formData.name.trim() === '') {
+          alert('אנא הזן שם תגית')
+          return
+        }
+
+        const updateData: any = {
+          name: formData.name.trim(),
+          slug: formData.slug?.trim() || undefined,
+          description: formData.description?.trim() || undefined,
+          color: formData.color?.trim() || undefined,
+          icon: formData.icon?.trim() || undefined,
+          is_approved: formData.is_approved !== false
+        }
+
+        const { data, error } = await updateTag(id, updateData)
+        if (error) {
+          console.error('Error updating tag:', error)
+          alert(`שגיאה בעדכון התגית: ${error?.message || 'שגיאה לא ידועה'}`)
+        } else {
+          setTags(prevTags => prevTags.map(t => t.id === id ? { ...t, ...updateData } : t))
+          setUnapprovedTags(prevTags => prevTags.map(t => t.id === id ? { ...t, ...updateData } : t))
+          await loadData()
+          setEditing(null)
+          setFormData({})
+          alert('התגית עודכנה בהצלחה!')
         }
       } else if (activeTab === 'payments') {
         const response = await fetch('/api/admin/payments', {
@@ -1173,12 +1419,29 @@ export default function AdminPanel() {
           alert(`שגיאה במחיקת הקורס: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`)
         }
       } else if (activeTab === 'events') {
-        const { error } = await deleteEvent(id)
-        if (!error) {
-          await loadData()
-          alert('האירוע נמחק בהצלחה!')
-        } else {
-          alert(`שגיאה במחיקת האירוע: ${error?.message || 'שגיאה לא ידועה'}`)
+        try {
+          console.log('Deleting event:', id)
+          const { error } = await deleteEvent(id)
+          console.log('Delete result:', { error, hasError: !!error })
+          
+          if (error) {
+            console.error('Error deleting event:', error)
+            alert(`שגיאה במחיקת האירוע: ${error?.message || 'שגיאה לא ידועה'}`)
+          } else {
+            console.log('Event deleted successfully, updating state...')
+            // Update state directly by filtering out the deleted event
+            setEvents(prevEvents => {
+              const updated = prevEvents.filter(e => e.id !== id)
+              console.log('Events updated:', prevEvents.length, '->', updated.length)
+              return updated
+            })
+            // Also reload data to ensure consistency
+            await loadData()
+            alert('האירוע נמחק בהצלחה!')
+          }
+        } catch (err) {
+          console.error('Exception deleting event:', err)
+          alert(`שגיאה במחיקת האירוע: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`)
         }
       } else if (activeTab === 'reports') {
         const { deleteReport } = await import('@/lib/queries/reports')
@@ -1200,9 +1463,60 @@ export default function AdminPanel() {
           const error = await response.json()
           alert(`שגיאה במחיקת התשלום: ${error.error || 'שגיאה לא ידועה'}`)
         }
+      } else if (activeTab === 'projects') {
+        try {
+          console.log('Deleting project:', id)
+          const { error } = await deleteProject(id)
+          
+          if (error) {
+            console.error('Error deleting project:', error)
+            alert(`שגיאה במחיקת הפרויקט: ${error?.message || 'שגיאה לא ידועה'}`)
+          } else {
+            console.log('Project deleted successfully:', id)
+            setProjects(prevProjects => prevProjects.filter(p => p.id !== id))
+            await loadData()
+            alert('הפרויקט נמחק בהצלחה!')
+          }
+        } catch (err) {
+          console.error('Exception deleting project:', err)
+          alert(`שגיאה במחיקת הפרויקט: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`)
+        }
       }
     } catch (error) {
       console.error('Error deleting:', error)
+    }
+  }
+
+  // Handle accept/reject offer
+  async function handleAcceptOffer(offerId: string) {
+    try {
+      const { error } = await updateProjectOffer(offerId, { status: 'accepted' })
+      if (error) {
+        console.error('Error accepting offer:', error)
+        alert(`שגיאה באישור ההגשה: ${error?.message || 'שגיאה לא ידועה'}`)
+      } else {
+        await loadData()
+        alert('ההגשה אושרה בהצלחה!')
+      }
+    } catch (err) {
+      console.error('Exception accepting offer:', err)
+      alert(`שגיאה באישור ההגשה: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`)
+    }
+  }
+
+  async function handleRejectOffer(offerId: string) {
+    try {
+      const { error } = await updateProjectOffer(offerId, { status: 'rejected' })
+      if (error) {
+        console.error('Error rejecting offer:', error)
+        alert(`שגיאה בדחיית ההגשה: ${error?.message || 'שגיאה לא ידועה'}`)
+      } else {
+        await loadData()
+        alert('ההגשה נדחתה!')
+      }
+    } catch (err) {
+      console.error('Exception rejecting offer:', err)
+      alert(`שגיאה בדחיית ההגשה: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`)
     }
   }
 
@@ -1269,7 +1583,7 @@ export default function AdminPanel() {
             }`}
           >
             <FileText className="w-5 h-5 inline-block ml-2" />
-            פוסטים
+            הודעות ראשיות
           </button>
           <button
             onClick={() => setActiveTab('roles')}
@@ -1392,6 +1706,28 @@ export default function AdminPanel() {
             <Calendar className="w-5 h-5 inline-block ml-2" />
             לייבים
           </button>
+          <button
+            onClick={() => setActiveTab('projects')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'projects'
+                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
+                : 'text-gray-600 hover:text-[#F52F8E]'
+            }`}
+          >
+            <FileText className="w-5 h-5 inline-block ml-2" />
+            פרויקטים
+          </button>
+          <button
+            onClick={() => setActiveTab('tags')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'tags'
+                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
+                : 'text-gray-600 hover:text-[#F52F8E]'
+            }`}
+          >
+            <TagIcon className="w-5 h-5 inline-block ml-2" />
+            תגיות
+          </button>
         </div>
 
         {/* Content */}
@@ -1403,13 +1739,15 @@ export default function AdminPanel() {
             <div className="mb-6 flex justify-between items-center">
               <h2 className="text-xl font-semibold">
                 {activeTab === 'users' && 'משתמשים'}
-                {activeTab === 'posts' && 'פוסטים'}
+                {activeTab === 'posts' && 'הודעות ראשיות'}
                 {activeTab === 'roles' && 'תפקידים'}
                 {activeTab === 'subscriptions' && 'מנויים'}
                 {activeTab === 'payments' && 'תשלומים'}
                 {activeTab === 'recordings' && 'הקלטות'}
                 {activeTab === 'reports' && 'דיווחים'}
                 {activeTab === 'events' && 'לייבים'}
+                {activeTab === 'projects' && 'פרויקטים'}
+                {activeTab === 'tags' && 'תגיות'}
               </h2>
               {activeTab === 'subscriptions' && (
                 <div className="flex gap-2">
@@ -2823,18 +3161,84 @@ export default function AdminPanel() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">מיקום</label>
-                        <input
-                          type="text"
-                          placeholder="מיקום (למשל: Zoom, Google Meet)"
-                          value={formData.location || ''}
-                          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        <label className="block text-sm font-medium text-gray-700 mb-2">סטטוס</label>
+                        <select
+                          value={formData.status || 'upcoming'}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                        />
+                        >
+                          <option value="upcoming">קרוב</option>
+                          <option value="active">פעיל (במהלך הלייב)</option>
+                          <option value="completed">הושלם</option>
+                          <option value="cancelled">בוטל</option>
+                        </select>
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">מיקום</label>
+                      <input
+                        type="text"
+                        placeholder="מיקום (למשל: Zoom, Google Meet)"
+                        value={formData.location || ''}
+                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
                     </div>
                     <div className="border-t border-gray-200 pt-4">
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">Zoom Meeting</h3>
+                      
+                      {/* Zoom Meetings Dropdown */}
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          בחר פגישת Zoom (אופציונלי)
+                        </label>
+                        {loadingZoomMeetings ? (
+                          <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                            טוען פגישות...
+                          </div>
+                        ) : zoomMeetings.length > 0 ? (
+                          <select
+                            value={formData.zoom_meeting_id || ''}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleZoomMeetingSelect(e.target.value)
+                              } else {
+                                setFormData({ ...formData, zoom_meeting_id: '', zoom_meeting_password: '' })
+                              }
+                            }}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          >
+                            <option value="">-- בחר פגישה --</option>
+                            {zoomMeetings.map((meeting: any) => {
+                              const startDate = meeting.start_time ? new Date(meeting.start_time) : null
+                              const dateStr = startDate ? startDate.toLocaleDateString('he-IL', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 'תאריך לא זמין'
+                              return (
+                                <option key={meeting.id} value={meeting.id}>
+                                  {meeting.topic} - {dateStr}
+                                </option>
+                              )
+                            })}
+                          </select>
+                        ) : (
+                          <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                            לא נמצאו פגישות Zoom או שגיאה בטעינה
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={loadZoomMeetings}
+                          className="mt-2 text-sm text-[#F52F8E] hover:text-[#E01E7A] transition-colors"
+                        >
+                          רענן רשימת פגישות
+                        </button>
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Zoom Meeting ID</label>
@@ -2856,6 +3260,35 @@ export default function AdminPanel() {
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                           />
                         </div>
+                      </div>
+                    </div>
+                    <div className="border-t border-gray-200 pt-4">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">הקלטה</h3>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          בחר הקלטה (אופציונלי - להצגה כשהלייב הסתיים)
+                        </label>
+                        {recordings.length > 0 ? (
+                          <select
+                            value={formData.recording_id || ''}
+                            onChange={(e) => setFormData({ ...formData, recording_id: e.target.value || undefined })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          >
+                            <option value="">-- בחר הקלטה --</option>
+                            {recordings.map((recording: any) => (
+                              <option key={recording.id} value={recording.id}>
+                                {recording.title}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                            אין הקלטות זמינות. הוסף הקלטות בטאב "הקלטות"
+                          </div>
+                        )}
+                        <p className="mt-2 text-xs text-gray-500">
+                          💡 הקלטה תוצג רק כשהלייב הושלם (status = completed)
+                        </p>
                       </div>
                     </div>
                     <div className="border-t border-gray-200 pt-4">
@@ -2978,6 +3411,221 @@ export default function AdminPanel() {
                         )}
                       </div>
                     </div>
+                  </div>
+                )}
+                {activeTab === 'projects' && (
+                  <div className="space-y-4">
+                    <input
+                      type="text"
+                      placeholder="כותרת הפרויקט *"
+                      value={formData.title || ''}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      dir="rtl"
+                      lang="he"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      required
+                    />
+                    <textarea
+                      placeholder="תיאור הפרויקט *"
+                      value={formData.description || ''}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      dir="rtl"
+                      lang="he"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      rows={4}
+                      required
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">מפרסם (User ID) *</label>
+                        <input
+                          type="text"
+                          placeholder="User ID"
+                          value={formData.user_id || ''}
+                          onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">סטטוס</label>
+                        <select
+                          value={formData.status || 'open'}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="open">פתוח</option>
+                          <option value="in_progress">בביצוע</option>
+                          <option value="completed">הושלם</option>
+                          <option value="closed">סגור</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">תקציב מינימלי</label>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={formData.budget_min || ''}
+                          onChange={(e) => setFormData({ ...formData, budget_min: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">תקציב מקסימלי</label>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={formData.budget_max || ''}
+                          onChange={(e) => setFormData({ ...formData, budget_max: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">מטבע</label>
+                        <select
+                          value={formData.budget_currency || 'ILS'}
+                          onChange={(e) => setFormData({ ...formData, budget_currency: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="ILS">₪ ILS</option>
+                          <option value="USD">$ USD</option>
+                          <option value="EUR">€ EUR</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">טכנולוגיות (מופרדות בפסיקים)</label>
+                      <input
+                        type="text"
+                        placeholder="למשל: Make.com, Zapier, API"
+                        value={formData.technologies || ''}
+                        onChange={(e) => setFormData({ ...formData, technologies: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                )}
+                {activeTab === 'tags' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">שם התגית *</label>
+                      <input
+                        type="text"
+                        placeholder="למשל: Make.com, API, Automation"
+                        value={formData.name || ''}
+                        onChange={(e) => {
+                          const name = e.target.value
+                          // Auto-generate slug from name if slug is empty or if name changed
+                          let slug = formData.slug || ''
+                          if (!slug || slug === generateSlug(formData.name || '')) {
+                            slug = name.toLowerCase()
+                              .replace(/[^a-z0-9\s-]/g, '')
+                              .replace(/\s+/g, '-')
+                              .replace(/-+/g, '-')
+                              .trim()
+                          }
+                          setFormData({ ...formData, name, slug })
+                        }}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        dir="rtl"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Slug</label>
+                      <input
+                        type="text"
+                        placeholder="make-com, api, automation"
+                        value={formData.slug || ''}
+                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">נוצר אוטומטית משם התגית (אופציונלי)</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">תיאור</label>
+                      <textarea
+                        placeholder="תיאור קצר של התגית"
+                        value={formData.description || ''}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        rows={3}
+                        dir="rtl"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">צבע (Hex)</label>
+                        <input
+                          type="text"
+                          placeholder="#F52F8E"
+                          value={formData.color || ''}
+                          onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">אייקון</label>
+                        <input
+                          type="text"
+                          placeholder="למשל: 🚀, ⚡, 🔥"
+                          value={formData.icon || ''}
+                          onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_approved !== false}
+                          onChange={(e) => setFormData({ ...formData, is_approved: e.target.checked })}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                        <span>מאושר (תגית מאושרת תוצג לכל המשתמשים)</span>
+                      </label>
+                    </div>
+                    {unapprovedTags.length > 0 && (
+                      <div className="border-t border-gray-200 pt-4">
+                        <h4 className="font-semibold text-gray-800 mb-3">תגיות ממתינות לאישור ({unapprovedTags.length})</h4>
+                        <div className="space-y-2">
+                          {unapprovedTags.map((tag) => (
+                            <div key={tag.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                              <div>
+                                <span className="font-medium">{tag.name}</span>
+                                {tag.description && (
+                                  <p className="text-sm text-gray-600 mt-1">{tag.description}</p>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={async () => {
+                                    const { error } = await updateTag(tag.id, { is_approved: true })
+                                    if (error) {
+                                      alert(`שגיאה באישור התגית: ${error.message}`)
+                                    } else {
+                                      await loadData()
+                                      alert('התגית אושרה בהצלחה!')
+                                    }
+                                  }}
+                                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                                >
+                                  אישר
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(tag.id)}
+                                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                                >
+                                  דחה
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="flex gap-2 mt-4">
@@ -3127,8 +3775,29 @@ export default function AdminPanel() {
                         <th className="text-right py-3 px-4">סוג</th>
                         <th className="text-right py-3 px-4">תאריך</th>
                         <th className="text-right py-3 px-4">שעה</th>
+                        <th className="text-right py-3 px-4">סטטוס</th>
                         <th className="text-right py-3 px-4">מיקום</th>
                         <th className="text-right py-3 px-4">Zoom ID</th>
+                        <th className="text-right py-3 px-4">פעולות</th>
+                      </>
+                    )}
+                    {activeTab === 'projects' && (
+                      <>
+                        <th className="text-right py-3 px-4">כותרת</th>
+                        <th className="text-right py-3 px-4">מפרסם</th>
+                        <th className="text-right py-3 px-4">סטטוס</th>
+                        <th className="text-right py-3 px-4">תאריך</th>
+                        <th className="text-right py-3 px-4">הגשות</th>
+                        <th className="text-right py-3 px-4">פעולות</th>
+                      </>
+                    )}
+                    {activeTab === 'tags' && (
+                      <>
+                        <th className="text-right py-3 px-4">שם</th>
+                        <th className="text-right py-3 px-4">Slug</th>
+                        <th className="text-right py-3 px-4">תיאור</th>
+                        <th className="text-right py-3 px-4">שימושים</th>
+                        <th className="text-right py-3 px-4">סטטוס</th>
                         <th className="text-right py-3 px-4">פעולות</th>
                       </>
                     )}
@@ -3530,38 +4199,65 @@ export default function AdminPanel() {
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
                               <button
-                                onClick={() => {
+                                onClick={async () => {
                                   setEditing(recording.id)
-                                  // Convert category array to comma-separated string for editing
-                                  const editData = { ...recording };
-                                  if (Array.isArray(recording.category)) {
-                                    editData.category = recording.category.join(', ');
-                                  }
-                                  // Ensure key_points and qa_section are properly loaded
-                                  // Parse if they are JSON strings, or use as-is if already arrays
-                                  if (recording.key_points) {
-                                    editData.key_points = typeof recording.key_points === 'string' 
-                                      ? JSON.parse(recording.key_points) 
-                                      : recording.key_points;
-                                  } else {
+                                  // Load full recording data (including qa_section and key_points) for editing
+                                  try {
+                                    const { data: fullRecording, error } = await getRecordingById(recording.id);
+                                    if (error || !fullRecording) {
+                                      console.error('Error loading full recording:', error);
+                                      // Fallback to basic recording data
+                                      const editData = { ...recording };
+                                      if (Array.isArray(recording.category)) {
+                                        editData.category = recording.category.join(', ');
+                                      }
+                                      editData.key_points = [];
+                                      editData.qa_section = [];
+                                      setFormData(editData);
+                                      return;
+                                    }
+                                    
+                                    // Convert category array to comma-separated string for editing
+                                    const editData = { ...fullRecording };
+                                    if (Array.isArray(fullRecording.category)) {
+                                      editData.category = fullRecording.category.join(', ');
+                                    }
+                                    // Ensure key_points and qa_section are properly loaded
+                                    // Parse if they are JSON strings, or use as-is if already arrays
+                                    if (fullRecording.key_points) {
+                                      editData.key_points = typeof fullRecording.key_points === 'string' 
+                                        ? JSON.parse(fullRecording.key_points) 
+                                        : fullRecording.key_points;
+                                    } else {
+                                      editData.key_points = [];
+                                    }
+                                    if (fullRecording.qa_section) {
+                                      editData.qa_section = typeof fullRecording.qa_section === 'string' 
+                                        ? JSON.parse(fullRecording.qa_section) 
+                                        : fullRecording.qa_section;
+                                    } else {
+                                      editData.qa_section = [];
+                                    }
+                                    console.log('Loading recording for edit:', {
+                                      id: fullRecording.id,
+                                      title: fullRecording.title,
+                                      key_points: editData.key_points,
+                                      qa_section: editData.qa_section,
+                                      raw_key_points: fullRecording.key_points,
+                                      raw_qa_section: fullRecording.qa_section
+                                    });
+                                    setFormData(editData);
+                                  } catch (error) {
+                                    console.error('Error loading recording for edit:', error);
+                                    // Fallback to basic recording data
+                                    const editData = { ...recording };
+                                    if (Array.isArray(recording.category)) {
+                                      editData.category = recording.category.join(', ');
+                                    }
                                     editData.key_points = [];
-                                  }
-                                  if (recording.qa_section) {
-                                    editData.qa_section = typeof recording.qa_section === 'string' 
-                                      ? JSON.parse(recording.qa_section) 
-                                      : recording.qa_section;
-                                  } else {
                                     editData.qa_section = [];
+                                    setFormData(editData);
                                   }
-                                  console.log('Loading recording for edit:', {
-                                    id: recording.id,
-                                    title: recording.title,
-                                    key_points: editData.key_points,
-                                    qa_section: editData.qa_section,
-                                    raw_key_points: recording.key_points,
-                                    raw_qa_section: recording.qa_section
-                                  });
-                                  setFormData(editData)
                                 }}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded"
                               >
@@ -3904,6 +4600,21 @@ export default function AdminPanel() {
                         {event.event_date ? new Date(event.event_date).toLocaleDateString('he-IL') : '-'}
                       </td>
                       <td className="py-3 px-4">{event.event_time ? event.event_time.substring(0, 5) : '-'}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 text-xs rounded ${
+                          event.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          event.status === 'active' ? 'bg-purple-100 text-purple-700' :
+                          event.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                          event.status === 'deleted' ? 'bg-gray-100 text-gray-500 line-through' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {event.status === 'completed' ? 'הושלם' :
+                           event.status === 'active' ? 'פעיל' :
+                           event.status === 'cancelled' ? 'בוטל' :
+                           event.status === 'deleted' ? 'נמחק' :
+                           'קרוב'}
+                        </span>
+                      </td>
                       <td className="py-3 px-4">{event.location || '-'}</td>
                       <td className="py-3 px-4">
                         {event.zoom_meeting_id ? (
@@ -3923,14 +4634,19 @@ export default function AdminPanel() {
                               let combinedDateTime: Date | null = null;
                               if (event.event_date && event.event_time) {
                                 try {
-                                  const dateStr = event.event_date instanceof Date 
-                                    ? (() => {
-                                        const year = event.event_date.getFullYear();
-                                        const month = String(event.event_date.getMonth() + 1).padStart(2, '0');
-                                        const day = String(event.event_date.getDate()).padStart(2, '0');
-                                        return `${year}-${month}-${day}`;
-                                      })()
-                                    : event.event_date;
+                                  // Convert event_date to string format YYYY-MM-DD
+                                  const dateStr = typeof event.event_date === 'string' 
+                                    ? event.event_date
+                                    : (() => {
+                                        const dateObj = event.event_date as any;
+                                        if (dateObj instanceof Date) {
+                                          const year = dateObj.getFullYear();
+                                          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                                          const day = String(dateObj.getDate()).padStart(2, '0');
+                                          return `${year}-${month}-${day}`;
+                                        }
+                                        return String(event.event_date);
+                                      })();
                                   const [hours, minutes] = event.event_time.split(':');
                                   combinedDateTime = new Date(`${dateStr}T${hours || '00'}:${minutes || '00'}:00`);
                                   if (isNaN(combinedDateTime.getTime())) {
@@ -3945,7 +4661,9 @@ export default function AdminPanel() {
                                 ...event,
                                 event_date: event.event_date || null,
                                 event_time: event.event_time || '',
-                                learning_points: event.learning_points || []
+                                learning_points: event.learning_points || [],
+                                status: event.status || 'upcoming',
+                                recording_id: event.recording_id || undefined
                               };
                               if (combinedDateTime) {
                                 formDataUpdate.event_datetime = combinedDateTime;
@@ -3966,6 +4684,163 @@ export default function AdminPanel() {
                       </td>
                     </tr>
                   ))}
+                  {activeTab === 'projects' && projects.map((project) => (
+                    <tr key={project.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4 font-medium">{project.title || '-'}</td>
+                      <td className="py-3 px-4">{project.user?.display_name || '-'}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 text-xs rounded ${
+                          project.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          project.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
+                          project.status === 'closed' ? 'bg-red-100 text-red-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {project.status === 'completed' ? 'הושלם' :
+                           project.status === 'in_progress' ? 'בביצוע' :
+                           project.status === 'closed' ? 'סגור' :
+                           'פתוח'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {project.created_at ? new Date(project.created_at).toLocaleDateString('he-IL') : '-'}
+                      </td>
+                      <td className="py-3 px-4">{project.offers_count || 0}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedProject(selectedProject === project.id ? null : project.id)
+                            }}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded"
+                            title="הצג הגשות"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditing(project.id)
+                              setFormData({
+                                ...project,
+                                technologies: Array.isArray(project.technologies) 
+                                  ? project.technologies.join(', ') 
+                                  : project.technologies || '',
+                                budget_min: project.budget_min?.toString() || '',
+                                budget_max: project.budget_max?.toString() || ''
+                              })
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(project.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {activeTab === 'projects' && selectedProject && projectOffers[selectedProject] && (
+                    <tr>
+                      <td colSpan={6} className="py-4 px-4 bg-gray-50">
+                        <div className="space-y-3">
+                          <h4 className="font-semibold text-gray-700 mb-2">הגשות לפרויקט:</h4>
+                          {projectOffers[selectedProject].map((offer) => (
+                            <div key={offer.id} className="bg-white p-4 rounded-lg border border-gray-200">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="font-medium">{offer.user?.display_name || 'משתמש לא ידוע'}</span>
+                                    {offer.offer_amount && (
+                                      <span className="text-[#F52F8E] font-semibold">
+                                        {offer.offer_amount} {offer.offer_currency || 'ILS'}
+                                      </span>
+                                    )}
+                                    <span className={`px-2 py-1 text-xs rounded ${
+                                      offer.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                                      offer.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                      'bg-yellow-100 text-yellow-700'
+                                    }`}>
+                                      {offer.status === 'accepted' ? 'אושר' :
+                                       offer.status === 'rejected' ? 'נדחה' :
+                                       'ממתין'}
+                                    </span>
+                                  </div>
+                                  {offer.message && (
+                                    <p className="text-sm text-gray-600 mb-2">{offer.message}</p>
+                                  )}
+                                  <span className="text-xs text-gray-400">
+                                    {offer.created_at ? new Date(offer.created_at).toLocaleDateString('he-IL') : '-'}
+                                  </span>
+                                </div>
+                                {offer.status === 'pending' && (
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleAcceptOffer(offer.id)}
+                                      className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                                    >
+                                      אשר
+                                    </button>
+                                    <button
+                                      onClick={() => handleRejectOffer(offer.id)}
+                                      className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                                    >
+                                      דחה
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {projectOffers[selectedProject].length === 0 && (
+                            <p className="text-gray-500 text-sm">אין הגשות לפרויקט זה</p>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {activeTab === 'tags' && tags.map((tag) => (
+                    <tr key={tag.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4 font-medium">{tag.name || '-'}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded font-mono">
+                          {tag.slug || '-'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">{tag.description || '-'}</td>
+                      <td className="py-3 px-4">{tag.usage_count || 0}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 text-xs rounded ${
+                          tag.is_approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {tag.is_approved ? 'מאושר' : 'ממתין לאישור'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setEditing(tag.id)
+                              setFormData({
+                                ...tag
+                              })
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tag.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -3974,5 +4849,15 @@ export default function AdminPanel() {
       </div>
     </div>
   )
+}
+
+// Helper function to generate slug (same as in tags.ts)
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim()
 }
 

@@ -240,7 +240,7 @@ export async function POST() {
     // Log results for debugging
     console.log('User creation results:', {
       created: createdUsers.length,
-      errors: errors.length,
+      errorsCount: errors.length,
       users: createdUsers,
       errors: errors
     });

@@ -39,11 +39,11 @@ export async function getAllRecordings() {
   }
 
   try {
-    // Select only necessary fields for listing page (include qa_section and key_points for admin panel)
-    // Note: user_id might not exist in all recordings tables
+    // Select only necessary fields for listing page (exclude qa_section and key_points for faster loading)
+    // Note: qa_section and key_points are only needed in detail page, not in listing
     const { data, error } = await supabase
       .from('recordings')
-      .select('id, title, description, video_url, thumbnail_url, category, duration, views, qa_section, key_points, created_at, updated_at')
+      .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at')
       .order('created_at', { ascending: false })
       .limit(100) // Limit to improve performance
     
@@ -52,7 +52,7 @@ export async function getAllRecordings() {
       // If specific columns fail, try with * as fallback
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('recordings')
-        .select('id, title, description, video_url, thumbnail_url, category, duration, views, qa_section, key_points, created_at, updated_at')
+        .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at')
         .order('created_at', { ascending: false })
         .limit(100)
       

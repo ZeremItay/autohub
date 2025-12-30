@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getRecordingById, getRecordingBasicById, incrementRecordingViews } from '@/lib/queries/recordings';
+import { getRecordingById, incrementRecordingViews } from '@/lib/queries/recordings';
 import { getRecordingComments, createComment, deleteComment, type Comment } from '@/lib/queries/comments';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { isPremiumUser } from '@/lib/utils/user';
@@ -26,13 +26,10 @@ export default function RecordingDetailPage() {
 
   useEffect(() => {
     if (params.id) {
-      // Load basic recording info first (fast - for immediate display)
-      loadRecordingBasic(params.id as string);
-      // Load full details and comments in background (non-blocking)
-      setTimeout(() => {
-        loadRecordingFull(params.id as string).catch(() => {});
-        loadComments(params.id as string).catch(() => {});
-      }, 50);
+      // Load full recording data immediately (includes qa_section and key_points)
+      loadRecordingFull(params.id as string);
+      // Load comments in parallel
+      loadComments(params.id as string).catch(() => {});
     }
   }, [params.id]);
 
@@ -70,45 +67,23 @@ export default function RecordingDetailPage() {
     // If premium, allow normal navigation (already handled by onClick on the card)
   }
 
-  // Load basic recording info (fast - for immediate display)
-  async function loadRecordingBasic(id: string) {
-    setLoading(true);
-    try {
-      const { data, error } = await getRecordingBasicById(id);
-      if (!error && data) {
-        setRecording(data);
-        // Increment views in background (non-blocking)
-        incrementRecordingViews(id).catch(() => {});
-      }
-    } catch (error) {
-      console.error('Error loading recording basic:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Load full recording details (background - non-blocking)
+  // Load full recording details (includes qa_section and key_points)
   async function loadRecordingFull(id: string) {
+    setLoading(true);
     setDetailsLoading(true);
     try {
       const { data, error } = await getRecordingById(id);
       if (!error && data) {
-        // Merge full data with existing basic data
-        setRecording((prev: any) => ({
-          ...prev,
-          ...data,
-          // Preserve basic fields if full data doesn't have them
-          title: data.title || prev?.title,
-          video_url: data.video_url || prev?.video_url,
-          thumbnail_url: data.thumbnail_url || prev?.thumbnail_url,
-          category: data.category || prev?.category,
-          duration: data.duration || prev?.duration,
-          views: data.views || prev?.views,
-        }));
+        setRecording(data);
+        // Increment views in background (non-blocking)
+        incrementRecordingViews(id).catch(() => {});
+      } else if (error) {
+        console.error('Error loading recording:', error);
       }
     } catch (error) {
       console.error('Error loading recording full:', error);
     } finally {
+      setLoading(false);
       setDetailsLoading(false);
     }
   }

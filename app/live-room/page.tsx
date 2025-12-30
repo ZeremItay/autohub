@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Clock, MapPin, ArrowRight, User, CheckCircle, Video } from 'lucide-react';
+import { Calendar, Clock, MapPin, ArrowRight, User, CheckCircle, Video, Maximize, Minimize } from 'lucide-react';
 import Link from 'next/link';
 import { getNextLiveEvent } from '@/lib/queries/events';
 import { getCurrentUser, isPremiumUser } from '@/lib/utils/user';
-import ZoomMeeting from '@/app/components/zoom/ZoomMeeting';
 import { supabase } from '@/lib/supabase';
+import ZoomMeeting from '@/app/components/zoom/ZoomMeeting';
 
 const eventTypeLabels: Record<string, string> = {
   'live': 'לייב',
@@ -24,46 +24,106 @@ export default function LiveRoomPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isPremium, setIsPremium] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(0);
+  
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:28',message:'isFullscreen state changed',data:{isFullscreen:isFullscreen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }, [isFullscreen]);
+  // #endregion
+
+  // Detect sidebar width (only when fullscreen and on desktop)
+  useEffect(() => {
+    if (!isFullscreen) {
+      setSidebarWidth(0);
+      return;
+    }
+
+    const detectSidebar = () => {
+      // Only detect on desktop (lg breakpoint and above)
+      if (window.innerWidth < 1024) {
+        setSidebarWidth(0);
+        return;
+      }
+
+      // Find the sidebar element (it's an aside with fixed positioning)
+      const sidebar = document.querySelector('aside[class*="fixed"][class*="right-0"]') as HTMLElement;
+      if (sidebar) {
+        const width = sidebar.offsetWidth;
+        setSidebarWidth(width);
+      } else {
+        // Sidebar not found, default to 0
+        setSidebarWidth(0);
+      }
+    };
+
+    // Initial detection
+    detectSidebar();
+
+    // Use ResizeObserver to detect sidebar width changes
+    const sidebar = document.querySelector('aside[class*="fixed"][class*="right-0"]') as HTMLElement;
+    if (sidebar) {
+      const resizeObserver = new ResizeObserver(() => {
+        detectSidebar();
+      });
+      resizeObserver.observe(sidebar);
+
+      // Also check periodically in case ResizeObserver doesn't catch class changes
+      const interval = setInterval(detectSidebar, 100);
+
+      return () => {
+        resizeObserver.disconnect();
+        clearInterval(interval);
+      };
+    }
+
+    // Fallback: check periodically if sidebar not found initially
+    const interval = setInterval(detectSidebar, 200);
+    return () => clearInterval(interval);
+  }, [isFullscreen]);
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/live-room/page.tsx:28',message:'LiveRoomPage useEffect',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
+    // Load event only once on mount - no polling when event is active
     loadNextLiveEvent();
     checkPremiumAccess();
     
-    // Refresh every 30 seconds to check for new live events
-    const interval = setInterval(() => {
-      loadNextLiveEvent();
-    }, 30000);
-    
-    return () => clearInterval(interval);
+    // No polling interval - once event is loaded, don't refresh to avoid disrupting meeting
   }, []);
 
-  async function loadNextLiveEvent() {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/live-room/page.tsx:loadNextLiveEvent',message:'loadNextLiveEvent called',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    setLoading(true);
+  async function loadNextLiveEvent(silent = false) {
+    // Only set loading if this is the initial load (not a silent refresh)
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const { data, error } = await getNextLiveEvent();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/live-room/page.tsx:loadNextLiveEvent',message:'After getNextLiveEvent',data:{hasData:!!data,hasError:!!error,error:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       if (error) {
         console.error('Error loading next live event:', error);
-        setEvent(null);
+        // Only clear event if this is initial load
+        if (!silent) {
+          setEvent(null);
+        }
       } else {
-        setEvent(data);
+        // Only update event if it's different (to avoid unnecessary re-renders that reload iframe)
+        setEvent(prevEvent => {
+          // If we already have an event and it's the same, don't update (prevents iframe reload)
+          if (prevEvent && data && prevEvent.id === data.id) {
+            return prevEvent;
+          }
+          return data;
+        });
       }
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/live-room/page.tsx:loadNextLiveEvent',message:'Error in loadNextLiveEvent',data:{error:String(err),errorName:err?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       console.error('Error loading next live event:', err);
-      setEvent(null);
+      // Only clear event if this is initial load
+      if (!silent) {
+        setEvent(null);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }
 
@@ -165,185 +225,124 @@ export default function LiveRoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-b from-pink-600 to-pink-400 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)',
-            backgroundSize: '20px 20px'
-          }}></div>
-        </div>
-        <div className="relative px-3 sm:px-4 lg:px-6 xl:px-8 py-6 sm:py-8 lg:py-12">
-          <div className="max-w-7xl mx-auto">
-            {/* Breadcrumb */}
-            <div className="mb-4 sm:mb-6 flex items-center gap-2 text-white/90 flex-wrap">
-              <Link href="/live-log" className="hover:text-white transition-colors flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
-                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span>חזרה ליומן</span>
+    <div className={`h-screen bg-gray-900 flex flex-col ${isFullscreen ? 'overflow-visible' : 'overflow-hidden'}`}>
+      {/* Minimal Header */}
+      <div className="bg-gradient-to-b from-pink-600 to-pink-400 relative overflow-hidden flex-shrink-0 z-50">
+        <div className="relative px-3 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            {/* Back Button and Title */}
+            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+              <Link 
+                href="/live-log" 
+                className="hover:text-white transition-colors flex items-center gap-1 sm:gap-2 text-white/90 hover:text-white flex-shrink-0"
+              >
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base hidden sm:inline">חזרה ליומן</span>
               </Link>
-              <span className="mx-1 sm:mx-2 hidden sm:inline">•</span>
-              <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-white/20 rounded-full text-xs sm:text-sm">
+              <span className="mx-1 sm:mx-2 hidden sm:inline text-white/60">•</span>
+              <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-white/20 rounded-full text-xs sm:text-sm text-white flex-shrink-0">
                 {eventTypeLabels[event.event_type] || 'לייב'}
               </span>
+              <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white truncate">
+                {event.title}
+              </h1>
             </div>
-
-            {/* Title */}
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 sm:mb-4">
-              {event.title}
-            </h1>
-
-            {/* Date and Time */}
-            <p className="text-base sm:text-lg lg:text-xl text-white/90">
-              {formatFullDateTime(event.event_date, event.event_time)}
-            </p>
+            {/* Fullscreen Toggle Button */}
+            {(() => {
+              // #region agent log
+              const shouldShow = event.zoom_meeting_id && !checkingAccess && isPremium;
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:194',message:'Fullscreen button render check',data:{shouldShow:shouldShow,hasZoomId:!!event.zoom_meeting_id,checkingAccess:checkingAccess,isPremium:isPremium},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+              // #endregion
+              return shouldShow;
+            })() && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:204',message:'Fullscreen button clicked',data:{isFullscreenBefore:isFullscreen,newValue:!isFullscreen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                  // #endregion
+                  setIsFullscreen(!isFullscreen);
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:207',message:'setIsFullscreen called',data:{newValue:!isFullscreen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                  // #endregion
+                }}
+                onMouseDown={(e) => {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:214',message:'Button mousedown event',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                  // #endregion
+                }}
+                className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-white flex-shrink-0 z-50 relative"
+                title={isFullscreen ? 'הקטן למסך' : 'הגדל למסך מלא'}
+                type="button"
+              >
+                {isFullscreen ? (
+                  <>
+                    <Minimize className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline text-sm">הקטן</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline text-sm">מסך מלא</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            {/* Left Column - Event Details Card */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:sticky lg:top-4">
-                <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0">
-                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs sm:text-sm text-gray-500">תאריך</p>
-                      <p className="font-semibold text-gray-800 text-sm sm:text-base">{formatDate(event.event_date)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0">
-                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs sm:text-sm text-gray-500">שעה</p>
-                      <p className="font-semibold text-gray-800 text-sm sm:text-base">{formatTime(event.event_time)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs sm:text-sm text-gray-500">מיקום</p>
-                      <p className="font-semibold text-gray-800 text-sm sm:text-base truncate">{event.location || 'Zoom Meeting'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <Link
-                  href={`/live/${event.id}`}
-                  className="w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base bg-gray-100 text-gray-700 hover:bg-gray-200 text-center block"
-                >
-                  צפה בפרטי האירוע המלאים
-                </Link>
+      {/* Zoom Meeting Container */}
+      <div className={`flex-1 relative min-h-0 w-full bg-gray-900 ${isFullscreen ? 'overflow-visible' : 'overflow-hidden'}`}>
+        {event.zoom_meeting_id && !checkingAccess && (
+          <>
+            {isPremium ? (
+              <div 
+                className={`bg-gray-900 overflow-hidden shadow-2xl transition-all duration-300 ease-in-out ${
+                  isFullscreen 
+                    ? 'absolute top-0 left-0 h-full rounded-none z-30' 
+                    : 'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vh] rounded-lg'
+                }`}
+                style={isFullscreen ? { 
+                  left: '0',
+                  right: `${sidebarWidth}px`
+                } : undefined}
+                // #region agent log
+                ref={(el) => {
+                  if (el) {
+                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:223',message:'Zoom container rendered',data:{isFullscreen:isFullscreen,className:isFullscreen?'fixed inset-0 w-screen h-screen z-50 rounded-none':'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vh] rounded-lg',computedStyle:window.getComputedStyle(el).width+'x'+window.getComputedStyle(el).height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                  }
+                }}
+                // #endregion
+              >
+                <ZoomMeeting
+                  meetingNumber={event.zoom_meeting_id}
+                  userName={currentUser?.display_name || currentUser?.first_name || 'משתמש'}
+                  userEmail={currentUser?.email || ''}
+                  passWord={event.zoom_meeting_password || ''}
+                />
               </div>
-            </div>
-
-            {/* Right Column - Zoom Meeting */}
-            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              {/* Zoom Meeting - Premium Only */}
-              {event.zoom_meeting_id && !checkingAccess && (
-                <>
-                  {isPremium ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                      <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">פגישת Zoom לייב</h2>
-                      <ZoomMeeting
-                        meetingNumber={event.zoom_meeting_id}
-                        userName={currentUser?.display_name || currentUser?.first_name || 'משתמש'}
-                        userEmail={currentUser?.email || ''}
-                        passWord={event.zoom_meeting_password || ''}
-                      />
-                    </div>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-                      <h3 className="text-lg font-semibold text-yellow-800 mb-2">
-                        🔒 גישה מוגבלת למנויי פרימיום
-                      </h3>
-                      <p className="text-yellow-700 mb-4">
-                        כדי לצפות בפגישת הלייב, עליך להיות מנוי פרימיום.
-                      </p>
-                      <Link
-                        href="/subscription"
-                        className="inline-block bg-[#F52F8E] text-white px-6 py-2 rounded-lg hover:bg-[#E01E7A] transition-colors"
-                      >
-                        שדרג למנוי פרימיום
-                      </Link>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* About the Event */}
-              {event.about_text && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">על האירוע</h2>
-                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">{event.about_text}</p>
+            ) : (
+              <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 max-w-md text-center">
+                  <h3 className="text-lg font-semibold text-yellow-800 mb-2">
+                    🔒 גישה מוגבלת למנויי פרימיום
+                  </h3>
+                  <p className="text-yellow-700 mb-4">
+                    כדי לצפות בפגישת הלייב, עליך להיות מנוי פרימיום.
+                  </p>
+                  <Link
+                    href="/subscription"
+                    className="inline-block bg-[#F52F8E] text-white px-6 py-2 rounded-lg hover:bg-[#E01E7A] transition-colors"
+                  >
+                    שדרג למנוי פרימיום
+                  </Link>
                 </div>
-              )}
-
-              {/* What will be learned? */}
-              {event.learning_points && event.learning_points.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">מה נלמד?</h2>
-                  <ul className="space-y-2 sm:space-y-3">
-                    {event.learning_points.map((point: string, index: number) => (
-                      <li key={index} className="flex items-start gap-2 sm:gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-[#F52F8E] text-white flex items-center justify-center font-bold text-xs sm:text-sm">
-                          {index + 1}
-                        </div>
-                        <p className="text-sm sm:text-base text-gray-700 pt-0.5 sm:pt-1">{point}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Instructors */}
-              {event.instructor_name && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">מנחים</h2>
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    {event.instructor_avatar_url ? (
-                      <img
-                        src={event.instructor_avatar_url}
-                        alt={event.instructor_name}
-                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-400 flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0">
-                        {event.instructor_name.charAt(0)}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-800 text-base sm:text-lg">{event.instructor_name}</p>
-                      {event.instructor_title && (
-                        <p className="text-sm sm:text-base text-gray-600">{event.instructor_title}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Description (fallback) */}
-              {!event.about_text && event.description && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">תיאור</h2>
-                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">{event.description}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

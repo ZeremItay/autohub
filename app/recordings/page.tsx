@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAllRecordings } from '@/lib/queries/recordings';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
@@ -77,21 +77,24 @@ export default function RecordingsPage() {
     }
   }
 
-  // Get unique categories from all recordings (flatten arrays)
-  const allCategories = recordings
-    .flatMap(r => {
-      if (Array.isArray(r.category)) {
-        return r.category;
-      } else if (r.category) {
-        return [r.category];
-      }
-      return [];
-    })
-    .filter(Boolean);
-  const categories = ['all', ...new Set(allCategories)]
+  // Get unique categories from all recordings (flatten arrays) - memoized for performance
+  const categories = useMemo(() => {
+    const allCategories = recordings
+      .flatMap(r => {
+        if (Array.isArray(r.category)) {
+          return r.category;
+        } else if (r.category) {
+          return [r.category];
+        }
+        return [];
+      })
+      .filter(Boolean);
+    return ['all', ...new Set(allCategories)];
+  }, [recordings])
 
-  // Filter recordings based on search and category
-  const filteredRecordings = recordings.filter(recording => {
+  // Filter recordings based on search and category - memoized for performance
+  const filteredRecordings = useMemo(() => {
+    return recordings.filter(recording => {
     if (activeFilter !== 'all') {
       const recordingCategories = Array.isArray(recording.category) 
         ? recording.category 
@@ -109,8 +112,9 @@ export default function RecordingsPage() {
       recording.title?.toLowerCase().includes(query) ||
       recording.description?.toLowerCase().includes(query) ||
       recordingCategories.toLowerCase().includes(query)
-    )
-  })
+    );
+  });
+  }, [recordings, activeFilter, searchQuery])
 
 
   return (

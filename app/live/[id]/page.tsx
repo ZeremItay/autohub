@@ -109,6 +109,25 @@ export default function LiveEventPage() {
     alert('נרשמת בהצלחה לאירוע!');
   }
 
+  // Check if the event has already started
+  function isEventStarted(event: any): boolean {
+    if (!event?.event_date || !event?.event_time) return false;
+    
+    try {
+      const dateStr = event.event_date instanceof Date 
+        ? event.event_date.toISOString().split('T')[0]
+        : event.event_date;
+      const [hours, minutes] = event.event_time.split(':');
+      const eventDateTime = new Date(`${dateStr}T${hours || '00'}:${minutes || '00'}:00`);
+      const now = new Date();
+      
+      return eventDateTime <= now;
+    } catch (e) {
+      console.error('Error checking if event started:', e);
+      return false;
+    }
+  }
+
   if (loading) {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -206,31 +225,48 @@ export default function LiveEventPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={handleRegister}
-                  disabled={registered}
-                  className={`w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base ${
-                    registered
-                      ? 'bg-green-500 text-white cursor-not-allowed'
-                      : 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
-                  }`}
-                >
-                  {registered ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                      נרשמת לאירוע
-                    </span>
-                  ) : (
-                    'הרשמה לאירוע'
-                  )}
-                </button>
+                {/* Register/Join/Recording Button */}
+                {event.status === 'completed' && event.recording_id ? (
+                  <Link
+                    href={`/recordings/${event.recording_id}`}
+                    className="w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base bg-green-600 text-white hover:bg-green-700 text-center block"
+                  >
+                    הלייב הסתיים, כאן אפשר לצפות בהקלטה
+                  </Link>
+                ) : (event.status === 'active' || (isEventStarted(event) && event.zoom_meeting_id)) ? (
+                  <Link
+                    href="/live-room"
+                    className="w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base bg-[#F52F8E] text-white hover:bg-[#E01E7A] text-center block"
+                  >
+                    הלייב התחיל, כאן מצטרפים
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleRegister}
+                    disabled={registered}
+                    className={`w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base ${
+                      registered
+                        ? 'bg-green-500 text-white cursor-not-allowed'
+                        : 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
+                    }`}
+                  >
+                    {registered ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                        נרשמת לאירוע
+                      </span>
+                    ) : (
+                      'הרשמה לאירוע'
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Right Column - Event Information */}
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              {/* Zoom Meeting - Premium Only */}
-              {event.zoom_meeting_id && !checkingAccess && (
+              {/* Zoom Meeting - Premium Only - Only show when event is active or has started */}
+              {event.zoom_meeting_id && !checkingAccess && (event.status === 'active' || isEventStarted(event)) && (
                 <>
                   {isPremium ? (
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
