@@ -276,7 +276,7 @@ export default function BlogPostPage() {
 
             <CommentsList
               comments={comments}
-              currentUser={currentUser}
+              currentUser={currentUser || undefined}
               onSubmitComment={handleSubmitComment}
               onSubmitReply={handleSubmitReply}
               onDeleteComment={handleDeleteComment}
