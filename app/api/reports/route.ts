@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       return NextResponse.json(
-        { error: error.message || 'Failed to fetch reports' },
+        { error: (error as any)?.message || 'Failed to fetch reports' },
         { status: 500 }
       );
     }
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json(
-        { error: error.message || 'Failed to create report' },
+        { error: (error as any)?.message || 'Failed to create report' },
         { status: 500 }
       );
     }
