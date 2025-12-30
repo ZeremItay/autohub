@@ -587,7 +587,7 @@ export default function ProfilePage() {
         setMyProjects(Array.isArray(projects) ? projects : [])
         
         // טעינת כל ההגשות לכל פרויקט של המשתמש
-        if (projects && projects.length > 0) {
+        if (Array.isArray(projects) && projects.length > 0) {
           const offersPromises = projects.map(async (project: any) => {
             const { data } = await getProjectOffers(project.id)
             return { projectId: project.id, offers: data || [] }
