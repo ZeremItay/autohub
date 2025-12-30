@@ -258,7 +258,7 @@ export default function AdminPanel() {
         if (!error) setRoles(Array.isArray(data) ? data : [])
       } else if (activeTab === 'recordings') {
         const { data, error } = await getAllRecordings()
-        if (!error) setRecordings(data || [])
+        if (!error && data && Array.isArray(data)) setRecordings(data)
       } else if (activeTab === 'resources') {
         const { getAllResources } = await import('@/lib/queries/resources')
         const { data, error } = await getAllResources()
@@ -319,9 +319,9 @@ export default function AdminPanel() {
         console.log('Loading events data...')
         const { data, error } = await getAllEvents()
         console.log('getAllEvents result:', { data: data?.length || 0, error, hasError: !!error })
-        if (!error) {
-          console.log('Setting events:', data?.length || 0, 'events')
-          setEvents(data || [])
+        if (!error && data && Array.isArray(data)) {
+          console.log('Setting events:', data.length, 'events')
+          setEvents(data)
           console.log('Events state updated')
         } else {
           console.error('Error loading events:', error)
@@ -330,8 +330,8 @@ export default function AdminPanel() {
         loadZoomMeetings()
         // Load recordings when events tab is active
         const { data: recordingsData, error: recordingsError } = await getAllRecordings()
-        if (!recordingsError) {
-          setRecordings(recordingsData || [])
+        if (!recordingsError && recordingsData && Array.isArray(recordingsData)) {
+          setRecordings(recordingsData)
         }
       } else if (activeTab === 'projects') {
         const { data: projectsData, error: projectsError } = await getAllProjects()
@@ -349,12 +349,12 @@ export default function AdminPanel() {
         }
       } else if (activeTab === 'tags') {
         const { data: tagsData, error: tagsError } = await getAllTags(true) // Include unapproved
-        if (!tagsError && tagsData) {
-          setTags(tagsData || [])
+        if (!tagsError && tagsData && Array.isArray(tagsData)) {
+          setTags(tagsData)
         }
         const { data: unapprovedData, error: unapprovedError } = await getUnapprovedTags()
-        if (!unapprovedError && unapprovedData) {
-          setUnapprovedTags(unapprovedData || [])
+        if (!unapprovedError && unapprovedData && Array.isArray(unapprovedData)) {
+          setUnapprovedTags(unapprovedData)
         }
       }
     } catch (error) {
