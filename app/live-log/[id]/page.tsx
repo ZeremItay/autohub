@@ -72,9 +72,9 @@ export default function EventDetailPage() {
     
     try {
       // Combine date and time strings
-      const dateStr = event.event_date instanceof Date 
-        ? event.event_date.toISOString().split('T')[0]
-        : event.event_date;
+      const dateStr = (event.event_date as any) instanceof Date 
+        ? (event.event_date as Date).toISOString().split('T')[0]
+        : event.event_date as string;
       const [hours, minutes] = event.event_time.split(':');
       const eventDateTime = new Date(`${dateStr}T${hours || '00'}:${minutes || '00'}:00`);
       const now = new Date();

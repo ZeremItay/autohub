@@ -86,20 +86,21 @@ export default function AdminPanel() {
       if (formData.event_date && formData.event_time) {
         // Combine date and time strings
         let dateStr: string;
-        if (formData.event_date instanceof Date) {
-          const year = formData.event_date.getFullYear();
-          const month = String(formData.event_date.getMonth() + 1).padStart(2, '0');
-          const day = String(formData.event_date.getDate()).padStart(2, '0');
+        if ((formData.event_date as any) instanceof Date) {
+          const dateObj = formData.event_date as Date;
+          const year = dateObj.getFullYear();
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(dateObj.getDate()).padStart(2, '0');
           dateStr = `${year}-${month}-${day}`;
         } else {
-          dateStr = formData.event_date;
+          dateStr = formData.event_date as string;
         }
         const [hours, minutes] = formData.event_time.split(':');
         const combinedDate = new Date(`${dateStr}T${hours || '00'}:${minutes || '00'}:00`);
         return isNaN(combinedDate.getTime()) ? null : combinedDate;
       }
-      if (formData.event_date instanceof Date) {
-        return formData.event_date;
+      if ((formData.event_date as any) instanceof Date) {
+        return formData.event_date as Date;
       }
       if (formData.event_date) {
         return new Date(formData.event_date);
@@ -819,13 +820,14 @@ export default function AdminPanel() {
         // Convert date to YYYY-MM-DD format using local timezone (not UTC)
         const eventDate = (() => {
           if (!formData.event_date) return '';
-          if (formData.event_date instanceof Date) {
-            const year = formData.event_date.getFullYear();
-            const month = String(formData.event_date.getMonth() + 1).padStart(2, '0');
-            const day = String(formData.event_date.getDate()).padStart(2, '0');
+          if ((formData.event_date as any) instanceof Date) {
+            const dateObj = formData.event_date as Date;
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
           }
-          return formData.event_date;
+          return formData.event_date as string;
         })()
 
         const eventData = {
@@ -1203,13 +1205,14 @@ export default function AdminPanel() {
         // Convert date to YYYY-MM-DD format using local timezone (not UTC)
         const eventDate = (() => {
           if (!formData.event_date) return '';
-          if (formData.event_date instanceof Date) {
-            const year = formData.event_date.getFullYear();
-            const month = String(formData.event_date.getMonth() + 1).padStart(2, '0');
-            const day = String(formData.event_date.getDate()).padStart(2, '0');
+          if ((formData.event_date as any) instanceof Date) {
+            const dateObj = formData.event_date as Date;
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
           }
-          return formData.event_date;
+          return formData.event_date as string;
         })()
 
         const updateData: any = {
@@ -4639,7 +4642,7 @@ export default function AdminPanel() {
                                     ? event.event_date
                                     : (() => {
                                         const dateObj = event.event_date as any;
-                                        if (dateObj instanceof Date) {
+                                        if ((dateObj as any) instanceof Date) {
                                           const year = dateObj.getFullYear();
                                           const month = String(dateObj.getMonth() + 1).padStart(2, '0');
                                           const day = String(dateObj.getDate()).padStart(2, '0');

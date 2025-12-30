@@ -896,16 +896,16 @@ function ForumDetailPageContent() {
                                 {post.profile?.avatar_url ? (
                                   <img
                                     src={post.profile.avatar_url}
-                                    alt={post.profile.display_name || post.profile.first_name || post.profile.nickname || 'משתמש'}
+                                    alt={post.profile.display_name || 'משתמש'}
                                     className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                                     key={`post-${post.id}`}
                                   />
                                 ) : (
                                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                                    {(post.profile?.display_name || post.profile?.first_name || post.profile?.nickname || 'מ').charAt(0)}
+                                    {(post.profile?.display_name || 'מ').charAt(0)}
                                   </div>
                                 )}
-                                <span>{post.profile?.display_name || post.profile?.first_name || post.profile?.nickname || post.profile?.full_name || 'משתמש'}</span>
+                                <span>{post.profile?.display_name || 'משתמש'}</span>
                                 <span>•</span>
                                 <span>{new Date(post.created_at).toLocaleDateString('he-IL')}</span>
                               </div>

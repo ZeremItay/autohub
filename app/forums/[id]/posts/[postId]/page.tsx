@@ -329,17 +329,17 @@ export default function ForumPostDetailPage() {
               {post.profile?.avatar_url ? (
                 <img
                   src={post.profile.avatar_url}
-                  alt={post.profile.display_name || post.profile.first_name || post.profile.nickname || 'משתמש'}
+                  alt={post.profile.display_name || 'משתמש'}
                   className="w-12 h-12 rounded-full object-cover flex-shrink-0"
                   key={`post-${post.id}`}
                 />
               ) : (
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white font-semibold">
-                  {(post.profile?.display_name || post.profile?.first_name || post.profile?.nickname || 'מ').charAt(0)}
+                  {(post.profile?.display_name || 'מ').charAt(0)}
                 </div>
               )}
               <div>
-                <h3 className="font-semibold text-gray-800">{post.profile?.display_name || post.profile?.first_name || post.profile?.nickname || post.profile?.full_name || 'משתמש'}</h3>
+                <h3 className="font-semibold text-gray-800">{post.profile?.display_name || 'משתמש'}</h3>
                 <p className="text-sm text-gray-500">{formatDate(post.created_at)}</p>
               </div>
             </div>

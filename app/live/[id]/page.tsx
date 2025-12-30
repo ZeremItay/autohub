@@ -114,9 +114,9 @@ export default function LiveEventPage() {
     if (!event?.event_date || !event?.event_time) return false;
     
     try {
-      const dateStr = event.event_date instanceof Date 
-        ? event.event_date.toISOString().split('T')[0]
-        : event.event_date;
+      const dateStr = (event.event_date as any) instanceof Date 
+        ? (event.event_date as Date).toISOString().split('T')[0]
+        : event.event_date as string;
       const [hours, minutes] = event.event_time.split(':');
       const eventDateTime = new Date(`${dateStr}T${hours || '00'}:${minutes || '00'}:00`);
       const now = new Date();
