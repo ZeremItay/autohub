@@ -566,7 +566,8 @@ export default function Home() {
         // Check if error is meaningful
         const errorKeys = error && typeof error === 'object' ? Object.keys(error) : [];
         const isEmptyError = errorKeys.length === 0;
-        const hasErrorDetails = error.message || error.code || error.details || error.hint;
+        const errorObj = error as any;
+        const hasErrorDetails = errorObj?.message || errorObj?.code || errorObj?.details || errorObj?.hint;
         
         if (!isEmptyError && hasErrorDetails) {
           // Real error - revert optimistic update
