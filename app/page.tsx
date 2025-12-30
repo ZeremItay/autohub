@@ -1062,7 +1062,7 @@ export default function Home() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                           <h3 className="font-semibold text-gray-800 text-sm sm:text-base">
-                            {post.profile?.display_name || post.profile?.full_name || 'מנהל'}
+                            {post.profile?.display_name || 'מנהל'}
                           </h3>
                           <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs rounded-full font-medium shadow-md shadow-pink-500/30">
                             מנהל
