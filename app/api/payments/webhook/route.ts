@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Get subscription to verify it exists
     const { data: subscription, error: subError } = await supabase
       .from('subscriptions')
-      .select('id, status, end_date')
+      .select('id, status, end_date, user_id')
       .eq('id', subscription_id)
       .single();
 
