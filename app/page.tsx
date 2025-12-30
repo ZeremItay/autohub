@@ -1036,7 +1036,7 @@ export default function Home() {
                         />
                       ) : (
                         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-pink-500 via-rose-400 to-amber-300 flex items-center justify-center text-white font-semibold shadow-lg shadow-pink-500/30 ring-2 ring-white/50 text-sm sm:text-base">
-                          {getInitials(post.profile?.display_name || post.profile?.full_name)}
+                          {getInitials(post.profile?.display_name || 'מ')}
                         </div>
                       )}
                       {/* Badge overlay - bottom left */}
