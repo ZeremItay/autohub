@@ -165,7 +165,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         if (!user.is_online && (user.user_id || user.id)) {
           try {
             const { updateProfile } = await import('@/lib/queries/profiles');
-            await updateProfile(user.user_id || user.id, { is_online: true });
+            const userId = user.user_id || user.id;
+            if (userId) {
+              await updateProfile(userId, { is_online: true });
+            }
           } catch (error) {
             const { logError } = await import('@/lib/utils/errorHandler');
             logError(error, 'Layout:updateIsOnline');
