@@ -765,7 +765,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       <h3 className="text-sm font-bold text-gray-800">הקלטות ({searchResults.recordings.length})</h3>
                                     </div>
                                     <div className="space-y-1">
-                                      {limited.recordings.map((recording) => (
+                                      {limited.recordings.map((recording: any) => (
                                   <Link
                                     key={recording.id}
                                     href={`/recordings/${recording.id}`}
@@ -1024,7 +1024,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       <h3 className="text-base font-bold text-gray-800">הקלטות ({searchResults.recordings.length})</h3>
                                     </div>
                                     <div className="space-y-2.5">
-                                      {limited.recordings.map((recording) => (
+                                      {limited.recordings.map((recording: any) => (
                                         <Link
                                           key={recording.id}
                                           href={`/recordings/${recording.id}`}
