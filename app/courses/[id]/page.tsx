@@ -388,7 +388,7 @@ export default function CourseDetailPage() {
             if (lessonsData.length > 0 && currentUser) {
               // Find next lesson to watch
               const { data: completedLessonIds } = await getCompletedLessons(courseId, currentUser.id);
-              const completedIds = completedLessonIds || [];
+              const completedIds = Array.isArray(completedLessonIds) ? completedLessonIds : [];
               
               let nextLesson: CourseLesson | null = null;
               
