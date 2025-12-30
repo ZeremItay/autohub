@@ -335,8 +335,8 @@ export default function AdminPanel() {
         }
       } else if (activeTab === 'projects') {
         const { data: projectsData, error: projectsError } = await getAllProjects()
-        if (!projectsError && projectsData) {
-          setProjects(projectsData || [])
+        if (!projectsError && projectsData && Array.isArray(projectsData)) {
+          setProjects(projectsData)
           // Load offers for all projects
           const offersMap: Record<string, ProjectOffer[]> = {}
           for (const project of projectsData) {
