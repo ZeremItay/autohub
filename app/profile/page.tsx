@@ -164,7 +164,7 @@ export default function ProfilePage() {
           // If user not found, fall back to first user
           const { getAllProfiles } = await import('@/lib/queries/profiles');
           const { data: allProfiles } = await getAllProfiles();
-          profile = allProfiles?.[0] || null;
+          profile = Array.isArray(allProfiles) && allProfiles.length > 0 ? allProfiles[0] : null;
         } else {
           profile = data;
         }
