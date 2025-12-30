@@ -72,14 +72,18 @@ export default function ProjectsPage() {
 
       if (projectsRes.data) {
         // Sort projects: closed projects go to the end
-        const sortedProjects = [...projectsRes.data].sort((a, b) => {
-          // If one is closed and the other is not, closed goes to the end
-          if (a.status === 'closed' && b.status !== 'closed') return 1;
-          if (a.status !== 'closed' && b.status === 'closed') return -1;
-          // Otherwise maintain original order (by created_at DESC from query)
-          return 0;
-        });
-        setProjects(sortedProjects);
+        if (Array.isArray(projectsRes.data)) {
+          const sortedProjects = [...projectsRes.data].sort((a, b) => {
+            // If one is closed and the other is not, closed goes to the end
+            if (a.status === 'closed' && b.status !== 'closed') return 1;
+            if (a.status !== 'closed' && b.status === 'closed') return -1;
+            // Otherwise maintain original order (by created_at DESC from query)
+            return 0;
+          });
+          setProjects(sortedProjects);
+        } else {
+          setProjects([]);
+        }
       }
 
       if (eventsRes.data) {
