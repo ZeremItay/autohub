@@ -1131,7 +1131,7 @@ export default function Home() {
                         <div className="mt-4 pt-4 border-t border-gray-200">
                           <CommentsList
                             comments={postComments[post.id] || []}
-                            currentUser={currentUser}
+                            currentUser={currentUser || undefined}
                             onSubmitComment={async (text) => {
                               await handleSubmitComment(post.id, text);
                             }}
