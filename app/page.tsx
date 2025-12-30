@@ -257,7 +257,7 @@ export default function Home() {
         // Silently fail
       });
     } catch (error) {
-      logError(error, 'Home:loadData');
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
