@@ -793,7 +793,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       <h3 className="text-sm font-bold text-gray-800">פורומים ({searchResults.forums.length})</h3>
                                     </div>
                                     <div className="space-y-1">
-                                      {limited.forums.map((forum) => (
+                                      {limited.forums.map((forum: any) => (
                                   <Link
                                     key={forum.id}
                                     href={`/forums/${forum.id}`}
@@ -872,7 +872,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       <h3 className="text-sm font-bold text-gray-800">פרויקטים ({searchResults.projects.length})</h3>
                                     </div>
                                     <div className="space-y-1">
-                                      {limited.projects.map((project) => (
+                                      {limited.projects.map((project: any) => (
                                   <Link
                                     key={project.id}
                                     href={`/projects#${project.id}`}
@@ -900,7 +900,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       <h3 className="text-sm font-bold text-gray-800">קורסים ({searchResults.courses.length})</h3>
                                     </div>
                                     <div className="space-y-1">
-                                      {limited.courses.map((course) => (
+                                      {limited.courses.map((course: any) => (
                                   <Link
                                     key={course.id}
                                     href={`/courses#${course.id}`}
@@ -1053,7 +1053,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       <h3 className="text-base font-bold text-gray-800">פורומים ({searchResults.forums.length})</h3>
                                     </div>
                                     <div className="space-y-2.5">
-                                      {limited.forums.map((forum) => (
+                                      {limited.forums.map((forum: any) => (
                                         <Link
                                           key={forum.id}
                                           href={`/forums/${forum.id}`}
@@ -1134,7 +1134,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       <h3 className="text-base font-bold text-gray-800">פרויקטים ({searchResults.projects.length})</h3>
                                     </div>
                                     <div className="space-y-2.5">
-                                      {limited.projects.map((project) => (
+                                      {limited.projects.map((project: any) => (
                                         <Link
                                           key={project.id}
                                           href={`/projects#${project.id}`}
@@ -1163,7 +1163,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       <h3 className="text-base font-bold text-gray-800">קורסים ({searchResults.courses.length})</h3>
                                     </div>
                                     <div className="space-y-2.5">
-                                      {limited.courses.map((course) => (
+                                      {limited.courses.map((course: any) => (
                                         <Link
                                           key={course.id}
                                           href={`/courses#${course.id}`}
