@@ -12,6 +12,22 @@ CREATE TABLE IF NOT EXISTS reports (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Add foreign key constraint to profiles table
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 
+    FROM information_schema.table_constraints 
+    WHERE table_name = 'reports' 
+    AND constraint_name = 'reports_user_id_fkey'
+    AND constraint_type = 'FOREIGN KEY'
+  ) THEN
+    ALTER TABLE reports 
+    ADD CONSTRAINT reports_user_id_fkey 
+    FOREIGN KEY (user_id) REFERENCES profiles(user_id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_reports_is_published ON reports(is_published);

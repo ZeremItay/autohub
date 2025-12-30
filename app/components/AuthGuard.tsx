@@ -42,7 +42,7 @@ export default function AuthGuard({
 
   // Check authentication requirement
   if (requireAuth && !user) {
-    const message = fallbackMessage || 'האזור הזה הוא למחוברים בלבד';
+    const message = fallbackMessage || 'עליך להתחבר לאתר כדי לצפות בתוכן';
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center px-4">
@@ -86,7 +86,7 @@ export default function AuthGuard({
   // Check premium requirement - but first check if user is not logged in
   // If user is not logged in and premium is required, show auth message (not premium message)
   if (requirePremium && !user) {
-    const message = fallbackMessage || 'האזור הזה הוא למחוברים בלבד';
+    const message = fallbackMessage || 'עליך להתחבר לאתר כדי לצפות בתוכן';
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center px-4">
@@ -129,7 +129,7 @@ export default function AuthGuard({
   
   // User is logged in but not premium
   if (requirePremium && user && !isPremium) {
-    const message = fallbackMessage || 'האזור הזה זמין למנויי פרימיום בלבד';
+    const message = fallbackMessage || 'צריך לשדרג לפרימיום כדי לצפות בתוכן זה';
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center px-4">

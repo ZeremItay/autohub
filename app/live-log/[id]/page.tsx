@@ -5,8 +5,17 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowRight, Calendar, Clock, MapPin, User, Check } from 'lucide-react';
 import Link from 'next/link';
 import { getEventById, type Event } from '@/lib/queries/events';
+import AuthGuard from '@/app/components/AuthGuard';
 
 export default function EventDetailPage() {
+  return (
+    <AuthGuard requireAuth={true} fallbackMessage="עליך להתחבר לאתר כדי לצפות בתוכן">
+      <EventDetailPageContent />
+    </AuthGuard>
+  );
+}
+
+function EventDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.id as string;
@@ -198,7 +207,7 @@ export default function EventDetailPage() {
                     href="/live-room"
                     className="w-full px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-semibold text-center block"
                   >
-                    הלייב התחיל, כאן מצטרפים
+                    הלייב התחיל, כאן אפשר לצפות
                   </Link>
                 ) : (
                   <button className="w-full px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-semibold">

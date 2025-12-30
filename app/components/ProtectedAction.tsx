@@ -41,7 +41,7 @@ export default function ProtectedAction({
 
   // Check authentication requirement
   if (requireAuth && !user) {
-    const message = disabledMessage || 'התחבר כדי לבצע פעולה זו';
+    const message = disabledMessage || 'עליך להתחבר לאתר כדי לצפות בתוכן';
     
     return (
       <div 
@@ -96,7 +96,7 @@ export default function ProtectedAction({
   // Check premium requirement
   // First check if user is not logged in - show auth message
   if (requirePremium && !user) {
-    const message = disabledMessage || 'התחבר כדי לבצע פעולה זו';
+    const message = disabledMessage || 'עליך להתחבר לאתר כדי לצפות בתוכן';
     
     return (
       <div 
@@ -150,7 +150,7 @@ export default function ProtectedAction({
   
   // User is logged in but not premium
   if (requirePremium && user && !isPremium) {
-    const message = disabledMessage || 'פעולה זו זמינה למנויי פרימיום בלבד';
+    const message = disabledMessage || 'צריך לשדרג לפרימיום כדי לצפות בתוכן זה';
     
     return (
       <div 

@@ -1,13 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Calendar, Clock, MapPin, ArrowRight, User, CheckCircle } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { Calendar, Clock, MapPin, ArrowRight, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { getEventById } from '@/lib/queries/events';
-import { getCurrentUser, isPremiumUser } from '@/lib/utils/user';
-import ZoomMeeting from '@/app/components/zoom/ZoomMeeting';
-import { supabase } from '@/lib/supabase';
 
 const eventTypeLabels: Record<string, string> = {
   'live': 'לייב',
@@ -19,46 +16,16 @@ const eventTypeLabels: Record<string, string> = {
 
 export default function LiveEventPage() {
   const params = useParams();
-  const router = useRouter();
   const eventId = params.id as string;
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [registered, setRegistered] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [isPremium, setIsPremium] = useState(false);
-  const [checkingAccess, setCheckingAccess] = useState(true);
 
   useEffect(() => {
     if (eventId) {
       loadEvent();
-      checkPremiumAccess();
     }
   }, [eventId]);
-
-  async function checkPremiumAccess() {
-    setCheckingAccess(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setIsPremium(false);
-        setCheckingAccess(false);
-        return;
-      }
-
-      const user = await getCurrentUser();
-      if (user) {
-        setCurrentUser(user);
-        setIsPremium(isPremiumUser(user));
-      } else {
-        setIsPremium(false);
-      }
-    } catch (error) {
-      console.error('Error checking access:', error);
-      setIsPremium(false);
-    } finally {
-      setCheckingAccess(false);
-    }
-  }
 
   async function loadEvent() {
     setLoading(true);
@@ -238,7 +205,7 @@ export default function LiveEventPage() {
                     href="/live-room"
                     className="w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base bg-[#F52F8E] text-white hover:bg-[#E01E7A] text-center block"
                   >
-                    הלייב התחיל, כאן מצטרפים
+                    הלייב התחיל, כאן אפשר לצפות
                   </Link>
                 ) : (
                   <button
@@ -265,38 +232,6 @@ export default function LiveEventPage() {
 
             {/* Right Column - Event Information */}
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              {/* Zoom Meeting - Premium Only - Only show when event is active or has started */}
-              {event.zoom_meeting_id && !checkingAccess && (event.status === 'active' || isEventStarted(event)) && (
-                <>
-                  {isPremium ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                      <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">פגישת Zoom לייב</h2>
-                      <ZoomMeeting
-                        meetingNumber={event.zoom_meeting_id}
-                        userName={currentUser?.display_name || currentUser?.first_name || 'משתמש'}
-                        userEmail={currentUser?.email || ''}
-                        passWord={event.zoom_meeting_password || ''}
-                      />
-                    </div>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-                      <h3 className="text-lg font-semibold text-yellow-800 mb-2">
-                        🔒 גישה מוגבלת למנויי פרימיום
-                      </h3>
-                      <p className="text-yellow-700 mb-4">
-                        כדי לצפות בפגישת הלייב, עליך להיות מנוי פרימיום.
-                      </p>
-                      <Link
-                        href="/subscription"
-                        className="inline-block bg-[#F52F8E] text-white px-6 py-2 rounded-lg hover:bg-[#E01E7A] transition-colors"
-                      >
-                        שדרג למנוי פרימיום
-                      </Link>
-                    </div>
-                  )}
-                </>
-              )}
-
               {/* About the Event */}
               {event.about_text && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">

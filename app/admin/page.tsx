@@ -72,6 +72,7 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<string | null>(null)
   const [formData, setFormData] = useState<any>({})
+  const [uploadingCourseImage, setUploadingCourseImage] = useState(false)
   const [uploadingFile, setUploadingFile] = useState(false)
   const [zoomMeetings, setZoomMeetings] = useState<any[]>([])
   const [loadingZoomMeetings, setLoadingZoomMeetings] = useState(false)
@@ -696,6 +697,7 @@ export default function AdminPanel() {
         const courseData = {
           title: (formData.title || '').trim(),
           description: (formData.description || '').trim(),
+          thumbnail_url: formData.thumbnail_url || undefined,
           category: 'כללי', // Default category
           difficulty: 'מתחילים' as 'מתחילים' | 'בינוני' | 'מתקדמים', // Default difficulty (required by DB)
           duration_hours: 1, // Default duration
@@ -2729,6 +2731,137 @@ export default function AdminPanel() {
                       rows={4}
                       required
                     />
+                    
+                    {/* Course Image */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">תמונה ראשית לקורס</label>
+                      
+                      {/* Upload Option */}
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                          <Upload className="w-4 h-4 text-gray-600" />
+                          <span className="text-sm text-gray-700">
+                            {uploadingCourseImage ? 'מעלה תמונה...' : 'העלה תמונה מהמחשב'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+
+                              // Validate file type
+                              if (!file.type.startsWith('image/')) {
+                                alert('אנא בחר קובץ תמונה בלבד');
+                                return;
+                              }
+
+                              // Validate file size (max 5MB)
+                              if (file.size > 5 * 1024 * 1024) {
+                                alert('גודל הקובץ גדול מדי. מקסימום 5MB');
+                                return;
+                              }
+
+                              setUploadingCourseImage(true);
+                              try {
+                                const fileExt = file.name.split('.').pop();
+                                const fileName = `course-thumbnail-${Date.now()}.${fileExt}`;
+                                const filePath = `course-thumbnails/${fileName}`;
+
+                                // Try to upload to Supabase Storage
+                                const { error: uploadError } = await supabase.storage
+                                  .from('course-thumbnails')
+                                  .upload(filePath, file, {
+                                    cacheControl: '3600',
+                                    upsert: true
+                                  });
+
+                                if (uploadError) {
+                                  // If bucket doesn't exist, try 'avatars' bucket as fallback
+                                  const fallbackPath = `course-thumbnails/${fileName}`;
+                                  const { error: uploadError2 } = await supabase.storage
+                                    .from('avatars')
+                                    .upload(fallbackPath, file, {
+                                      cacheControl: '3600',
+                                      upsert: true
+                                    });
+
+                                  if (uploadError2) {
+                                    // If both fail, use base64 as fallback
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      const base64 = reader.result as string;
+                                      setFormData({ ...formData, thumbnail_url: base64 });
+                                      setUploadingCourseImage(false);
+                                    };
+                                    reader.readAsDataURL(file);
+                                    return;
+                                  } else {
+                                    const { data: { publicUrl } } = supabase.storage
+                                      .from('avatars')
+                                      .getPublicUrl(fallbackPath);
+                                    setFormData({ ...formData, thumbnail_url: publicUrl });
+                                  }
+                                } else {
+                                  const { data: { publicUrl } } = supabase.storage
+                                    .from('course-thumbnails')
+                                    .getPublicUrl(filePath);
+                                  setFormData({ ...formData, thumbnail_url: publicUrl });
+                                }
+                              } catch (error: any) {
+                                console.error('Error uploading course image:', error?.message || String(error));
+                                alert('שגיאה בהעלאת התמונה. נסה שוב.');
+                              } finally {
+                                setUploadingCourseImage(false);
+                              }
+                            }}
+                            disabled={uploadingCourseImage}
+                          />
+                        </label>
+                      </div>
+
+                      {/* Or URL Input */}
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                          <span className="px-2 bg-white text-gray-500">או</span>
+                        </div>
+                      </div>
+
+                      <input
+                        type="url"
+                        placeholder="https://example.com/image.jpg"
+                        value={formData.thumbnail_url || ''}
+                        onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                      <p className="text-xs text-gray-500">הזן קישור לתמונה או העלה תמונה מהמחשב</p>
+                      
+                      {/* Preview */}
+                      {formData.thumbnail_url && (
+                        <div className="mt-2 relative">
+                          <img
+                            src={formData.thumbnail_url}
+                            alt="תצוגה מקדימה"
+                            className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, thumbnail_url: '' })}
+                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                            title="הסר תמונה"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     
                     {/* Pricing Fields */}
                     <div className="space-y-4 border-t border-gray-200 pt-4">

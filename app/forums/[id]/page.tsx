@@ -13,7 +13,7 @@ import { adaptForumRepliesToComments } from '@/lib/utils/forum-comments-adapter'
 
 export default function ForumDetailPage() {
   return (
-    <AuthGuard requireAuth={true} fallbackMessage="האזור הזה הוא למחוברים בלבד">
+    <AuthGuard requireAuth={true} fallbackMessage="עליך להתחבר לאתר כדי לצפות בתוכן">
       <ForumDetailPageContent />
     </AuthGuard>
   );

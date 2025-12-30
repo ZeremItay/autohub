@@ -161,6 +161,7 @@ p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+
 /* Modern Button */
 .btn-modern {
   background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);

@@ -19,6 +19,8 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
+  Radio,
+  Megaphone,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getPosts, createPost, deletePost, toggleLike, checkUserLikedPost, type PostWithProfile } from '@/lib/queries/posts';
@@ -73,7 +75,6 @@ export default function Home() {
   const [news, setNews] = useState<News[]>([]);
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [reports, setReports] = useState<Report[]>([]);
-  const [currentReportIndex, setCurrentReportIndex] = useState(0);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -131,18 +132,29 @@ export default function Home() {
     };
   }, [news]);
 
-  // Auto-rotate reports carousel every 5 seconds
+  // Poll for new reports every 10 seconds to keep ticker updated
   useEffect(() => {
-    if (!reports || !Array.isArray(reports) || reports.length <= 1) return;
-    
-    const reportsInterval = setInterval(() => {
-      setCurrentReportIndex((prev) => (prev === reports.length - 1 ? 0 : prev + 1));
-    }, 5000);
+    const reportsInterval = setInterval(async () => {
+      try {
+        const { getAllReports } = await import('@/lib/queries/reports');
+        const reportsResult = await getAllReports(10);
+        
+        if (reportsResult?.data && Array.isArray(reportsResult.data) && reportsResult.data.length > 0) {
+          const publishedReports = reportsResult.data.filter((r: any) => r.is_published === true);
+          setReports(publishedReports);
+        } else {
+          setReports([]);
+        }
+      } catch (error) {
+        console.error('Error polling for reports:', error);
+      }
+    }, 10000); // Poll every 10 seconds
 
     return () => {
       clearInterval(reportsInterval);
     };
-  }, [reports]);
+  }, []);
+
 
 
   async function loadData() {
@@ -238,19 +250,16 @@ export default function Home() {
         setNews(newsResult.data);
       }
 
-      // Load reports
-      console.log('Loading reports...', reportsResult);
-      if (reportsResult?.data && Array.isArray(reportsResult.data)) {
-        console.log('Reports loaded:', reportsResult.data.length, reportsResult.data);
-        setReports(reportsResult.data);
-      } else if (reportsResult?.error) {
-        console.error('Error loading reports:', reportsResult.error);
-        console.error('Error details:', JSON.stringify(reportsResult.error, null, 2));
-      } else {
-        console.log('No reports data:', reportsResult);
-        console.log('Reports result type:', typeof reportsResult);
-        console.log('Reports result keys:', reportsResult ? Object.keys(reportsResult) : 'null');
-      }
+      // Load reports from database - only published reports, sorted by created_at DESC, limit 10
+      // Query already filters for is_published=true, orders by created_at DESC
+        if (reportsResult?.data && Array.isArray(reportsResult.data) && reportsResult.data.length > 0) {
+          // Filter to ensure all are published (query should already do this, but double-check)
+          const publishedReports = reportsResult.data.filter((r: any) => r.is_published === true);
+          setReports(publishedReports);
+        } else {
+          // No reports found in database
+          setReports([]);
+        }
 
       // Load recent updates in background - don't block initial page load
       lazyLoad(() => loadRecentUpdates(eventsResult.data || []), 500).catch(() => {
@@ -261,6 +270,28 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Format time from created_at to HH:MM
+  function formatTimeFromDate(dateString: string): string {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    } catch (error) {
+      return '';
+    }
+  }
+
+  // Format current date to DD.MM.YYYY
+  function formatCurrentDate(): string {
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, '0');
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const year = now.getFullYear();
+    return `${day}.${month}.${year}`;
   }
 
   async function loadRecentUpdates(eventsData: Event[] = []) {
@@ -657,67 +688,82 @@ export default function Home() {
 
   return (
     <div className="px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6">
-      {/* Reports News Ticker - Compact row above all content */}
-      <div className="max-w-7xl mx-auto mb-2 sm:mb-3">
-        <div className="bg-white rounded-md shadow-sm border border-gray-200 px-3 sm:px-4 py-2 relative overflow-hidden">
-          {reports && reports.length > 0 ? (
-            <div className="relative">
-              {/* News Ticker Container */}
-              <div className="relative h-8 sm:h-10 overflow-hidden">
-                <div className="flex items-center h-full">
-                  {reports.map((report, index) => (
-                    <Link
-                      key={report.id}
-                      href={`/reports/${report.id}`}
-                      className={`flex-shrink-0 w-full h-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 cursor-pointer hover:bg-gray-50 transition-colors ${
-                        index === currentReportIndex ? 'flex' : 'hidden'
-                      }`}
-                    >
-                      <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-600"></div>
-                      <h3 className="text-xs sm:text-sm font-medium text-gray-800 truncate flex-1">
-                        {report.title}
-                      </h3>
-                      {report.created_at && (
-                        <span className="flex-shrink-0 text-xs text-gray-500 whitespace-nowrap">
-                          {formatTimeAgo(report.created_at)}
-                        </span>
-                      )}
-                    </Link>
-                  ))}
-                </div>
-
-                {/* Navigation Arrows - Only show if more than 1 report */}
-                {reports.length > 1 && (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentReportIndex((prev) => (prev === 0 ? reports.length - 1 : prev - 1));
-                      }}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 text-gray-500 rounded-full p-1 shadow-sm transition-all z-10 border border-gray-200"
-                      aria-label="דיווח קודם"
-                    >
-                      <ChevronRight className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentReportIndex((prev) => (prev === reports.length - 1 ? 0 : prev + 1));
-                      }}
-                      className="absolute left-1 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 text-gray-500 rounded-full p-1 shadow-sm transition-all z-10 border border-gray-200"
-                      aria-label="דיווח הבא"
-                    >
-                      <ChevronLeft className="w-3 h-3" />
-                    </button>
-                  </>
-                )}
-              </div>
+      {/* Reports News Ticker - Bulletproof Infinite Scrolling Marquee */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+          animation: marquee 40s linear infinite;
+          display: flex;
+        }
+        .paused {
+          animation-play-state: paused;
+        }
+      `}} />
+      <div className="max-w-7xl mx-auto mb-6">
+        <div className="w-full bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden h-12 flex items-center relative">
+          {/* Badge - Absolutely positioned on the right with gradient fade */}
+          <div className="absolute right-0 z-10 h-full flex items-center pr-4">
+            <div className="bg-gradient-to-l from-white via-white to-transparent w-24 h-full absolute right-0"></div>
+            <div className="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full relative z-10">
+              דיווחים
             </div>
-          ) : (
-            <div className="h-8 sm:h-10 flex items-center justify-center">
-              <p className="text-gray-400 text-xs">אין דיווחים זמינים כרגע</p>
+          </div>
+          
+      {/* Content - Scrolling marquee with two sets for seamless loop */}
+      <div className="flex-1 overflow-hidden relative group pr-32">
+        {reports.length > 0 ? (
+          <div className="flex flex-row overflow-hidden relative">
+            {/* Wrapper that contains BOTH sets - animation on this wrapper */}
+            <div className="flex shrink-0 items-center gap-4 animate-marquee group-hover:paused whitespace-nowrap">
+              {/* Set 1 */}
+              {reports.map((report, index) => (
+                <span key={`report-1-${index}-${report.id}`} className="inline-flex items-center">
+                  {index > 0 && <span className="text-gray-800 mx-2">•</span>}
+                  <Link
+                    href={`/reports/${report.id}`}
+                    dir="rtl"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-gray-800 hover:text-red-600 transition-colors whitespace-nowrap px-4"
+                  >
+                    <span className="text-red-600 font-medium text-xs">
+                      {report.created_at ? formatTimeFromDate(report.created_at) : ''}
+                    </span>
+                    <span className="text-gray-800">
+                      {report.title}
+                    </span>
+                  </Link>
+                  <span className="text-red-400 mx-4">|</span>
+                </span>
+              ))}
+              {/* Set 2 - Duplicate for seamless loop */}
+              {reports.map((report, index) => (
+                <span key={`report-2-${index}-${report.id}`} className="inline-flex items-center">
+                  {index > 0 && <span className="text-gray-800 mx-2">•</span>}
+                  <Link
+                    href={`/reports/${report.id}`}
+                    dir="rtl"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-gray-800 hover:text-red-600 transition-colors whitespace-nowrap px-4"
+                  >
+                    <span className="text-red-600 font-medium text-xs">
+                      {report.created_at ? formatTimeFromDate(report.created_at) : ''}
+                    </span>
+                    <span className="text-gray-800">
+                      {report.title}
+                    </span>
+                  </Link>
+                  <span className="text-red-400 mx-4">|</span>
+                </span>
+              ))}
             </div>
-          )}
+          </div>
+        ) : (
+          <div className="flex items-center">
+            <span className="text-sm font-medium text-gray-800">אין דיווחים חדשים</span>
+          </div>
+        )}
+      </div>
         </div>
       </div>
 

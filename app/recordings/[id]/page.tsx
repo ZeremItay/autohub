@@ -8,9 +8,18 @@ import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { isPremiumUser } from '@/lib/utils/user';
 import { formatDate } from '@/lib/utils/date';
 import { CommentsList } from '@/app/components/comments';
+import AuthGuard from '@/app/components/AuthGuard';
 import { ArrowRight, Share2, Eye, Clock, Calendar, Tag, Send, Trash2, MessageCircle, HelpCircle, Star, Play, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 export default function RecordingDetailPage() {
+  return (
+    <AuthGuard requirePremium={true} fallbackMessage="צריך לשדרג לפרימיום כדי לצפות בתוכן זה">
+      <RecordingDetailPageContent />
+    </AuthGuard>
+  );
+}
+
+function RecordingDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const { user: currentUser, isPremium: userIsPremium, refetch: refetchUser } = useCurrentUser();

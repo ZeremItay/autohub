@@ -212,8 +212,8 @@ export default function ProfilePage() {
           }
         }
       }
-    } catch (error) {
-      console.error('Error loading profile:', error)
+    } catch (error: any) {
+      console.error('Error loading profile:', error?.message || String(error))
     } finally {
       setLoading(false)
     }
@@ -272,7 +272,7 @@ export default function ProfilePage() {
         });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
+        console.error('Upload error:', uploadError?.message || String(uploadError));
         // If bucket doesn't exist, use base64 as fallback
         if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('not found') || uploadError.message?.includes('Bucket')) {
           console.warn('Bucket "avatars" not found, using base64 fallback');
@@ -318,7 +318,7 @@ export default function ProfilePage() {
         window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: publicUrl } }));
       }
     } catch (error) {
-      console.error('Error uploading avatar:', error);
+      console.error('Error uploading avatar:', error?.message || String(error));
       alert('שגיאה בהעלאת התמונה');
     } finally {
       setUploadingAvatar(false);
@@ -339,7 +339,7 @@ export default function ProfilePage() {
         window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: avatarUrl } }));
       }
     } catch (error) {
-      console.error('Error setting avatar:', error);
+      console.error('Error setting avatar:', error?.message || String(error));
       alert('שגיאה בשמירת האווטר');
     }
   }
@@ -395,11 +395,11 @@ export default function ProfilePage() {
           window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: formData.avatar_url || additionalUpdates?.avatar_url } }));
         }
       } else {
-        console.error('Error updating profile:', error);
+        console.error('Error updating profile:', error?.message || String(error));
         alert('שגיאה בשמירת הפרופיל. נסה שוב.');
       }
-    } catch (error) {
-      console.error('Error saving details:', error)
+    } catch (error: any) {
+      console.error('Error saving details:', error?.message || String(error))
       alert('שגיאה בשמירת הפרופיל. נסה שוב.');
     }
   }
@@ -419,7 +419,7 @@ export default function ProfilePage() {
         setEditingPersonal(false)
       }
     } catch (error) {
-      console.error('Error saving personal info:', error)
+      console.error('Error saving personal info:', error?.message || String(error))
     }
   }
 
@@ -436,7 +436,7 @@ export default function ProfilePage() {
         setMyReplies(data || [])
       }
     } catch (error) {
-      console.error('Error loading forums data:', error)
+      console.error('Error loading forums data:', error?.message || String(error))
     } finally {
       setLoadingForums(false)
     }
@@ -540,7 +540,7 @@ export default function ProfilePage() {
       
       setPointsHistory(enhancedHistory)
     } catch (error) {
-      console.error('Error loading points history:', error)
+      console.error('Error loading points history:', error?.message || String(error))
       // Still set the history even if enhancement fails
       const userId = profile.user_id || profile.id
       const { data } = await getUserPointsHistory(userId)
@@ -559,13 +559,13 @@ export default function ProfilePage() {
       const { data, error } = await getUserProjectOffers(userId)
       
       if (error) {
-        console.error('Error loading offers:', error)
+        console.error('Error loading offers:', error?.message || String(error))
         setMyOffers([])
       } else {
         setMyOffers(data || [])
       }
     } catch (error) {
-      console.error('Error loading offers:', error)
+      console.error('Error loading offers:', error?.message || String(error))
       setMyOffers([])
     } finally {
       setLoadingOffers(false)
@@ -610,7 +610,7 @@ export default function ProfilePage() {
         setMySubmissions(Array.isArray(submissions) ? submissions : [])
       }
     } catch (error) {
-      console.error('Error loading projects data:', error)
+      console.error('Error loading projects data:', error?.message || String(error))
       setMyProjects([])
       setMySubmissions([])
     } finally {
@@ -626,7 +626,7 @@ export default function ProfilePage() {
       const { data, error } = await getEnrolledCourses(userId)
       
       if (error) {
-        console.error('Error loading courses:', error)
+        console.error('Error loading courses:', error?.message || String(error))
         setMyCourses([])
       } else {
         // Load progress for each course (completed lessons)
@@ -653,7 +653,7 @@ export default function ProfilePage() {
                 totalLessons: totalLessons
               }
             } catch (error) {
-              console.error(`Error loading progress for course ${course.id}:`, error)
+              console.error(`Error loading progress for course ${course.id}:`, error?.message || String(error))
               return {
                 ...course,
                 progress: 0,
@@ -667,7 +667,7 @@ export default function ProfilePage() {
         setMyCourses(coursesWithProgress)
       }
     } catch (error) {
-      console.error('Error loading courses:', error)
+      console.error('Error loading courses:', error?.message || String(error))
       setMyCourses([])
     } finally {
       setLoadingCourses(false)
@@ -712,7 +712,7 @@ export default function ProfilePage() {
         setNotificationsTotalPages(0)
       }
     } catch (error) {
-      console.error('Error loading notifications:', error)
+      console.error('Error loading notifications:', error?.message || String(error))
       setNotifications([])
       setNotificationsTotal(0)
       setNotificationsTotalPages(0)
@@ -747,7 +747,7 @@ export default function ProfilePage() {
         )
       }
     } catch (error) {
-      console.error('Error marking notification as read:', error)
+      console.error('Error marking notification as read:', error?.message || String(error))
     }
   }
 
@@ -765,7 +765,7 @@ export default function ProfilePage() {
         loadNotifications(notificationsPage)
       }
     } catch (error) {
-      console.error('Error marking all as read:', error)
+      console.error('Error marking all as read:', error?.message || String(error))
     }
   }
 

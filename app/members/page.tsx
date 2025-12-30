@@ -18,7 +18,7 @@ import AuthGuard from '@/app/components/AuthGuard'
 
 export default function MembersPage() {
   return (
-    <AuthGuard requireAuth={true} fallbackMessage="האזור הזה הוא למחוברים בלבד">
+    <AuthGuard requireAuth={true} fallbackMessage="עליך להתחבר לאתר כדי לצפות בתוכן">
       <MembersPageContent />
     </AuthGuard>
   );

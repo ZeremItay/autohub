@@ -8,8 +8,17 @@ import { getBlogPostBySlug, incrementBlogPostViews } from '@/lib/queries/blog';
 import { getBlogComments, createBlogComment, deleteBlogComment, type BlogComment } from '@/lib/queries/blog-comments';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { CommentsList } from '@/app/components/comments';
+import AuthGuard from '@/app/components/AuthGuard';
 
 export default function BlogPostPage() {
+  return (
+    <AuthGuard requireAuth={true} fallbackMessage="עליך להתחבר לאתר כדי לצפות בתוכן">
+      <BlogPostPageContent />
+    </AuthGuard>
+  );
+}
+
+function BlogPostPageContent() {
   const params = useParams();
   const slug = params.slug as string;
   const { user: currentUser } = useCurrentUser();
