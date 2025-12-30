@@ -150,7 +150,7 @@ export default function CourseDetailPage() {
               
               // Get completed lessons data directly
               const { data: completedLessonIds } = await getCompletedLessons(courseId, userId);
-              const completedIds = completedLessonIds || [];
+              const completedIds = Array.isArray(completedLessonIds) ? completedLessonIds : [];
               
               // Find the next lesson to watch (first incomplete lesson that's accessible)
               let nextLesson: CourseLesson | null = null;
@@ -334,7 +334,7 @@ export default function CourseDetailPage() {
         if (lessonsData.length > 0 && currentUser) {
           // Find next lesson to watch
           const { data: completedLessonIds } = await getCompletedLessons(courseId, currentUser.id);
-          const completedIds = completedLessonIds || [];
+          const completedIds = Array.isArray(completedLessonIds) ? completedLessonIds : [];
           
           let nextLesson: CourseLesson | null = null;
           

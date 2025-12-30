@@ -30,7 +30,7 @@ export default function MyForumsPage() {
   async function loadUser() {
     try {
       const { data: profiles } = await getAllProfiles();
-      if (profiles && profiles.length > 0) {
+      if (Array.isArray(profiles) && profiles.length > 0) {
         const user = profiles[0];
         setCurrentUser({ 
           id: user.user_id || user.id, 

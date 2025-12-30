@@ -49,7 +49,7 @@ export default function MessagesPage() {
           setCurrentUserId(userId);
         } else {
           const { data: profiles } = await getAllProfiles();
-          if (profiles && profiles.length > 0) {
+          if (Array.isArray(profiles) && profiles.length > 0) {
             userId = profiles[0].user_id || profiles[0].id;
             setCurrentUserId(userId);
             // Save to localStorage for future use

@@ -46,7 +46,7 @@ function MembersPageContent() {
       } else {
         // Get first user as default
         const { data: profiles } = await getAllProfiles();
-        if (profiles && profiles.length > 0) {
+        if (Array.isArray(profiles) && profiles.length > 0) {
           const userId = profiles[0].user_id || profiles[0].id;
           setCurrentUserId(userId);
         }

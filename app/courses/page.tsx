@@ -32,7 +32,7 @@ export default function CoursesPage() {
   async function loadCurrentUser() {
     try {
       const { data: profiles } = await getAllProfiles();
-      if (profiles && profiles.length > 0) {
+      if (Array.isArray(profiles) && profiles.length > 0) {
         const firstUser = profiles[0];
         setCurrentUser({ 
           id: firstUser.user_id || firstUser.id, 

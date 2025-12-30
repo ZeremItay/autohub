@@ -77,7 +77,7 @@ function ForumDetailPageContent() {
   async function loadCurrentUser() {
     try {
       const { data: profiles } = await getAllProfiles();
-      if (profiles && profiles.length > 0) {
+      if (Array.isArray(profiles) && profiles.length > 0) {
         // Try to get user from localStorage first
         const selectedUserId = typeof window !== 'undefined' ? localStorage.getItem('selectedUserId') : null;
         let user = profiles[0];

@@ -27,7 +27,7 @@ export async function GET() {
         profiles: {
           data: profiles,
           error: profilesError?.message,
-          columns: profiles && profiles.length > 0 ? Object.keys(profiles[0]) : []
+          columns: Array.isArray(profiles) && profiles.length > 0 ? Object.keys(profiles[0]) : []
         },
         user_roles: {
           data: userRoles,
