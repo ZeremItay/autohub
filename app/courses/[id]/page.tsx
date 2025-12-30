@@ -76,7 +76,7 @@ export default function CourseDetailPage() {
       let userIsEnrolled = false;
       let userObj: any = null;
       
-      if (profiles && profiles.length > 0) {
+      if (Array.isArray(profiles) && profiles.length > 0) {
         const firstUser = profiles[0];
         userId = firstUser.user_id || firstUser.id;
         userObj = { 
