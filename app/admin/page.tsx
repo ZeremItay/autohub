@@ -4642,7 +4642,7 @@ export default function AdminPanel() {
                                     ? event.event_date
                                     : (() => {
                                         const dateObj = event.event_date as any;
-                                        if ((dateObj as any) instanceof Date) {
+                                        if (dateObj instanceof Date) {
                                           const year = dateObj.getFullYear();
                                           const month = String(dateObj.getMonth() + 1).padStart(2, '0');
                                           const day = String(dateObj.getDate()).padStart(2, '0');
