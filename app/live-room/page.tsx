@@ -106,7 +106,7 @@ export default function LiveRoomPage() {
         }
       } else {
         // Only update event if it's different (to avoid unnecessary re-renders that reload iframe)
-        setEvent(prevEvent => {
+        setEvent((prevEvent: any) => {
           // If we already have an event and it's the same, don't update (prevents iframe reload)
           if (prevEvent && data && prevEvent.id === data.id) {
             return prevEvent;
