@@ -50,7 +50,7 @@ export default function RecordingsPage() {
       if (!error && data) {
         // Data is already sorted by created_at DESC from the query
         // Just apply additional sorting if needed
-        let sorted = [...data]
+        let sorted = Array.isArray(data) ? [...data] : []
         if (sortBy === 'views') {
           sorted.sort((a, b) => (b.views || 0) - (a.views || 0))
         }

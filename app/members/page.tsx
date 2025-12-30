@@ -73,7 +73,7 @@ function MembersPageContent() {
       const { data, error } = await getAllProfiles()
       if (!error && data) {
         // Sort members based on sortBy
-        let sorted = [...data]
+        let sorted = Array.isArray(data) ? [...data] : []
         if (sortBy === 'recently-active') {
           sorted.sort((a, b) => {
             const aDate = new Date(a.updated_at || a.created_at).getTime()
