@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     // Get user info for notifications
     const { data: profiles } = await getAllProfiles();
-    const replier = profiles?.find((p: any) => (p.user_id || p.id) === user_id);
+    const replier = (Array.isArray(profiles) ? profiles : []).find((p: any) => (p.user_id || p.id) === user_id);
     const replierName = replier?.display_name || profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
 
     // Create notification for post owner

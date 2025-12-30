@@ -23,7 +23,7 @@ export async function DELETE(
 
     // Check if user is admin
     const { data: profiles } = await getAllProfiles();
-    const user = profiles?.find((p: any) => p.user_id === session.user.id);
+    const user = (Array.isArray(profiles) ? profiles : []).find((p: any) => p.user_id === session.user.id);
     
     if (!user) {
       return NextResponse.json(

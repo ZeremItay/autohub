@@ -82,7 +82,7 @@ function ForumDetailPageContent() {
         const selectedUserId = typeof window !== 'undefined' ? localStorage.getItem('selectedUserId') : null;
         let user = profiles[0];
         
-        if (selectedUserId) {
+        if (selectedUserId && Array.isArray(profiles)) {
           const foundUser = profiles.find((p: any) => (p.user_id || p.id) === selectedUserId);
           if (foundUser) {
             user = foundUser;

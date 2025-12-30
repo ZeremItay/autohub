@@ -22,7 +22,7 @@ export async function GET() {
     
     // Enrich user_roles with profile names
     const enrichedRoles = userRoles?.map(ur => {
-      const profile = profiles?.find(p => p.id === ur.user_id)
+      const profile = (Array.isArray(profiles) ? profiles : []).find(p => p.id === ur.user_id)
       return {
         ...ur,
         user_name: profile?.full_name || profile?.username || ur.user_id,

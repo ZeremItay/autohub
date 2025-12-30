@@ -32,7 +32,7 @@ export default function SubscriptionPage() {
       }
 
       const { data: profiles } = await getAllProfiles();
-      if (profiles && profiles.length > 0) {
+      if (profiles && Array.isArray(profiles) && profiles.length > 0) {
         // Find user by session user_id
         const user = profiles.find((p: any) => p.user_id === session.user.id) || profiles[0];
         setCurrentUser(user);

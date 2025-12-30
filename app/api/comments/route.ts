@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     // Get recording and user info for notifications
     const { data: recording } = await getRecordingById(recording_id);
     const { data: profiles } = await getAllProfiles();
-    const commenter = profiles?.find((p: any) => (p.user_id || p.id) === user_id);
+    const commenter = (Array.isArray(profiles) ? profiles : []).find((p: any) => (p.user_id || p.id) === user_id);
     const commenterName = commenter?.display_name || 'משתמש';
 
     // Create notifications
