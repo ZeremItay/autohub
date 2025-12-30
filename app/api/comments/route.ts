@@ -81,17 +81,19 @@ export async function POST(request: NextRequest) {
         }
       } else {
         // This is a top-level comment - notify the recording owner
-        if (recording.user_id && recording.user_id !== user_id) {
-          await notifyRecordingComment(
-            recording_id,
-            recording.title,
-            user_id,
-            commenterName,
-            recording.user_id
-          ).catch((error) => {
-            console.warn('Error sending recording comment notification:', error);
-          });
-        }
+        // Note: recordings table doesn't have user_id, so we skip owner notification for now
+        // If you need to notify recording owners, add user_id column to recordings table
+        // if (recording.user_id && recording.user_id !== user_id) {
+        //   await notifyRecordingComment(
+        //     recording_id,
+        //     recording.title,
+        //     user_id,
+        //     commenterName,
+        //     recording.user_id
+        //   ).catch((error) => {
+        //     console.warn('Error sending recording comment notification:', error);
+        //   });
+        // }
       }
 
       // Check for mentions in content
