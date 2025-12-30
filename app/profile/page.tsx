@@ -172,7 +172,7 @@ export default function ProfilePage() {
         // Use first profile as default
         const { getAllProfiles } = await import('@/lib/queries/profiles');
         const { data: allProfiles } = await getAllProfiles();
-        profile = allProfiles?.[0] || null;
+        profile = Array.isArray(allProfiles) && allProfiles.length > 0 ? allProfiles[0] : null;
       }
       
       if (profile) {
