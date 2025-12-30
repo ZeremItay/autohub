@@ -584,7 +584,7 @@ export default function ProfilePage() {
         console.error('Error loading projects:', projectsError)
         setMyProjects([])
       } else {
-        setMyProjects(projects || [])
+        setMyProjects(Array.isArray(projects) ? projects : [])
         
         // טעינת כל ההגשות לכל פרויקט של המשתמש
         if (projects && projects.length > 0) {
@@ -607,7 +607,7 @@ export default function ProfilePage() {
         console.error('Error loading submissions:', submissionsError)
         setMySubmissions([])
       } else {
-        setMySubmissions(submissions || [])
+        setMySubmissions(Array.isArray(submissions) ? submissions : [])
       }
     } catch (error) {
       console.error('Error loading projects data:', error)
