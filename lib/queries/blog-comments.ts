@@ -82,10 +82,10 @@ export async function getBlogComments(blogPostId: string) {
       replies: repliesMap.get(comment.id) || []
     }))
 
-    return { data: organizedComments, error: null }
+    return { data: Array.isArray(organizedComments) ? organizedComments : [], error: null }
   }
 
-  return { data: comments, error: null }
+  return { data: Array.isArray(comments) ? comments : [], error: null }
 }
 
 // Create a comment on a blog post

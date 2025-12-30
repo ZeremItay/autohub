@@ -94,7 +94,7 @@ export async function checkExpiringSubscriptions(gracePeriodDays: number = 2) {
       return { data: null, error }
     }
 
-    return { data: data || [], error: null }
+    return { data: Array.isArray(data) ? data : [], error: null }
   } catch (err: any) {
     logError(err, 'checkExpiringSubscriptions:exception');
     return { data: null, error: err }
@@ -135,7 +135,7 @@ export async function checkExpiredSubscriptions(daysAfterWarning: number = 3, gr
       return { data: null, error }
     }
 
-    return { data: data || [], error: null }
+    return { data: Array.isArray(data) ? data : [], error: null }
   } catch (err: any) {
     logError(err, 'checkExpiredSubscriptions:exception');
     return { data: null, error: err }
@@ -222,7 +222,7 @@ export async function cancelSubscriptionAndRestoreRole(subscriptionId: string) {
 
     // Restore user's role
     const { error: profileError } = await updateProfile(subscription.user_id, {
-      role_id: roleToRestore
+      role_id: roleToRestore ?? undefined
     })
 
     if (profileError) {

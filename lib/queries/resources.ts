@@ -35,7 +35,7 @@ export async function getAllResources() {
       return { data: null, error };
     }
     
-    return { data, error: null };
+    return { data: Array.isArray(data) ? data : [], error: null };
   } catch (err) {
     console.error('Unexpected error in getAllResources:', err);
     return { 

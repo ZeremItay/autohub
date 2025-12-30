@@ -38,7 +38,7 @@ export async function getPosts() {
   const cacheKey = 'posts:all';
   const cached = getCached<PostWithProfile[]>(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : [], error: null };
   }
 
   const { data: posts, error: postsError } = await supabase
@@ -61,7 +61,7 @@ export async function getPosts() {
   
   // If no valid user IDs, return posts without profiles
   if (userIds.length === 0) {
-    return { data: posts.map((post: any) => ({ ...post, profile: null })), error: null }
+    return { data: Array.isArray(posts) ? posts.map((post: any) => ({ ...post, profile: null })) : [], error: null }
   }
   
   // Try to get profiles - first without roles join to avoid issues
@@ -114,7 +114,7 @@ export async function getPosts() {
         code: simpleError.code
       })
       // Return posts without profiles if profile fetch fails
-      return { data: posts.map((post: any) => ({ ...post, profile: null })), error: null }
+      return { data: Array.isArray(posts) ? posts.map((post: any) => ({ ...post, profile: null })) : [], error: null }
     }
     
     profiles = profilesWithoutRoles || []
@@ -177,7 +177,7 @@ export async function getPosts() {
   
   // Cache the result
   setCached(cacheKey, postsWithProfiles, CACHE_TTL.SHORT);
-  return { data: postsWithProfiles, error: null }
+  return { data: Array.isArray(postsWithProfiles) ? postsWithProfiles : [], error: null }
 }
 
 // Get single post
@@ -185,7 +185,7 @@ export async function getPost(id: string) {
   const cacheKey = `post:${id}`;
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : (cached ?? null), error: null };
   }
 
   const { data: post, error: postError } = await supabase

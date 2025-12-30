@@ -38,7 +38,7 @@ export async function getAllEvents(includeDeleted: boolean = false) {
   }
   
   const { data, error } = await query;
-  return { data, error };
+  return { data: Array.isArray(data) ? data : [], error };
 }
 
 // Get upcoming events (future events)
@@ -58,7 +58,7 @@ export async function getUpcomingEvents(limit?: number) {
   }
   
   const { data, error } = await query;
-  return { data, error };
+  return { data: Array.isArray(data) ? data : [], error };
 }
 
 // Get events for a specific date range
@@ -77,7 +77,7 @@ export async function getEventsByDateRange(startDate: string, endDate: string, i
   }
   
   const { data, error } = await query;
-  return { data, error };
+  return { data: Array.isArray(data) ? data : [], error };
 }
 
 // Get events for a specific month

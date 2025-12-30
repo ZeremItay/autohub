@@ -384,6 +384,12 @@ export default function ProjectsPage() {
       const { createProjectOffer } = await import('@/lib/queries/projects');
       const userId = currentUser.user_id || currentUser.id;
       
+      if (!userId) {
+        alert('שגיאה: לא נמצא מזהה משתמש');
+        setSubmittingOffer(false);
+        return;
+      }
+      
       const { data, error } = await createProjectOffer({
         project_id: selectedProject.id,
         user_id: userId,
@@ -411,7 +417,8 @@ export default function ProjectsPage() {
           message: `${offererName} הגיש הצעה לפרויקט "${selectedProject.title}"`,
           link: `/projects`,
           related_id: selectedProject.id,
-          related_type: 'project'
+          related_type: 'project',
+          is_read: false
         }).catch((error) => {
           console.warn('Error sending notification:', error);
         });

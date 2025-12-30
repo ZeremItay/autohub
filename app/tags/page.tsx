@@ -25,10 +25,10 @@ export default function TagsPage() {
       ])
       
       if (!allTagsRes.error && allTagsRes.data) {
-        setTags(allTagsRes.data)
+        setTags(allTagsRes.data as any[])
       }
       if (!popularRes.error && popularRes.data) {
-        setPopularTags(popularRes.data)
+        setPopularTags(popularRes.data as any[])
       }
     } catch (error) {
       console.error('Error loading tags:', error)

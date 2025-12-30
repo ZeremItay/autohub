@@ -39,7 +39,7 @@ export async function getAllTags(includeUnapproved: boolean = false) {
   const cacheKey = includeUnapproved ? 'tags:all:with-unapproved' : 'tags:all';
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : (cached ?? null), error: null };
   }
 
   let query = supabase
@@ -65,7 +65,7 @@ export async function getAllTags(includeUnapproved: boolean = false) {
   }
 
   setCached(cacheKey, data, 300000); // Cache for 5 minutes
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : [], error: null }
 }
 
 // Get tag by ID
@@ -73,7 +73,7 @@ export async function getTagById(id: string) {
   const cacheKey = `tag:${id}`;
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : (cached ?? null), error: null };
   }
 
   const { data, error } = await supabase
@@ -88,7 +88,7 @@ export async function getTagById(id: string) {
   }
 
   setCached(cacheKey, data, 300000);
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : (data ?? null), error: null }
 }
 
 // Get tag by slug
@@ -96,7 +96,7 @@ export async function getTagBySlug(slug: string) {
   const cacheKey = `tag:slug:${slug}`;
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : (cached ?? null), error: null };
   }
 
   const { data, error } = await supabase
@@ -112,7 +112,7 @@ export async function getTagBySlug(slug: string) {
   }
 
   setCached(cacheKey, data, 300000);
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : (data ?? null), error: null }
 }
 
 // Create tag
@@ -197,7 +197,7 @@ export async function getTagsByContent(contentType: string, contentId: string) {
   const cacheKey = `tags:${contentType}:${contentId}`;
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : (cached ?? null), error: null };
   }
 
   const { data, error } = await supabase
@@ -216,7 +216,7 @@ export async function getTagsByContent(contentType: string, contentId: string) {
   }
 
   setCached(cacheKey, data, 300000);
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : (data ?? null), error: null }
 }
 
 // Assign tags to content
@@ -370,7 +370,7 @@ export async function getPopularTags(limit: number = 20) {
   const cacheKey = `tags:popular:${limit}`;
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : (cached ?? null), error: null };
   }
 
   const { data, error } = await supabase
@@ -386,7 +386,7 @@ export async function getPopularTags(limit: number = 20) {
   }
 
   setCached(cacheKey, data, 300000);
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : (data ?? null), error: null }
 }
 
 // Search tags

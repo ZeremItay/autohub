@@ -63,7 +63,7 @@ export async function getAllPayments() {
       return { data: null, error }
     }
     
-    return { data, error: null }
+    return { data: Array.isArray(data) ? data : [], error: null }
   } catch (err: any) {
     logError(err, 'getAllPayments:exception');
     return { data: null, error: err }
@@ -85,7 +85,7 @@ export async function getPaymentsBySubscriptionId(subscriptionId: string) {
       return { data: null, error }
     }
     
-    return { data, error: null }
+    return { data: Array.isArray(data) ? data : [], error: null }
   } catch (err: any) {
     logError(err, 'getPaymentsBySubscriptionId:exception');
     return { data: null, error: err }
@@ -122,7 +122,7 @@ export async function getPaymentsByUserId(userId: string) {
       return { data: null, error }
     }
     
-    return { data, error: null }
+    return { data: Array.isArray(data) ? data : [], error: null }
   } catch (err: any) {
     logError(err, 'getPaymentsByUserId:exception');
     return { data: null, error: err }
@@ -148,7 +148,7 @@ export async function createPayment(paymentData: Omit<Payment, 'id' | 'created_a
       return { data: null, error }
     }
     
-    return { data, error: null }
+    return { data: Array.isArray(data) ? data : [], error: null }
   } catch (err: any) {
     logError(err, 'createPayment:exception');
     return { data: null, error: err }
@@ -177,7 +177,7 @@ export async function updatePayment(paymentId: string, updates: Partial<Payment>
       return { data: null, error }
     }
     
-    return { data, error: null }
+    return { data: Array.isArray(data) ? data : [], error: null }
   } catch (err: any) {
     logError(err, 'updatePayment:exception');
     return { data: null, error: err }

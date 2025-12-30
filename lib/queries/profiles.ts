@@ -174,7 +174,7 @@ export async function getAllProfiles() {
   const cacheKey = 'profiles:all';
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : (cached ?? null), error: null };
   }
 
   const { data, error } = await supabase
@@ -254,7 +254,7 @@ export async function getProfilesByIds(userIds: string[]) {
     return { data: null, error }
   }
   
-  return { data: data || [], error: null }
+  return { data: Array.isArray(data) ? data : [], error: null }
 }
 
 // Get current user profile (optimized)
@@ -303,7 +303,8 @@ export async function getCurrentUserProfile() {
     }
     
     // Fallback to getAllProfiles
-    const { data: profiles } = await getAllProfiles();
+    const { data: profilesData } = await getAllProfiles();
+    const profiles = profilesData as any[];
     if (profiles && profiles.length > 0) {
       const selectedUserId = typeof window !== 'undefined' ? localStorage.getItem('selectedUserId') : null;
       let user = profiles[0];

@@ -30,7 +30,7 @@ export const createServerClient = (cookieStore?: ReadonlyRequestCookies) => {
           }
         },
       },
-    });
+    } as any);
   }
   
   // Fallback to service role key if available and no cookies

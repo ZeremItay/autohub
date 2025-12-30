@@ -63,7 +63,7 @@ export async function getUserNotifications(
     return { data: null, total: 0, error };
   }
   
-  return { data: data || [], total, error: null };
+  return { data: Array.isArray(data) ? data : [], total, error: null };
 }
 
 // Get unread notifications count

@@ -53,7 +53,7 @@ export async function getActiveRules() {
       // Ignore sort errors
     }
     
-    return { data: activeRules, error: null }
+    return { data: Array.isArray(activeRules) ? activeRules : [], error: null }
   } catch (error: any) {
     // Silently fail - rules are not critical
     console.warn('Error in getActiveRules:', error)

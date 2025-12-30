@@ -21,7 +21,7 @@ export async function getAllRoles() {
     return { data: null, error }
   }
   
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : [], error: null }
 }
 
 // Get role by ID
@@ -37,7 +37,7 @@ export async function getRole(roleId: string) {
     return { data: null, error }
   }
   
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : [], error: null }
 }
 
 // Get role by name
@@ -53,5 +53,5 @@ export async function getRoleByName(name: string) {
     return { data: null, error }
   }
   
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : [], error: null }
 }

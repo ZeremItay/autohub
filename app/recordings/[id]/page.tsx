@@ -312,7 +312,7 @@ export default function RecordingDetailPage() {
             {recording.category && (
               <div className="flex flex-wrap gap-2">
                 {Array.isArray(recording.category) ? (
-                  recording.category.map((cat, idx) => (
+                  recording.category.map((cat: string, idx: number) => (
                     <span key={idx} className="px-3 py-1 bg-[#F52F8E] text-white text-sm font-semibold rounded flex items-center gap-1">
                       <Tag className="w-3 h-3" />
                       {cat}
@@ -500,8 +500,8 @@ export default function RecordingDetailPage() {
           </div>
 
           <CommentsList
-            comments={comments}
-            currentUser={currentUser}
+            comments={comments as any}
+            currentUser={currentUser as any}
             onSubmitComment={async (text) => {
               await handleSubmitComment(text);
             }}

@@ -44,7 +44,7 @@ export async function getAllProjects() {
   const cacheKey = 'projects:all';
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : [], error: null };
   }
 
   const { data: projects, error } = await supabase
@@ -74,7 +74,7 @@ export async function getAllProjects() {
     }))
 
     setCached(cacheKey, projectsWithUsers);
-    return { data: projectsWithUsers, error: null }
+    return { data: Array.isArray(projectsWithUsers) ? projectsWithUsers : [], error: null }
   }
 
   return { data: [], error: null }
@@ -177,7 +177,7 @@ export async function getProjectOffers(projectId: string) {
       user: profileMap.get(offer.user_id) || null
     }))
 
-    return { data: offersWithUsers, error: null }
+    return { data: Array.isArray(offersWithUsers) ? offersWithUsers : [], error: null }
   }
 
   return { data: [], error: null }
@@ -239,7 +239,7 @@ export async function getUserProjectOffers(userId: string) {
     return { data: null, error }
   }
   
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : [], error: null }
 }
 
 // Update project offer (e.g., change status)
@@ -312,7 +312,7 @@ export async function getAllProjectOffers() {
   const cacheKey = 'project_offers:all';
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : [], error: null };
   }
 
   const { data: offers, error } = await supabase
@@ -352,7 +352,7 @@ export async function getAllProjectOffers() {
     }))
 
     setCached(cacheKey, offersWithDetails, 60000); // Cache for 1 minute
-    return { data: offersWithDetails, error: null }
+    return { data: Array.isArray(offersWithDetails) ? offersWithDetails : [], error: null }
   }
 
   return { data: [], error: null }
@@ -363,7 +363,7 @@ export async function getUserProjects(userId: string) {
   const cacheKey = `projects:user:${userId}`;
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : [], error: null };
   }
 
   const { data: projects, error } = await supabase
@@ -391,7 +391,7 @@ export async function getUserProjects(userId: string) {
     }))
 
     setCached(cacheKey, projectsWithUser, 60000); // Cache for 1 minute
-    return { data: projectsWithUser, error: null }
+    return { data: Array.isArray(projectsWithUser) ? projectsWithUser : [], error: null }
   }
 
   return { data: [], error: null }
@@ -402,7 +402,7 @@ export async function getProjectOffersByUser(userId: string) {
   const cacheKey = `project_offers:user:${userId}`;
   const cached = getCached(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: Array.isArray(cached) ? cached : [], error: null };
   }
 
   const { data: offers, error } = await supabase
@@ -443,7 +443,7 @@ export async function getProjectOffersByUser(userId: string) {
     }))
 
     setCached(cacheKey, offersWithUser, 60000); // Cache for 1 minute
-    return { data: offersWithUser, error: null }
+    return { data: Array.isArray(offersWithUser) ? offersWithUser : [], error: null }
   }
 
   return { data: [], error: null }

@@ -101,10 +101,10 @@ export async function getAllCourses(userId?: string) {
       progress: progressMap.get(course.id) || 0
     }));
     
-    return { data: coursesWithProgress, error: null };
+    return { data: Array.isArray(coursesWithProgress) ? coursesWithProgress : [], error: null };
   }
   
-  return { data, error: null };
+  return { data: Array.isArray(data) ? data : [], error: null };
 }
 
 // Get courses by category
@@ -136,10 +136,10 @@ export async function getCoursesByCategory(category: string, userId?: string) {
       progress: progressMap.get(course.id) || 0
     }));
     
-    return { data: coursesWithProgress, error: null };
+    return { data: Array.isArray(coursesWithProgress) ? coursesWithProgress : [], error: null };
   }
   
-  return { data, error: null };
+  return { data: Array.isArray(data) ? data : [], error: null };
 }
 
 // Get courses in progress (user has started)
@@ -163,7 +163,7 @@ export async function getCoursesInProgress(userId: string) {
     progress: item.progress_percentage
   }));
   
-  return { data: courses, error: null };
+  return { data: Array.isArray(courses) ? courses : [], error: null };
 }
 
 // Get course by ID
@@ -857,7 +857,7 @@ export async function enrollInCourse(courseId: string, userId: string) {
     .eq('user_id', authenticatedUserId)
     .maybeSingle();
   
-  const userRole = userProfile?.roles?.name;
+  const userRole = (userProfile?.roles as any)?.[0]?.name || (userProfile?.roles as any)?.name;
   const isPremium = userRole === 'premium' || userRole === 'admin';
   
   // Check if course is premium only and user is not premium
@@ -999,7 +999,7 @@ export async function getEnrolledCourses(userId: string) {
     progress: progressMap.get(enrollment.course_id) || 0
   }));
   
-  return { data: courses, error: null };
+  return { data: Array.isArray(courses) ? courses : [], error: null };
 }
 
 // Update enrollment status
@@ -1213,7 +1213,7 @@ export async function getCompletedLessons(courseId: string, userId: string) {
   
   // Return array of lesson IDs
   const lessonIds = data?.map(item => item.lesson_id) || [];
-  return { data: lessonIds, error: null };
+  return { data: Array.isArray(lessonIds) ? lessonIds : [], error: null };
 }
 
 // Check if a specific lesson is completed

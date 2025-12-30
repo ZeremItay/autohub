@@ -219,7 +219,7 @@ export default function RecordingsPage() {
                 {recording.category && (
                   <div className="mb-2 flex flex-wrap gap-1">
                     {Array.isArray(recording.category) ? (
-                      recording.category.map((cat, idx) => (
+                      recording.category.map((cat: string, idx: number) => (
                         <span key={idx} className="text-xs font-semibold text-[#F52F8E] uppercase px-2 py-1 bg-pink-50 rounded">
                           {cat}
                         </span>

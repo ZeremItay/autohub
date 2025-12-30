@@ -248,7 +248,7 @@ export async function getRecordingComments(recordingId: string) {
     })
   )
   
-  return { data: commentsWithReplies, error: null }
+  return { data: Array.isArray(commentsWithReplies) ? commentsWithReplies : [], error: null }
 }
 
 // Create a comment

@@ -26,7 +26,7 @@ export async function getActiveNews() {
     return { data: null, error }
   }
   
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : [], error: null }
 }
 
 // Get all news items (admin only)
@@ -42,7 +42,7 @@ export async function getAllNews() {
     return { data: null, error }
   }
   
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : [], error: null }
 }
 
 // Create news item (admin only)
@@ -65,7 +65,7 @@ export async function createNews(news: {
     return { data: null, error }
   }
   
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : [], error: null }
 }
 
 // Update news item (admin only)
@@ -89,7 +89,7 @@ export async function updateNews(id: string, news: {
     return { data: null, error }
   }
   
-  return { data, error: null }
+  return { data: Array.isArray(data) ? data : [], error: null }
 }
 
 // Delete news item (admin only)

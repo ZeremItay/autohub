@@ -26,7 +26,8 @@ export function useOnlineUsers(): UseOnlineUsersReturn {
     
     try {
       // Get all profiles
-      const { data: profiles } = await getAllProfiles();
+      const { data: profilesData } = await getAllProfiles();
+      const profiles = profilesData as any[];
       
       if (!profiles || profiles.length === 0) {
         setUsers([]);

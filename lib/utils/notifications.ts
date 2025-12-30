@@ -19,7 +19,8 @@ export async function notifyRecordingComment(
     message: `${commenterName} הגיב על ההקלטה "${recordingTitle}"`,
     link: `/recordings/${recordingId}`,
     related_id: recordingId,
-    related_type: 'recording'
+    related_type: 'recording',
+    is_read: false
   });
 }
 
@@ -42,7 +43,8 @@ export async function notifyCommentReply(
     message: `${replierName} הגיב על התגובה שלך בהקלטה "${recordingTitle}"`,
     link: `/recordings/${recordingId}#comment-${parentCommentId}`,
     related_id: parentCommentId,
-    related_type: 'comment'
+    related_type: 'comment',
+    is_read: false
   });
 }
 
@@ -65,7 +67,8 @@ export async function notifyForumPostReply(
     message: `${replierName} הגיב על הפוסט "${postTitle}"`,
     link: `/forums/${forumId}/posts/${postId}`,
     related_id: postId,
-    related_type: 'forum_post'
+    related_type: 'forum_post',
+    is_read: false
   });
 }
 
@@ -90,7 +93,8 @@ export async function notifyPostComment(
       message: `${commenterName} הגיב על התגובה שלך`,
       link: `/post/${postId}`,
       related_id: postId,
-      related_type: 'comment'
+      related_type: 'comment',
+      is_read: false
     });
   }
 
@@ -105,7 +109,8 @@ export async function notifyPostComment(
     message: `${commenterName} הגיב על הפוסט שלך`,
     link: `/post/${postId}`,
     related_id: postId,
-    related_type: 'post'
+    related_type: 'post',
+    is_read: false
   });
 }
 
@@ -126,7 +131,8 @@ export async function notifyPostLike(
     message: `${likerName} אהב את הפוסט שלך`,
     link: `/post/${postId}`,
     related_id: postId,
-    related_type: 'post'
+    related_type: 'post',
+    is_read: false
   });
 }
 
@@ -154,7 +160,8 @@ export async function notifyMention(
     message: `${mentionerName} תייג אותך`,
     link,
     related_id: relatedId,
-    related_type: relatedType
+    related_type: relatedType,
+    is_read: false
   });
 }
 

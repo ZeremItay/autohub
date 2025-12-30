@@ -113,7 +113,7 @@ export default function SubscriptionPage() {
       // Load all users with their roles
       const { data: profiles } = await getAllProfiles();
       if (profiles) {
-        setAllUsers(profiles);
+        setAllUsers(profiles as any[]);
       }
     } catch (error) {
       console.error('Error loading admin data:', error);

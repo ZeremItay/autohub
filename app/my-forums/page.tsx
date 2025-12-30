@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MessageSquare, MessageCircle, Heart, Eye, Pin, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { getUserForumPosts, getUserForumReplies, getUserLikedForumPosts } from '@/lib/queries/forums';
 import { getAllProfiles } from '@/lib/queries/profiles';
 
-export default function MyForumsPage() {
+function MyForumsContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab') || 'discussions';
   
@@ -264,6 +264,21 @@ export default function MyForumsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MyForumsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F3F4F6] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#F52F8E] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">טוען...</p>
+        </div>
+      </div>
+    }>
+      <MyForumsContent />
+    </Suspense>
   );
 }
 

@@ -141,11 +141,11 @@ export async function getAllBlogPosts(filters?: {
         profile: profileMap.get(post.author_id) || null
       }));
 
-      return { data: postsWithProfiles, error: null };
+      return { data: Array.isArray(postsWithProfiles) ? postsWithProfiles : [], error: null };
     }
   }
 
-  return { data, error: null };
+  return { data: Array.isArray(data) ? data : [], error: null };
 }
 
 // Get blog post by slug

@@ -90,10 +90,10 @@ export async function getPostComments(postId: string) {
       }
     })
     
-    return { data: topLevelComments, error: null }
+    return { data: Array.isArray(topLevelComments) ? topLevelComments : [], error: null }
   }
   
-  return { data: comments.map((c: any) => ({ ...c, user: null, replies: [] })), error: null }
+  return { data: Array.isArray(comments) ? comments.map((c: any) => ({ ...c, user: null, replies: [] })) : [], error: null }
 }
 
 // Create a comment on a post

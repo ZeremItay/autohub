@@ -106,7 +106,7 @@ export async function getAllForums() {
     posts_count: countsMap.get(forum.id) || 0
   }));
   
-  return { data: forumsWithCounts, error: null };
+  return { data: Array.isArray(forumsWithCounts) ? forumsWithCounts : [], error: null };
 }
 
 // Get forum by ID
@@ -197,11 +197,11 @@ export async function getForumPosts(forumId: string) {
       };
     });
     
-    return { data: transformedData, error: null };
+    return { data: Array.isArray(transformedData) ? transformedData : [], error: null };
   }
   
   // If no user IDs, return posts without profiles
-  return { data: data.map((post: any) => ({ ...post, profile: null })), error: null };
+  return { data: Array.isArray(data) ? data.map((post: any) => ({ ...post, profile: null })) : [], error: null };
 }
 
 // Get single forum post with replies
@@ -607,7 +607,8 @@ export async function createForumPostReply(postId: string, userId: string, conte
           message: `${displayName} הגיב על התגובה שלך`,
           link: `/forums/${postData.forum_id}/posts/${postId}`,
           related_id: parentId,
-          related_type: 'forum_reply'
+          related_type: 'forum_reply',
+          is_read: false
         }).catch((error) => {
           console.warn('Error sending forum reply notification:', error);
         });
@@ -694,7 +695,7 @@ export async function getUserForumPosts(userId: string) {
   
   if (error) return { data: null, error };
   
-  return { data, error: null };
+  return { data: Array.isArray(data) ? data : [], error: null };
 }
 
 // Get user's forum replies
@@ -721,7 +722,7 @@ export async function getUserForumReplies(userId: string) {
   
   if (error) return { data: null, error };
   
-  return { data, error: null };
+  return { data: Array.isArray(data) ? data : [], error: null };
 }
 
 // Get user's liked forum posts
@@ -754,7 +755,7 @@ export async function getUserLikedForumPosts(userId: string) {
   
   if (error) return { data: null, error };
   
-  return { data, error: null };
+  return { data: Array.isArray(data) ? data : [], error: null };
 }
 
 // Increment forum post views
@@ -875,7 +876,7 @@ export async function toggleForumPostLock(postId: string, userId: string) {
   
   if (error) return { data: null, error };
   
-  return { data, error: null };
+  return { data: Array.isArray(data) ? data : [], error: null };
 }
 
 // Mark reply as answer (only post owner)
@@ -912,7 +913,7 @@ export async function markReplyAsAnswer(replyId: string, postId: string, userId:
   
   if (error) return { data: null, error };
   
-  return { data, error: null };
+  return { data: Array.isArray(data) ? data : [], error: null };
 }
 
 // Unmark reply as answer (only post owner)
@@ -941,7 +942,7 @@ export async function unmarkReplyAsAnswer(replyId: string, postId: string, userI
   
   if (error) return { data: null, error };
   
-  return { data, error: null };
+  return { data: Array.isArray(data) ? data : [], error: null };
 }
 
 // Delete forum post (admin only - should be called from API route with admin check)

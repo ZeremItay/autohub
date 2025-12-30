@@ -71,6 +71,7 @@ export async function getAllReports(limit?: number) {
     return { data: [], error: null };
   }
 
+  const reports = data as any[];
   if (!reports || reports.length === 0) {
     return { data: [], error: null };
   }
@@ -337,7 +338,7 @@ export async function getAllReportsForAdmin() {
     const userIds = [...new Set(reports.map((r: any) => r.user_id).filter(Boolean))];
     
     if (userIds.length === 0) {
-      return { data: reports, error: null };
+      return { data: Array.isArray(reports) ? reports : [], error: null };
     }
 
     // Fetch profiles for these users
@@ -361,7 +362,7 @@ export async function getAllReportsForAdmin() {
       profile: profileMap.get(report.user_id) || null
     }));
 
-    return { data: reportsWithProfiles, error: null };
+    return { data: Array.isArray(reportsWithProfiles) ? reportsWithProfiles : [], error: null };
   } catch (error: any) {
     console.error('Error in getAllReportsForAdmin:', error);
     return { data: [], error };

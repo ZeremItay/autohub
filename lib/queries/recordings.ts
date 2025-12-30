@@ -62,11 +62,11 @@ export async function getAllRecordings() {
       }
       
       setCached(cacheKey, fallbackData, CACHE_TTL.MEDIUM);
-      return { data: fallbackData, error: null }
+      return { data: Array.isArray(fallbackData) ? fallbackData : [], error: null }
     }
     
     setCached(cacheKey, data, CACHE_TTL.MEDIUM);
-    return { data, error: null }
+    return { data: Array.isArray(data) ? data : [], error: null }
   } catch (err: any) {
     logError(err, 'getAllRecordings:exception');
     return { data: null, error: err }
@@ -78,7 +78,7 @@ export async function getRecordingBasicById(id: string) {
   const cacheKey = `recording:basic:${id}`;
   const cached = getCached<Recording>(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: cached ?? null, error: null };
   }
 
   const { data, error } = await supabase
@@ -105,7 +105,7 @@ export async function getRecordingById(id: string) {
   const cacheKey = `recording:${id}`;
   const cached = getCached<Recording>(cacheKey);
   if (cached) {
-    return { data: cached, error: null };
+    return { data: cached ?? null, error: null };
   }
 
   const { data, error } = await supabase
