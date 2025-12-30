@@ -53,7 +53,9 @@ export default function MessagesPage() {
             userId = profiles[0].user_id || profiles[0].id;
             setCurrentUserId(userId);
             // Save to localStorage for future use
-            localStorage.setItem('selectedUserId', userId);
+            if (userId) {
+              localStorage.setItem('selectedUserId', userId);
+            }
           }
         }
 
@@ -102,7 +104,9 @@ export default function MessagesPage() {
             setConversations(prev => {
               const updated = [newConversation, ...prev];
               // Save to localStorage
-              localStorage.setItem(`conversations_${userId}`, JSON.stringify(updated));
+              if (userId) {
+                localStorage.setItem(`conversations_${userId}`, JSON.stringify(updated));
+              }
               return updated;
             });
             setActiveConversation(newConversation);

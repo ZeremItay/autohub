@@ -331,7 +331,9 @@ function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessa
     // Save selected user to localStorage
     const userId = member.user_id || member.id;
     if (userId && typeof window !== 'undefined') {
-      localStorage.setItem('selectedUserId', userId);
+      if (userId) {
+        localStorage.setItem('selectedUserId', userId);
+      }
       // Reload page to update current user
       window.location.href = '/profile';
     }
@@ -418,7 +420,9 @@ function MemberCardList({ member, formatJoinDate, getLastActiveText, handleSendM
     // Save selected user to localStorage
     const userId = member.user_id || member.id;
     if (userId && typeof window !== 'undefined') {
-      localStorage.setItem('selectedUserId', userId);
+      if (userId) {
+        localStorage.setItem('selectedUserId', userId);
+      }
       // Reload page to update current user
       window.location.href = '/profile';
     }
