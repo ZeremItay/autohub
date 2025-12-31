@@ -3,20 +3,32 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const requestUrl = new URL(request.url);
+  const { searchParams, origin, pathname, href } = requestUrl;
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
+  const errorCode = searchParams.get('error_code');
   // if "next" is in param, use it as the redirect URL
   const next = searchParams.get('next') ?? '/';
 
+  // Log all relevant information for debugging
   console.log('Auth callback received:', { 
-    code: code ? 'present' : 'missing', 
+    code: code ? `present (${code.substring(0, 20)}...)` : 'missing', 
     error,
     errorDescription,
+    errorCode,
     origin, 
+    pathname,
+    href,
     next,
-    allParams: Object.fromEntries(searchParams.entries())
+    allParams: Object.fromEntries(searchParams.entries()),
+    headers: {
+      'user-agent': request.headers.get('user-agent'),
+      'referer': request.headers.get('referer'),
+      'x-forwarded-host': request.headers.get('x-forwarded-host'),
+      'x-forwarded-proto': request.headers.get('x-forwarded-proto'),
+    }
   });
 
   if (code) {
@@ -50,11 +62,26 @@ export async function GET(request: Request) {
 
   // If no code is provided, check if there's an error from OAuth provider
   if (error) {
-    console.error('OAuth provider error:', error, errorDescription);
+    console.error('OAuth provider error in callback:', {
+      error,
+      errorDescription,
+      errorCode,
+      fullUrl: href
+    });
     return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(errorDescription || error || 'שגיאה בהתחברות עם Google')}`);
   }
 
-  // If no code is provided, redirect to login with error message
-  console.warn('No code provided in callback');
+  // If no code is provided, log detailed information for debugging
+  console.warn('No code provided in callback - detailed debug info:', {
+    fullUrl: href,
+    searchParams: Object.fromEntries(searchParams.entries()),
+    origin,
+    pathname,
+    referer: request.headers.get('referer'),
+    userAgent: request.headers.get('user-agent'),
+    forwardedHost: request.headers.get('x-forwarded-host'),
+    forwardedProto: request.headers.get('x-forwarded-proto'),
+  });
+  
   return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent('קוד אימות חסר. נסה להתחבר שוב.')}`);
 }

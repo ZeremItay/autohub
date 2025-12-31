@@ -122,18 +122,34 @@ export default function SignupPage() {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const redirectUrl = `${origin}/auth/callback`;
 
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      console.log('Initiating Google OAuth signup:', {
+        origin,
+        redirectUrl,
+        fullUrl: typeof window !== 'undefined' ? window.location.href : 'N/A'
+      });
+
+      // Remove queryParams that might interfere with PKCE flow
+      // PKCE flow is handled automatically by Supabase
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl
+          redirectTo: redirectUrl,
+          // PKCE flow is enabled by default in Supabase, no need for additional queryParams
         }
       });
 
       if (oauthError) {
+        console.error('OAuth error:', oauthError);
         setError(oauthError.message || 'שגיאה בהרשמה עם Google');
         setGoogleLoading(false);
+      } else {
+        console.log('OAuth signup initiated successfully:', {
+          url: data?.url,
+          provider: data?.provider
+        });
+        // Note: If successful, user will be redirected to Google, so we don't need to handle success here
+        // The redirect happens automatically via data.url
       }
-      // Note: If successful, user will be redirected to Google, so we don't need to handle success here
     } catch (err: any) {
       console.error('Google signup error:', err);
       setError(err.message || 'שגיאה בהרשמה עם Google');
