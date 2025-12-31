@@ -18,13 +18,8 @@ function LoginContent() {
   });
 
   useEffect(() => {
-    // Check for error in URL params
-    const errorParam = searchParams.get('error');
-    if (errorParam) {
-      setError(decodeURIComponent(errorParam));
-    }
-
-    // Check for OAuth tokens in hash fragment (Supabase sometimes returns tokens in hash instead of query params)
+    // Check for OAuth tokens in hash fragment FIRST (before checking for errors)
+    // Supabase sometimes returns tokens in hash instead of query params
     // This happens when Supabase uses implicit flow instead of PKCE flow
     if (typeof window !== 'undefined') {
       const hash = window.location.hash;
@@ -75,9 +70,15 @@ function LoginContent() {
               });
             }
           });
-          return; // Don't check session again
+          return; // Don't check for errors or session if we're processing hash tokens
         }
       }
+    }
+
+    // Only check for error in URL params if we didn't find tokens in hash
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam));
     }
 
     // Check if user is already logged in
