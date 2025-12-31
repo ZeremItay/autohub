@@ -48,6 +48,7 @@ import { getEnrolledCourses, getCompletedLessons, getCourseLessons } from '@/lib
 import { getUserProjects, getProjectOffersByUser, getProjectOffers } from '@/lib/queries/projects'
 import { BookOpen } from 'lucide-react'
 import { formatTimeAgo as formatTimeAgoUtil } from '@/lib/utils/date'
+import { isAdmin } from '@/lib/utils/user'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -78,6 +79,8 @@ export default function ProfilePage() {
   const [userBadges, setUserBadges] = useState<any[]>([])
   const [highestBadge, setHighestBadge] = useState<any>(null)
   const [currentLoggedInUserId, setCurrentLoggedInUserId] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false)
   const [showAvatarLightbox, setShowAvatarLightbox] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
   const [loadingNotifications, setLoadingNotifications] = useState(false)
@@ -108,46 +111,68 @@ export default function ProfilePage() {
     try {
       // Use getCurrentUser utility function
       const { getCurrentUser } = await import('@/lib/utils/user');
-      const currentUser = await getCurrentUser();
+      const user = await getCurrentUser();
       
-      if (currentUser) {
-        setCurrentLoggedInUserId(currentUser.user_id || currentUser.id || null);
+      if (user) {
+        setCurrentLoggedInUserId(user.user_id || user.id || null);
+        setCurrentUser(user);
+        setIsCurrentUserAdmin(isAdmin(user));
       } else {
         setCurrentLoggedInUserId(null);
+        setCurrentUser(null);
+        setIsCurrentUserAdmin(false);
       }
     } catch (error) {
       const { logError } = await import('@/lib/utils/errorHandler');
       logError(error, 'loadCurrentLoggedInUser');
       setCurrentLoggedInUserId(null);
+      setCurrentUser(null);
+      setIsCurrentUserAdmin(false);
     }
   }
 
   useEffect(() => {
+    // Redirect to profile tab if user tries to access private tab without permission
+    if (profile && !isOwnerOrAdmin()) {
+      const privateTabs = ['courses', 'notifications', 'messages', 'projects'];
+      if (privateTabs.includes(activeTab)) {
+        setActiveTab('profile');
+      }
+    }
+    
     if (profile && activeTab === 'forums') {
       loadForumsData()
     }
-    if (profile && activeTab === 'courses') {
+    if (profile && activeTab === 'courses' && isOwnerOrAdmin()) {
       loadMyCourses()
     }
   }, [profile, activeTab, forumsTab])
 
   useEffect(() => {
-    if (profile && activeTab === 'points') {
+    if (profile && activeTab === 'points' && isOwnerOrAdmin()) {
       loadPointsHistory()
     }
   }, [profile, activeTab])
 
   useEffect(() => {
-    if (profile && activeTab === 'courses') {
+    if (profile && activeTab === 'courses' && isOwnerOrAdmin()) {
       loadMyCourses()
     }
-    if (profile && activeTab === 'profile') {
+    if (profile && activeTab === 'profile' && isOwnerOrAdmin()) {
       loadMyOffers()
     }
-    if (profile && activeTab === 'projects') {
+    if (profile && activeTab === 'projects' && isOwnerOrAdmin()) {
       loadProjectsData()
     }
   }, [profile, activeTab])
+
+  // Helper function to check if current user is owner or admin
+  function isOwnerOrAdmin(): boolean {
+    if (!profile || !currentLoggedInUserId) return false;
+    const profileUserId = profile.user_id || profile.id;
+    const isOwner = currentLoggedInUserId === profileUserId;
+    return isOwner || isCurrentUserAdmin;
+  }
 
   async function loadProfile() {
     setLoading(true)
@@ -621,7 +646,7 @@ export default function ProfilePage() {
   }
 
   async function loadMyOffers() {
-    if (!profile) return
+    if (!profile || !isOwnerOrAdmin()) return
     setLoadingOffers(true)
     try {
       const userId = profile.user_id || profile.id
@@ -643,7 +668,7 @@ export default function ProfilePage() {
   }
 
   async function loadProjectsData() {
-    if (!profile) return
+    if (!profile || !isOwnerOrAdmin()) return
     setLoadingProjects(true)
     try {
       const userId = profile.user_id || profile.id
@@ -689,7 +714,7 @@ export default function ProfilePage() {
   }
 
   async function loadMyCourses() {
-    if (!profile) return
+    if (!profile || !isOwnerOrAdmin()) return
     setLoadingCourses(true)
     try {
       const userId = profile.user_id || profile.id
@@ -749,7 +774,7 @@ export default function ProfilePage() {
   }
 
   const loadNotifications = useCallback(async (page: number = 1) => {
-    if (!currentLoggedInUserId) {
+    if (!currentLoggedInUserId || !isOwnerOrAdmin()) {
       setLoadingNotifications(false)
       return
     }
@@ -792,7 +817,7 @@ export default function ProfilePage() {
   }, [currentLoggedInUserId])
 
   useEffect(() => {
-    if (activeTab === 'notifications' && currentLoggedInUserId) {
+    if (activeTab === 'notifications' && currentLoggedInUserId && isOwnerOrAdmin()) {
       loadNotifications(1)
     }
   }, [activeTab, currentLoggedInUserId, loadNotifications])
@@ -1052,10 +1077,12 @@ export default function ProfilePage() {
               <span className="font-medium">
                 {activeTab === 'profile' && 'פרופיל'}
                 {activeTab === 'timeline' && 'ציר זמן'}
-                {activeTab === 'messages' && 'הודעות'}
+                {isOwnerOrAdmin() && activeTab === 'messages' && 'הודעות'}
                 {activeTab === 'forums' && 'פורומים'}
                 {activeTab === 'points' && 'נקודות'}
-                {activeTab === 'courses' && 'קורסים שלי'}
+                {isOwnerOrAdmin() && activeTab === 'courses' && 'קורסים שלי'}
+                {isOwnerOrAdmin() && activeTab === 'notifications' && 'התראות'}
+                {isOwnerOrAdmin() && activeTab === 'projects' && 'פרויקטים'}
               </span>
               <Menu className="w-5 h-5" />
             </button>
@@ -1083,17 +1110,19 @@ export default function ProfilePage() {
                   <Activity className="w-5 h-5" />
                   <span className="font-medium">ציר זמן</span>
                 </button>
-                <button
-                  onClick={() => { setActiveTab('messages'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === 'messages'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
-                  }`}
-                >
-                  <MessageSquare className="w-5 h-5" />
-                  <span className="font-medium">הודעות</span>
-                </button>
+                {isOwnerOrAdmin() && (
+                  <button
+                    onClick={() => { setActiveTab('messages'); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      activeTab === 'messages'
+                        ? 'bg-[#F52F8E] text-white'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                    }`}
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    <span className="font-medium">הודעות</span>
+                  </button>
+                )}
                 <button
                   onClick={() => { setActiveTab('forums'); setMobileMenuOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -1116,39 +1145,45 @@ export default function ProfilePage() {
                   <History className="w-5 h-5" />
                   <span className="font-medium">נקודות</span>
                 </button>
-                <button
-                  onClick={() => { setActiveTab('courses'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === 'courses'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
-                  }`}
-                >
-                  <BookOpen className="w-5 h-5" />
-                  <span className="font-medium">קורסים שלי</span>
-                </button>
-                <button
-                  onClick={() => { setActiveTab('notifications'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === 'notifications'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
-                  }`}
-                >
-                  <Bell className="w-5 h-5" />
-                  <span className="font-medium">התראות</span>
-                </button>
-                <button
-                  onClick={() => { setActiveTab('projects'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === 'projects'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
-                  }`}
-                >
-                  <Briefcase className="w-5 h-5" />
-                  <span className="font-medium">פרויקטים</span>
-                </button>
+                {isOwnerOrAdmin() && (
+                  <button
+                    onClick={() => { setActiveTab('courses'); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      activeTab === 'courses'
+                        ? 'bg-[#F52F8E] text-white'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                    }`}
+                  >
+                    <BookOpen className="w-5 h-5" />
+                    <span className="font-medium">קורסים שלי</span>
+                  </button>
+                )}
+                {isOwnerOrAdmin() && (
+                  <button
+                    onClick={() => { setActiveTab('notifications'); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      activeTab === 'notifications'
+                        ? 'bg-[#F52F8E] text-white'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                    }`}
+                  >
+                    <Bell className="w-5 h-5" />
+                    <span className="font-medium">התראות</span>
+                  </button>
+                )}
+                {isOwnerOrAdmin() && (
+                  <button
+                    onClick={() => { setActiveTab('projects'); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      activeTab === 'projects'
+                        ? 'bg-[#F52F8E] text-white'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                    }`}
+                  >
+                    <Briefcase className="w-5 h-5" />
+                    <span className="font-medium">פרויקטים</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1178,17 +1213,19 @@ export default function ProfilePage() {
                 <Activity className="w-5 h-5" />
                 <span className="font-medium">ציר זמן</span>
               </button>
-              <button
-                onClick={() => setActiveTab('messages')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'messages'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
-                }`}
-              >
-                <MessageSquare className="w-5 h-5" />
-                <span className="font-medium">הודעות</span>
-              </button>
+              {isOwnerOrAdmin() && (
+                <button
+                  onClick={() => setActiveTab('messages')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    activeTab === 'messages'
+                      ? 'bg-[#F52F8E] text-white'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                  }`}
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  <span className="font-medium">הודעות</span>
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('forums')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -1211,39 +1248,45 @@ export default function ProfilePage() {
                 <History className="w-5 h-5" />
                 <span className="font-medium">נקודות</span>
               </button>
-              <button
-                onClick={() => setActiveTab('courses')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'courses'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
-                }`}
-              >
-                <BookOpen className="w-5 h-5" />
-                <span className="font-medium">קורסים שלי</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('notifications')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'notifications'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
-                }`}
-              >
-                <Bell className="w-5 h-5" />
-                <span className="font-medium">התראות</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('projects')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'projects'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
-                }`}
-              >
-                <Briefcase className="w-5 h-5" />
-                <span className="font-medium">פרויקטים</span>
-              </button>
+              {isOwnerOrAdmin() && (
+                <button
+                  onClick={() => setActiveTab('courses')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    activeTab === 'courses'
+                      ? 'bg-[#F52F8E] text-white'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                  }`}
+                >
+                  <BookOpen className="w-5 h-5" />
+                  <span className="font-medium">קורסים שלי</span>
+                </button>
+              )}
+              {isOwnerOrAdmin() && (
+                <button
+                  onClick={() => setActiveTab('notifications')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    activeTab === 'notifications'
+                      ? 'bg-[#F52F8E] text-white'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                  }`}
+                >
+                  <Bell className="w-5 h-5" />
+                  <span className="font-medium">התראות</span>
+                </button>
+              )}
+              {isOwnerOrAdmin() && (
+                <button
+                  onClick={() => setActiveTab('projects')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    activeTab === 'projects'
+                      ? 'bg-[#F52F8E] text-white'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                  }`}
+                >
+                  <Briefcase className="w-5 h-5" />
+                  <span className="font-medium">פרויקטים</span>
+                </button>
+              )}
             </div>
           </aside>
 
@@ -1464,115 +1507,6 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* My Project Offers Section */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">ההצעות ששלחתי</h2>
-                  <p className="text-xs text-gray-500 mb-4">מוצגות עד 10 הצעות אחרונות. הצעות ישנות יותר יוסרו אוטומטית.</p>
-                  
-                  {loadingOffers ? (
-                    <div className="text-center py-8 text-gray-500">טוען...</div>
-                  ) : myOffers.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
-                      <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                      <p>עדיין לא הגשת הצעות לפרויקטים</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {myOffers.map((offer: any) => {
-                        const project = offer.project || {}
-                        const getStatusColor = (status: string) => {
-                          switch (status) {
-                            case 'accepted':
-                              return 'bg-green-100 text-green-700 border-green-200'
-                            case 'rejected':
-                              return 'bg-red-100 text-red-700 border-red-200'
-                            default:
-                              return 'bg-yellow-100 text-yellow-700 border-yellow-200'
-                          }
-                        }
-                        
-                        const getStatusText = (status: string) => {
-                          switch (status) {
-                            case 'accepted':
-                              return 'אושרה'
-                            case 'rejected':
-                              return 'נדחתה'
-                            default:
-                              return 'ממתינה'
-                          }
-                        }
-                        
-                        const getStatusIcon = (status: string) => {
-                          switch (status) {
-                            case 'accepted':
-                              return CheckCircle
-                            case 'rejected':
-                              return XCircle
-                            default:
-                              return ClockIcon
-                          }
-                        }
-                        
-                        const StatusIcon = getStatusIcon(offer.status || 'pending')
-                        
-                        return (
-                          <Link
-                            key={offer.id}
-                            href={`/projects`}
-                            className="block p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] hover:shadow-md transition-all"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="text-base font-semibold text-gray-800">
-                                    {project.title || 'פרויקט'}
-                                  </h3>
-                                  <span className={`px-2 py-1 rounded text-xs font-medium border ${getStatusColor(offer.status || 'pending')}`}>
-                                    <StatusIcon className="w-3 h-3 inline-block ml-1" />
-                                    {getStatusText(offer.status || 'pending')}
-                                  </span>
-                                </div>
-                                {offer.message && (
-                                  <p className="text-gray-600 text-sm mb-2 line-clamp-2">{offer.message}</p>
-                                )}
-                                <div className="flex items-center gap-4 text-sm text-gray-500">
-                                  {offer.offer_amount && (
-                                    <div className="flex items-center gap-1">
-                                      <span className="font-medium text-gray-700">
-                                        ₪ {Number(offer.offer_amount).toLocaleString('he-IL')}
-                                      </span>
-                                    </div>
-                                  )}
-                                  <span>•</span>
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="w-4 h-4" />
-                                    <span>{formatTimeAgo(offer.created_at)}</span>
-                                  </div>
-                                  {project.status && (
-                                    <>
-                                      <span>•</span>
-                                      <span className={`px-2 py-0.5 rounded text-xs ${
-                                        project.status === 'open' ? 'bg-blue-100 text-blue-700' :
-                                        project.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
-                                        project.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                        'bg-gray-100 text-gray-700'
-                                      }`}>
-                                        {project.status === 'open' ? 'פתוח' :
-                                         project.status === 'in_progress' ? 'בביצוע' :
-                                         project.status === 'completed' ? 'הושלם' :
-                                         'סגור'}
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
               </>
             )}
 
@@ -1584,10 +1518,19 @@ export default function ProfilePage() {
             )}
 
             {activeTab === 'messages' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">הודעות</h2>
-                <p className="text-sm sm:text-base text-gray-500">אין הודעות חדשות</p>
-              </div>
+              <>
+                {isOwnerOrAdmin() ? (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">הודעות</h2>
+                    <p className="text-sm sm:text-base text-gray-500">אין הודעות חדשות</p>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">הודעות</h2>
+                    <p className="text-sm sm:text-base text-gray-500">אין גישה למידע זה</p>
+                  </div>
+                )}
+              </>
             )}
 
             {activeTab === 'forums' && (
@@ -1887,19 +1830,21 @@ export default function ProfilePage() {
             )}
 
             {activeTab === 'notifications' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800">התראות</h2>
-                  {notifications.filter((n: any) => !n.is_read).length > 0 && (
-                    <button
-                      onClick={handleMarkAllNotificationsAsRead}
-                      className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors text-sm font-medium"
-                    >
-                      <CheckCheck className="w-4 h-4" />
-                      סמן הכל כנקרא
-                    </button>
-                  )}
-                </div>
+              <>
+                {isOwnerOrAdmin() ? (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                    <div className="flex items-center justify-between mb-4 sm:mb-6">
+                      <h2 className="text-lg sm:text-xl font-semibold text-gray-800">התראות</h2>
+                      {notifications.filter((n: any) => !n.is_read).length > 0 && (
+                        <button
+                          onClick={handleMarkAllNotificationsAsRead}
+                          className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors text-sm font-medium"
+                        >
+                          <CheckCheck className="w-4 h-4" />
+                          סמן הכל כנקרא
+                        </button>
+                      )}
+                    </div>
 
                 {loadingNotifications ? (
                   <div className="text-center py-12">
@@ -1998,11 +1943,20 @@ export default function ProfilePage() {
                     )}
                   </>
                 )}
-              </div>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">התראות</h2>
+                    <p className="text-sm sm:text-base text-gray-500">אין גישה למידע זה</p>
+                  </div>
+                )}
+              </>
             )}
 
             {activeTab === 'projects' && (
-              <div className="space-y-6">
+              <>
+                {isOwnerOrAdmin() ? (
+                  <div className="space-y-6">
                 {/* פרויקטים שפרסמתי */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
                   <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">פרויקטים שפרסמתי</h2>
@@ -2174,7 +2128,14 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
-              </div>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">פרויקטים</h2>
+                    <p className="text-sm sm:text-base text-gray-500">אין גישה למידע זה</p>
+                  </div>
+                )}
+              </>
             )}
           </main>
         </div>
