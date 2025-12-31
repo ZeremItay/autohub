@@ -36,7 +36,13 @@ function RecordingDetailPageContent() {
   // Helper function to ensure video URLs are always HTTPS
   function ensureHttpsUrl(url: string): string {
     if (!url) return url;
-    return url.replace(/^http:\/\//, 'https://');
+    // Replace http:// with https://
+    let httpsUrl = url.replace(/^http:\/\//, 'https://');
+    // Log the transformation for debugging
+    if (httpsUrl !== url) {
+      console.log('URL converted from HTTP to HTTPS:', { original: url, converted: httpsUrl });
+    }
+    return httpsUrl;
   }
 
   useEffect(() => {
@@ -300,6 +306,27 @@ function RecordingDetailPageContent() {
                     controls
                     className="w-full h-full"
                     preload="metadata"
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                      console.error('Video loading error:', {
+                        error: e,
+                        videoUrl: videoUrl,
+                        originalUrl: recording.video_url
+                      });
+                      const videoElement = e.currentTarget;
+                      if (videoElement.error) {
+                        console.error('Video error details:', {
+                          code: videoElement.error.code,
+                          message: videoElement.error.message
+                        });
+                      }
+                    }}
+                    onLoadStart={() => {
+                      console.log('Video load started:', videoUrl);
+                    }}
+                    onCanPlay={() => {
+                      console.log('Video can play:', videoUrl);
+                    }}
                   >
                     הדפדפן שלך לא תומך בנגן וידאו.
                   </video>
