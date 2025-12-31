@@ -177,14 +177,45 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             
         // Award daily login points (only once per day) - do this asynchronously to not block UI
         const userId = user.user_id || user.id;
-        if (userId) {
-          // Run in background - don't wait for it
-          // awardPoints already handles both Hebrew and English action names internally
-          awardPoints(userId, 'כניסה יומית', { checkDaily: true })
-            .catch((error) => {
-              const { logError } = require('@/lib/utils/errorHandler');
-              logError(error, 'Layout:dailyLoginPoints');
-            });
+        if (userId && typeof window !== 'undefined') {
+          // Check localStorage to prevent multiple calls in the same session
+          const today = new Date().toDateString();
+          const lastAwardKey = `dailyLoginAward_${userId}`;
+          const processingKey = `dailyLoginProcessing_${userId}`;
+          const lastAwardDate = localStorage.getItem(lastAwardKey);
+          const isProcessing = localStorage.getItem(processingKey);
+          
+          // Only award if we haven't already tried today AND we're not currently processing
+          if (lastAwardDate !== today && !isProcessing) {
+            // Mark that we're processing (with timestamp to auto-clear if stuck)
+            localStorage.setItem(processingKey, Date.now().toString());
+            
+            // Run in background - don't wait for it
+            // awardPoints already handles both Hebrew and English action names internally
+            awardPoints(userId, 'כניסה יומית', { checkDaily: true })
+              .then((result) => {
+                // Clear processing flag
+                localStorage.removeItem(processingKey);
+                
+                // If award succeeded or already awarded, mark today as done
+                if (result.success || result.alreadyAwarded) {
+                  localStorage.setItem(lastAwardKey, today);
+                }
+              })
+              .catch((error) => {
+                const { logError } = require('@/lib/utils/errorHandler');
+                logError(error, 'Layout:dailyLoginPoints');
+                // Clear processing flag on error so we can retry
+                localStorage.removeItem(processingKey);
+              });
+          } else if (isProcessing) {
+            // Check if processing flag is stuck (older than 10 seconds)
+            const processingTime = parseInt(isProcessing);
+            if (Date.now() - processingTime > 10000) {
+              // Clear stuck flag
+              localStorage.removeItem(processingKey);
+            }
+          }
         }
         
         // Save to localStorage
