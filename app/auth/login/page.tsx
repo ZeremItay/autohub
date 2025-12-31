@@ -63,9 +63,25 @@ function LoginContent() {
                   await ensureUserProfile(data.user);
                 }
               };
-              ensureProfile().then(() => {
-                // Redirect to home
-                router.push('/');
+              ensureProfile().then(async () => {
+                // Check if profile needs completion
+                if (data.user) {
+                  const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('how_to_address, nocode_experience')
+                    .eq('user_id', data.user.id)
+                    .single();
+                  
+                  const needsCompletion = !profile?.how_to_address || !profile?.nocode_experience;
+                  
+                  if (needsCompletion) {
+                    router.push('/auth/complete-profile');
+                  } else {
+                    router.push('/');
+                  }
+                } else {
+                  router.push('/');
+                }
                 router.refresh();
               });
             }

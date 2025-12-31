@@ -38,24 +38,29 @@ export async function GET(request: Request) {
     try {
       const cookieStore = await cookies();
       const supabase = createServerClient(cookieStore);
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (!error) {
+      const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error && sessionData?.session?.user) {
+        // Ensure user profile exists
+        const { ensureUserProfile } = await import('@/lib/utils/auth');
+        await ensureUserProfile(sessionData.session.user);
+        
         const forwardedHost = request.headers.get('x-forwarded-host'); // original origin before load balancer
         const isLocalEnv = process.env.NODE_ENV === 'development';
         console.log('Code exchange successful, redirecting:', { isLocalEnv, forwardedHost, next });
         
-        if (isLocalEnv) {
-          // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-          return NextResponse.redirect(`${origin}${next}`);
-        } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${next}`);
-        } else {
-          return NextResponse.redirect(`${origin}${next}`);
-        }
+        // Redirect to login page which will check if profile needs completion
+        const redirectUrl = isLocalEnv 
+          ? `${origin}/auth/login` 
+          : forwardedHost 
+            ? `https://${forwardedHost}/auth/login`
+            : `${origin}/auth/login`;
+        
+        return NextResponse.redirect(redirectUrl);
       } else {
         // If there's an error exchanging the code, redirect to login with error message
         console.error('Error exchanging code for session:', error);
-        return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(error.message || 'שגיאה בהתחברות עם Google')}`);
+        const errorMessage = error?.message || 'שגיאה בהתחברות עם Google';
+        return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(errorMessage)}`);
       }
     } catch (err: any) {
       console.error('Exception in auth callback:', err);
