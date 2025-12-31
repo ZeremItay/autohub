@@ -24,6 +24,62 @@ function LoginContent() {
       setError(decodeURIComponent(errorParam));
     }
 
+    // Check for OAuth tokens in hash fragment (Supabase sometimes returns tokens in hash instead of query params)
+    // This happens when Supabase uses implicit flow instead of PKCE flow
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash && hash.includes('access_token')) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/login/page.tsx:27',message:'Found access_token in hash fragment',data:{hashLength:hash.length,hasAccessToken:hash.includes('access_token'),hasRefreshToken:hash.includes('refresh_token'),fullUrl:window.location.href},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
+        // Parse hash fragment and extract tokens
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const expiresAt = hashParams.get('expires_at');
+        const tokenType = hashParams.get('token_type') || 'bearer';
+        
+        if (accessToken) {
+          // Build a session object from the hash tokens
+          // Supabase will automatically parse and validate the token
+          const sessionData: any = {
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+            expires_at: expiresAt ? parseInt(expiresAt) : undefined,
+            token_type: tokenType,
+            user: null, // Will be extracted from token
+          };
+          
+          // Set session using the tokens from hash
+          supabase.auth.setSession(sessionData).then(({ data, error }) => {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/login/page.tsx:50',message:'setSession from hash result',data:{hasSession:!!data?.session,hasUser:!!data?.user,hasError:!!error,errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
+            if (error) {
+              console.error('Error setting session from hash:', error);
+              setError('שגיאה בהתחברות עם Google');
+            } else if (data?.session && data?.user) {
+              // Clear the hash from URL
+              window.history.replaceState(null, '', window.location.pathname);
+              // Ensure user profile exists
+              const ensureProfile = async () => {
+                if (data.user) {
+                  const { ensureUserProfile } = await import('@/lib/utils/auth');
+                  await ensureUserProfile(data.user);
+                }
+              };
+              ensureProfile().then(() => {
+                // Redirect to home
+                router.push('/');
+                router.refresh();
+              });
+            }
+          });
+          return; // Don't check session again
+        }
+      }
+    }
+
     // Check if user is already logged in
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -95,6 +151,9 @@ function LoginContent() {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const redirectUrl = `${origin}/auth/callback`;
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/login/page.tsx:98',message:'Initiating Google OAuth',data:{origin,redirectUrl,fullUrl:typeof window !== 'undefined' ? window.location.href : 'N/A'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       console.log('Initiating Google OAuth:', {
         origin,
         redirectUrl,
@@ -116,6 +175,9 @@ function LoginContent() {
         setError(oauthError.message || 'שגיאה בהתחברות עם Google');
         setGoogleLoading(false);
       } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/login/page.tsx:119',message:'OAuth initiated successfully',data:{hasUrl:!!data?.url,urlLength:data?.url?.length,provider:data?.provider,urlStart:data?.url?.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         console.log('OAuth initiated successfully:', {
           url: data?.url,
           provider: data?.provider

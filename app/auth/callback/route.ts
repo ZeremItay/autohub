@@ -12,6 +12,9 @@ export async function GET(request: Request) {
   // if "next" is in param, use it as the redirect URL
   const next = searchParams.get('next') ?? '/';
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/callback/route.ts:16',message:'Auth callback received',data:{code:code?'present':'missing',error,errorDescription,errorCode,origin,pathname,href,next,allParams:Object.fromEntries(searchParams.entries()),hasCode:!!code,hasError:!!error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   // Log all relevant information for debugging
   console.log('Auth callback received:', { 
     code: code ? `present (${code.substring(0, 20)}...)` : 'missing', 
@@ -71,6 +74,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(errorDescription || error || 'שגיאה בהתחברות עם Google')}`);
   }
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/callback/route.ts:75',message:'No code provided in callback',data:{fullUrl:href,searchParams:Object.fromEntries(searchParams.entries()),origin,pathname,referer:request.headers.get('referer'),userAgent:request.headers.get('user-agent'),forwardedHost:request.headers.get('x-forwarded-host'),forwardedProto:request.headers.get('x-forwarded-proto'),paramCount:searchParams.size},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
   // If no code is provided, log detailed information for debugging
   console.warn('No code provided in callback - detailed debug info:', {
     fullUrl: href,
