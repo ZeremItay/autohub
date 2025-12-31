@@ -999,13 +999,14 @@ export default function ProfilePage() {
                   // Own profile - allow editing
                   <button
                     onClick={() => setShowAvatarModal(true)}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xl sm:text-2xl font-bold flex-shrink-0 overflow-hidden hover:opacity-90 transition-opacity cursor-pointer"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xl sm:text-2xl font-bold flex-shrink-0 overflow-hidden hover:opacity-90 transition-opacity cursor-pointer relative"
                   >
                     {formData.avatar_url || profile.avatar_url ? (
-                      <img 
+                      <Image 
                         src={`${formData.avatar_url || profile.avatar_url}?t=${Date.now()}`} 
                         alt={fullName} 
-                        className="w-full h-full rounded-full object-cover"
+                        fill
+                        className="rounded-full object-cover"
                         key={`profile-avatar-${formData.avatar_url || profile.avatar_url}`}
                       />
                     ) : (
@@ -1016,13 +1017,14 @@ export default function ProfilePage() {
                   // Other user's profile - allow viewing only
                   <button
                     onClick={() => setShowAvatarLightbox(true)}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xl sm:text-2xl font-bold flex-shrink-0 overflow-hidden hover:opacity-90 transition-opacity cursor-pointer"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xl sm:text-2xl font-bold flex-shrink-0 overflow-hidden hover:opacity-90 transition-opacity cursor-pointer relative"
                   >
                     {formData.avatar_url || profile?.avatar_url ? (
-                      <img 
+                      <Image 
                         src={`${formData.avatar_url || profile.avatar_url}?t=${Date.now()}`} 
                         alt={fullName} 
-                        className="w-full h-full rounded-full object-cover"
+                        fill
+                        className="rounded-full object-cover"
                         key={`profile-avatar-${formData.avatar_url || profile?.avatar_url}`}
                       />
                     ) : (
