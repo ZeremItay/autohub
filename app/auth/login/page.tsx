@@ -95,18 +95,28 @@ function LoginContent() {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const redirectUrl = `${origin}/auth/callback`;
 
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      console.log('Initiating Google OAuth with redirect URL:', redirectUrl);
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
 
       if (oauthError) {
+        console.error('OAuth error:', oauthError);
         setError(oauthError.message || 'שגיאה בהתחברות עם Google');
         setGoogleLoading(false);
+      } else {
+        console.log('OAuth initiated successfully, data:', data);
+        // Note: If successful, user will be redirected to Google, so we don't need to handle success here
+        // The redirect happens automatically
       }
-      // Note: If successful, user will be redirected to Google, so we don't need to handle success here
     } catch (err: any) {
       console.error('Google login error:', err);
       setError(err.message || 'שגיאה בהתחברות עם Google');

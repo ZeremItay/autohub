@@ -5,10 +5,19 @@ import { cookies } from 'next/headers';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
+  const error = searchParams.get('error');
+  const errorDescription = searchParams.get('error_description');
   // if "next" is in param, use it as the redirect URL
   const next = searchParams.get('next') ?? '/';
 
-  console.log('Auth callback received:', { code: code ? 'present' : 'missing', origin, next });
+  console.log('Auth callback received:', { 
+    code: code ? 'present' : 'missing', 
+    error,
+    errorDescription,
+    origin, 
+    next,
+    allParams: Object.fromEntries(searchParams.entries())
+  });
 
   if (code) {
     try {
@@ -37,6 +46,12 @@ export async function GET(request: Request) {
       console.error('Exception in auth callback:', err);
       return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(err.message || 'שגיאה בהתחברות עם Google')}`);
     }
+  }
+
+  // If no code is provided, check if there's an error from OAuth provider
+  if (error) {
+    console.error('OAuth provider error:', error, errorDescription);
+    return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(errorDescription || error || 'שגיאה בהתחברות עם Google')}`);
   }
 
   // If no code is provided, redirect to login with error message
