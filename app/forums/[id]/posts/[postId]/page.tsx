@@ -348,9 +348,32 @@ export default function ForumPostDetailPage() {
             <h1 className="text-3xl font-bold text-gray-800 mb-4">{post.title}</h1>
 
             {/* Post Content */}
-            <div className="text-gray-700 leading-relaxed whitespace-pre-line mb-6">
-              {post.content}
-            </div>
+            <div 
+              className="text-gray-700 leading-relaxed prose prose-sm max-w-none prose-img:max-w-full prose-img:rounded-lg prose-img:my-4 mb-6"
+              dir="rtl"
+              dangerouslySetInnerHTML={{ 
+                __html: (() => {
+                  // Helper function to clean placeholder images from HTML content
+                  const cleanPlaceholderImages = (content: string): string => {
+                    if (!content || typeof content !== 'string') {
+                      return content;
+                    }
+                    
+                    // Pattern to match base64 SVG images with "טוען..." (loading placeholder)
+                    const placeholderPattern = /<img[^>]*src=["']data:image\/svg\+xml;base64,[^"']*טוען[^"']*["'][^>]*>/gi;
+                    let cleanedContent = content.replace(placeholderPattern, '');
+                    
+                    // Also check for the specific loading SVG pattern
+                    const loadingSvgPattern = /<img[^>]*src=["']data:image\/svg\+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjRmNiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5טוען[^"']*["'][^>]*>/gi;
+                    cleanedContent = cleanedContent.replace(loadingSvgPattern, '');
+                    
+                    return cleanedContent;
+                  };
+                  
+                  return cleanPlaceholderImages(post.content || '');
+                })()
+              }}
+            />
 
             {/* Media */}
             {post.media_url && (

@@ -16,7 +16,9 @@ export default function SignupPage() {
     password: '',
     displayName: '',
     firstName: '',
-    lastName: ''
+    lastName: '',
+    how_to_address: '',
+    nocode_experience: ''
   });
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -26,7 +28,7 @@ export default function SignupPage() {
 
     try {
       // Validate form
-      if (!formData.email || !formData.password || !formData.displayName) {
+      if (!formData.email || !formData.password || !formData.displayName || !formData.how_to_address || !formData.nocode_experience) {
         setError('אנא מלא את כל השדות הנדרשים');
         setLoading(false);
         return;
@@ -82,6 +84,8 @@ export default function SignupPage() {
           first_name: formData.firstName || null,
           last_name: formData.lastName || null,
           nickname: formData.displayName,
+          how_to_address: formData.how_to_address,
+          nocode_experience: formData.nocode_experience,
           role_id: freeRoleId || null,
           points: 0,
           is_online: true
@@ -255,6 +259,51 @@ export default function SignupPage() {
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
                 />
+              </div>
+            </div>
+
+            {/* How to Address */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                איך צריך לפנות אליך בקהילה שלנו? *
+              </label>
+              <div className="relative">
+                <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <select
+                  dir="rtl"
+                  lang="he"
+                  value={formData.how_to_address}
+                  onChange={(e) => setFormData({ ...formData, how_to_address: e.target.value })}
+                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm bg-white appearance-none"
+                  required
+                >
+                  <option value="">בחר אפשרות</option>
+                  <option value="אוטומטור">אוטומטור</option>
+                  <option value="אוטומטורית">אוטומטורית</option>
+                </select>
+              </div>
+            </div>
+
+            {/* NoCode Experience */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                מה הניסיון שלך עם אוטומציות No Code בטופ 100? *
+              </label>
+              <div className="relative">
+                <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <select
+                  dir="rtl"
+                  lang="he"
+                  value={formData.nocode_experience}
+                  onChange={(e) => setFormData({ ...formData, nocode_experience: e.target.value })}
+                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm bg-white appearance-none"
+                  required
+                >
+                  <option value="">בחר רמת ניסיון</option>
+                  <option value="מתחיל">מתחיל</option>
+                  <option value="בינוני">בינוני</option>
+                  <option value="מתקדם">מתקדם</option>
+                </select>
               </div>
             </div>
 

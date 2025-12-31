@@ -359,32 +359,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Check for next live event (polling every 30 seconds)
   useEffect(() => {
     async function checkNextLiveEvent() {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/Layout.tsx:358',message:'checkNextLiveEvent called',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/Layout.tsx:360',message:'Before dynamic import',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         const { getNextLiveEvent, updateEventStatuses } = await import('@/lib/queries/events');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/Layout.tsx:361',message:'After dynamic import',data:{hasGetNextLiveEvent:typeof getNextLiveEvent==='function'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         // Auto-update event statuses before checking for live events
         await updateEventStatuses();
         const { data } = await getNextLiveEvent();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/Layout.tsx:362',message:'After getNextLiveEvent call',data:{hasData:!!data,dataId:data?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         setHasLiveEvent(!!data);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/Layout.tsx:363',message:'setHasLiveEvent called',data:{hasLiveEvent:!!data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
       } catch (error) {
-        // #region agent log
-        const errorObj = error as any;
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/Layout.tsx:364',message:'Error in checkNextLiveEvent',data:{error:String(error),errorName:errorObj?.name,errorStack:errorObj?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         console.error('Error checking next live event:', error);
         setHasLiveEvent(false);
       }

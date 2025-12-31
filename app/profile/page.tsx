@@ -40,6 +40,7 @@ import {
   CheckCheck
 } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRef } from 'react'
 import { getUserForumPosts, getUserForumReplies } from '@/lib/queries/forums'
 import { getUserPointsHistory } from '@/lib/queries/gamification'
@@ -317,7 +318,7 @@ export default function ProfilePage() {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: publicUrl } }));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading avatar:', error?.message || String(error));
       alert('שגיאה בהעלאת התמונה');
     } finally {
@@ -338,7 +339,7 @@ export default function ProfilePage() {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: avatarUrl } }));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error setting avatar:', error?.message || String(error));
       alert('שגיאה בשמירת האווטר');
     }
@@ -365,23 +366,47 @@ export default function ProfilePage() {
         return;
       }
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          nickname: formData.nickname,
-          how_to_address: formData.how_to_address,
-          nocode_experience: formData.nocode_experience,
-          display_name: formData.display_name,
-          bio: formData.bio,
-          experience_level: formData.experience_level,
-          avatar_url: formData.avatar_url,
-          instagram_url: formData.instagram_url,
-          facebook_url: formData.facebook_url,
-          ...additionalUpdates
-        })
-        .eq('user_id', currentLoggedInUserId) // Use user_id from auth, not profile.id
+      // Safely prepare update data to avoid circular references
+      const updateData: any = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        nickname: formData.nickname,
+        how_to_address: formData.how_to_address,
+        nocode_experience: formData.nocode_experience,
+        display_name: formData.display_name,
+        bio: formData.bio,
+        experience_level: formData.experience_level,
+        avatar_url: formData.avatar_url,
+        instagram_url: formData.instagram_url,
+        facebook_url: formData.facebook_url,
+      };
+      
+      // Safely merge additionalUpdates if provided
+      if (additionalUpdates) {
+        Object.keys(additionalUpdates).forEach(key => {
+          const value = additionalUpdates[key];
+          // Only include primitive values to avoid circular references
+          // Also exclude React internal fields
+          if (value !== null && value !== undefined && 
+              !key.startsWith('_') && !key.startsWith('__react') &&
+              (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) {
+            updateData[key] = value;
+          }
+        });
+      }
+
+      let error: any = null;
+      try {
+        const result = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('user_id', currentLoggedInUserId); // Use user_id from auth, not profile.id
+        
+        error = result.error;
+      } catch (supabaseError: any) {
+        // Catch any errors from Supabase client itself
+        error = supabaseError;
+      }
       
       if (!error) {
         // Clear cache to force reload
@@ -392,14 +417,46 @@ export default function ProfilePage() {
         // Force page reload to update all avatars
         if (typeof window !== 'undefined') {
           // Trigger a custom event to notify other components
-          window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: formData.avatar_url || additionalUpdates?.avatar_url } }));
+          const avatarUrl = formData.avatar_url || additionalUpdates?.avatar_url || '';
+          window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: avatarUrl } }));
         }
       } else {
-        console.error('Error updating profile:', error?.message || String(error));
+        // Safely log error
+        const errorMsg = error?.message || (typeof error === 'string' ? error : 'שגיאה בשמירת הפרופיל');
+        if (!errorMsg.includes('circular') && !errorMsg.includes('HTMLButtonElement')) {
+          console.warn('Error updating profile:', errorMsg);
+        }
         alert('שגיאה בשמירת הפרופיל. נסה שוב.');
       }
     } catch (error: any) {
-      console.error('Error saving details:', error?.message || String(error))
+      // Safely extract error message to avoid circular reference issues
+      let errorMessage = 'שגיאה בשמירת הפרופיל';
+      try {
+        // Check if error is a TypeError about circular structure
+        if (error instanceof TypeError && error.message?.includes('circular')) {
+          errorMessage = 'שגיאה בשמירת הפרופיל - בעיית מבנה נתונים';
+        } else if (error?.message && typeof error.message === 'string') {
+          // Only use message if it's a string and doesn't contain circular reference info
+          if (!error.message.includes('circular') && !error.message.includes('HTMLButtonElement')) {
+            errorMessage = error.message;
+          }
+        } else if (typeof error === 'string') {
+          if (!error.includes('circular') && !error.includes('HTMLButtonElement')) {
+            errorMessage = error;
+          }
+        }
+      } catch (e) {
+        // If anything fails, use default message
+        errorMessage = 'שגיאה בשמירת הפרופיל';
+      }
+      
+      // Use console.warn instead of console.error to avoid JSON.stringify issues
+      try {
+        console.warn('Error saving details:', errorMessage);
+      } catch {
+        // If even console.warn fails, just show alert
+      }
+      
       alert('שגיאה בשמירת הפרופיל. נסה שוב.');
     }
   }
@@ -418,8 +475,21 @@ export default function ProfilePage() {
         await loadProfile()
         setEditingPersonal(false)
       }
-    } catch (error) {
-      console.error('Error saving personal info:', error?.message || String(error))
+    } catch (error: any) {
+      // Safely extract error message to avoid circular reference issues
+      let errorMessage = 'שגיאה לא ידועה';
+      try {
+        if (error?.message) {
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        } else {
+          errorMessage = String(error?.toString?.() || error?.name || 'שגיאה בשמירת המידע האישי');
+        }
+      } catch {
+        errorMessage = 'שגיאה בשמירת המידע האישי';
+      }
+      console.error('Error saving personal info:', errorMessage);
     }
   }
 
@@ -435,7 +505,7 @@ export default function ProfilePage() {
         const { data } = await getUserForumReplies(userId)
         setMyReplies(data || [])
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading forums data:', error?.message || String(error))
     } finally {
       setLoadingForums(false)
@@ -539,7 +609,7 @@ export default function ProfilePage() {
       })
       
       setPointsHistory(enhancedHistory)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading points history:', error?.message || String(error))
       // Still set the history even if enhancement fails
       const userId = profile.user_id || profile.id
@@ -564,7 +634,7 @@ export default function ProfilePage() {
       } else {
         setMyOffers(data || [])
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading offers:', error?.message || String(error))
       setMyOffers([])
     } finally {
@@ -609,7 +679,7 @@ export default function ProfilePage() {
       } else {
         setMySubmissions(Array.isArray(submissions) ? submissions : [])
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading projects data:', error?.message || String(error))
       setMyProjects([])
       setMySubmissions([])
@@ -652,7 +722,7 @@ export default function ProfilePage() {
                 completedLessons: completedCount,
                 totalLessons: totalLessons
               }
-            } catch (error) {
+            } catch (error: any) {
               console.error(`Error loading progress for course ${course.id}:`, error?.message || String(error))
               return {
                 ...course,
@@ -666,7 +736,7 @@ export default function ProfilePage() {
         
         setMyCourses(coursesWithProgress)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading courses:', error?.message || String(error))
       setMyCourses([])
     } finally {
@@ -711,7 +781,7 @@ export default function ProfilePage() {
         setNotificationsTotal(0)
         setNotificationsTotalPages(0)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading notifications:', error?.message || String(error))
       setNotifications([])
       setNotificationsTotal(0)
@@ -746,7 +816,7 @@ export default function ProfilePage() {
           prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
         )
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error marking notification as read:', error?.message || String(error))
     }
   }
@@ -764,7 +834,7 @@ export default function ProfilePage() {
       if (response.ok) {
         loadNotifications(notificationsPage)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error marking all as read:', error?.message || String(error))
     }
   }
@@ -1227,21 +1297,34 @@ export default function ProfilePage() {
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
                         <label className="text-sm font-medium text-[#F52F8E] sm:w-1/4">איך צריך לפנות אליך בקהילה שלנו?*</label>
-                        <input
-                          type="text"
+                        <select
+                          dir="rtl"
+                          lang="he"
                           value={formData.how_to_address}
                           onChange={(e) => setFormData({ ...formData, how_to_address: e.target.value })}
-                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base"
-                        />
+                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base bg-white"
+                          required
+                        >
+                          <option value="">בחר אפשרות</option>
+                          <option value="אוטומטור">אוטומטור</option>
+                          <option value="אוטומטורית">אוטומטורית</option>
+                        </select>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
                         <label className="text-sm font-medium text-[#F52F8E] sm:w-1/4">מה הניסיון שלך עם אוטומציות No Code בטופ 100*</label>
-                        <input
-                          type="text"
+                        <select
+                          dir="rtl"
+                          lang="he"
                           value={formData.nocode_experience}
                           onChange={(e) => setFormData({ ...formData, nocode_experience: e.target.value })}
-                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base"
-                        />
+                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base bg-white"
+                          required
+                        >
+                          <option value="">בחר רמת ניסיון</option>
+                          <option value="מתחיל">מתחיל</option>
+                          <option value="בינוני">בינוני</option>
+                          <option value="מתקדם">מתקדם</option>
+                        </select>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
                         <label className="text-sm font-medium text-[#F52F8E] sm:w-1/4">קישור אינסטגרם</label>
@@ -1265,7 +1348,7 @@ export default function ProfilePage() {
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2">
                         <button
-                          onClick={saveDetails}
+                          onClick={() => saveDetails()}
                           className="flex items-center justify-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors text-sm sm:text-base"
                         >
                           <Save className="w-4 h-4" />
@@ -2199,9 +2282,9 @@ export default function ProfilePage() {
                       <button
                         key={style}
                         onClick={() => handleAvatarSelect(avatarUrl)}
-                        className="w-full aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-[#F52F8E] transition-colors"
+                        className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-[#F52F8E] transition-colors"
                       >
-                        <img src={avatarUrl} alt={style} className="w-full h-full object-cover" />
+                        <Image src={avatarUrl} alt={style} fill className="object-cover" />
                       </button>
                     );
                   })}

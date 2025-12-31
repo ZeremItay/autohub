@@ -33,6 +33,12 @@ function RecordingDetailPageContent() {
   const [openQaIndex, setOpenQaIndex] = useState<number | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
+  // Helper function to ensure video URLs are always HTTPS
+  function ensureHttpsUrl(url: string): string {
+    if (!url) return url;
+    return url.replace(/^http:\/\//, 'https://');
+  }
+
   useEffect(() => {
     if (params.id) {
       // Load full recording data immediately (includes qa_section and key_points)
@@ -286,10 +292,11 @@ function RecordingDetailPageContent() {
                   />
                 );
               } else {
-                // Direct video URL
+                // Direct video URL - ensure HTTPS to prevent Mixed Content errors
+                const videoUrl = ensureHttpsUrl(recording.video_url);
                 return (
                   <video
-                    src={recording.video_url}
+                    src={videoUrl}
                     controls
                     className="w-full h-full"
                     preload="metadata"

@@ -7,8 +7,17 @@ import Link from 'next/link';
 import { getForumById, getForumPosts, getAllForums, getForumPostById, deleteForumPostReply, type Forum, type ForumPost } from '@/lib/queries/forums';
 import { getAllProfiles } from '@/lib/queries/profiles';
 import AuthGuard from '@/app/components/AuthGuard';
-import RichTextEditor from '@/app/components/RichTextEditor';
+import dynamic from 'next/dynamic';
 import CommentsList from '@/app/components/comments/CommentsList';
+
+// Lazy load RichTextEditor (heavy component)
+const RichTextEditor = dynamic(
+  () => import('@/app/components/RichTextEditor'),
+  { 
+    ssr: false,
+    loading: () => <div className="w-full h-32 bg-gray-100 rounded animate-pulse" />
+  }
+);
 import { adaptForumRepliesToComments } from '@/lib/utils/forum-comments-adapter';
 
 export default function ForumDetailPage() {
@@ -429,53 +438,47 @@ function ForumDetailPageContent() {
     // First, clean placeholder images
     let cleanedContent = cleanPlaceholderImages(content);
     
-    // Check if there are any images in the content
+    // Create a temporary DOM element to parse HTML and extract text
+    // This is more reliable than regex for handling complex HTML
+    let plainText = '';
+    try {
+      // Create a temporary div element
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = cleanedContent;
+      
+      // Extract text content (this automatically handles all HTML entities and tags)
+      plainText = tempDiv.textContent || tempDiv.innerText || '';
+      
+      // Clean up any remaining whitespace
+      plainText = plainText.replace(/\s+/g, ' ').trim();
+    } catch (error) {
+      // Fallback to regex if DOM parsing fails
+      plainText = cleanedContent
+        .replace(/<img[^>]*>/gi, '') // Remove all images first
+        .replace(/<[^>]*>/g, '') // Remove all HTML tags
+        .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+        .replace(/&amp;/g, '&') // Replace &amp; with &
+        .replace(/&lt;/g, '<') // Replace &lt; with <
+        .replace(/&gt;/g, '>') // Replace &gt; with >
+        .replace(/&quot;/g, '"') // Replace &quot; with "
+        .replace(/&#39;/g, "'") // Replace &#39; with '
+        .replace(/&#x27;/g, "'") // Replace &#x27; with '
+        .replace(/&#x2F;/g, '/') // Replace &#x2F; with /
+        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+        .trim();
+    }
+    
+    // Check if there are any images in the original content
     const hasImages = /<img[^>]*>/gi.test(cleanedContent);
     
-    if (hasImages) {
-      // If there are images, get text before the first image
-      const beforeImage = cleanedContent.split(/<img[^>]*>/i)[0];
-      
-      // Extract plain text from the part before the image
-      let plainText = beforeImage
-        .replace(/<[^>]*>/g, '') // Remove all HTML tags
-        .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
-        .replace(/&amp;/g, '&') // Replace &amp; with &
-        .replace(/&lt;/g, '<') // Replace &lt; with <
-        .replace(/&gt;/g, '>') // Replace &gt; with >
-        .replace(/&quot;/g, '"') // Replace &quot; with "
-        .replace(/&#39;/g, "'") // Replace &#39; with '
-        .trim();
-      
-      // Take first maxLength characters and add ... (always add ... if there's an image)
-      if (plainText.length > maxLength) {
-        return plainText.substring(0, maxLength) + '...';
-      } else if (plainText.length > 0) {
-        return plainText + '...';
-      } else {
-        // If no text before image, just return "..."
-        return '...';
-      }
-    } else {
-      // No images - extract plain text from entire content
-      let plainText = cleanedContent
-        .replace(/<img[^>]*>/g, '') // Remove all images (shouldn't be any, but just in case)
-        .replace(/<[^>]*>/g, '') // Remove all HTML tags
-        .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
-        .replace(/&amp;/g, '&') // Replace &amp; with &
-        .replace(/&lt;/g, '<') // Replace &lt; with <
-        .replace(/&gt;/g, '>') // Replace &gt; with >
-        .replace(/&quot;/g, '"') // Replace &quot; with "
-        .replace(/&#39;/g, "'") // Replace &#39; with '
-        .trim();
-      
-      // Take first maxLength characters and add ... if longer
-      if (plainText.length > maxLength) {
-        return plainText.substring(0, maxLength) + '...';
-      }
-      
-      return plainText;
+    // Take first maxLength characters and add ... if longer or if there are images
+    if (plainText.length > maxLength) {
+      return plainText.substring(0, maxLength) + '...';
+    } else if (hasImages && plainText.length > 0) {
+      return plainText + '...';
     }
+    
+    return plainText;
   }
 
   async function handlePostClick(post: ForumPost) {

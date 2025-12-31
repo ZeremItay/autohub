@@ -79,7 +79,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       .limit(100); // Get all rules (shouldn't be more than 100)
     
     if (allRulesError) {
-      console.error('❌ Error fetching gamification rules:', allRulesError);
+      console.error('❌ Error fetching gamification rules:', allRulesError?.message || String(allRulesError));
       // If we can't get all rules, silently fail
       return { success: false, error: 'Rule not found', alreadyAwarded: false };
     }
@@ -270,7 +270,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
     }
     
     if (historyError) {
-      console.error('❌ Error adding to history:', historyError)
+      console.error('❌ Error adding to history:', historyError?.message || String(historyError))
       return { success: false, error: historyError.message }
     }
     
@@ -304,7 +304,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
         .eq('id', userId)
       
       if (updateError) {
-        console.error('Error updating points:', updateError)
+        console.error('Error updating points:', updateError?.message || String(updateError))
         return { success: false, error: updateError.message }
       }
       
@@ -410,7 +410,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       .eq('user_id', userId)
     
     if (updateError) {
-      console.error('Error updating points:', updateError)
+      console.error('Error updating points:', updateError?.message || String(updateError))
       return { success: false, error: updateError.message }
     }
     
@@ -506,7 +506,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
     
     return { success: true, points: newPoints }
   } catch (error: any) {
-    console.error('Error awarding points:', error)
+    console.error('Error awarding points:', error?.message || String(error))
     return { success: false, error: error.message }
   }
 }
@@ -520,7 +520,7 @@ export async function getUserPointsHistory(userId: string) {
     .order('created_at', { ascending: false })
   
   if (error) {
-    console.error('Error fetching points history:', error)
+    console.error('Error fetching points history:', error?.message || String(error))
     return { data: null, error }
   }
   

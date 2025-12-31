@@ -162,10 +162,6 @@ export async function createReport(data: {
   created_at?: string;
 }) {
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/reports.ts:156',message:'createReport entry',data:{title:data.title,contentLength:data.content?.length,user_id:data.user_id,is_published:data.is_published,created_at:data.created_at},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D,E'})}).catch(()=>{});
-    // #endregion
-    
     // Use server client for admin operations
     const supabaseServer = createServerClient();
 
@@ -180,20 +176,12 @@ export async function createReport(data: {
     if (data.created_at) {
       insertData.created_at = data.created_at;
     }
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/reports.ts:179',message:'Before insert',data:{insertDataKeys:Object.keys(insertData),title:insertData.title,contentLength:insertData.content?.length,user_id:insertData.user_id,hasCreatedAt:!!insertData.created_at},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D,E'})}).catch(()=>{});
-    // #endregion
 
     const { data: reportData, error } = await supabaseServer
       .from('reports')
       .insert(insertData)
       .select()
       .single();
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/reports.ts:186',message:'Insert result',data:{hasData:!!reportData,hasError:!!error,error:error?.message,errorCode:error?.code,errorDetails:error?.details},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D,E'})}).catch(()=>{});
-    // #endregion
 
     if (error) {
       console.error('Error creating report:', error);

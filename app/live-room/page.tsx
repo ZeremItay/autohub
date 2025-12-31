@@ -7,7 +7,18 @@ import Link from 'next/link';
 import { getNextLiveEvent } from '@/lib/queries/events';
 import { getCurrentUser, isPremiumUser } from '@/lib/utils/user';
 import { supabase } from '@/lib/supabase';
-import ZoomMeeting from '@/app/components/zoom/ZoomMeeting';
+import dynamic from 'next/dynamic';
+
+// Lazy load ZoomMeeting (heavy component, only needed when live event is active)
+const ZoomMeeting = dynamic(
+  () => import('@/app/components/zoom/ZoomMeeting'),
+  { 
+    ssr: false,
+    loading: () => <div className="w-full h-96 bg-gray-100 rounded animate-pulse flex items-center justify-center">
+      <p className="text-gray-500">טוען חדר לייב...</p>
+    </div>
+  }
+);
 
 const eventTypeLabels: Record<string, string> = {
   'live': 'לייב',
@@ -26,12 +37,6 @@ export default function LiveRoomPage() {
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
-  
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:28',message:'isFullscreen state changed',data:{isFullscreen:isFullscreen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }, [isFullscreen]);
-  // #endregion
 
   // Detect sidebar width (only when fullscreen and on desktop)
   useEffect(() => {
@@ -248,29 +253,12 @@ export default function LiveRoomPage() {
               </h1>
             </div>
             {/* Fullscreen Toggle Button */}
-            {(() => {
-              // #region agent log
-              const shouldShow = event.zoom_meeting_id && !checkingAccess && isPremium;
-              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:194',message:'Fullscreen button render check',data:{shouldShow:shouldShow,hasZoomId:!!event.zoom_meeting_id,checkingAccess:checkingAccess,isPremium:isPremium},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-              // #endregion
-              return shouldShow;
-            })() && (
+            {event.zoom_meeting_id && !checkingAccess && isPremium && (
               <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:204',message:'Fullscreen button clicked',data:{isFullscreenBefore:isFullscreen,newValue:!isFullscreen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                  // #endregion
                   setIsFullscreen(!isFullscreen);
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:207',message:'setIsFullscreen called',data:{newValue:!isFullscreen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                  // #endregion
-                }}
-                onMouseDown={(e) => {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:214',message:'Button mousedown event',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                  // #endregion
                 }}
                 className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-white flex-shrink-0 z-50 relative"
                 title={isFullscreen ? 'הקטן למסך' : 'הגדל למסך מלא'}
@@ -308,13 +296,6 @@ export default function LiveRoomPage() {
                   left: '0',
                   right: `${sidebarWidth}px`
                 } : undefined}
-                // #region agent log
-                ref={(el) => {
-                  if (el) {
-                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'live-room/page.tsx:223',message:'Zoom container rendered',data:{isFullscreen:isFullscreen,className:isFullscreen?'fixed inset-0 w-screen h-screen z-50 rounded-none':'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vh] rounded-lg',computedStyle:window.getComputedStyle(el).width+'x'+window.getComputedStyle(el).height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                  }
-                }}
-                // #endregion
               >
                 <ZoomMeeting
                   meetingNumber={event.zoom_meeting_id}

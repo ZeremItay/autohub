@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { getAllProfiles } from '@/lib/queries/profiles'
 import { 
@@ -358,9 +359,9 @@ function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessa
       {/* Avatar */}
       <div className="flex flex-col items-center mb-3 sm:mb-4">
         <div className="relative mb-3 sm:mb-4">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg">
+          <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg overflow-hidden">
             {member.avatar_url ? (
-              <img src={member.avatar_url} alt={displayName} className="w-full h-full rounded-full object-cover" />
+              <Image src={member.avatar_url} alt={displayName} fill className="object-cover rounded-full" />
             ) : (
               <span>{displayName.charAt(0)}</span>
             )}
@@ -436,9 +437,9 @@ function MemberCardList({ member, formatJoinDate, getLastActiveText, handleSendM
       <div className="flex items-center gap-3 sm:gap-4">
         {/* Avatar */}
         <div className="relative flex-shrink-0">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-lg sm:text-xl font-bold">
+          <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-lg sm:text-xl font-bold overflow-hidden">
             {member.avatar_url ? (
-              <img src={member.avatar_url} alt={displayName} className="w-full h-full rounded-full object-cover" />
+              <Image src={member.avatar_url} alt={displayName} fill className="object-cover rounded-full" />
             ) : (
               <span>{displayName.charAt(0)}</span>
             )}

@@ -14,15 +14,71 @@ export interface ErrorInfo {
  * Log error with context
  */
 export function logError(error: Error | any, context?: string): void {
+  // Skip logging if error is empty or null
+  if (!error || (typeof error === 'object' && Object.keys(error).length === 0)) {
+    return;
+  }
+  
+  // Check if it's a "not found" error (safe to ignore)
+  if (isNotFoundError(error)) {
+    return;
+  }
+  
   const errorInfo: ErrorInfo = {
-    message: error?.message || String(error),
+    message: error?.message || String(error) || 'Unknown error',
     code: error?.code,
     details: error?.details || error,
     timestamp: new Date(),
     context
   };
   
-  console.error(`[${context || 'Error'}]`, errorInfo);
+  // Safely log error to avoid circular reference issues
+  let safeDetails = '';
+  try {
+    if (errorInfo.details) {
+      if (typeof errorInfo.details === 'string') {
+        safeDetails = errorInfo.details;
+      } else if (errorInfo.details?.message) {
+        safeDetails = errorInfo.details.message;
+      } else if (typeof errorInfo.details === 'object') {
+        // Try to extract meaningful information from the object
+        const keys = Object.keys(errorInfo.details);
+        if (keys.length > 0) {
+          safeDetails = JSON.stringify(
+            Object.fromEntries(
+              keys.slice(0, 5).map(key => [key, errorInfo.details[key]])
+            )
+          );
+        } else {
+          safeDetails = '[Empty object]';
+        }
+      } else {
+        safeDetails = String(errorInfo.details);
+      }
+    }
+  } catch {
+    safeDetails = '[Circular reference]';
+  }
+  
+  // Only log if we have meaningful information
+  const logData: any = {
+    message: errorInfo.message,
+    timestamp: errorInfo.timestamp.toISOString(),
+  };
+  
+  if (errorInfo.code) {
+    logData.code = errorInfo.code;
+  }
+  
+  if (safeDetails && safeDetails !== '[Empty object]') {
+    logData.details = safeDetails;
+  }
+  
+  if (errorInfo.context) {
+    logData.context = errorInfo.context;
+  }
+  
+  console.error(`[${context || 'Error'}]`, logData);
   
   // In production, you might want to send this to an error tracking service
   // e.g., Sentry, LogRocket, etc.

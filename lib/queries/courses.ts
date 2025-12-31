@@ -798,11 +798,18 @@ export async function checkEnrollment(courseId: string, userId: string) {
     supabaseClient = createServerClient();
   }
   
+  // Get current session to use authenticated user ID (ensures RLS works correctly)
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const authenticatedUserId = session?.user?.id;
+  
+  // Use authenticatedUserId if available, otherwise fall back to userId parameter
+  const userIdToCheck = authenticatedUserId || userId;
+  
   const { data, error } = await supabaseClient
     .from('course_enrollments')
     .select('*')
     .eq('course_id', courseId)
-    .eq('user_id', userId)
+    .eq('user_id', userIdToCheck)
     .maybeSingle();
   
   return { data, error };

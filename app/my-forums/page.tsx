@@ -42,6 +42,77 @@ function MyForumsContent() {
     }
   }
 
+  // Helper function to clean placeholder images from HTML content
+  function cleanPlaceholderImages(content: string): string {
+    if (!content || typeof content !== 'string') {
+      return content;
+    }
+    
+    // Pattern to match base64 SVG images with "טוען..." (loading placeholder)
+    const placeholderPattern = /<img[^>]*src=["']data:image\/svg\+xml;base64,[^"']*טוען[^"']*["'][^>]*>/gi;
+    
+    // Remove placeholder images
+    let cleanedContent = content.replace(placeholderPattern, '');
+    
+    // Also check for the specific loading SVG pattern we use
+    const loadingSvgPattern = /<img[^>]*src=["']data:image\/svg\+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjRmNiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5טוען[^"']*["'][^>]*>/gi;
+    cleanedContent = cleanedContent.replace(loadingSvgPattern, '');
+    
+    return cleanedContent;
+  }
+
+  // Helper function to extract plain text from HTML for preview
+  function getPlainTextPreview(content: string, maxLength: number = 25): string {
+    if (!content || typeof content !== 'string') {
+      return '';
+    }
+    
+    // First, clean placeholder images
+    let cleanedContent = cleanPlaceholderImages(content);
+    
+    // Create a temporary DOM element to parse HTML and extract text
+    // This is more reliable than regex for handling complex HTML
+    let plainText = '';
+    try {
+      // Create a temporary div element
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = cleanedContent;
+      
+      // Extract text content (this automatically handles all HTML entities and tags)
+      plainText = tempDiv.textContent || tempDiv.innerText || '';
+      
+      // Clean up any remaining whitespace
+      plainText = plainText.replace(/\s+/g, ' ').trim();
+    } catch (error) {
+      // Fallback to regex if DOM parsing fails
+      plainText = cleanedContent
+        .replace(/<img[^>]*>/gi, '') // Remove all images first
+        .replace(/<[^>]*>/g, '') // Remove all HTML tags
+        .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+        .replace(/&amp;/g, '&') // Replace &amp; with &
+        .replace(/&lt;/g, '<') // Replace &lt; with <
+        .replace(/&gt;/g, '>') // Replace &gt; with >
+        .replace(/&quot;/g, '"') // Replace &quot; with "
+        .replace(/&#39;/g, "'") // Replace &#39; with '
+        .replace(/&#x27;/g, "'") // Replace &#x27; with '
+        .replace(/&#x2F;/g, '/') // Replace &#x2F; with /
+        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+        .trim();
+    }
+    
+    // Check if there are any images in the original content
+    const hasImages = /<img[^>]*>/gi.test(cleanedContent);
+    
+    // Take first maxLength characters and add ... if longer or if there are images
+    if (plainText.length > maxLength) {
+      return plainText.substring(0, maxLength) + '...';
+    } else if (hasImages && plainText.length > 0) {
+      return plainText + '...';
+    }
+    
+    return plainText;
+  }
+
   async function loadData() {
     if (!currentUser) return;
     
@@ -152,7 +223,12 @@ function MyForumsContent() {
                             )}
                             <h3 className="text-lg font-semibold text-gray-800">{post.title}</h3>
                           </div>
-                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{post.content}</p>
+                          <div 
+                            className="text-gray-600 text-sm mb-3 line-clamp-2"
+                            dir="rtl"
+                          >
+                            {getPlainTextPreview(post.content || '', 100)}
+                          </div>
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <span>בפורום: {post.forums?.display_name || post.forums?.name}</span>
                             <span>•</span>
@@ -198,7 +274,12 @@ function MyForumsContent() {
                           <h3 className="text-lg font-semibold text-gray-800 mb-2">
                             {reply.forum_posts?.title || 'פוסט'}
                           </h3>
-                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{reply.content}</p>
+                          <div 
+                            className="text-gray-600 text-sm mb-3 line-clamp-2"
+                            dir="rtl"
+                          >
+                            {getPlainTextPreview(reply.content || '', 100)}
+                          </div>
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <span>בפורום: {reply.forum_posts?.forums?.display_name || reply.forum_posts?.forums?.name}</span>
                             <span>•</span>
@@ -237,7 +318,12 @@ function MyForumsContent() {
                             )}
                             <h3 className="text-lg font-semibold text-gray-800">{post.title}</h3>
                           </div>
-                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{post.content}</p>
+                          <div 
+                            className="text-gray-600 text-sm mb-3 line-clamp-2"
+                            dir="rtl"
+                          >
+                            {getPlainTextPreview(post.content || '', 100)}
+                          </div>
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <span>בפורום: {post.forums?.display_name || post.forums?.name}</span>
                             <span>•</span>

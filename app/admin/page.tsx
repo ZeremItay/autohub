@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
-import { createServerClient } from '@/lib/supabase-server'
 import { getPosts, createPost } from '@/lib/queries/posts'
 import { getAllProfiles, getProfile, updateProfile } from '@/lib/queries/profiles'
 import { clearCache } from '@/lib/cache'
@@ -34,21 +33,47 @@ import {
   Tag as TagIcon
 } from 'lucide-react'
 import Link from 'next/link'
-import DatePicker from 'react-datepicker'
+import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
+
+// Lazy load heavy components
+const DatePicker = dynamic(
+  () => import('react-datepicker').then((mod) => mod.default as any),
+  { 
+    ssr: false,
+    loading: () => <div className="w-full h-10 bg-gray-100 rounded animate-pulse" />
+  }
+) as any
+
+const RichTextEditor = dynamic(
+  () => import('@/app/components/RichTextEditor'),
+  { 
+    ssr: false,
+    loading: () => <div className="w-full h-32 bg-gray-100 rounded animate-pulse" />
+  }
+)
+
+const QASectionEditor = dynamic(
+  () => import('@/app/components/admin/QASectionEditor'),
+  { 
+    ssr: false,
+    loading: () => <div className="w-full h-24 bg-gray-100 rounded animate-pulse" />
+  }
+)
+
+const KeyPointsEditor = dynamic(
+  () => import('@/app/components/admin/KeyPointsEditor'),
+  { 
+    ssr: false,
+    loading: () => <div className="w-full h-24 bg-gray-100 rounded animate-pulse" />
+  }
+)
+
+// Import date-fns locale separately (lightweight)
 import { he } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
-import { useRouter } from 'next/navigation'
-import RichTextEditor from '@/app/components/RichTextEditor'
-import QASectionEditor from '@/app/components/admin/QASectionEditor'
-import KeyPointsEditor from '@/app/components/admin/KeyPointsEditor'
 
 export default function AdminPanel() {
-  // #region agent log
-  {(() => {
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:42',message:'AdminPanel component initializing',data:{heLocaleType:typeof he,DatePickerType:typeof DatePicker},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C,E'})}).catch(()=>{});
-    return null;
-  })()}
-  // #endregion
   const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags'>('users')
   const [users, setUsers] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
@@ -607,37 +632,20 @@ export default function AdminPanel() {
           alert(`שגיאה ביצירת התג: ${error?.message || 'שגיאה לא ידועה'}`)
         }
       } else if (activeTab === 'reports') {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:403',message:'handleCreate reports - entry',data:{title:formData.title,contentLength:formData.content?.length,contentPreview:formData.content?.substring(0,50),is_published:formData.is_published,created_at:formData.created_at,currentUserId:currentUser?.user_id || currentUser?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
-        // #endregion
-        
         // Validate required fields
         if (!formData.title || formData.title.trim() === '') {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:408',message:'Validation failed - title empty',data:{title:formData.title},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
           alert('אנא הזן כותרת לדיווח')
           return
         }
 
         if (!formData.content || formData.content.trim() === '') {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:415',message:'Validation failed - content empty',data:{contentLength:formData.content?.length,contentType:typeof formData.content},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
-          // #endregion
           alert('אנא הזן תוכן לדיווח')
           return
         }
 
         // Use current user as author
         const authorId = currentUser?.user_id || currentUser?.id || users[0]?.user_id || users[0]?.id
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:421',message:'Before API call',data:{authorId,title:formData.title.trim(),contentLength:formData.content.trim().length,is_published:formData.is_published !== false,created_at:formData.created_at},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C,D'})}).catch(()=>{});
-        // #endregion
-        
         if (!authorId) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:424',message:'No authorId found',data:{currentUser:!!currentUser,usersLength:users.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           alert('שגיאה: לא נמצא משתמש מחובר. אנא התחבר מחדש.')
           return
         }
@@ -650,9 +658,6 @@ export default function AdminPanel() {
           created_at: formData.created_at || undefined
         }
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:432',message:'About to call API',data:{requestBody:JSON.stringify(requestBody)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
 
         const response = await fetch('/api/reports', {
           method: 'POST',
@@ -660,28 +665,18 @@ export default function AdminPanel() {
           body: JSON.stringify(requestBody)
         })
 
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:441',message:'API response received',data:{status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
 
         const result = await response.json()
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:445',message:'API result parsed',data:{hasData:!!result.data,hasError:!!result.error,error:result.error,resultKeys:Object.keys(result)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C,D'})}).catch(()=>{});
-        // #endregion
 
         if (response.ok && result.data) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:448',message:'Success path',data:{reportId:result.data?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
+
           await loadData()
           setEditing(null)
           setFormData({})
           alert(`הדיווח "${formData.title || 'חדש'}" נוצר בהצלחה!`)
         } else {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:455',message:'Error path',data:{status:response.status,error:result.error,fullResult:JSON.stringify(result)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C,D'})}).catch(()=>{});
-          // #endregion
+
           console.error('Error creating report:', result.error)
           alert(`שגיאה ביצירת הדיווח: ${result.error || 'שגיאה לא ידועה'}`)
         }

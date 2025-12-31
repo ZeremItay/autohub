@@ -156,19 +156,12 @@ export async function deleteEvent(eventId: string) {
 // Get next live event (within 1 hour before or after start)
 // This finds the closest upcoming live event with zoom_meeting_id
 export async function getNextLiveEvent() {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/events.ts:128',message:'getNextLiveEvent called',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const now = new Date();
   const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
   
   // Get all upcoming events with zoom_meeting_id
   const today = now.toISOString().split('T')[0];
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/events.ts:135',message:'Before supabase query',data:{now:now.toISOString(),today,oneHourFromNow:oneHourFromNow.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   
   const { data, error } = await supabase
     .from('events')
@@ -178,10 +171,6 @@ export async function getNextLiveEvent() {
     .or('status.is.null,status.eq.upcoming,status.eq.active,status.eq.completed')
     .order('event_date', { ascending: true })
     .order('event_time', { ascending: true });
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/events.ts:144',message:'After supabase query',data:{hasError:!!error,dataCount:data?.length||0,error:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   
   if (error || !data) {
     return { data: null, error };
@@ -204,20 +193,12 @@ export async function getNextLiveEvent() {
       eventEndTime > now // Event hasn't ended yet
     );
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/events.ts:160',message:'Event eligibility check',data:{eventId:event.id,eventTitle:event.title,eventDateTime:eventDateTime.toISOString(),isEligible,eventDateTimeMs:eventDateTime.getTime(),oneHourFromNowMs:oneHourFromNow.getTime(),oneHourBeforeEventMs:oneHourBeforeEvent.getTime(),nowMs:now.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     return isEligible;
   });
   
   // Return the closest event (first one in the sorted list)
   const nextEvent = eligibleEvents.length > 0 ? eligibleEvents[0] : null;
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/events.ts:167',message:'getNextLiveEvent returning',data:{eligibleCount:eligibleEvents.length,hasNextEvent:!!nextEvent,nextEventId:nextEvent?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-  
+
   return { data: nextEvent, error: null };
 }
 
