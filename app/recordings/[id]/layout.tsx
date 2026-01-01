@@ -1,9 +1,10 @@
 import { Metadata } from 'next';
 import { getRecordingById } from '@/lib/queries/recordings';
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   try {
-    const { data: recording } = await getRecordingById(params.id);
+    const { id } = await params;
+    const { data: recording } = await getRecordingById(id);
     
     if (!recording) {
       return {

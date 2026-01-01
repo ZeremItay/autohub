@@ -1,9 +1,10 @@
 import { Metadata } from 'next';
 import { getCourseById } from '@/lib/queries/courses';
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   try {
-    const { data: course } = await getCourseById(params.id);
+    const { id } = await params;
+    const { data: course } = await getCourseById(id);
     
     if (!course) {
       return {

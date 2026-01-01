@@ -1,9 +1,10 @@
 import { Metadata } from 'next';
 import { getBlogPostBySlug } from '@/lib/queries/blog';
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   try {
-    const { data: post } = await getBlogPostBySlug(params.slug);
+    const { slug } = await params;
+    const { data: post } = await getBlogPostBySlug(slug);
     
     if (!post) {
       return {

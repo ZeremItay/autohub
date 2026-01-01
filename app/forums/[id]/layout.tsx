@@ -1,9 +1,10 @@
 import { Metadata } from 'next';
 import { getForumById } from '@/lib/queries/forums';
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   try {
-    const { data: forum } = await getForumById(params.id);
+    const { id } = await params;
+    const { data: forum } = await getForumById(id);
     
     if (!forum) {
       return {

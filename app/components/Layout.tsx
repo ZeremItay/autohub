@@ -28,7 +28,8 @@ import {
   AlignJustify,
   Calendar,
   Shield,
-  Radio
+  Radio,
+  MessageCircleMore
 } from 'lucide-react';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -685,6 +686,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (pathname?.startsWith('/courses')) return 'courses';
     if (pathname?.startsWith('/live-log') || pathname?.startsWith('/live/')) return 'live-log';
     if (pathname === '/live-room') return 'live-room';
+    if (pathname?.startsWith('/feedback')) return 'feedback';
     if (pathname?.startsWith('/admin')) return 'admin';
     return '';
   };
@@ -1790,6 +1792,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <BookOpen className="w-5 h-5 flex-shrink-0" />
               <span className="font-medium">בלוג</span>
             </Link>
+            <Link
+              href="/feedback"
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                activeNav === 'feedback' 
+                  ? 'bg-[#F52F8E] text-white' 
+                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+              }`}
+            >
+              <MessageCircleMore className="w-5 h-5 flex-shrink-0" />
+              <span className="font-medium">פידבקים</span>
+            </Link>
             {/* Admin Panel Link - Only for admins */}
             {currentUser && (() => {
               const role = currentUser.roles || currentUser.role;
@@ -1945,6 +1958,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               >
                 <BookOpen className="w-5 h-5 flex-shrink-0" />
                 <span className="font-medium">בלוג</span>
+              </Link>
+              <Link
+                href="/feedback"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  activeNav === 'feedback' 
+                    ? 'bg-[#F52F8E] text-white' 
+                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                }`}
+              >
+                <MessageCircleMore className="w-5 h-5 flex-shrink-0" />
+                <span className="font-medium">פידבקים</span>
               </Link>
               {/* Admin Panel Link - Only for admins */}
               {currentUser && (() => {
