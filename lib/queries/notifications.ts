@@ -142,21 +142,20 @@ export async function createNotification(notification: Omit<Notification, 'id' |
     .single();
   
   if (error) {
-    console.error('❌ Error creating notification:', {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      fullError: error
-    });
-    
-    // Check for specific error types
+    // Check for specific error types first
     if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
       console.warn('⚠️ Notifications table does not exist in schema cache');
     } else if (error.code === '23514' || error.message?.includes('CHECK constraint') || error.message?.includes('violates check constraint')) {
       console.warn('⚠️ Notification type not allowed in CHECK constraint. Available types may not include:', notification.type);
     } else if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('row-level security')) {
       console.warn('⚠️ RLS policy violation - user may not have permission to create notification');
+    } else if (error.message || error.code || (typeof error === 'object' && Object.keys(error).length > 0)) {
+      // Only use logError if we have meaningful error information
+      const { logError } = await import('@/lib/utils/errorHandler');
+      logError(error, 'createNotification');
+    } else {
+      // Silent fail for empty errors - likely a non-critical issue
+      console.debug('⚠️ createNotification: Empty error object (likely non-critical)');
     }
     
     return { data: null, error };

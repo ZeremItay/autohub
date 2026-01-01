@@ -373,30 +373,65 @@ export async function getProjectOffers(projectId: string): Promise<{ data: Proje
 
 export async function getProjectOffersByUser(userId: string): Promise<{ data: ProjectOffer[] | null; error: any }> {
   try {
-    const { data, error } = await supabase
+    // Fetch offers first
+    const { data: offers, error: offersError } = await supabase
       .from('project_offers')
-      .select(`
-        *,
-        profiles (
-          id,
-          first_name,
-          last_name,
-          nickname,
-          avatar_url
-        ),
-        projects (
-          *
-        )
-      `)
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      logError(error, 'getProjectOffersByUser');
-      return { data: null, error };
+    if (offersError) {
+      logError(offersError, 'getProjectOffersByUser');
+      return { data: null, error: offersError };
     }
 
-    return { data: data as ProjectOffer[], error: null };
+    if (!offers || offers.length === 0) {
+      return { data: [], error: null };
+    }
+
+    // Fetch related profiles and projects
+    const userIds = [...new Set(offers.map((o: any) => o.user_id))];
+    const projectIds = [...new Set(offers.map((o: any) => o.project_id))];
+
+    // Fetch profiles
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name, nickname, avatar_url, user_id')
+      .in('user_id', userIds);
+
+    if (profilesError) {
+      logError(profilesError, 'getProjectOffersByUser:profiles');
+    }
+
+    // Fetch projects
+    const { data: projects, error: projectsError } = await supabase
+      .from('projects')
+      .select('*')
+      .in('id', projectIds);
+
+    if (projectsError) {
+      logError(projectsError, 'getProjectOffersByUser:projects');
+    }
+
+    // Combine the data
+    const combinedOffers = offers.map((offer: any) => {
+      const profile = profiles?.find((p: any) => (p.user_id || p.id) === offer.user_id);
+      const project = projects?.find((p: any) => p.id === offer.project_id);
+      
+      return {
+        ...offer,
+        profiles: profile ? {
+          id: profile.id,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          nickname: profile.nickname,
+          avatar_url: profile.avatar_url
+        } : undefined,
+        projects: project || undefined
+      };
+    });
+
+    return { data: combinedOffers as ProjectOffer[], error: null };
   } catch (error: any) {
     logError(error, 'getProjectOffersByUser');
     return { data: null, error };

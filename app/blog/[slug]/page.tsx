@@ -132,15 +132,6 @@ function BlogPostPageContent() {
     }
   }
 
-  function formatDate(dateString: string): string {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('he-IL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  }
 
   if (loading) {
     return (

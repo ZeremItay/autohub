@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Mail, ArrowRight, Loader2, CheckCircle } from 'lucide-react';
+import { Mail, ArrowRight, CheckCircle, Loader2 } from 'lucide-react';
+import PageContainer from '@/app/components/PageContainer';
 import Link from 'next/link';
 
 export default function ForgotPasswordPage() {
@@ -50,7 +51,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8">
+    <PageContainer className="px-4 py-8">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
@@ -137,7 +138,7 @@ export default function ForgotPasswordPage() {
           )}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

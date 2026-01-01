@@ -6,6 +6,13 @@ import { getAllRecordings } from '@/lib/queries/recordings';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { isPremiumUser } from '@/lib/utils/user';
 import { formatDate } from '@/lib/utils/date';
+import { useTheme } from '@/lib/contexts/ThemeContext';
+import {
+  getCardStyles,
+  getTextStyles,
+  getCategoryTagStyles,
+  combineStyles
+} from '@/lib/utils/themeStyles';
 import { 
   Search, 
   Grid3x3, 
@@ -23,6 +30,7 @@ import {
 export default function RecordingsPage() {
   const router = useRouter();
   const { user: currentUser, isPremium: userIsPremium, loading: userLoading } = useCurrentUser();
+  const { theme } = useTheme();
   const [recordings, setRecordings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -123,10 +131,16 @@ export default function RecordingsPage() {
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
-            <Play className="w-8 h-8 text-hot-pink" />
-            <h1 className="text-4xl font-bold text-white">הקלטות</h1>
+            <Play className={`w-8 h-8 ${
+              getTextStyles(theme, 'accent')
+            }`} />
+            <h1 className={`text-4xl font-bold ${
+              getTextStyles(theme, 'heading')
+            }`}>הקלטות</h1>
           </div>
-          <p className="text-gray-300 text-lg">
+          <p className={`text-lg ${
+            getTextStyles(theme, 'subheading')
+          }`}>
             צפו בהקלטות מלייבים, וובינרים ומפגשי קהילה
           </p>
         </div>
@@ -137,11 +151,11 @@ export default function RecordingsPage() {
             <button
               key={category}
               onClick={() => setActiveFilter(category)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                activeFilter === category
-                  ? 'bg-hot-pink text-white shadow-lg shadow-hot-pink/30 scale-105'
-                  : 'bg-white/10 text-gray-200 hover:bg-hot-pink/20 hover:text-white hover:border-hot-pink/50 border border-white/20 hover:scale-105 hover:shadow-md hover:shadow-hot-pink/20'
-              }`}
+              className={combineStyles(
+                'px-4 py-2 rounded-full text-sm font-medium transition-all duration-200',
+                getCategoryTagStyles(theme, activeFilter === category),
+                activeFilter === category && 'scale-105'
+              )}
             >
               {category === 'all' ? 'הכל' : category}
             </button>
@@ -154,7 +168,10 @@ export default function RecordingsPage() {
             <div
               key={recording.id}
               onClick={() => handleRecordingClick(recording.id)}
-              className="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group relative flex flex-col h-full"
+              className={combineStyles(
+                'rounded-xl overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group relative flex flex-col h-full',
+                getCardStyles(theme, 'glass')
+              )}
             >
               {!userLoading && !userIsPremium && (
                 <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center rounded-xl">
@@ -207,8 +224,8 @@ export default function RecordingsPage() {
                 {/* Duration Overlay */}
                 {recording.duration && (
                   <div className="absolute bottom-3 left-3 bg-black/70 text-white text-xs font-medium px-2 py-1 rounded flex items-center gap-1 z-10">
-                    <Clock className="w-3 h-3" />
-                    {recording.duration}
+                    <Clock className="w-3 h-3 text-white" />
+                    <span className="text-white" style={{ color: 'var(--color-blue-50)' }}>{recording.duration}</span>
                   </div>
                 )}
               </div>
@@ -220,12 +237,20 @@ export default function RecordingsPage() {
                   <div className="mb-2 flex flex-wrap gap-1">
                     {Array.isArray(recording.category) ? (
                       recording.category.map((cat: string, idx: number) => (
-                        <span key={idx} className="text-xs font-semibold text-hot-pink uppercase px-2 py-1 bg-hot-pink/20 rounded border border-hot-pink/30">
+                        <span key={idx} className={`text-xs font-semibold uppercase px-2 py-1 rounded border ${
+                          theme === 'light'
+                            ? 'text-[#F52F8E] bg-pink-50 border-pink-200'
+                            : 'text-hot-pink bg-hot-pink/20 border-hot-pink/30'
+                        }`}>
                           {cat}
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs font-semibold text-hot-pink uppercase px-2 py-1 bg-hot-pink/20 rounded border border-hot-pink/30">
+                      <span className={`text-xs font-semibold uppercase px-2 py-1 rounded border ${
+                        theme === 'light'
+                          ? 'text-[#F52F8E] bg-pink-50 border-pink-200'
+                          : 'text-hot-pink bg-hot-pink/20 border-hot-pink/30'
+                      }`}>
                         {recording.category}
                       </span>
                     )}
@@ -233,19 +258,27 @@ export default function RecordingsPage() {
                 )}
 
                 {/* Title */}
-                <h3 className="text-lg font-bold text-white mb-2 line-clamp-2 group-hover:text-hot-pink transition-colors flex-shrink-0">
+                <h3 className={`text-lg font-bold mb-2 line-clamp-2 transition-colors flex-shrink-0 ${
+                  theme === 'light'
+                    ? 'text-gray-800 group-hover:text-[#F52F8E]'
+                    : 'text-white group-hover:text-hot-pink'
+                }`}>
                   {recording.title}
                 </h3>
 
                 {/* Description */}
                 {recording.description && (
-                  <p className="text-sm text-gray-300 mb-4 line-clamp-2">
+                  <p className={`text-sm mb-4 line-clamp-2 ${
+                    getTextStyles(theme, 'muted')
+                  }`}>
                     {recording.description}
                   </p>
                 )}
 
                 {/* Metadata - Always at the bottom */}
-                <div className="flex items-center justify-between text-xs text-gray-400 mt-auto">
+                <div className={`flex items-center justify-between text-xs mt-auto ${
+                  getTextStyles(theme, 'muted')
+                }`}>
                   {recording.views !== undefined && (
                     <span>{recording.views} צפיות</span>
                   )}
@@ -261,15 +294,21 @@ export default function RecordingsPage() {
         {/* Empty State */}
         {filteredRecordings.length === 0 && !loading && (
           <div className="text-center py-12">
-            <Play className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-300 text-lg">לא נמצאו הקלטות</p>
+            <Play className={`w-16 h-16 mx-auto mb-4 ${
+              theme === 'light' ? 'text-gray-400' : 'text-gray-400'
+            }`} />
+            <p className={`text-lg ${
+              theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+            }`}>לא נמצאו הקלטות</p>
           </div>
         )}
 
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
-            <div className="text-hot-pink text-xl">טוען הקלטות...</div>
+            <div className={`text-xl ${
+              getTextStyles(theme, 'accent')
+            }`}>טוען הקלטות...</div>
           </div>
         )}
       </div>

@@ -9,6 +9,7 @@ import Link from '@tiptap/extension-link';
 import { supabase } from '@/lib/supabase';
 import { Bold, Italic, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
 import { useCallback } from 'react';
+import { logError } from '@/lib/utils/errorHandler';
 
 interface RichTextEditorProps {
   content: string;
@@ -146,7 +147,7 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
           }
         } catch (error) {
           // Keep base64 - already inserted
-          console.warn('Error uploading to storage, keeping base64:', error);
+          logError(error, 'handleImageUpload:storage');
           return;
         }
 
@@ -172,7 +173,7 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
           }
         }
       } catch (error) {
-        console.error('Error uploading image:', error);
+        logError(error, 'handleImageUpload');
         // Keep base64 preview on error
       }
     };
@@ -199,17 +200,18 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
   }
 
   return (
-    <div className="border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#F52F8E] focus-within:border-transparent transition-all" dir="rtl">
+    <div className="border border-white/20 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-hot-pink focus-within:border-transparent transition-all bg-white/5" dir="rtl">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 p-2 border-b border-gray-200 bg-gray-50">
+      <div className="flex items-center gap-2 p-2 border-b border-white/20 bg-white/10">
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
           disabled={!editor.can().chain().focus().toggleBold().run()}
-          className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-            editor.isActive('bold') ? 'bg-gray-300' : ''
+          className={`p-2 rounded hover:bg-white/20 transition-colors text-white ${
+            editor.isActive('bold') ? 'bg-hot-pink/30 text-hot-pink-light' : ''
           }`}
           title="מודגש"
+          aria-label="מודגש"
         >
           <Bold className="w-4 h-4" />
         </button>
@@ -217,10 +219,11 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
           type="button"
           onClick={() => editor.chain().focus().toggleItalic().run()}
           disabled={!editor.can().chain().focus().toggleItalic().run()}
-          className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-            editor.isActive('italic') ? 'bg-gray-300' : ''
+          className={`p-2 rounded hover:bg-white/20 transition-colors text-white ${
+            editor.isActive('italic') ? 'bg-hot-pink/30 text-hot-pink-light' : ''
           }`}
           title="נטוי"
+          aria-label="נטוי"
         >
           <Italic className="w-4 h-4" />
         </button>
@@ -232,18 +235,20 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
               editor.chain().focus().setLink({ href: url }).run();
             }
           }}
-          className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-            editor.isActive('link') ? 'bg-gray-300' : ''
+          className={`p-2 rounded hover:bg-white/20 transition-colors text-white ${
+            editor.isActive('link') ? 'bg-hot-pink/30 text-hot-pink-light' : ''
           }`}
           title="קישור"
+          aria-label="קישור"
         >
           <LinkIcon className="w-4 h-4" />
         </button>
         <button
           type="button"
           onClick={addImage}
-          className="p-2 rounded hover:bg-gray-200 transition-colors"
+          className="p-2 rounded hover:bg-white/20 transition-colors text-white"
           title="הוסף תמונה"
+          aria-label="הוסף תמונה"
         >
           <ImageIcon className="w-4 h-4" />
         </button>

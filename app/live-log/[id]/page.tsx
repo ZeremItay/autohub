@@ -6,6 +6,7 @@ import { ArrowRight, Calendar, Clock, MapPin, User, Check } from 'lucide-react';
 import Link from 'next/link';
 import { getEventById, type Event } from '@/lib/queries/events';
 import AuthGuard from '@/app/components/AuthGuard';
+import { formatDate, formatTime } from '@/lib/utils/date';
 
 export default function EventDetailPage() {
   return (
@@ -37,31 +38,14 @@ function EventDetailPageContent() {
         setEvent(data);
       }
     } catch (error) {
-      console.error('Error loading event:', error);
+      logError(error, 'loadEvent');
     } finally {
       setLoading(false);
     }
   }
 
-  function formatDate(dateStr: string) {
-    const date = new Date(dateStr);
-    const monthNames = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
-    const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-    const day = dayNames[date.getDay()];
-    const dayNum = date.getDate();
-    const month = monthNames[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day}, ${dayNum} ב${month} ${year}`;
-  }
-
   function formatDateShort(dateStr: string) {
-    const date = new Date(dateStr);
-    const monthNames = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
-    return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-  }
-
-  function formatTime(time: string) {
-    return time.substring(0, 5); // HH:MM
+    return formatDate(dateStr);
   }
 
   function getEventTypeLabel(type: string) {
@@ -90,7 +74,7 @@ function EventDetailPageContent() {
       
       return eventDateTime <= now;
     } catch (e) {
-      console.error('Error checking if event started:', e);
+      logError(e, 'isEventStarted');
       return false;
     }
   }

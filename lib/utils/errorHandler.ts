@@ -24,16 +24,75 @@ export function logError(error: Error | any, context?: string): void {
     return;
   }
   
-  // Skip if error is an empty object
-  if (typeof error === 'object' && Object.keys(error).length === 0) {
-    return;
+  // Skip if error is an empty object (check multiple ways)
+  if (typeof error === 'object') {
+    try {
+      const keys = Object.keys(error);
+      // If it's an empty object or only has internal React properties
+      if (keys.length === 0 || keys.every(key => key.startsWith('_') || key.startsWith('__'))) {
+        return;
+      }
+      // If all values are null/undefined/empty
+      const hasAnyValue = keys.some(key => {
+        const value = error[key];
+        return value !== null && value !== undefined && value !== '' && 
+               (typeof value !== 'object' || Object.keys(value || {}).length > 0);
+      });
+      if (!hasAnyValue) {
+        return;
+      }
+      
+      // Additional check: if error stringifies to '{}', skip it
+      try {
+        const stringified = JSON.stringify(error);
+        if (stringified === '{}' || stringified === 'null') {
+          return;
+        }
+      } catch {
+        // If stringification fails, continue with other checks
+      }
+    } catch {
+      // If we can't check keys, skip
+      return;
+    }
+  }
+  
+  // If error stringifies to '{}', skip it
+  try {
+    if (String(error) === '{}' || String(error) === '[object Object]') {
+      // Check if we have any meaningful properties
+      if (typeof error === 'object' && error !== null) {
+        const hasMeaningfulProps = Object.keys(error).some(key => {
+          const value = error[key];
+          return value !== null && value !== undefined && value !== '' && 
+                 (typeof value !== 'object' || (value && Object.keys(value).length > 0));
+        });
+        if (!hasMeaningfulProps) {
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+  } catch {
+    // Continue if string conversion fails
   }
   
   // Extract error message
   const errorMessage = error?.message || error?.error?.message || String(error) || '';
   
-  // Skip if we don't have a meaningful message
-  if (!errorMessage || errorMessage === '{}' || errorMessage === '[object Object]') {
+  // Check if we have meaningful properties
+  const hasCode = error?.code && error.code !== '{}' && error.code !== '' && String(error.code).trim() !== '';
+  const hasDetails = error?.details && (
+    (typeof error.details === 'string' && error.details.trim() !== '') ||
+    (typeof error.details === 'object' && error.details !== null && Object.keys(error.details).length > 0)
+  );
+  const hasHint = error?.hint && error.hint !== '{}' && error.hint !== '' && String(error.hint).trim() !== '';
+  
+  // Skip if we don't have a meaningful message AND no other meaningful info
+  if ((!errorMessage || errorMessage === '{}' || errorMessage === '[object Object]' || errorMessage.trim() === '') &&
+      !hasCode && !hasDetails && !hasHint) {
+    // No meaningful information to log
     return;
   }
   
@@ -109,10 +168,46 @@ export function logError(error: Error | any, context?: string): void {
   }
   
   // Only log if we have meaningful content (not empty object)
-  const hasContent = (logData.message && logData.message !== '{}' && logData.message !== '[object Object]') || 
-                    (logData.code && logData.code !== '{}');
+  const hasLogMessage = logData.message && 
+                        logData.message !== '{}' && 
+                        logData.message !== '[object Object]' && 
+                        logData.message.trim() !== '';
+  const hasLogCode = logData.code && logData.code !== '{}' && logData.code !== '';
+  const hasLogDetails = logData.details && 
+                        logData.details !== '{}' && 
+                        logData.details !== '[Empty object]' &&
+                        logData.details.trim() !== '';
   
-  if (hasContent && Object.keys(logData).length > 0) {
+  const hasContent = hasLogMessage || hasLogCode || hasLogDetails;
+  
+  // Only log if we have meaningful content and at least one non-empty field
+  const meaningfulFields = Object.keys(logData).filter(key => {
+    const value = logData[key];
+    if (value === undefined || value === null || value === '') return false;
+    if (value === '{}' || value === '[Empty object]') return false;
+    if (typeof value === 'string' && value.trim() === '') return false;
+    if (typeof value === 'object' && Object.keys(value).length === 0) return false;
+    return true;
+  });
+  
+  // Final check: ensure logData doesn't stringify to '{}'
+  let shouldLog = false;
+  try {
+    const stringified = JSON.stringify(logData);
+    if (stringified !== '{}' && stringified !== '{"timestamp":"..."}' && stringified !== '{"context":"..."}') {
+      // Need at least message/code/details (not just timestamp and/or context)
+      if (meaningfulFields.length > 2 || (meaningfulFields.length === 2 && (hasLogMessage || hasLogCode || hasLogDetails))) {
+        shouldLog = true;
+      }
+    }
+  } catch {
+    // If stringification fails, use the meaningful fields check
+    if (meaningfulFields.length > 2 || (meaningfulFields.length === 2 && (hasLogMessage || hasLogCode || hasLogDetails))) {
+      shouldLog = true;
+    }
+  }
+  
+  if (shouldLog) {
     console.error(`[${context || 'Error'}]`, logData);
   }
   

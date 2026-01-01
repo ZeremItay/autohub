@@ -4,12 +4,16 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     
-    // Get current user
-    const { data: { session } } = await supabase.auth.getSession();
+    // Get current user (may be null if not authenticated)
+    const supabaseWithSession = createServerClient(cookieStore);
+    const { data: { session } } = await supabaseWithSession.auth.getSession();
     const userId = session?.user?.id || null;
+    
+    // Use service role key to bypass RLS for insert operation
+    // We validate the data in code, so it's safe to bypass RLS
+    const supabase = createServerClient(); // This will use service role key if available
 
     const body = await request.json();
     const { name, email, subject, message, rating, feedback_type, image_url } = body;
@@ -49,8 +53,10 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error inserting feedback:', error);
+      // Return more detailed error message for debugging
+      const errorMessage = error.message || 'שגיאה בשמירת הפידבק. נסה שוב.';
       return NextResponse.json(
-        { error: 'שגיאה בשמירת הפידבק. נסה שוב.' },
+        { error: errorMessage, details: error },
         { status: 500 }
       );
     }

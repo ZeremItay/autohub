@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Video, MessageSquare, FileText, Briefcase, BookOpen, ArrowRight, Loader2 } from 'lucide-react';
+import { Search, Video, MessageSquare, FileText, Briefcase, BookOpen, ArrowRight } from 'lucide-react';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 import Link from 'next/link';
 
 function SearchResultsContent() {
@@ -251,14 +252,7 @@ function SearchResultsContent() {
 
 export default function SearchResultsPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-hot-pink mx-auto mb-4" />
-          <p className="text-gray-300">טוען...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSpinner />}>
       <SearchResultsContent />
     </Suspense>
   );

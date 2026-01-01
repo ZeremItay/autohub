@@ -213,6 +213,42 @@ export async function getAllProfiles() {
   return { data, error: null }
 }
 
+// Get friends list (optimized - only essential fields for friends display)
+export async function getFriendsList() {
+  const cacheKey = 'friends:list';
+  const cached = getCached(cacheKey);
+  if (cached) {
+    return { data: Array.isArray(cached) ? cached : (cached ?? null), error: null };
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      id,
+      user_id,
+      display_name,
+      avatar_url,
+      is_online,
+      created_at,
+      role_id,
+      roles:role_id (
+        id,
+        name,
+        display_name
+      )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(50) // Limit to 50 for friends list - faster query
+  
+  if (error) {
+    logError(error, 'getFriendsList');
+    return { data: null, error }
+  }
+  
+  setCached(cacheKey, data, CACHE_TTL.MEDIUM);
+  return { data, error: null }
+}
+
 // Get profiles by user IDs (batch loading)
 export async function getProfilesByIds(userIds: string[]) {
   if (!userIds || userIds.length === 0) {

@@ -1,23 +1,26 @@
 'use client';
 
-import { ReactNode } from 'react';
+import React from 'react';
 import { useTheme } from '@/lib/contexts/ThemeContext';
 import { getCardStyles, combineStyles } from '@/lib/utils/themeStyles';
 
-interface GlassCardProps {
-  children: ReactNode;
+interface ThemeCardProps {
+  children: React.ReactNode;
   className?: string;
-  rounded?: 'lg' | 'xl' | '2xl' | '3xl';
+  variant?: 'default' | 'glass';
+  rounded?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
-export default function GlassCard({ 
-  children, 
-  className = '', 
-  rounded = '2xl',
+export default function ThemeCard({
+  children,
+  className = '',
+  variant = 'default',
+  rounded = 'xl',
   padding = 'md'
-}: GlassCardProps) {
+}: ThemeCardProps) {
   const { theme } = useTheme();
+  
   const roundedClass = `rounded-${rounded}`;
   const paddingClass = {
     none: '',
@@ -29,8 +32,8 @@ export default function GlassCard({
   return (
     <div className={combineStyles(
       roundedClass,
+      getCardStyles(theme, variant),
       paddingClass,
-      getCardStyles(theme, 'glass'),
       className
     )}>
       {children}

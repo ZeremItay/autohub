@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MessageSquare, MessageCircle, Heart, Eye, Pin, Clock, Loader2 } from 'lucide-react';
+import { MessageSquare, MessageCircle, Heart, Eye, Pin, Clock } from 'lucide-react';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 import Link from 'next/link';
 import { getUserForumPosts, getUserForumReplies, getUserLikedForumPosts } from '@/lib/queries/forums';
 import { getAllProfiles } from '@/lib/queries/profiles';
@@ -355,14 +356,7 @@ function MyForumsContent() {
 
 export default function MyForumsPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-hot-pink mx-auto mb-4" />
-          <p className="text-gray-300">טוען...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSpinner />}>
       <MyForumsContent />
     </Suspense>
   );

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { User, Loader2, ArrowRight } from 'lucide-react';
+import { User, ArrowRight, Loader2 } from 'lucide-react';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 export default function CompleteProfilePage() {
   const router = useRouter();
@@ -133,14 +134,7 @@ export default function CompleteProfilePage() {
   };
 
   if (checking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-hot-pink mb-4" />
-          <p className="text-gray-300">בודק פרופיל...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="בודק פרופיל..." />;
   }
 
   return (

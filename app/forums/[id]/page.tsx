@@ -9,6 +9,7 @@ import { getAllProfiles } from '@/lib/queries/profiles';
 import AuthGuard from '@/app/components/AuthGuard';
 import dynamic from 'next/dynamic';
 import CommentsList from '@/app/components/comments/CommentsList';
+import { useTheme } from '@/lib/contexts/ThemeContext';
 
 // Lazy load RichTextEditor (heavy component)
 const RichTextEditor = dynamic(
@@ -31,6 +32,7 @@ export default function ForumDetailPage() {
 function ForumDetailPageContent() {
   const params = useParams();
   const router = useRouter();
+  const { theme } = useTheme();
   const forumId = params.id as string;
   
   const [forum, setForum] = useState<Forum | null>(null);
@@ -392,21 +394,6 @@ function ForumDetailPageContent() {
   }
 
 
-  function formatTimeAgo(dateString: string): string {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 60) return `לפני ${diffMins} דקות`;
-    if (diffHours < 24) return `לפני ${diffHours} שעות`;
-    if (diffDays === 1) return 'אתמול';
-    if (diffDays < 7) return `לפני ${diffDays} ימים`;
-    return date.toLocaleDateString('he-IL');
-  }
 
   const commonEmojis = ['😀', '😂', '❤️', '👍', '🎉', '🔥', '💯', '✨', '😍', '🙌', '👏', '🎯', '💪', '🚀', '⭐'];
 
@@ -560,27 +547,30 @@ function ForumDetailPageContent() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen forum-detail-page-content">
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-7xl mx-auto">
-          {/* Hero Banner - Dark Background */}
-          <div className={`${forum.header_color || 'bg-purple-900'} rounded-t-xl p-8 mb-0`}>
+          {/* Hero Banner - Unified color palette */}
+          <div className={`${
+            theme === 'light' 
+              ? 'bg-gradient-to-r from-[#F52F8E] to-[#EC4899]' 
+              : forum.header_color || 'bg-purple-900'
+          } rounded-t-xl p-8 mb-0 forum-hero-banner`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                {forum.name === 'airtable' ? (
-                  <div className="flex gap-1">
-                    <div className="w-4 h-4 bg-yellow-400 rounded-sm"></div>
-                    <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
-                    <div className="w-4 h-4 bg-purple-500 rounded-sm"></div>
-                  </div>
-                ) : (
-                  <div className="flex gap-1">
-                    <div className="w-1 h-8 bg-purple-400 rounded"></div>
-                    <div className="w-1 h-8 bg-pink-400 rounded"></div>
-                    <div className="w-1 h-8 bg-purple-400 rounded"></div>
-                  </div>
-                )}
-                <h1 className="text-4xl font-bold text-white">{forum.logo_text || 'make'}</h1>
+                {/* Unified icon - simple circle with forum initial */}
+                <div className={`
+                  w-10 h-10 rounded-full flex items-center justify-center
+                  ${theme === 'light' 
+                    ? 'bg-white/30 border border-white/40' 
+                    : 'bg-white/10 border border-white/20'
+                  }
+                `}>
+                  <span className="font-bold text-base text-white">
+                    {forum.logo_text?.[0]?.toUpperCase() || forum.display_name?.[0]?.toUpperCase() || 'F'}
+                  </span>
+                </div>
+                <h1 className="text-4xl font-bold text-white">{forum.logo_text || forum.display_name}</h1>
               </div>
               <div className="text-right">
                 <h2 className="text-3xl font-bold text-white mb-1">פורום</h2>

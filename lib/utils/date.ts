@@ -92,3 +92,81 @@ export function isRecent(dateString: string | Date | null | undefined, days: num
   return diffDays <= days;
 }
 
+/**
+ * Format time string to HH:MM format
+ */
+export function formatTime(timeString: string | null | undefined): string {
+  if (!timeString) return '';
+  // Time format is usually HH:MM:SS or HH:MM
+  return timeString.substring(0, 5);
+}
+
+/**
+ * Format full date and time with day of week: "יום שלישי, 30 בדצמבר 2025 • 11:00"
+ */
+export function formatFullDateTime(dateString: string | Date | null | undefined, timeString: string | null | undefined): string {
+  if (!dateString) return '';
+  
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  if (isNaN(date.getTime())) return '';
+  
+  const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+  const dayName = days[date.getDay()];
+  const formattedDate = formatDate(dateString);
+  const formattedTime = formatTime(timeString);
+  
+  return `יום ${dayName}, ${formattedDate} • ${formattedTime}`;
+}
+
+/**
+ * Format time from date string: extracts HH:MM from a date string
+ */
+export function formatTimeFromDate(dateString: string | Date | null | undefined): string {
+  if (!dateString) return '';
+  try {
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+    if (isNaN(date.getTime())) return '';
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  } catch (error) {
+    return '';
+  }
+}
+
+/**
+ * Format current date to DD.MM.YYYY
+ */
+export function formatCurrentDate(): string {
+  const now = new Date();
+  const day = now.getDate().toString().padStart(2, '0');
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const year = now.getFullYear();
+  return `${day}.${month}.${year}`;
+}
+
+/**
+ * Format date to object with day, month, monthShort, year (for calendar display)
+ */
+export function formatDateObject(dateString: string | Date | null | undefined): {
+  day: number;
+  month: string;
+  monthShort: string;
+  year: number;
+} | null {
+  if (!dateString) return null;
+  
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  if (isNaN(date.getTime())) return null;
+  
+  const monthNames = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+  const monthShort = ['ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יוני', 'יולי', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ'];
+  
+  return {
+    day: date.getDate(),
+    month: monthNames[date.getMonth()],
+    monthShort: monthShort[date.getMonth()],
+    year: date.getFullYear()
+  };
+}
+

@@ -19,6 +19,15 @@ import { getAllRecordings } from '@/lib/queries/recordings';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useOnlineUsers } from '@/lib/hooks/useOnlineUsers';
 import { isPremiumUser } from '@/lib/utils/user';
+import { useTheme } from '@/lib/contexts/ThemeContext';
+import {
+  getCardStyles,
+  getTextStyles,
+  getInputStyles,
+  getButtonStyles,
+  getBorderStyles,
+  combineStyles
+} from '@/lib/utils/themeStyles';
 import { formatTimeAgo } from '@/lib/utils/date';
 import { getInitials } from '@/lib/utils/display';
 import { supabase } from '@/lib/supabase';
@@ -30,6 +39,7 @@ export default function ProjectsPage() {
   const router = useRouter();
   const { user: currentUser, isPremium: userIsPremium } = useCurrentUser();
   const { users: onlineUsers } = useOnlineUsers();
+  const { theme } = useTheme();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -203,27 +213,6 @@ export default function ProjectsPage() {
     }
   }, [newProject, loadData]);
 
-  const formatTimeAgo = useCallback((date: string) => {
-    if (!date) return '';
-    try {
-      const now = typeof window !== 'undefined' ? new Date() : new Date();
-      const projectDate = new Date(date);
-      if (isNaN(projectDate.getTime())) return '';
-      
-      const diffMs = now.getTime() - projectDate.getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-
-      if (diffMins < 60) return `לפני ${diffMins} דקות`;
-      if (diffHours < 24) return `לפני ${diffHours} שעות`;
-      if (diffDays === 1) return 'אתמול';
-      if (diffDays < 7) return `לפני ${diffDays} ימים`;
-      return projectDate.toLocaleDateString('he-IL');
-    } catch (error) {
-      return '';
-    }
-  }, []);
 
   const loadRecentUpdates = useCallback(async (projects: Project[], events: any[]) => {
     try {
@@ -304,17 +293,32 @@ export default function ProjectsPage() {
   }, []);
 
   function getStatusColor(status: string) {
-    switch (status) {
-      case 'open':
-        return 'bg-green-500/20 text-green-400 border border-green-500/30';
-      case 'in_progress':
-        return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
-      case 'completed':
-        return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
-      case 'closed':
-        return 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
-      default:
-        return 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
+    if (theme === 'light') {
+      switch (status) {
+        case 'open':
+          return 'bg-green-100 text-green-700 border border-green-300';
+        case 'in_progress':
+          return 'bg-yellow-100 text-yellow-700 border border-yellow-300';
+        case 'completed':
+          return 'bg-blue-100 text-blue-700 border border-blue-300';
+        case 'closed':
+          return 'bg-gray-100 text-gray-600 border border-gray-300';
+        default:
+          return 'bg-gray-100 text-gray-600 border border-gray-300';
+      }
+    } else {
+      switch (status) {
+        case 'open':
+          return 'bg-green-500/20 text-green-400 border border-green-500/30';
+        case 'in_progress':
+          return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
+        case 'completed':
+          return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
+        case 'closed':
+          return 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
+        default:
+          return 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
+      }
     }
   }
 
@@ -469,27 +473,43 @@ export default function ProjectsPage() {
           <main className="flex-1 min-w-0 order-1 lg:order-2">
             {/* Header with Search and View Toggle */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-              <h1 className="text-3xl font-bold text-white">לוח פרויקטים</h1>
+              <h1 className={`text-3xl font-bold ${
+                theme === 'light' ? 'text-gray-900' : 'text-white'
+              }`}>לוח פרויקטים</h1>
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 {/* Search Bar */}
                 <div className="flex-1 sm:flex-none relative">
-                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                    theme === 'light' ? 'text-gray-400' : 'text-gray-400'
+                  }`} />
                   <input
                     type="text"
                     placeholder="חפש פרויקטים..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="modern-input w-full sm:w-64 pr-10 pl-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500/20 text-sm"
+                    className={`w-full sm:w-64 pr-10 pl-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm ${
+                      theme === 'light'
+                        ? 'bg-white border border-gray-300 text-gray-800 placeholder-gray-500'
+                        : 'modern-input'
+                    }`}
                   />
                 </div>
                 {/* View Toggle */}
-                <div className="flex items-center gap-1 glass-card rounded-full p-1 border-white/20">
+                <div className={`flex items-center gap-1 rounded-full p-1 ${
+                  theme === 'light'
+                    ? 'bg-gray-100 border border-gray-300'
+                    : 'glass-card border-white/20'
+                }`}>
                   <button
                     onClick={() => setViewMode('list')}
                     className={`p-2 rounded-full transition-colors ${
                       viewMode === 'list' 
-                        ? 'bg-hot-pink text-white shadow-sm' 
-                        : 'text-gray-300 hover:bg-white/10'
+                        ? theme === 'light'
+                          ? 'bg-[#F52F8E] text-white shadow-sm'
+                          : 'bg-hot-pink text-white shadow-sm'
+                        : theme === 'light'
+                          ? 'text-gray-600 hover:bg-gray-200'
+                          : 'text-gray-300 hover:bg-white/10'
                     }`}
                     title="תצוגת רשימה"
                   >
@@ -499,8 +519,12 @@ export default function ProjectsPage() {
                     onClick={() => setViewMode('grid')}
                     className={`p-2 rounded-full transition-colors ${
                       viewMode === 'grid' 
-                        ? 'bg-hot-pink text-white shadow-sm' 
-                        : 'text-gray-300 hover:bg-white/10'
+                        ? theme === 'light'
+                          ? 'bg-[#F52F8E] text-white shadow-sm'
+                          : 'bg-hot-pink text-white shadow-sm'
+                        : theme === 'light'
+                          ? 'text-gray-600 hover:bg-gray-200'
+                          : 'text-gray-300 hover:bg-white/10'
                     }`}
                     title="תצוגת רשת"
                   >
@@ -512,13 +536,21 @@ export default function ProjectsPage() {
 
             {/* Projects List/Grid */}
             {loading ? (
-              <div className="text-center py-8 text-gray-300">טוען...</div>
+              <div className={`text-center py-8 ${
+                theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+              }`}>טוען...</div>
             ) : filteredProjects.length === 0 ? (
-              <div className="text-center py-8 text-gray-300">אין פרויקטים זמינים</div>
+              <div className={`text-center py-8 ${
+                theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+              }`}>אין פרויקטים זמינים</div>
             ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredProjects.map((project) => (
-                  <div key={project.id} className="glass-card rounded-3xl p-5 animate-fade-in flex flex-col">
+                  <div key={project.id} className={`rounded-3xl p-5 animate-fade-in flex flex-col ${
+                    theme === 'light'
+                      ? 'bg-white border border-gray-300 shadow-sm'
+                      : 'glass-card'
+                  }`}>
                     <div className="flex items-start justify-between mb-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(project.status)}`}>
                         {getStatusText(project.status)}
@@ -531,43 +563,67 @@ export default function ProjectsPage() {
                             className="w-8 h-8 rounded-full"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xs font-semibold">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold ${
+                            theme === 'light' ? 'bg-[#F52F8E]' : 'bg-gradient-to-br from-[#F52F8E] to-pink-400'
+                          }`}>
                             {(project.user?.display_name || 'U').charAt(0)}
                           </div>
                         )}
                         <div className="text-right">
-                          <p className="text-xs font-medium text-white">{project.user?.display_name || 'משתמש'}</p>
-                          <p className="text-xs text-gray-300">
+                          <p className={`text-xs font-medium ${
+                            theme === 'light' ? 'text-gray-800' : 'text-white'
+                          }`}>{project.user?.display_name || 'משתמש'}</p>
+                          <p className={`text-xs ${
+                            theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                          }`}>
                             {mounted ? formatTimeAgo(project.created_at || '') : ''}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">{project.title}</h3>
-                    <p className="text-sm text-gray-200 mb-4 leading-relaxed line-clamp-3 flex-1">{project.description}</p>
+                    <h3 className={`text-lg font-semibold mb-2 line-clamp-2 ${
+                      theme === 'light' ? 'text-gray-800' : 'text-white'
+                    }`}>{project.title}</h3>
+                    <p className={`text-sm mb-4 leading-relaxed line-clamp-3 flex-1 ${
+                      theme === 'light' ? 'text-gray-600' : 'text-gray-200'
+                    }`}>{project.description}</p>
 
                     <div className="flex flex-wrap gap-2 mb-4">
                       {project.technologies?.slice(0, 4).map((tech, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-white/10 text-gray-200 rounded text-xs border border-white/10">
+                        <span key={idx} className={`px-2 py-1 rounded text-xs border ${
+                          theme === 'light'
+                            ? 'bg-gray-100 text-gray-700 border-gray-300'
+                            : 'bg-white/10 text-gray-200 border-white/10'
+                        }`}>
                           {tech}
                         </span>
                       ))}
                       {project.technologies && project.technologies.length > 4 && (
-                        <span className="px-2 py-1 bg-white/10 text-gray-200 rounded text-xs border border-white/10">
+                        <span className={`px-2 py-1 rounded text-xs border ${
+                          theme === 'light'
+                            ? 'bg-gray-100 text-gray-700 border-gray-300'
+                            : 'bg-white/10 text-gray-200 border-white/10'
+                        }`}>
                           +{project.technologies.length - 4}
                         </span>
                       )}
                     </div>
 
-                    <div className="pt-4 border-t border-white/20 space-y-3">
+                    <div className={`pt-4 border-t space-y-3 ${
+                      theme === 'light' ? 'border-gray-300' : 'border-white/20'
+                    }`}>
                       <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-1 text-gray-200">
+                        <div className={`flex items-center gap-1 ${
+                          theme === 'light' ? 'text-gray-700' : 'text-gray-200'
+                        }`}>
                           <UserIcon className="w-4 h-4" />
                           <span>{project.offers_count || 0} הצעות</span>
                         </div>
                         {project.budget_min && project.budget_max && (
-                          <div className="flex items-center gap-1 text-gray-200">
+                          <div className={`flex items-center gap-1 ${
+                            theme === 'light' ? 'text-gray-700' : 'text-gray-200'
+                          }`}>
                             <span>
                               ₪ {Number(project.budget_min).toLocaleString('he-IL')} - {Number(project.budget_max).toLocaleString('he-IL')}
                             </span>
@@ -577,7 +633,11 @@ export default function ProjectsPage() {
                       {project.status === 'closed' ? (
                         <button 
                           disabled
-                          className="w-full px-5 py-2.5 bg-white/10 text-gray-400 rounded-full text-sm font-medium cursor-not-allowed border border-white/10"
+                          className={`w-full px-5 py-2.5 rounded-full text-sm font-medium cursor-not-allowed ${
+                            theme === 'light'
+                              ? 'bg-gray-100 text-gray-500 border border-gray-300'
+                              : 'bg-white/10 text-gray-400 border border-white/10'
+                          }`}
                         >
                           פרויקט סגור
                         </button>
@@ -591,7 +651,11 @@ export default function ProjectsPage() {
                               e.stopPropagation();
                               handleSubmitOffer(project.id);
                             }}
-                            className="btn-primary w-full px-5 py-2.5 text-sm font-medium"
+                            className={`w-full px-5 py-2.5 text-sm font-medium rounded-full ${
+                              theme === 'light'
+                                ? 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
+                                : 'btn-primary'
+                            }`}
                           >
                             הגש הצעה
                           </button>
@@ -604,7 +668,11 @@ export default function ProjectsPage() {
             ) : (
               <div className="space-y-4">
                 {filteredProjects.map((project) => (
-                  <div key={project.id} className="glass-card rounded-3xl p-5 sm:p-6 animate-fade-in">
+                  <div key={project.id} className={`rounded-3xl p-5 sm:p-6 animate-fade-in ${
+                    theme === 'light'
+                      ? 'bg-white border border-gray-300 shadow-sm'
+                      : 'glass-card'
+                  }`}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         {project.user?.avatar_url ? (
@@ -614,13 +682,21 @@ export default function ProjectsPage() {
                             className="w-10 h-10 rounded-full"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-hot-pink to-pink-400 flex items-center justify-center text-white font-semibold">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                            theme === 'light'
+                              ? 'bg-[#F52F8E]'
+                              : 'bg-gradient-to-br from-hot-pink to-pink-400'
+                          }`}>
                             {(project.user?.display_name || 'U').charAt(0)}
                           </div>
                         )}
                         <div>
-                          <p className="text-sm font-medium text-white">{project.user?.display_name || 'משתמש'}</p>
-                          <p className="text-xs text-gray-300 flex items-center gap-1">
+                          <p className={`text-sm font-medium ${
+                            theme === 'light' ? 'text-gray-800' : 'text-white'
+                          }`}>{project.user?.display_name || 'משתמש'}</p>
+                          <p className={`text-xs flex items-center gap-1 ${
+                            theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                          }`}>
                             <Clock className="w-3 h-3" />
                             {mounted ? formatTimeAgo(project.created_at || '') : ''}
                           </p>
@@ -631,27 +707,39 @@ export default function ProjectsPage() {
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-semibold text-white mb-2">{project.title}</h3>
-                    <p className="text-sm text-gray-200 mb-4 leading-relaxed">{project.description}</p>
+                    <h3 className={`text-lg font-semibold mb-2 ${
+                      theme === 'light' ? 'text-gray-800' : 'text-white'
+                    }`}>{project.title}</h3>
+                    <p className={`text-sm mb-4 leading-relaxed ${
+                      theme === 'light' ? 'text-gray-600' : 'text-gray-200'
+                    }`}>{project.description}</p>
 
                     <div className="flex flex-wrap gap-2 mb-4">
                       {project.technologies?.map((tech, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-white/10 text-gray-200 rounded text-xs border border-white/10">
+                        <span key={idx} className={`px-2 py-1 rounded text-xs border ${
+                          theme === 'light'
+                            ? 'bg-gray-100 text-gray-700 border-gray-300'
+                            : 'bg-white/10 text-gray-200 border-white/10'
+                        }`}>
                           {tech}
                         </span>
                       ))}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-white/20">
-                      <div className="flex items-center gap-4 text-sm">
+                    <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t ${
+                      theme === 'light' ? 'border-gray-300' : 'border-white/20'
+                    }`}>
+                      <div className={`flex items-center gap-4 text-sm ${
+                        theme === 'light' ? 'text-gray-700' : 'text-gray-200'
+                      }`}>
                         {project.budget_min && project.budget_max && (
-                          <div className="flex items-center gap-1 text-gray-200">
+                          <div className="flex items-center gap-1">
                             <span>
                               ₪ {Number(project.budget_min).toLocaleString('he-IL')} - {Number(project.budget_max).toLocaleString('he-IL')}
                             </span>
                           </div>
                         )}
-                        <div className="flex items-center gap-1 text-gray-200">
+                        <div className="flex items-center gap-1">
                           <UserIcon className="w-4 h-4" />
                           <span>{project.offers_count || 0} הצעות</span>
                         </div>
@@ -659,7 +747,11 @@ export default function ProjectsPage() {
                       {project.status === 'closed' ? (
                         <button 
                           disabled
-                          className="px-5 py-2.5 bg-white/10 text-gray-400 rounded-full text-sm font-medium cursor-not-allowed border border-white/10"
+                          className={`px-5 py-2.5 rounded-full text-sm font-medium cursor-not-allowed ${
+                            theme === 'light'
+                              ? 'bg-gray-100 text-gray-500 border border-gray-300'
+                              : 'bg-white/10 text-gray-400 border border-white/10'
+                          }`}
                         >
                           פרויקט סגור
                         </button>
@@ -673,7 +765,11 @@ export default function ProjectsPage() {
                               e.stopPropagation();
                               handleSubmitOffer(project.id);
                             }}
-                            className="btn-primary px-5 py-2.5 text-sm font-medium"
+                            className={`px-5 py-2.5 text-sm font-medium rounded-full ${
+                              theme === 'light'
+                                ? 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
+                                : 'btn-primary'
+                            }`}
                           >
                             הגש הצעה
                           </button>
@@ -689,11 +785,23 @@ export default function ProjectsPage() {
           {/* Left Sidebar - Second on Mobile */}
           <aside className="w-full lg:w-64 flex-shrink-0 space-y-4 order-2 lg:order-1">
             {/* Who's Online */}
-            <div className="glass-card rounded-2xl shadow-sm p-4">
-              <h3 className="text-sm font-semibold text-white mb-4">מי מחובר?</h3>
+            <div className={`rounded-2xl shadow-sm p-4 ${
+              theme === 'light'
+                ? 'bg-white border border-gray-300'
+                : 'glass-card'
+            }`}>
+              <h3 className={`text-sm font-semibold mb-4 ${
+                theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>מי מחובר?</h3>
               {onlineUsers.length === 0 ? (
-                <div className="p-4 bg-white/10 rounded-lg border border-white/20">
-                  <p className="text-sm text-gray-300">אין חברים מחוברים כרגע</p>
+                <div className={`p-4 rounded-lg border ${
+                  theme === 'light'
+                    ? 'bg-gray-50 border-gray-300'
+                    : 'bg-white/10 border-white/20'
+                }`}>
+                  <p className={`text-sm ${
+                    theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                  }`}>אין חברים מחוברים כרגע</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -720,7 +828,9 @@ export default function ProjectsPage() {
                       </Link>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className={`text-xs ${
+                    theme === 'light' ? 'text-gray-600' : 'text-gray-500'
+                  }`}>
                     {onlineUsers.length} {onlineUsers.length === 1 ? 'חבר מחובר' : 'חברים מחוברים'}
                   </p>
                 </div>
@@ -728,10 +838,18 @@ export default function ProjectsPage() {
             </div>
 
             {/* Post Project Button */}
-            <div className="modern-card rounded-2xl p-5 animate-fade-in">
+            <div className={`rounded-2xl p-5 animate-fade-in ${
+              theme === 'light'
+                ? 'bg-white border border-gray-300'
+                : 'modern-card'
+            }`}>
               <button
                 onClick={() => setShowNewProjectForm(true)}
-                className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm font-medium w-full justify-center"
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium w-full justify-center rounded-lg ${
+                  theme === 'light'
+                    ? 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
+                    : 'btn-primary'
+                }`}
               >
                 <Plus className="w-4 h-4" />
                 פרסם פרויקט
@@ -755,12 +873,22 @@ export default function ProjectsPage() {
                 }}
               >
                 <div 
-                  className="glass-card rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                  className={`rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto ${
+                    theme === 'light'
+                      ? 'bg-white'
+                      : 'glass-card'
+                  }`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Modal Header */}
-                  <div className="sticky top-0 glass-card border-b border-hot-pink/30 px-6 py-4 flex items-center justify-between rounded-t-3xl">
-                    <h2 className="text-2xl font-bold text-white">פרסם פרויקט חדש</h2>
+                  <div className={`sticky top-0 border-b px-6 py-4 flex items-center justify-between rounded-t-3xl ${
+                    theme === 'light'
+                      ? 'bg-white border-gray-300'
+                      : 'glass-card border-hot-pink/30'
+                  }`}>
+                    <h2 className={`text-2xl font-bold ${
+                      theme === 'light' ? 'text-gray-800' : 'text-white'
+                    }`}>פרסם פרויקט חדש</h2>
                     <button
                       onClick={() => {
                         setShowNewProjectForm(false);
@@ -773,16 +901,24 @@ export default function ProjectsPage() {
                           technologies: ''
                         });
                       }}
-                      className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                      className={`p-2 rounded-full transition-colors ${
+                        theme === 'light'
+                          ? 'hover:bg-gray-100'
+                          : 'hover:bg-white/10'
+                      }`}
                     >
-                      <X className="w-5 h-5 text-gray-300" />
+                      <X className={`w-5 h-5 ${
+                        theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                      }`} />
                     </button>
                   </div>
 
                   {/* Modal Body */}
                   <div className="p-6 space-y-5">
                     <div>
-                      <label className="block text-sm font-semibold text-white mb-2">
+                      <label className={`block text-sm font-semibold mb-2 ${
+                        theme === 'light' ? 'text-gray-800' : 'text-white'
+                      }`}>
                         כותרת הפרויקט *
                       </label>
                       <input
@@ -790,12 +926,18 @@ export default function ProjectsPage() {
                         placeholder="לדוגמה: פיתוח בוט טלגרם לניהול הזמנות"
                         value={newProject.title}
                         onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
-                        className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm text-white placeholder:text-gray-400"
+                        className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm ${
+                          theme === 'light'
+                            ? 'bg-white border-gray-300 text-gray-800 placeholder-gray-500'
+                            : 'modern-input border-white/20 text-white placeholder:text-gray-400'
+                        }`}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-white mb-2">
+                      <label className={`block text-sm font-semibold mb-2 ${
+                        theme === 'light' ? 'text-gray-800' : 'text-white'
+                      }`}>
                         תיאור הפרויקט *
                       </label>
                       <textarea
@@ -803,12 +945,18 @@ export default function ProjectsPage() {
                         value={newProject.description}
                         onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
                         rows={5}
-                        className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm resize-none text-white placeholder:text-gray-400"
+                        className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm resize-none ${
+                          theme === 'light'
+                            ? 'bg-white border-gray-300 text-gray-800 placeholder-gray-500'
+                            : 'modern-input border-white/20 text-white placeholder:text-gray-400'
+                        }`}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-white mb-2">
+                      <label className={`block text-sm font-semibold mb-2 ${
+                        theme === 'light' ? 'text-gray-800' : 'text-white'
+                      }`}>
                         תקציב (בשקלים ₪)
                       </label>
                       <div className="flex gap-3">
@@ -818,7 +966,11 @@ export default function ProjectsPage() {
                             placeholder="מינימום"
                             value={newProject.budget_min}
                             onChange={(e) => setNewProject({ ...newProject, budget_min: e.target.value })}
-                            className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm text-white placeholder:text-gray-400"
+                            className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm ${
+                              theme === 'light'
+                                ? 'bg-white border-gray-300 text-gray-800 placeholder-gray-500'
+                                : 'modern-input border-white/20 text-white placeholder:text-gray-400'
+                            }`}
                           />
                         </div>
                         <div className="flex-1">
@@ -827,14 +979,20 @@ export default function ProjectsPage() {
                             placeholder="מקסימום"
                             value={newProject.budget_max}
                             onChange={(e) => setNewProject({ ...newProject, budget_max: e.target.value })}
-                            className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm text-white placeholder:text-gray-400"
+                            className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm ${
+                              theme === 'light'
+                                ? 'bg-white border-gray-300 text-gray-800 placeholder-gray-500'
+                                : 'modern-input border-white/20 text-white placeholder:text-gray-400'
+                            }`}
                           />
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-white mb-2">
+                      <label className={`block text-sm font-semibold mb-2 ${
+                        theme === 'light' ? 'text-gray-800' : 'text-white'
+                      }`}>
                         יש מערכות ספציפיות שהיית רוצה שישתמשו בהן?
                       </label>
                       <input
@@ -842,14 +1000,24 @@ export default function ProjectsPage() {
                         placeholder="לדוגמה: Make, Airtable, Zapier, API, Node.js (מופרדות בפסיקים)"
                         value={newProject.technologies}
                         onChange={(e) => setNewProject({ ...newProject, technologies: e.target.value })}
-                        className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm text-white placeholder:text-gray-400"
+                        className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm ${
+                          theme === 'light'
+                            ? 'bg-white border-gray-300 text-gray-800 placeholder-gray-500'
+                            : 'modern-input border-white/20 text-white placeholder:text-gray-400'
+                        }`}
                       />
-                      <p className="text-xs text-gray-300 mt-1">הזן את הטכנולוגיות או המערכות, מופרדות בפסיקים</p>
+                      <p className={`text-xs mt-1 ${
+                        theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                      }`}>הזן את הטכנולוגיות או המערכות, מופרדות בפסיקים</p>
                     </div>
                   </div>
 
                   {/* Modal Footer */}
-                  <div className="sticky bottom-0 glass-card border-t border-hot-pink/30 px-6 py-4 flex items-center justify-end gap-3 rounded-b-3xl">
+                  <div className={`sticky bottom-0 border-t px-6 py-4 flex items-center justify-end gap-3 rounded-b-3xl ${
+                    theme === 'light'
+                      ? 'bg-white border-gray-300'
+                      : 'glass-card border-hot-pink/30'
+                  }`}>
                     <button
                       onClick={() => {
                         setShowNewProjectForm(false);
@@ -862,13 +1030,21 @@ export default function ProjectsPage() {
                           technologies: ''
                         });
                       }}
-                      className="px-6 py-2.5 bg-white/10 text-gray-200 rounded-full hover:bg-white/20 transition-colors text-sm font-medium"
+                      className={`px-6 py-2.5 rounded-full transition-colors text-sm font-medium ${
+                        theme === 'light'
+                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          : 'bg-white/10 text-gray-200 hover:bg-white/20'
+                      }`}
                     >
                       ביטול
                     </button>
                     <button
                       onClick={handleCreateProject}
-                      className="px-6 py-2.5 bg-hot-pink text-white rounded-full hover:bg-hot-pink-dark transition-colors text-sm font-medium"
+                      className={`px-6 py-2.5 rounded-full transition-colors text-sm font-medium ${
+                        theme === 'light'
+                          ? 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
+                          : 'bg-hot-pink text-white hover:bg-hot-pink-dark'
+                      }`}
                     >
                       פרסם פרויקט
                     </button>
@@ -878,19 +1054,33 @@ export default function ProjectsPage() {
             )}
 
             {/* Recent Updates */}
-            <div className="glass-card rounded-3xl p-5 animate-fade-in">
-              <h3 className="text-sm font-semibold text-white mb-3">עדכונים אחרונים</h3>
+            <div className={`rounded-3xl p-5 animate-fade-in ${
+              theme === 'light'
+                ? 'bg-white border border-gray-300'
+                : 'glass-card'
+            }`}>
+              <h3 className={`text-sm font-semibold mb-3 ${
+                theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>עדכונים אחרונים</h3>
               <div className="space-y-3">
                 {recentUpdates.length === 0 ? (
-                  <p className="text-xs text-gray-300">אין עדכונים אחרונים</p>
+                  <p className={`text-xs ${
+                    theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                  }`}>אין עדכונים אחרונים</p>
                 ) : (
                   recentUpdates.map((update, idx) => {
                     const content = (
-                      <div className="flex items-start gap-2 text-xs cursor-pointer hover:bg-white/10 p-2 rounded-lg transition-colors">
+                      <div className={`flex items-start gap-2 text-xs cursor-pointer p-2 rounded-lg transition-colors ${
+                        theme === 'light'
+                          ? 'hover:bg-gray-50'
+                          : 'hover:bg-white/10'
+                      }`}>
                         <span className="text-lg">{update.icon}</span>
                         <div className="flex-1">
-                          <p className="text-gray-100">{update.text}</p>
-                          <p className="text-gray-300 text-xs mt-0.5">{update.time}</p>
+                          <p className={theme === 'light' ? 'text-gray-800' : 'text-gray-100'}>{update.text}</p>
+                          <p className={`text-xs mt-0.5 ${
+                            theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                          }`}>{update.time}</p>
                         </div>
                       </div>
                     );
@@ -924,23 +1114,35 @@ export default function ProjectsPage() {
             </div>
 
             {/* Upcoming Events */}
-            <div className="glass-card rounded-3xl p-5 animate-fade-in">
+            <div className={`rounded-3xl p-5 animate-fade-in ${
+              theme === 'light'
+                ? 'bg-white border border-gray-300'
+                : 'glass-card'
+            }`}>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-white">אירועים קרובים</h3>
-                <Link href="/live-log" className="text-xs text-hot-pink hover:underline">
+                <h3 className={`text-sm font-semibold ${
+                  theme === 'light' ? 'text-gray-800' : 'text-white'
+                }`}>אירועים קרובים</h3>
+                <Link href="/live-log" className={`text-xs hover:underline ${
+                  theme === 'light' ? 'text-[#F52F8E]' : 'text-hot-pink'
+                }`}>
                   הכל ←
                 </Link>
               </div>
               {upcomingEvents.length === 0 ? (
-                <p className="text-xs text-gray-300">כרגע אין אירועים קרובים</p>
+                <p className={`text-xs ${
+                  theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                }`}>כרגע אין אירועים קרובים</p>
               ) : (
                 <div className="space-y-2">
                   {upcomingEvents.map((event) => (
                     <div key={event.id} className="flex items-start gap-2 text-xs">
-                      <span className="text-hot-pink">📅</span>
+                      <span className={theme === 'light' ? 'text-[#F52F8E]' : 'text-hot-pink'}>📅</span>
                       <div className="flex-1">
-                        <p className="text-gray-100">{event.title}</p>
-                        <p className="text-gray-300 text-xs mt-0.5">
+                        <p className={theme === 'light' ? 'text-gray-800' : 'text-gray-100'}>{event.title}</p>
+                        <p className={`text-xs mt-0.5 ${
+                          theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                        }`}>
                           {event.event_date ? (() => {
                             try {
                               const date = new Date(event.event_date);
@@ -974,12 +1176,22 @@ export default function ProjectsPage() {
           }}
         >
           <div 
-            className="glass-card rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            className={`rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${
+              theme === 'light'
+                ? 'bg-white'
+                : 'glass-card'
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="sticky top-0 glass-card border-b border-hot-pink/30 px-6 py-4 flex items-center justify-between rounded-t-3xl z-10">
-              <h2 className="text-2xl font-bold text-white">הגשת הצעה</h2>
+            <div className={`sticky top-0 border-b px-6 py-4 flex items-center justify-between rounded-t-3xl z-10 ${
+              theme === 'light'
+                ? 'bg-white border-gray-300'
+                : 'glass-card border-hot-pink/30'
+            }`}>
+              <h2 className={`text-2xl font-bold ${
+                theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>הגשת הצעה</h2>
               <button
                 onClick={() => {
                   if (!submittingOffer) {
@@ -988,7 +1200,11 @@ export default function ProjectsPage() {
                     setOfferForm({ message: '', offer_amount: '' });
                   }
                 }}
-                className="text-gray-300 hover:text-white transition-colors"
+                className={`transition-colors ${
+                  theme === 'light'
+                    ? 'text-gray-600 hover:text-gray-800'
+                    : 'text-gray-300 hover:text-white'
+                }`}
                 disabled={submittingOffer}
               >
                 <X className="w-6 h-6" />
@@ -999,7 +1215,9 @@ export default function ProjectsPage() {
             <div className="p-6 space-y-6">
               {/* Recipient Info */}
               <div className="space-y-2">
-                <p className="text-sm text-gray-300">שליחת הצעה אל</p>
+                <p className={`text-sm ${
+                  theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                }`}>שליחת הצעה אל</p>
                 <div className="flex items-center gap-3">
                   {selectedProject.user?.avatar_url ? (
                     <img 
@@ -1008,25 +1226,41 @@ export default function ProjectsPage() {
                       className="w-12 h-12 rounded-full"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-hot-pink to-pink-400 flex items-center justify-center text-white font-semibold text-lg">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg ${
+                      theme === 'light'
+                        ? 'bg-[#F52F8E]'
+                        : 'bg-gradient-to-br from-hot-pink to-pink-400'
+                    }`}>
                       {(selectedProject.user?.display_name || 'U').charAt(0)}
                     </div>
                   )}
                   <div>
-                    <p className="font-semibold text-white">{selectedProject.user?.display_name || 'משתמש'}</p>
-                    <p className="text-sm text-gray-300">{selectedProject.title}</p>
+                    <p className={`font-semibold ${
+                      theme === 'light' ? 'text-gray-800' : 'text-white'
+                    }`}>{selectedProject.user?.display_name || 'משתמש'}</p>
+                    <p className={`text-sm ${
+                      theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                    }`}>{selectedProject.title}</p>
                   </div>
                 </div>
               </div>
 
               {/* Project Description */}
-              <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                <p className="text-sm text-gray-200 leading-relaxed">{selectedProject.description}</p>
+              <div className={`rounded-lg p-4 border ${
+                theme === 'light'
+                  ? 'bg-gray-50 border-gray-300'
+                  : 'bg-white/5 border-white/10'
+              }`}>
+                <p className={`text-sm leading-relaxed ${
+                  theme === 'light' ? 'text-gray-700' : 'text-gray-200'
+                }`}>{selectedProject.description}</p>
               </div>
 
               {/* Offer Message */}
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
+                <label className={`block text-sm font-semibold mb-2 ${
+                  theme === 'light' ? 'text-gray-800' : 'text-white'
+                }`}>
                   למה אתה מתאים לפרויקט? *
                 </label>
                 <textarea
@@ -1037,17 +1271,25 @@ export default function ProjectsPage() {
                     }
                   }}
                   placeholder="תאר את הניסיון שלך, גישה מוצעת וזמן אספקה משוער"
-                  className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm min-h-[120px] resize-y text-white placeholder:text-gray-400"
+                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm min-h-[120px] resize-y ${
+                    theme === 'light'
+                      ? 'bg-white border-gray-300 text-gray-800 placeholder-gray-500'
+                      : 'modern-input border-white/20 text-white placeholder:text-gray-400'
+                  }`}
                   maxLength={500}
                 />
-                <p className="text-xs text-gray-300 mt-1 text-right">
+                <p className={`text-xs mt-1 text-right ${
+                  theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                }`}>
                   {offerForm.message.length}/500
                 </p>
               </div>
 
               {/* Price Offer */}
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
+                <label className={`block text-sm font-semibold mb-2 ${
+                  theme === 'light' ? 'text-gray-800' : 'text-white'
+                }`}>
                   הצעת מחיר ({selectedProject.budget_currency || 'USD'}) *
                 </label>
                 <input
@@ -1055,7 +1297,11 @@ export default function ProjectsPage() {
                   value={offerForm.offer_amount}
                   onChange={(e) => setOfferForm({ ...offerForm, offer_amount: e.target.value })}
                   placeholder={`תקציב הלקוח: ${selectedProject.budget_min ? Number(selectedProject.budget_min).toLocaleString('he-IL') : ''}${selectedProject.budget_min && selectedProject.budget_max ? ' - ' : ''}${selectedProject.budget_max ? Number(selectedProject.budget_max).toLocaleString('he-IL') : ''}`}
-                  className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm text-white placeholder:text-gray-400"
+                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm ${
+                    theme === 'light'
+                      ? 'bg-white border-gray-300 text-gray-800 placeholder-gray-500'
+                      : 'modern-input border-white/20 text-white placeholder:text-gray-400'
+                  }`}
                   min="0"
                   step="0.01"
                 />
@@ -1063,7 +1309,11 @@ export default function ProjectsPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="sticky bottom-0 glass-card border-t border-hot-pink/30 px-6 py-4 flex items-center justify-end gap-3 rounded-b-3xl">
+            <div className={`sticky bottom-0 border-t px-6 py-4 flex items-center justify-end gap-3 rounded-b-3xl ${
+              theme === 'light'
+                ? 'bg-white border-gray-300'
+                : 'glass-card border-hot-pink/30'
+            }`}>
               <button
                 onClick={() => {
                   if (!submittingOffer) {
@@ -1072,7 +1322,11 @@ export default function ProjectsPage() {
                     setOfferForm({ message: '', offer_amount: '' });
                   }
                 }}
-                className="px-6 py-2.5 border border-white/20 text-gray-200 rounded-full hover:bg-white/10 transition-colors font-medium text-sm"
+                className={`px-6 py-2.5 border rounded-full transition-colors font-medium text-sm ${
+                  theme === 'light'
+                    ? 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                    : 'border-white/20 text-gray-200 hover:bg-white/10'
+                }`}
                 disabled={submittingOffer}
               >
                 ביטול
@@ -1080,7 +1334,11 @@ export default function ProjectsPage() {
               <button
                 onClick={submitOffer}
                 disabled={submittingOffer || !offerForm.message.trim() || !offerForm.offer_amount}
-                className="btn-primary px-6 py-2.5 font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`px-6 py-2.5 font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed rounded-full ${
+                  theme === 'light'
+                    ? 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
+                    : 'btn-primary'
+                }`}
               >
                 {submittingOffer ? (
                   <>

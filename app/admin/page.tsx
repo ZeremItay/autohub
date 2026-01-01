@@ -1585,7 +1585,7 @@ export default function AdminPanel() {
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-hot-pink">פאנל ניהול</h1>
+          <h1 className="text-3xl font-bold text-white">פאנל ניהול</h1>
         </div>
         {/* Tabs */}
         <div className="flex gap-4 mb-6 border-b border-white/20 overflow-x-auto">
@@ -1593,8 +1593,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('users')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'users'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <Users className="w-5 h-5 inline-block ml-2" />
@@ -1604,8 +1604,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('posts')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'posts'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <FileText className="w-5 h-5 inline-block ml-2" />
@@ -1615,8 +1615,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('roles')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'roles'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <Settings className="w-5 h-5 inline-block ml-2" />
@@ -1626,8 +1626,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('subscriptions')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'subscriptions'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <CreditCard className="w-5 h-5 inline-block ml-2" />
@@ -1637,8 +1637,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('payments')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'payments'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <CreditCard className="w-5 h-5 inline-block ml-2" />
@@ -1648,8 +1648,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('recordings')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'recordings'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <Video className="w-5 h-5 inline-block ml-2" />
@@ -1659,8 +1659,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('resources')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'resources'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <FileIcon className="w-5 h-5 inline-block ml-2" />
@@ -1670,8 +1670,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('blog')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'blog'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <FileText className="w-5 h-5 inline-block ml-2" />
@@ -1681,8 +1681,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('reports')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'reports'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <FileText className="w-5 h-5 inline-block ml-2" />
@@ -1692,8 +1692,8 @@ export default function AdminPanel() {
             href="/admin/gamification"
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'gamification'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <Trophy className="w-5 h-5 inline-block ml-2" />
@@ -1703,8 +1703,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('badges')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'badges'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <Star className="w-5 h-5 inline-block ml-2" />
@@ -1714,8 +1714,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('courses')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'courses'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <BookOpen className="w-5 h-5 inline-block ml-2" />
@@ -1725,8 +1725,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('events')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'events'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <Calendar className="w-5 h-5 inline-block ml-2" />
@@ -1736,8 +1736,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('projects')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'projects'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <FileText className="w-5 h-5 inline-block ml-2" />
@@ -1747,8 +1747,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('tags')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'tags'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <TagIcon className="w-5 h-5 inline-block ml-2" />
@@ -1758,8 +1758,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('feedbacks')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'feedbacks'
-                ? 'text-hot-pink border-b-2 border-hot-pink'
-                : 'text-gray-300 hover:text-hot-pink'
+                ? 'text-white border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             <MessageCircleMore className="w-5 h-5 inline-block ml-2" />
@@ -4856,7 +4856,11 @@ export default function AdminPanel() {
                   {activeTab === 'projects' && projects.map((project) => (
                     <tr key={project.id} className="border-b border-gray-100">
                       <td className="py-3 px-4 font-medium">{project.title || '-'}</td>
-                      <td className="py-3 px-4">{project.user?.display_name || '-'}</td>
+                      <td className="py-3 px-4">
+                        {project.profiles 
+                          ? (project.profiles.nickname || `${project.profiles.first_name || ''} ${project.profiles.last_name || ''}`.trim() || '-')
+                          : '-'}
+                      </td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 text-xs rounded ${
                           project.status === 'completed' ? 'bg-green-100 text-green-700' :
@@ -4921,7 +4925,11 @@ export default function AdminPanel() {
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
-                                    <span className="font-medium">{offer.user?.display_name || 'משתמש לא ידוע'}</span>
+                                    <span className="font-medium">
+                                      {offer.profiles 
+                                        ? (offer.profiles.nickname || `${offer.profiles.first_name || ''} ${offer.profiles.last_name || ''}`.trim() || 'משתמש לא ידוע')
+                                        : 'משתמש לא ידוע'}
+                                    </span>
                                     {offer.offer_amount && (
                                       <span className="text-[#F52F8E] font-semibold">
                                         {offer.offer_amount} {offer.offer_currency || 'ILS'}
@@ -5153,7 +5161,10 @@ export default function AdminPanel() {
                                 .from('feedbacks')
                                 .delete()
                                 .eq('id', feedback.id)
-                              if (!error) {
+                              if (error) {
+                                console.error('Error deleting feedback:', error);
+                                alert(`שגיאה במחיקת הפידבק: ${error.message || 'נסה שוב'}`);
+                              } else {
                                 await loadData()
                               }
                             }

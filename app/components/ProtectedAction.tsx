@@ -32,14 +32,14 @@ export default function ProtectedAction({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div className={`${className} opacity-50 cursor-not-allowed`}>
-        {children}
-      </div>
-    );
-  }
+  // Cleanup timeout on unmount - MUST be called before any early returns
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   // Helper function to show tooltip with delay
   const handleMouseEnter = () => {
@@ -56,14 +56,14 @@ export default function ProtectedAction({
     }, 200); // 200ms delay before hiding
   };
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
+  // Show loading state - AFTER all hooks
+  if (loading) {
+    return (
+      <div className={`${className} opacity-50 cursor-not-allowed`}>
+        {children}
+      </div>
+    );
+  }
 
   // Check authentication requirement
   if (requireAuth && !user) {

@@ -4,8 +4,16 @@ import { useState, useRef } from 'react';
 import { MessageCircleMore, Send, CheckCircle, Upload, X } from 'lucide-react';
 import GlassCard from '@/app/components/GlassCard';
 import { supabase } from '@/lib/supabase';
+import { useTheme } from '@/lib/contexts/ThemeContext';
+import {
+  getCardStyles,
+  getTextStyles,
+  getInputStyles,
+  combineStyles
+} from '@/lib/utils/themeStyles';
 
 export default function FeedbackPage() {
+  const { theme } = useTheme();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -132,6 +140,7 @@ export default function FeedbackPage() {
       const result = await response.json();
 
       if (!response.ok) {
+        console.error('Feedback API Error:', result);
         throw new Error(result.error || 'שגיאה בשליחת הפידבק');
       }
 
@@ -150,7 +159,9 @@ export default function FeedbackPage() {
         fileInputRef.current.value = '';
       }
     } catch (err: any) {
-      setError(err.message || 'שגיאה בשליחת הפידבק. נסה שוב.');
+      console.error('Error submitting feedback:', err);
+      const errorMessage = err.message || 'שגיאה בשליחת הפידבק. נסה שוב.';
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -171,8 +182,12 @@ export default function FeedbackPage() {
           <div className="max-w-2xl mx-auto">
             <GlassCard rounded="3xl" padding="lg" className="text-center">
               <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-              <h1 className="text-3xl font-bold text-white mb-4">תודה על הפידבק!</h1>
-              <p className="text-lg text-gray-300 mb-6">
+              <h1 className={`text-3xl font-bold mb-4 ${
+                theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>תודה על הפידבק!</h1>
+              <p className={`text-lg mb-6 ${
+                theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+              }`}>
                 הפידבק שלך נשלח בהצלחה. אנו מעריכים את הזמן שלקחת לשתף אותנו בדעתך.
               </p>
               <button
@@ -195,10 +210,16 @@ export default function FeedbackPage() {
           {/* Header */}
           <GlassCard rounded="3xl" padding="lg" className="mb-6">
             <div className="flex items-center gap-3 mb-4">
-              <MessageCircleMore className="w-8 h-8 text-hot-pink" />
-              <h1 className="text-3xl font-bold text-white">פידבקים</h1>
+              <MessageCircleMore className={`w-8 h-8 ${
+                theme === 'light' ? 'text-[#F52F8E]' : 'text-hot-pink'
+              }`} />
+              <h1 className={`text-3xl font-bold ${
+                theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>פידבקים</h1>
             </div>
-            <p className="text-lg text-gray-300 leading-relaxed">
+            <p className={`text-lg leading-relaxed ${
+              theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+            }`}>
               אנחנו רוצים לשמוע ממך! שתף אותנו בדעתך, רעיונות לשיפור, או כל דבר אחר שתרצה לומר.
               הפידבק שלך עוזר לנו לשפר את הקהילה ואת החוויה שלך.
             </p>
@@ -209,7 +230,9 @@ export default function FeedbackPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Name */}
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-white mb-2">
+                <label htmlFor="name" className={`block text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white'
+                }`}>
                   שם (אופציונלי)
                 </label>
                 <input
@@ -218,14 +241,20 @@ export default function FeedbackPage() {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
+                  className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${
+                    theme === 'light'
+                      ? 'bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-[#F52F8E] focus:border-transparent'
+                      : 'bg-white/5 border border-white/20 text-white placeholder-gray-400 focus:ring-hot-pink focus:border-transparent'
+                  }`}
                   placeholder="השם שלך"
                 />
               </div>
 
               {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-white mb-2">
+                <label htmlFor="email" className={`block text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white'
+                }`}>
                   אימייל (אופציונלי)
                 </label>
                 <input
@@ -234,14 +263,20 @@ export default function FeedbackPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
+                  className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${
+                    theme === 'light'
+                      ? 'bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-[#F52F8E] focus:border-transparent'
+                      : 'bg-white/5 border border-white/20 text-white placeholder-gray-400 focus:ring-hot-pink focus:border-transparent'
+                  }`}
                   placeholder="your@email.com"
                 />
               </div>
 
               {/* Feedback Type */}
               <div>
-                <label htmlFor="feedback_type" className="block text-sm font-medium text-white mb-2">
+                <label htmlFor="feedback_type" className={`block text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white'
+                }`}>
                   סוג פידבק *
                 </label>
                 <select
@@ -250,7 +285,11 @@ export default function FeedbackPage() {
                   value={formData.feedback_type}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent [&>option]:bg-[#1e293b] [&>option]:text-white"
+                  className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${
+                    theme === 'light'
+                      ? 'bg-white border border-gray-300 text-gray-800 focus:ring-[#F52F8E] focus:border-transparent [&>option]:bg-white [&>option]:text-gray-800'
+                      : 'bg-white/5 border border-white/20 text-white focus:ring-hot-pink focus:border-transparent [&>option]:bg-[#1e293b] [&>option]:text-white'
+                  }`}
                 >
                   <option value="">בחר סוג פידבק</option>
                   <option value="הצעה לשיפור">הצעה לשיפור</option>
@@ -263,7 +302,9 @@ export default function FeedbackPage() {
 
               {/* Subject */}
               <div>
-                <label htmlFor="subject" className="block text-sm font-medium text-white mb-2">
+                <label htmlFor="subject" className={`block text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white'
+                }`}>
                   נושא *
                 </label>
                 <input
@@ -273,14 +314,20 @@ export default function FeedbackPage() {
                   value={formData.subject}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
+                  className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${
+                    theme === 'light'
+                      ? 'bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-[#F52F8E] focus:border-transparent'
+                      : 'bg-white/5 border border-white/20 text-white placeholder-gray-400 focus:ring-hot-pink focus:border-transparent'
+                  }`}
                   placeholder="מה הנושא של הפידבק שלך?"
                 />
               </div>
 
               {/* Rating */}
               <div>
-                <label htmlFor="rating" className="block text-sm font-medium text-white mb-2">
+                <label htmlFor="rating" className={`block text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white'
+                }`}>
                   דירוג (1-5) *
                 </label>
                 <select
@@ -289,7 +336,11 @@ export default function FeedbackPage() {
                   value={formData.rating}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent [&>option]:bg-[#1e293b] [&>option]:text-white"
+                  className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${
+                    theme === 'light'
+                      ? 'bg-white border border-gray-300 text-gray-800 focus:ring-[#F52F8E] focus:border-transparent [&>option]:bg-white [&>option]:text-gray-800'
+                      : 'bg-white/5 border border-white/20 text-white focus:ring-hot-pink focus:border-transparent [&>option]:bg-[#1e293b] [&>option]:text-white'
+                  }`}
                 >
                   <option value={5}>5 - מעולה</option>
                   <option value={4}>4 - טוב מאוד</option>
@@ -301,7 +352,9 @@ export default function FeedbackPage() {
 
               {/* Message */}
               <div>
-                <label htmlFor="message" className="block text-sm font-medium text-white mb-2">
+                <label htmlFor="message" className={`block text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white'
+                }`}>
                   הודעה *
                 </label>
                 <textarea
@@ -311,18 +364,28 @@ export default function FeedbackPage() {
                   onChange={handleChange}
                   required
                   rows={6}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent resize-none"
+                  className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 resize-none ${
+                    theme === 'light'
+                      ? 'bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-[#F52F8E] focus:border-transparent'
+                      : 'bg-white/5 border border-white/20 text-white placeholder-gray-400 focus:ring-hot-pink focus:border-transparent'
+                  }`}
                   placeholder="שתף אותנו בדעתך, רעיונות לשיפור, או כל דבר אחר שתרצה לומר..."
                 />
               </div>
 
               {/* Image Upload */}
               <div>
-                <label htmlFor="image" className="block text-sm font-medium text-white mb-2">
+                <label htmlFor="image" className={`block text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white'
+                }`}>
                   תמונה/צילום מסך (אופציונלי)
                 </label>
                 {!imagePreview ? (
-                  <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center hover:border-hot-pink/50 transition-colors">
+                  <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    theme === 'light'
+                      ? 'border-gray-300 hover:border-[#F52F8E]'
+                      : 'border-white/20 hover:border-hot-pink/50'
+                  }`}>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -336,16 +399,26 @@ export default function FeedbackPage() {
                       htmlFor="image"
                       className="cursor-pointer flex flex-col items-center gap-3"
                     >
-                      <Upload className="w-8 h-8 text-gray-400" />
+                      <Upload className={`w-8 h-8 ${
+                        theme === 'light' ? 'text-gray-400' : 'text-gray-400'
+                      }`} />
                       <div>
-                        <p className="text-sm text-gray-300 mb-1">לחץ לבחירת תמונה</p>
-                        <p className="text-xs text-gray-400">PNG, JPG, GIF עד 5MB</p>
+                        <p className={`text-sm mb-1 ${
+                          theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                        }`}>לחץ לבחירת תמונה</p>
+                        <p className={`text-xs ${
+                          theme === 'light' ? 'text-gray-500' : 'text-gray-400'
+                        }`}>PNG, JPG, GIF עד 5MB</p>
                       </div>
                     </label>
                   </div>
                 ) : (
                   <div className="relative">
-                    <div className="relative w-full h-64 rounded-lg overflow-hidden border border-white/20 bg-white/5">
+                    <div className={`relative w-full h-64 rounded-lg overflow-hidden border ${
+                      theme === 'light'
+                        ? 'border-gray-300 bg-gray-50'
+                        : 'border-white/20 bg-white/5'
+                    }`}>
                       {imagePreview && (
                         <>
                           <img
@@ -364,7 +437,9 @@ export default function FeedbackPage() {
                         </>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">
+                    <p className={`text-xs mt-2 ${
+                      theme === 'light' ? 'text-gray-500' : 'text-gray-400'
+                    }`}>
                       {selectedImage?.name} ({(selectedImage?.size || 0) / 1024 / 1024 < 1 
                         ? `${Math.round((selectedImage?.size || 0) / 1024)}KB`
                         : `${Math.round((selectedImage?.size || 0) / 1024 / 1024 * 10) / 10}MB`})

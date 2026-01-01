@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 function LoginContent() {
   const router = useRouter();
@@ -210,19 +211,13 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20">
       <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">התחברות</h1>
-          <p className="text-gray-300">התחבר לחשבון שלך</p>
-        </div>
-
         {/* Login Card */}
-        <div className="glass-card rounded-3xl shadow-2xl p-6 sm:p-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8">
           {/* Error Message */}
           {error && (
-            <div className="mb-5 bg-red-500/20 border border-red-400/50 text-red-300 px-4 py-3 rounded-xl text-sm">
+            <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
               {error}
             </div>
           )}
@@ -231,7 +226,7 @@ function LoginContent() {
           <button
             onClick={handleGoogleLogin}
             disabled={googleLoading || loading}
-            className="w-full bg-white/10 border-2 border-white/30 text-white py-3 rounded-full font-semibold hover:bg-white/20 hover:border-white/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-sm mb-5"
+            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-sm mb-5"
             suppressHydrationWarning
           >
             {googleLoading ? (
@@ -267,10 +262,10 @@ function LoginContent() {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/20"></div>
+              <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 glass-card text-gray-300">או</span>
+              <span className="px-4 bg-white text-gray-500">או</span>
             </div>
           </div>
 
@@ -278,7 +273,7 @@ function LoginContent() {
           <form onSubmit={handleLogin} className="space-y-5" suppressHydrationWarning>
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-white mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 אימייל
               </label>
               <div className="relative">
@@ -289,7 +284,7 @@ function LoginContent() {
                   placeholder="הזן כתובת אימייל"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white placeholder-gray-400"
+                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
                   required
                   suppressHydrationWarning
                 />
@@ -298,7 +293,7 @@ function LoginContent() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-semibold text-white mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 סיסמה
               </label>
               <div className="relative">
@@ -309,7 +304,7 @@ function LoginContent() {
                   placeholder="הזן סיסמה"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white placeholder-gray-400"
+                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
                   required
                   suppressHydrationWarning
                 />
@@ -320,7 +315,7 @@ function LoginContent() {
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="btn-primary w-full py-3 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-[#F52F8E] text-white py-3 rounded-xl font-semibold hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               suppressHydrationWarning
             >
               {loading ? (
@@ -339,16 +334,16 @@ function LoginContent() {
 
           {/* Forgot Password Link */}
           <div className="mt-4 text-center">
-            <Link href="/auth/forgot-password" className="text-sm text-hot-pink hover:text-rose-400 hover:underline font-semibold transition-colors">
+            <Link href="/auth/forgot-password" className="text-sm text-[#F52F8E] hover:underline font-semibold">
               שכחתי סיסמה
             </Link>
           </div>
 
           {/* Signup Link */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-300">
+            <p className="text-sm text-gray-600">
               אין לך חשבון?{' '}
-              <Link href="/auth/signup" className="text-hot-pink hover:text-rose-400 hover:underline font-semibold transition-colors">
+              <Link href="/auth/signup" className="text-[#F52F8E] hover:underline font-semibold">
                 הירשם כאן
               </Link>
             </p>
@@ -361,14 +356,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center px-4 py-8">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-hot-pink mx-auto mb-4" />
-          <p className="text-gray-300">טוען...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSpinner className="px-4 py-8" />}>
       <LoginContent />
     </Suspense>
   );

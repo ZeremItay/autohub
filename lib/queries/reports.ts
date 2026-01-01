@@ -108,8 +108,11 @@ export async function getAllReports(limit?: number) {
 // Get a single report by ID
 export async function getReportById(id: string) {
   try {
-    // First increment views
-    await incrementReportViews(id);
+    // First increment views (don't await - fire and forget to not block report fetch)
+    incrementReportViews(id).catch((err) => {
+      // Silently handle errors - view increment is not critical
+      console.warn('Failed to increment report views (non-blocking):', err);
+    });
 
     // Then fetch the report with updated views
     const { data: report, error } = await supabase
@@ -217,19 +220,43 @@ export async function incrementReportViews(id: string) {
           .eq('id', id);
 
         if (updateError) {
-          console.error('Error incrementing report views:', updateError);
+          console.error('Error incrementing report views (update fallback):', {
+            message: updateError.message,
+            code: updateError.code,
+            details: updateError.details,
+            hint: updateError.hint,
+            error
+          });
           return { error: updateError };
         }
+      } else {
+        // Report not found, but don't fail - just log a warning
+        console.warn('Report not found for view increment:', id);
+        return { error: null };
       }
     } else if (error) {
-      console.error('Error incrementing report views:', error);
-      return { error };
+      // Log detailed error information
+      console.error('Error incrementing report views (RPC):', {
+        message: error.message || 'Unknown error',
+        code: error.code || 'No code',
+        details: error.details || 'No details',
+        hint: error.hint || 'No hint',
+        error: error
+      });
+      // Don't return error - allow report to still be fetched
+      return { error: null };
     }
 
     return { error: null };
   } catch (error: any) {
-    console.error('Error in incrementReportViews:', error);
-    return { error };
+    // Log detailed error information
+    console.error('Error in incrementReportViews (catch):', {
+      message: error?.message || 'Unknown error',
+      stack: error?.stack || 'No stack trace',
+      error: error
+    });
+    // Don't return error - allow report to still be fetched
+    return { error: null };
   }
 }
 

@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import Layout from "./components/Layout";
+import AccessibilityWidget from "./components/AccessibilityWidget";
+import { ThemeProvider } from "@/lib/contexts/ThemeContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,12 +45,43 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="he" dir="rtl">
+    <html lang="he" dir="rtl" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  const theme = localStorage.getItem('theme');
+                  if (theme === 'light' || theme === 'neon') {
+                    document.documentElement.classList.add('theme-' + theme);
+                    document.body.classList.add('theme-' + theme);
+                  } else {
+                    document.documentElement.classList.add('theme-neon');
+                    document.body.classList.add('theme-neon');
+                  }
+                } catch (e) {
+                  document.documentElement.classList.add('theme-neon');
+                  document.body.classList.add('theme-neon');
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${customHebrewFont.variable} antialiased`}
         suppressHydrationWarning
       >
-        <Layout>{children}</Layout>
+        <ThemeProvider>
+          {/* Skip to Content Link - Accessibility (WCAG 2.1 AA) */}
+          <a href="#main-content" className="skip-to-content">
+            דלג לתוכן הראשי
+          </a>
+          <Layout>{children}</Layout>
+          {/* Accessibility Widget - Floating on all pages */}
+          <AccessibilityWidget />
+        </ThemeProvider>
       </body>
     </html>
   );

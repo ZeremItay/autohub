@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Lock, ArrowRight, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Lock, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 import Link from 'next/link';
 
 function ResetPasswordContent() {
@@ -229,14 +230,7 @@ function ResetPasswordContent() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center px-4 py-8">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-hot-pink mx-auto mb-4" />
-          <p className="text-gray-300">טוען...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSpinner className="px-4 py-8" />}>
       <ResetPasswordContent />
     </Suspense>
   );

@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Calendar, Clock, MapPin, ArrowRight, CheckCircle } from 'lucide-react';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 import Link from 'next/link';
 import { getEventById } from '@/lib/queries/events';
+import { logError } from '@/lib/utils/errorHandler';
 
 const eventTypeLabels: Record<string, string> = {
   'live': 'לייב',
@@ -32,43 +34,17 @@ export default function LiveEventPage() {
     try {
       const { data, error } = await getEventById(eventId);
       if (error) {
-        console.error('Error loading event:', error);
+        logError(error, 'loadEvent');
       } else {
         setEvent(data);
       }
     } catch (error) {
-      console.error('Error loading event:', error);
+      logError(error, 'loadEvent');
     } finally {
       setLoading(false);
     }
   }
 
-  function formatDate(dateString: string): string {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-    const dayName = days[date.getDay()];
-    return date.toLocaleDateString('he-IL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  }
-
-  function formatTime(timeString: string): string {
-    if (!timeString) return '';
-    // Time format is usually HH:MM:SS or HH:MM
-    return timeString.substring(0, 5);
-  }
-
-  function formatFullDateTime(dateString: string, timeString: string): string {
-    const date = formatDate(dateString);
-    const time = formatTime(timeString);
-    const dateObj = new Date(dateString);
-    const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-    const dayName = days[dateObj.getDay()];
-    return `יום ${dayName}, ${date} • ${time}`;
-  }
 
   async function handleRegister() {
     // TODO: Implement registration logic
@@ -90,25 +66,21 @@ export default function LiveEventPage() {
       
       return eventDateTime <= now;
     } catch (e) {
-      console.error('Error checking if event started:', e);
+      logError(e, 'isEventStarted');
       return false;
     }
   }
 
   if (loading) {
-    return (
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <div className="max-w-7xl mx-auto text-center py-12 text-gray-300">טוען...</div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (!event) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <div className="max-w-7xl mx-auto text-center py-12">
-          <h1 className="text-2xl font-bold text-white mb-4">אירוע לא נמצא</h1>
-          <Link href="/live-log" className="text-hot-pink hover:text-rose-400 hover:underline transition-colors">
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">אירוע לא נמצא</h1>
+          <Link href="/live-log" className="btn-primary inline-block px-6 py-3 rounded-full">
             חזור ליומן
           </Link>
         </div>
@@ -159,7 +131,7 @@ export default function LiveEventPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Left Column - Event Details Card */}
             <div className="lg:col-span-1">
-              <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6 lg:sticky lg:top-4">
+              <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6 lg:sticky lg:top-4 border border-white/20">
                 <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                   <div className="flex items-center gap-2 sm:gap-3">
                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-hot-pink/20 flex items-center justify-center flex-shrink-0 border border-hot-pink/30">
@@ -196,7 +168,7 @@ export default function LiveEventPage() {
                 {event.status === 'completed' && event.recording_id ? (
                   <Link
                     href={`/recordings/${event.recording_id}`}
-                    className="w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-full font-semibold transition-colors text-sm sm:text-base bg-green-500 text-white hover:bg-green-600 text-center block shadow-lg hover:shadow-xl"
+                    className="btn-primary w-full py-2.5 sm:py-3 px-3 sm:px-4 font-semibold text-sm sm:text-base text-center block"
                   >
                     הלייב הסתיים, כאן אפשר לצפות בהקלטה
                   </Link>
@@ -234,23 +206,23 @@ export default function LiveEventPage() {
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               {/* About the Event */}
               {event.about_text && (
-                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">על האירוע</h2>
-                  <p className="text-sm sm:text-base text-gray-100 leading-relaxed">{event.about_text}</p>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6 border border-white/20">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">על האירוע</h2>
+                  <p className="text-base sm:text-lg text-white leading-relaxed">{event.about_text}</p>
                 </div>
               )}
 
               {/* What will be learned? */}
               {event.learning_points && event.learning_points.length > 0 && (
-                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">מה נלמד?</h2>
-                  <ul className="space-y-2 sm:space-y-3">
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6 border border-white/20">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">מה נלמד?</h2>
+                  <ul className="space-y-3 sm:space-y-4">
                     {event.learning_points.map((point: string, index: number) => (
-                      <li key={index} className="flex items-start gap-2 sm:gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-hot-pink text-white flex items-center justify-center font-bold text-xs sm:text-sm">
+                      <li key={index} className="flex items-start gap-3 sm:gap-4">
+                        <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-hot-pink to-rose-500 text-white flex items-center justify-center font-bold text-sm sm:text-base shadow-lg border-2 border-hot-pink/50">
                           {index + 1}
                         </div>
-                        <p className="text-sm sm:text-base text-gray-100 pt-0.5 sm:pt-1">{point}</p>
+                        <p className="text-base sm:text-lg text-white font-medium pt-1 sm:pt-1.5 leading-relaxed">{point}</p>
                       </li>
                     ))}
                   </ul>
@@ -259,24 +231,24 @@ export default function LiveEventPage() {
 
               {/* Instructors */}
               {event.instructor_name && (
-                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">מנחים</h2>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6 border border-white/20">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">מנחים</h2>
                   <div className="flex items-center gap-3 sm:gap-4">
                     {event.instructor_avatar_url ? (
                       <img
                         src={event.instructor_avatar_url}
                         alt={event.instructor_name}
-                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border-2 border-hot-pink/30"
+                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border-2 border-hot-pink/50 shadow-lg"
                       />
                     ) : (
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-hot-pink to-rose-500 flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-hot-pink to-rose-500 flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0 shadow-lg border-2 border-hot-pink/50">
                         {event.instructor_name.charAt(0)}
                       </div>
                     )}
                     <div className="min-w-0">
                       <p className="font-semibold text-white text-base sm:text-lg">{event.instructor_name}</p>
                       {event.instructor_title && (
-                        <p className="text-sm sm:text-base text-gray-300">{event.instructor_title}</p>
+                        <p className="text-sm sm:text-base text-gray-200">{event.instructor_title}</p>
                       )}
                     </div>
                   </div>
@@ -285,9 +257,9 @@ export default function LiveEventPage() {
 
               {/* Description (fallback) */}
               {!event.about_text && event.description && (
-                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">תיאור</h2>
-                  <p className="text-sm sm:text-base text-gray-100 leading-relaxed">{event.description}</p>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6 border border-white/20">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">תיאור</h2>
+                  <p className="text-base sm:text-lg text-white leading-relaxed">{event.description}</p>
                 </div>
               )}
             </div>

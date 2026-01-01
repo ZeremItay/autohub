@@ -1022,7 +1022,7 @@ export default function CourseDetailPage() {
                       className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full transition-all font-semibold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
                         completedLessons.includes(selectedLesson.id)
                           ? 'bg-white/10 text-gray-300 hover:bg-white/20'
-                          : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'
+                          : 'btn-primary'
                       }`}
                     >
                       {markingComplete ? (

@@ -115,25 +115,55 @@ export async function getRecordingById(id: string) {
     .maybeSingle()
   
   // If no data and no meaningful error, treat as not found
-  if (!data && (!error || (typeof error === 'object' && Object.keys(error).length === 0))) {
+  if (!data && (!error || (typeof error === 'object' && error !== null && Object.keys(error).length === 0))) {
     return { data: null, error: null }
   }
   
   if (error) {
+    // Check if error is empty or meaningless before processing
+    const isErrorEmpty = (err: any): boolean => {
+      if (!err) return true;
+      if (typeof err !== 'object') return false;
+      
+      // Check if it stringifies to '{}'
+      try {
+        const stringified = JSON.stringify(err);
+        if (stringified === '{}' || stringified === 'null') return true;
+      } catch {
+        // Continue with other checks
+      }
+      
+      // Check if all keys are empty or meaningless
+      const keys = Object.keys(err);
+      if (keys.length === 0) return true;
+      
+      // Check if all values are null/undefined/empty
+      const hasAnyValue = keys.some(key => {
+        const value = err[key];
+        if (value === null || value === undefined || value === '') return false;
+        if (value === '{}' || value === '[object Object]') return false;
+        if (typeof value === 'object' && Object.keys(value || {}).length === 0) return false;
+        return true;
+      });
+      
+      return !hasAnyValue;
+    };
+    
+    // If error is empty, treat as not found
+    if (isErrorEmpty(error)) {
+      return { data: null, error: null };
+    }
+    
     // Only log if it's not a "not found" error and has meaningful content
     if (!isNotFoundError(error)) {
-      // Check if error has meaningful content before logging
-      // Skip empty objects or objects with no meaningful properties
-      const errorKeys = typeof error === 'object' && error !== null ? Object.keys(error) : [];
-      const hasMeaningfulContent = 
-        (error?.message && error.message !== '{}' && error.message !== '[object Object]') ||
-        (error?.code && error.code !== '{}') ||
-        (errorKeys.length > 0 && errorKeys.some(key => {
-          const value = error[key];
-          return value !== null && value !== undefined && value !== '' && value !== '{}';
-        }));
+      // Additional check: ensure error has meaningful content
+      const errorMessage = error?.message || error?.error?.message || '';
+      const errorCode = error?.code || '';
+      const hasMessage = errorMessage && errorMessage !== '{}' && errorMessage !== '[object Object]' && errorMessage.trim() !== '';
+      const hasCode = errorCode && errorCode !== '{}' && errorCode !== '';
       
-      if (hasMeaningfulContent) {
+      // Only log if we have at least a message or code
+      if (hasMessage || hasCode) {
         logError(error, 'getRecordingById');
       }
     }

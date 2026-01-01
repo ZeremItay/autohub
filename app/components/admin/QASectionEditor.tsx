@@ -45,22 +45,22 @@ export default function QASectionEditor({ qaSection, onChange, className = '' }:
   };
 
   return (
-    <div className={`mt-6 pt-6 border-t border-gray-300 ${className}`}>
+    <div className={`mt-6 pt-6 border-t border-white/20 ${className}`}>
       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
         <HelpCircle className="w-5 h-5 text-blue-500" />
         שאלות ותשובות
       </h3>
       <div className="space-y-4">
         {(qaSection || []).map((qa, index) => (
-          <div key={index} className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div key={index} className="p-4 glass-card border border-white/20 rounded-lg">
             <div className="flex justify-between items-start mb-2">
-              <span className="text-sm font-medium text-blue-700">שאלה {index + 1}</span>
+              <span className="text-sm font-medium text-cyan-400">שאלה {index + 1}</span>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => handleMoveUp(index)}
                   disabled={index === 0}
-                  className="text-gray-500 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed p-1"
+                  className="text-gray-400 hover:text-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed p-1"
                   aria-label="הזז למעלה"
                 >
                   <ChevronUp className="w-4 h-4" />
@@ -69,7 +69,7 @@ export default function QASectionEditor({ qaSection, onChange, className = '' }:
                   type="button"
                   onClick={() => handleMoveDown(index)}
                   disabled={index >= (qaSection || []).length - 1}
-                  className="text-gray-500 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed p-1"
+                  className="text-gray-400 hover:text-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed p-1"
                   aria-label="הזז למטה"
                 >
                   <ChevronDown className="w-4 h-4" />
@@ -89,7 +89,7 @@ export default function QASectionEditor({ qaSection, onChange, className = '' }:
               placeholder="שאלה"
               value={qa.question || ''}
               onChange={(e) => handleUpdateQA(index, 'question', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
+              className="w-full px-3 py-2 border border-white/20 bg-white/5 text-white rounded-lg mb-2"
               dir="rtl"
               lang="he"
             />
@@ -107,7 +107,7 @@ export default function QASectionEditor({ qaSection, onChange, className = '' }:
         <button
           type="button"
           onClick={handleAddQA}
-          className="w-full px-4 py-2 border-2 border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+          className="w-full px-4 py-2 border-2 border-dashed border-cyan-500/50 text-cyan-400 rounded-lg hover:bg-cyan-500/10 transition-colors"
         >
           + הוסף שאלה ותשובה
         </button>

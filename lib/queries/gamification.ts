@@ -335,12 +335,9 @@ export async function awardPoints(userId: string, actionName: string, options?: 
         });
         
         if (notificationError) {
-          console.error('❌ Notification error details:', {
-            code: notificationError.code,
-            message: notificationError.message,
-            details: notificationError.details,
-            hint: notificationError.hint
-          });
+          // Use logError for proper error handling
+          const { logError } = await import('@/lib/utils/errorHandler');
+          logError(notificationError, 'awardPoints:createNotification');
           
           // Check if it's a table not found error
           if (notificationError.code === 'PGRST205' || notificationError.message?.includes('Could not find the table')) {
@@ -442,12 +439,9 @@ export async function awardPoints(userId: string, actionName: string, options?: 
         });
         
         if (notificationError) {
-          console.error('❌ Notification error details:', {
-            code: notificationError.code,
-            message: notificationError.message,
-            details: notificationError.details,
-            hint: notificationError.hint
-          });
+          // Use logError for proper error handling
+          const { logError } = await import('@/lib/utils/errorHandler');
+          logError(notificationError, 'awardPoints:createNotification');
           
           // Check if it's a table not found error
           if (notificationError.code === 'PGRST205' || notificationError.message?.includes('Could not find the table')) {

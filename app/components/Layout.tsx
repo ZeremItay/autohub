@@ -29,7 +29,10 @@ import {
   Calendar,
   Shield,
   Radio,
-  MessageCircleMore
+  MessageCircleMore,
+  Palette,
+  Sun,
+  Moon
 } from 'lucide-react';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -38,6 +41,20 @@ import { supabase } from '@/lib/supabase';
 import { getAllProfiles, updateProfile } from '@/lib/queries/profiles';
 import { clearCache } from '@/lib/cache';
 import { awardPoints } from '@/lib/queries/gamification';
+import { logError } from '@/lib/utils/errorHandler';
+import { useTheme } from '@/lib/contexts/ThemeContext';
+import {
+  getHeaderStyles,
+  getSidebarStyles,
+  getSidebarLinkStyles,
+  getNotificationStyles,
+  getTextStyles,
+  getBorderStyles,
+  getBackgroundStyles,
+  getBadgeStyles,
+  getModalStyles,
+  combineStyles
+} from '@/lib/utils/themeStyles';
 
 interface SearchResult {
   recordings: any[];
@@ -49,6 +66,7 @@ interface SearchResult {
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
+  const { theme, toggleTheme } = useTheme();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -66,6 +84,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasLiveEvent, setHasLiveEvent] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchAbortControllerRef = useRef<AbortController | null>(null);
+  const currentSearchQueryRef = useRef<string>('');
   const searchRef = useRef<HTMLDivElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
@@ -85,46 +105,130 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Search function
   const performSearch = useCallback(async (query: string) => {
-    if (!query || query.trim().length < 2) {
+    const trimmedQuery = query.trim();
+    
+    if (!trimmedQuery || trimmedQuery.length < 2) {
       setSearchResults(null);
       setShowSearchResults(false);
+      setIsSearching(false);
+      currentSearchQueryRef.current = '';
       return;
     }
 
+    // Cancel previous search if it exists
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this search
+    const abortController = new AbortController();
+    searchAbortControllerRef.current = abortController;
+    currentSearchQueryRef.current = trimmedQuery;
+
     setIsSearching(true);
+    
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-      const { data, error } = await response.json();
+      const response = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}`, {
+        signal: abortController.signal
+      });
+      
+      // Check if this search was cancelled
+      if (abortController.signal.aborted) {
+        return;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      const { data, error } = result;
+      
+      // Check again if this search was cancelled
+      if (abortController.signal.aborted || currentSearchQueryRef.current !== trimmedQuery) {
+        return;
+      }
       
       if (!error && data) {
         setSearchResults(data);
         setShowSearchResults(true);
+      } else {
+        // Even if there's an error, set empty results to show "no results" message
+        setSearchResults({
+          recordings: [],
+          forums: [],
+          forumPosts: [],
+          posts: [],
+          projects: [],
+          courses: []
+        });
+        setShowSearchResults(true);
       }
-    } catch (error) {
-      console.error('Search error:', error);
+    } catch (error: any) {
+      // Ignore abort errors
+      if (error.name === 'AbortError' || abortController.signal.aborted) {
+        return;
+      }
+      
+      // Only update state if this is still the current search
+      if (currentSearchQueryRef.current === trimmedQuery) {
+        logError(error, 'handleSearch');
+        // Set empty results on error
+        setSearchResults({
+          recordings: [],
+          forums: [],
+          forumPosts: [],
+          posts: [],
+          projects: [],
+          courses: []
+        });
+        setShowSearchResults(true);
+      }
     } finally {
-      setIsSearching(false);
+      // Only update isSearching if this is still the current search
+      if (currentSearchQueryRef.current === trimmedQuery && !abortController.signal.aborted) {
+        setIsSearching(false);
+      }
     }
   }, []);
 
   // Handle search input with debounce
   useEffect(() => {
+    // Cancel any pending search timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
     }
 
-    if (searchQuery.trim().length >= 2) {
+    const trimmedQuery = searchQuery.trim();
+
+    if (trimmedQuery.length >= 2) {
+      setIsSearching(true);
       searchTimeoutRef.current = setTimeout(() => {
-        performSearch(searchQuery);
+        // Cancel previous search before starting new one
+        if (searchAbortControllerRef.current) {
+          searchAbortControllerRef.current.abort();
+        }
+        performSearch(trimmedQuery);
+        searchTimeoutRef.current = null;
       }, 300);
     } else {
+      // Cancel any in-flight search when query is too short
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort();
+        searchAbortControllerRef.current = null;
+      }
       setSearchResults(null);
       setShowSearchResults(false);
+      setIsSearching(false);
+      currentSearchQueryRef.current = '';
     }
 
     return () => {
+      // Only cancel timeout on cleanup, not the actual search
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
       }
     };
   }, [searchQuery, performSearch]);
@@ -136,8 +240,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       setTimeout(() => {
         mobileSearchInputRef.current?.focus();
       }, 100);
+      
+      // Perform search if query exists when modal opens
+      if (searchQuery.trim().length >= 2) {
+        performSearch(searchQuery);
+      }
+      
+      // Show search results if query exists and results are available
+      if (searchQuery.trim().length >= 2 && searchResults) {
+        setShowSearchResults(true);
+      }
+    } else if (!mobileSearchOpen) {
+      // Cancel any in-flight search when modal closes
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort();
+        searchAbortControllerRef.current = null;
+      }
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+      setIsSearching(false);
+      currentSearchQueryRef.current = '';
     }
-  }, [mobileSearchOpen]);
+  }, [mobileSearchOpen, searchQuery, searchResults, performSearch]);
 
   // Load current user from Supabase session
   useEffect(() => {
@@ -251,7 +377,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               .update({ is_online: false })
               .eq('user_id', userIdToUpdate);
           } catch (error) {
-            console.error('Error updating is_online on logout:', error);
+            logError(error, 'updateIsOnlineOnLogout');
           }
         }
         
@@ -377,7 +503,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           setUnreadMessagesCount(0);
         }
       } catch (error) {
-        console.error('Error loading unread messages count:', error);
+        logError(error, 'loadUnreadMessagesCount');
         setUnreadMessagesCount(0);
       }
     }
@@ -398,7 +524,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         const { data } = await getNextLiveEvent();
         setHasLiveEvent(!!data);
       } catch (error) {
-        console.error('Error checking next live event:', error);
+        logError(error, 'checkNextLiveEvent');
         setHasLiveEvent(false);
       }
     }
@@ -512,7 +638,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       ));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      logError(error, 'markNotificationAsRead');
     }
   }
 
@@ -528,7 +654,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error('Error marking all as read:', error);
+      logError(error, 'markAllAsRead');
     }
   }
 
@@ -551,7 +677,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           return deletedNotification && !deletedNotification.is_read ? Math.max(0, prev - 1) : prev;
         });
       } else {
-        console.error('Error deleting notification:', error);
+        logError(error, 'deleteNotification');
       }
     } catch (error) {
       console.error('Error deleting notification:', error);
@@ -590,10 +716,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         }
       } else {
         alert(`שגיאה ביצירת התראה: ${result.error}`);
-        console.error('Error creating test notification:', result);
+        logError(result, 'createTestNotification');
       }
     } catch (error) {
-      console.error('Error creating test notification:', error);
+      logError(error, 'createTestNotification');
       alert('שגיאה ביצירת התראה');
     }
   }
@@ -706,9 +832,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 
   return (
-    <div className="min-h-screen relative">
+    <div className={`min-h-screen ${theme === 'light' ? 'bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20' : 'relative'}`} suppressHydrationWarning>
       {/* Top Header - Minimal (Mobile & Desktop) */}
-      <header className="sticky top-0 z-50 glass border-b border-hot-pink/30 shadow-lg backdrop-blur-xl rounded-t-none rounded-b-2xl">
+      <header 
+        className={combineStyles(
+          'sticky top-0 z-50 border-b shadow-lg backdrop-blur-xl',
+          getHeaderStyles(theme),
+          theme !== 'light' && 'rounded-t-none rounded-b-2xl'
+        )}
+        style={{ borderRadius: '0px 0px 20px 20px' }}
+        suppressHydrationWarning
+      >
         <div className={`px-2 sm:px-4 lg:px-6 xl:px-8 transition-all duration-300 ease-in-out ${
           sidebarOpen 
             ? 'lg:mr-64 mr-0' 
@@ -718,7 +852,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* Mobile Hamburger Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-white hover:text-hot-pink transition-colors"
+              className={combineStyles(
+                'lg:hidden p-2 transition-colors',
+                theme === 'light' 
+                  ? 'text-gray-700 hover:text-pink-500' 
+                  : 'text-white hover:text-hot-pink'
+              )}
               aria-label="תפריט"
             >
               <AlignJustify className="w-6 h-6" />
@@ -726,7 +865,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Club Name - Right side (RTL) */}
             <div className="hidden sm:flex items-center">
-              <h1 className="text-lg sm:text-xl font-bold text-white whitespace-nowrap">
+              <h1 className={combineStyles(
+                'text-lg sm:text-xl font-bold whitespace-nowrap',
+                getTextStyles(theme, 'heading')
+              )}>
                 מועדון האוטומטורים
               </h1>
             </div>
@@ -736,7 +878,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {/* Mobile: Search Icon Button */}
               <button
                 onClick={() => setMobileSearchOpen(true)}
-                className="lg:hidden p-2.5 text-white hover:text-hot-pink cursor-pointer transition-all rounded-full hover:bg-hot-pink/20"
+                className={combineStyles(
+                  'lg:hidden p-2.5 cursor-pointer transition-all rounded-full hover:bg-hot-pink/20',
+                  theme === 'light' 
+                    ? 'hover:text-pink-500' 
+                    : 'text-white hover:text-hot-pink'
+                )}
+                style={theme === 'light' ? { color: 'var(--color-gray-900)' } : undefined}
                 aria-label="חיפוש"
               >
                 <Search className="w-6 h-6" />
@@ -965,7 +1113,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <p className="text-sm text-gray-500">מחפש...</p>
                     </div>
                     {/* Desktop: Dropdown */}
-                    <div className="hidden lg:block absolute top-full mt-2 left-0 right-0 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 p-6 text-center">
+                    <div className="hidden lg:block absolute top-full mt-2 left-0 right-0 bg-white rounded-xl shadow-2xl border border-gray-300 z-50 p-6 text-center">
                       <p className="text-sm text-gray-500">מחפש...</p>
                     </div>
                   </>
@@ -975,17 +1123,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Mobile Search Modal */}
             {mobileSearchOpen && (
-              <div className="fixed inset-0 glass-card z-[100] flex flex-col lg:hidden">
+              <div className="fixed inset-0 glass-card z-[100] flex flex-col lg:hidden overflow-hidden h-screen mobile-search-modal">
                 {/* Header */}
-                <div className="sticky top-0 glass-card border-b border-hot-pink/30 px-4 py-3 flex items-center justify-between z-10">
-                  <h2 className="text-lg font-bold text-white">חיפוש</h2>
+                <div className="flex-shrink-0 glass-card sticky border-b border-hot-pink/30 px-4 py-3 flex items-center justify-between z-10 mobile-search-header">
+                  <h2 className={combineStyles(
+                    'text-lg font-bold',
+                    theme === 'light' ? 'text-gray-800' : 'text-white'
+                  )}>חיפוש</h2>
                   <button
                     onClick={() => {
                       setMobileSearchOpen(false);
                       setSearchQuery('');
                       setShowSearchResults(false);
                     }}
-                    className="p-2 text-foreground-muted hover:text-white hover:bg-hot-pink/20 rounded-full transition-colors"
+                    className={combineStyles(
+                      'p-2 rounded-full transition-colors',
+                      theme === 'light' 
+                        ? 'text-gray-600 hover:text-gray-800 hover:bg-pink-100' 
+                        : 'text-foreground-muted hover:text-white hover:bg-hot-pink/20'
+                    )}
                     aria-label="סגור"
                   >
                     <X className="w-5 h-5" />
@@ -993,7 +1149,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Search Input */}
-                <div className="px-4 py-3 border-b border-hot-pink/20">
+                <div className={combineStyles(
+                  'flex-shrink-0 px-4 py-3 border-b',
+                  theme === 'light' ? 'border-gray-200' : 'border-hot-pink/20'
+                )}>
                   <div className="relative">
                     <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground-muted w-5 h-5 z-10" />
                     <input
@@ -1010,12 +1169,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Search Results */}
-                <div className="flex-1 overflow-y-auto">
-                  {isSearching ? (
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  {isSearching && !searchResults ? (
                     <div className="flex items-center justify-center py-12">
                       <p className="text-sm text-gray-500">מחפש...</p>
                     </div>
-                  ) : showSearchResults && searchResults ? (
+                  ) : searchResults ? (
                     <div className="p-4">
                       {getTotalResults() === 0 ? (
                         <div className="p-8 text-center text-gray-500">
@@ -1186,7 +1345,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                             setShowSearchResults(false);
                                             setSearchQuery('');
                                           }}
-                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-300 bg-white shadow-sm active:bg-pink-100"
                                         >
                                           <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{course.title}</p>
                                           {course.description && (
@@ -1237,11 +1396,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <button 
                   ref={notificationsButtonRef}
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="relative p-2.5 text-white hover:text-hot-pink cursor-pointer transition-all rounded-full hover:bg-hot-pink/20 group"
+                  className={combineStyles(
+                    'relative p-2.5 cursor-pointer transition-all rounded-full group',
+                    theme === 'light'
+                      ? 'text-gray-600 hover:text-pink-500 hover:bg-pink-50/50'
+                      : 'text-white hover:text-hot-pink hover:bg-hot-pink/20'
+                  )}
                 >
                   <Bell className="w-6 h-6 group-hover:scale-110 transition-transform" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 left-1 w-5 h-5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-pulse-glow">
+                    <span 
+                      className={`absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold animate-pulse-glow ${
+                        theme === 'light'
+                          ? 'bg-[#F52F8E]'
+                          : 'bg-gradient-to-r from-pink-500 to-rose-500'
+                      }`}
+                      style={{ color: 'white' }}
+                    >
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -1254,22 +1425,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <div className="fixed inset-0 top-16 bg-black/50 z-[60] lg:hidden" onClick={() => setNotificationsOpen(false)}></div>
                     
                     {/* Mobile: Full Screen Modal */}
-                    <div className="fixed inset-0 top-16 glass-card z-[61] flex flex-col lg:hidden">
+                    <div className={combineStyles(
+                      'fixed inset-0 top-16 z-[61] flex flex-col lg:hidden',
+                      getNotificationStyles(theme)
+                    )}>
                       {/* Header */}
-                      <div className="p-4 border-b border-hot-pink/30 flex items-center justify-between glass-card">
-                        <h3 className="text-xl font-bold text-white">התראות</h3>
+                      <div className={combineStyles(
+                        'p-4 border-b flex items-center justify-between',
+                        theme === 'light' ? 'border-gray-300 bg-white' : 'border-hot-pink/30 glass-card'
+                      )}>
+                        <h3 className={combineStyles(
+                          'text-xl font-bold',
+                          getTextStyles(theme, 'heading')
+                        )}>התראות</h3>
                         <div className="flex items-center gap-3">
                           {unreadCount > 0 && (
                             <button
                               onClick={markAllAsRead}
-                              className="text-sm text-hot-pink hover:underline"
+                              className={`text-sm hover:underline ${
+                                theme === 'light' ? 'text-[#F52F8E]' : 'text-hot-pink'
+                              }`}
                             >
                               קראתי הכל
                             </button>
                           )}
                           <button
                             onClick={() => setNotificationsOpen(false)}
-                            className="p-2 text-foreground-muted hover:text-white"
+                            className={`p-2 rounded transition-colors ${
+                              theme === 'light'
+                                ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                : 'text-foreground-muted hover:text-white'
+                            }`}
                           >
                             <X className="w-5 h-5" />
                           </button>
@@ -1279,18 +1465,32 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       {/* Notifications List */}
                       <div className="flex-1 overflow-y-auto">
                         {notifications.length === 0 ? (
-                          <div className="p-6 text-center text-foreground-muted mt-20">
-                            <Bell className="w-16 h-16 mx-auto mb-4 text-foreground-muted" />
-                            <p className="text-lg">אין התראות חדשות</p>
+                          <div className={`p-6 text-center mt-20 ${
+                            theme === 'light' ? 'text-gray-600' : 'text-foreground-muted'
+                          }`}>
+                            <Bell className={`w-16 h-16 mx-auto mb-4 ${
+                              theme === 'light' ? 'text-gray-300' : 'text-foreground-muted'
+                            }`} />
+                            <p className={`text-lg ${
+                              theme === 'light' ? 'text-gray-600' : ''
+                            }`}>אין התראות חדשות</p>
                           </div>
                         ) : unreadCount === 0 && notifications.length > 0 && notifications.every(n => n.is_read) ? (
-                          <div className="p-6 text-center text-foreground-muted">
-                            <Bell className="w-12 h-12 mx-auto mb-2 text-foreground-muted" />
-                            <p>אין התראות חדשות</p>
-                            <p className="text-xs text-foreground-muted mt-1">כל ההתראות נקראו</p>
+                          <div className={`p-6 text-center ${
+                            theme === 'light' ? 'text-gray-600' : 'text-foreground-muted'
+                          }`}>
+                            <Bell className={`w-12 h-12 mx-auto mb-2 ${
+                              theme === 'light' ? 'text-gray-300' : 'text-foreground-muted'
+                            }`} />
+                            <p className={theme === 'light' ? 'text-gray-600' : ''}>אין התראות חדשות</p>
+                            <p className={`text-xs mt-1 ${
+                              theme === 'light' ? 'text-gray-500' : 'text-foreground-muted'
+                            }`}>כל ההתראות נקראו</p>
                           </div>
                         ) : (
-                          <div className="divide-y divide-hot-pink/20">
+                          <div className={`divide-y ${
+                            theme === 'light' ? 'divide-gray-200' : 'divide-hot-pink/20'
+                          }`}>
                             {notifications.map((notification) => {
                               const isPointsNotification = notification.title?.includes('נקודות') || notification.message?.includes('נקודות');
                               const NotificationContent = (
@@ -1298,22 +1498,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   !isPointsNotification ? 'cursor-pointer' : ''
                                 }`}>
                                   <div className={`flex-shrink-0 w-3 h-3 rounded-full mt-2 ${
-                                    !notification.is_read ? 'bg-hot-pink' : 'bg-foreground-muted'
+                                    !notification.is_read 
+                                      ? theme === 'light' ? 'bg-[#F52F8E]' : 'bg-hot-pink'
+                                      : theme === 'light' ? 'bg-gray-400' : 'bg-foreground-muted'
                                   }`}></div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-base font-semibold text-white mb-2">
+                                    <p className={combineStyles(
+                                      'text-base font-semibold mb-2',
+                                      getTextStyles(theme, 'heading')
+                                    )}>
                                       {notification.title}
                                     </p>
-                                    <p className="text-sm text-foreground-light mb-2">
+                                    <p className={`text-sm mb-2 ${
+                                      theme === 'light' ? 'text-gray-600' : 'text-foreground-light'
+                                    }`}>
                                       {notification.message}
                                     </p>
-                                    <p className="text-xs text-foreground-muted">
+                                    <p className={combineStyles(
+                                      'text-xs',
+                                      getTextStyles(theme, 'muted')
+                                    )}>
                                       {formatTimeAgo(notification.created_at)}
                                     </p>
                                   </div>
                                   <button
                                     onClick={(e) => handleDeleteNotification(notification.id, e)}
-                                    className="flex-shrink-0 p-1 text-foreground-muted hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
+                                    className={`flex-shrink-0 p-1 rounded transition-colors ${
+                                      theme === 'light'
+                                        ? 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                                        : 'text-foreground-muted hover:text-red-400 hover:bg-red-500/20'
+                                    }`}
                                     title="מחק התראה"
                                   >
                                     <X className="w-4 h-4" />
@@ -1326,7 +1540,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div
                                     key={notification.id}
                                     className={`block p-5 ${
-                                      !notification.is_read ? 'bg-pink-50/50' : ''
+                                      !notification.is_read 
+                                        ? theme === 'light' ? 'bg-pink-50' : 'bg-pink-50/50'
+                                        : ''
                                     }`}
                                   >
                                     {NotificationContent}
@@ -1344,8 +1560,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                     }
                                     setNotificationsOpen(false);
                                   }}
-                                  className={`block p-5 hover:bg-gray-50 transition-colors ${
-                                    !notification.is_read ? 'bg-pink-50/50' : ''
+                                  className={`block p-5 transition-colors ${
+                                    !notification.is_read 
+                                      ? theme === 'light' ? 'bg-pink-50' : 'bg-pink-50/50'
+                                      : ''
+                                  } ${
+                                    theme === 'light' ? 'hover:bg-gray-50' : 'hover:bg-gray-50'
                                   }`}
                                 >
                                   {NotificationContent}
@@ -1360,16 +1580,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     {/* Desktop: Dropdown */}
                     <div 
                       ref={notificationsMenuRef}
-                      className="hidden lg:block fixed w-96 glass-card rounded-2xl shadow-2xl z-[60] max-h-[600px] overflow-hidden flex flex-col"
+                      className={combineStyles(
+                        'hidden lg:block fixed w-96 rounded-2xl shadow-2xl z-[60] max-h-[600px] overflow-hidden flex flex-col',
+                        getNotificationStyles(theme)
+                      )}
                       style={notificationsDropdownStyle}
                     >
                       {/* Header */}
-                      <div className="p-4 border-b border-hot-pink/30 flex items-center justify-between">
-                        <h3 className="text-lg font-bold text-white">התראות</h3>
+                      <div className={`p-4 border-b flex items-center justify-between ${
+                        theme === 'light'
+                          ? 'border-gray-300'
+                          : 'border-hot-pink/30'
+                      }`}>
+                        <h3 className={combineStyles(
+                          'text-lg font-bold',
+                          getTextStyles(theme, 'heading')
+                        )}>התראות</h3>
                         {unreadCount > 0 && (
                           <button
                             onClick={markAllAsRead}
-                            className="text-sm text-hot-pink hover:underline"
+                            className={`text-sm hover:underline ${
+                              theme === 'light' ? 'text-[#F52F8E]' : 'text-hot-pink'
+                            }`}
                           >
                             קראתי הכל
                           </button>
@@ -1379,18 +1611,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       {/* Notifications List */}
                       <div className="flex-1 overflow-y-auto">
                         {notifications.length === 0 ? (
-                          <div className="p-6 text-center text-foreground-muted">
-                            <Bell className="w-12 h-12 mx-auto mb-2 text-foreground-muted" />
-                            <p>אין התראות חדשות</p>
+                          <div className={`p-6 text-center ${
+                            theme === 'light' ? 'text-gray-600' : 'text-foreground-muted'
+                          }`}>
+                            <Bell className={`w-12 h-12 mx-auto mb-2 ${
+                              theme === 'light' ? 'text-gray-300' : 'text-foreground-muted'
+                            }`} />
+                            <p className={theme === 'light' ? 'text-gray-600' : ''}>אין התראות חדשות</p>
                           </div>
                         ) : unreadCount === 0 && notifications.length > 0 && notifications.every(n => n.is_read) ? (
-                          <div className="p-6 text-center text-foreground-muted">
-                            <Bell className="w-12 h-12 mx-auto mb-2 text-foreground-muted" />
-                            <p>אין התראות חדשות</p>
-                            <p className="text-xs text-foreground-muted mt-1">כל ההתראות נקראו</p>
+                          <div className={`p-6 text-center ${
+                            theme === 'light' ? 'text-gray-600' : 'text-foreground-muted'
+                          }`}>
+                            <Bell className={`w-12 h-12 mx-auto mb-2 ${
+                              theme === 'light' ? 'text-gray-300' : 'text-foreground-muted'
+                            }`} />
+                            <p className={theme === 'light' ? 'text-gray-600' : ''}>אין התראות חדשות</p>
+                            <p className={`text-xs mt-1 ${
+                              theme === 'light' ? 'text-gray-500' : 'text-foreground-muted'
+                            }`}>כל ההתראות נקראו</p>
                           </div>
                         ) : (
-                          <div className="divide-y divide-hot-pink/20">
+                          <div className={`divide-y ${
+                            theme === 'light' ? 'divide-gray-200' : 'divide-hot-pink/20'
+                          }`}>
                             {notifications.map((notification) => {
                               const isPointsNotification = notification.title?.includes('נקודות') || notification.message?.includes('נקודות');
                               const NotificationContent = (
@@ -1398,22 +1642,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   !isPointsNotification ? 'cursor-pointer' : ''
                                 }`}>
                                   <div className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
-                                    !notification.is_read ? 'bg-hot-pink' : 'bg-foreground-muted'
+                                    !notification.is_read 
+                                      ? theme === 'light' ? 'bg-[#F52F8E]' : 'bg-hot-pink'
+                                      : theme === 'light' ? 'bg-gray-400' : 'bg-foreground-muted'
                                   }`}></div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-white mb-1">
+                                    <p className={`text-sm font-semibold mb-1 ${
+                                      theme === 'light' ? 'text-gray-800' : 'text-white'
+                                    }`}>
                                       {notification.title}
                                     </p>
-                                    <p className="text-sm text-foreground-light mb-2">
+                                    <p className={`text-sm mb-2 ${
+                                      theme === 'light' ? 'text-gray-600' : 'text-foreground-light'
+                                    }`}>
                                       {notification.message}
                                     </p>
-                                    <p className="text-xs text-foreground-muted">
+                                    <p className={combineStyles(
+                                      'text-xs',
+                                      getTextStyles(theme, 'muted')
+                                    )}>
                                       {formatTimeAgo(notification.created_at)}
                                     </p>
                                   </div>
                                   <button
                                     onClick={(e) => handleDeleteNotification(notification.id, e)}
-                                    className="flex-shrink-0 p-1 text-foreground-muted hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
+                                    className={`flex-shrink-0 p-1 rounded transition-colors ${
+                                      theme === 'light'
+                                        ? 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                                        : 'text-foreground-muted hover:text-red-400 hover:bg-red-500/20'
+                                    }`}
                                     title="מחק התראה"
                                   >
                                     <X className="w-4 h-4" />
@@ -1426,7 +1683,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div
                                     key={notification.id}
                                     className={`block p-4 ${
-                                      !notification.is_read ? 'bg-hot-pink/20' : ''
+                                      !notification.is_read 
+                                        ? theme === 'light' ? 'bg-pink-50' : 'bg-hot-pink/20'
+                                        : ''
                                     }`}
                                   >
                                     {NotificationContent}
@@ -1444,8 +1703,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                     }
                                     setNotificationsOpen(false);
                                   }}
-                                  className={`block p-4 hover:bg-hot-pink/20 transition-colors ${
-                                    !notification.is_read ? 'bg-hot-pink/20' : ''
+                                  className={`block p-4 transition-colors ${
+                                    !notification.is_read 
+                                      ? theme === 'light' ? 'bg-pink-50' : 'bg-hot-pink/20'
+                                      : ''
+                                  } ${
+                                    theme === 'light' ? 'hover:bg-gray-50' : 'hover:bg-hot-pink/20'
                                   }`}
                                 >
                                   {NotificationContent}
@@ -1461,10 +1724,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </div>
 
               {/* Private Messages */}
-              <Link href="/messages" className="relative p-2.5 text-white hover:text-hot-pink cursor-pointer transition-all rounded-full hover:bg-hot-pink/20 group">
+              <Link href="/messages" className={`relative p-2.5 cursor-pointer transition-all rounded-lg group ${
+                theme === 'light'
+                  ? 'text-gray-600 hover:text-pink-500 hover:bg-pink-50/50'
+                  : 'text-white hover:text-hot-pink hover:bg-hot-pink/20'
+              }`}>
                 <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
                 {unreadMessagesCount > 0 && (
-                  <span className="absolute top-1 left-1 w-2.5 h-2.5 bg-gradient-to-r from-hot-pink to-rose-500 rounded-full animate-pulse-glow"></span>
+                  <span className={`absolute top-1 left-1 w-2.5 h-2.5 rounded-full animate-pulse-glow ${
+                    theme === 'light'
+                      ? 'bg-[#F52F8E]'
+                      : 'bg-gradient-to-r from-hot-pink to-rose-500'
+                  }`}></span>
                 )}
               </Link>
 
@@ -1477,7 +1748,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     className="flex items-center gap-2 cursor-pointer hover:opacity-80"
                   >
                     <div 
-                      className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 via-rose-400 to-amber-300 flex items-center justify-center text-white font-semibold shadow-lg shadow-pink-500/30 ring-2 ring-white/50"
+                      className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold shadow-lg ring-2 ring-white/50 ${
+                        theme === 'light'
+                          ? 'bg-[#F52F8E] shadow-pink-500/30'
+                          : 'bg-gradient-to-br from-pink-500 via-rose-400 to-amber-300 shadow-pink-500/30'
+                      }`}
                     >
                       {avatarUrl ? (
                         <img 
@@ -1490,9 +1765,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <span>{currentUser?.display_name?.charAt(0) || currentUser?.first_name?.charAt(0) || 'א'}</span>
                       )}
                     </div>
-                    <span className="text-sm font-medium text-white">{currentUser?.display_name || currentUser?.first_name || 'משתמש'}</span>
-                    <span className="text-sm text-foreground-muted">{currentUser?.points || 0}</span>
-                    <ChevronDown className={`w-4 h-4 text-foreground-muted transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                    <span className={`text-sm font-medium ${
+                      theme === 'light' ? 'text-gray-800' : 'text-white'
+                    }`}>{currentUser?.display_name || currentUser?.first_name || 'משתמש'}</span>
+                    <span className={`text-sm ${
+                      theme === 'light' ? 'text-gray-600' : 'text-foreground-muted'
+                    }`}>{currentUser?.points || 0}</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${profileMenuOpen ? 'rotate-180' : ''} ${
+                      theme === 'light' ? 'text-gray-600' : 'text-foreground-muted'
+                    }`} />
                   </button>
 
                   {/* Profile Dropdown Menu */}
@@ -1502,16 +1783,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       className="fixed inset-0 z-[100]" 
                       onClick={closeProfileMenu}
                     />
-                    <div 
+                      <div 
                       ref={profileMenuRef}
-                      className="fixed glass-card rounded-2xl shadow-2xl border border-hot-pink/30 z-[102] overflow-hidden animate-fade-in"
+                      className={combineStyles(
+                        'fixed rounded-2xl shadow-2xl z-[102] overflow-hidden animate-fade-in',
+                        getModalStyles(theme)
+                      )}
                       style={profileMenuStyle}
                     >
                       {/* User Info Header */}
-                      <div className="p-4 border-b border-hot-pink/30 bg-gradient-to-r from-hot-pink/20 to-rose-500/20">
+                      <div className={`p-4 border-b ${
+                        theme === 'light'
+                          ? 'border-white/20 bg-gradient-to-r from-pink-50/50 to-rose-50/50'
+                          : 'border-hot-pink/30 bg-gradient-to-r from-hot-pink/20 to-rose-500/20'
+                      }`}>
                         <div className="flex items-center gap-4">
                           <div 
-                            className="w-16 h-16 rounded-full bg-gradient-to-br from-hot-pink via-rose-400 to-amber-300 flex items-center justify-center text-white font-semibold text-xl flex-shrink-0 shadow-lg shadow-hot-pink/30 ring-2 ring-white/50"
+                            className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-semibold text-xl flex-shrink-0 shadow-lg ring-2 ring-white/50 ${
+                              theme === 'light'
+                                ? 'bg-gradient-to-br from-pink-500 via-rose-400 to-amber-300 shadow-pink-500/30'
+                                : 'bg-gradient-to-br from-hot-pink via-rose-400 to-amber-300 shadow-hot-pink/30'
+                            }`}
                           >
                             {avatarUrl ? (
                               <img 
@@ -1524,8 +1816,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             )}
                           </div>
                           <div className="flex-1">
-                            <h3 className="font-bold text-white">{currentUser?.display_name || currentUser?.first_name || 'משתמש'}</h3>
-                            <p className="text-sm gradient-text font-medium">{currentUser?.email?.split('@')[0] || 'zeremitay'}@</p>
+                            <h3 className={combineStyles(
+                              'font-bold',
+                              getTextStyles(theme, 'heading')
+                            )}>{currentUser?.display_name || currentUser?.first_name || 'משתמש'}</h3>
+                            <p className={`text-sm font-medium ${
+                              theme === 'light' ? 'gradient-text' : 'gradient-text'
+                            }`}>{currentUser?.email?.split('@')[0] || 'zeremitay'}@</p>
                           </div>
                         </div>
                       </div>
@@ -1534,52 +1831,88 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <div className="py-2">
                         <Link
                           href="/profile"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink transition-all rounded-lg group"
+                          className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-all rounded-lg group ${
+                            theme === 'light'
+                              ? 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600'
+                              : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink'
+                          }`}
                           onClick={closeProfileMenu}
                         >
-                          <User className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                          <User className={`w-5 h-5 group-hover:scale-110 transition-transform ${
+                            theme === 'light' ? 'text-pink-500' : 'text-hot-pink'
+                          }`} />
                           <span className="font-medium">פרופיל</span>
                         </Link>
                         <Link
                           href="/account"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink transition-all rounded-lg group"
+                          className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-all rounded-lg group ${
+                            theme === 'light'
+                              ? 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600'
+                              : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink'
+                          }`}
                           onClick={closeProfileMenu}
                         >
-                          <UserCircle className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                          <UserCircle className={`w-5 h-5 group-hover:scale-110 transition-transform ${
+                            theme === 'light' ? 'text-pink-500' : 'text-hot-pink'
+                          }`} />
                           <span className="font-medium">חשבון</span>
                         </Link>
                         <Link
                           href="/timeline"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink transition-all rounded-lg group"
+                          className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-all rounded-lg group ${
+                            theme === 'light'
+                              ? 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600'
+                              : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink'
+                          }`}
                           onClick={closeProfileMenu}
                         >
-                          <Activity className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                          <Activity className={`w-5 h-5 group-hover:scale-110 transition-transform ${
+                            theme === 'light' ? 'text-pink-500' : 'text-hot-pink'
+                          }`} />
                           <span className="font-medium">ציר זמן</span>
                         </Link>
                         <Link
                           href="/messages"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink transition-all rounded-lg group"
+                          className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-all rounded-lg group ${
+                            theme === 'light'
+                              ? 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600'
+                              : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink'
+                          }`}
                           onClick={closeProfileMenu}
                         >
-                          <MessageSquare className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                          <MessageSquare className={`w-5 h-5 group-hover:scale-110 transition-transform ${
+                            theme === 'light' ? 'text-pink-500' : 'text-hot-pink'
+                          }`} />
                           <span className="font-medium">הודעות</span>
                         </Link>
                         <Link
                           href="/subscription"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink transition-all rounded-lg group"
+                          className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-all rounded-lg group ${
+                            theme === 'light'
+                              ? 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600'
+                              : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink'
+                          }`}
                           onClick={closeProfileMenu}
                         >
-                          <CreditCard className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                          <CreditCard className={`w-5 h-5 group-hover:scale-110 transition-transform ${
+                            theme === 'light' ? 'text-pink-500' : 'text-hot-pink'
+                          }`} />
                           <span className="font-medium">מנוי</span>
                         </Link>
                       </div>
 
                       {/* Divider */}
-                      <div className="border-t border-hot-pink/30"></div>
+                      <div className={`border-t ${
+                        theme === 'light' ? 'border-gray-300' : 'border-hot-pink/30'
+                      }`}></div>
 
                       {/* Logout */}
                       <button
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink w-full text-right transition-all rounded-lg group cursor-pointer"
+                        className={`flex items-center gap-3 px-4 py-2.5 text-sm w-full text-right transition-all rounded-lg group cursor-pointer ${
+                          theme === 'light'
+                            ? 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600'
+                            : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink'
+                        }`}
                         onClick={async () => {
                           try {
                             // Update is_online to false before signing out
@@ -1590,7 +1923,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   .update({ is_online: false })
                                   .eq('user_id', currentUserId);
                               } catch (error) {
-                                console.error('Error updating is_online on logout:', error);
+                                logError(error, 'updateIsOnlineOnLogout');
                               }
                             }
 
@@ -1598,7 +1931,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             const { error } = await supabase.auth.signOut();
                             
                             if (error) {
-                              console.error('Error signing out:', error);
+                              logError(error, 'signOut');
                               alert('שגיאה בהתנתקות: ' + error.message);
                               return;
                             }
@@ -1623,12 +1956,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             // Redirect to login page
                             window.location.href = '/auth/login';
                           } catch (err: any) {
-                            console.error('Logout error:', err);
+                            logError(err, 'handleLogout');
                             alert('שגיאה בהתנתקות');
                           }
                         }}
                       >
-                        <ArrowRight className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                        <ArrowRight className={`w-5 h-5 group-hover:scale-110 transition-transform ${
+                          theme === 'light' ? 'text-pink-500' : 'text-hot-pink'
+                        }`} />
                         <span className="font-medium">התנתקות</span>
                       </button>
                     </div>
@@ -1638,9 +1973,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               ) : (
                 <Link
                   href="/auth/login"
-                  className="flex items-center gap-2 px-4 py-2 bg-hot-pink text-white rounded-full hover:bg-hot-pink-dark transition-colors"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    theme === 'light'
+                      ? 'bg-[#F52F8E] hover:bg-[#E01E7A]'
+                      : 'bg-hot-pink rounded-full hover:bg-hot-pink-dark'
+                  }`}
+                  style={{ color: 'white' }}
                 >
-                  <span className="text-sm font-medium">התחבר</span>
+                  <span className="text-sm font-medium" style={{ color: 'white' }}>התחבר</span>
                 </Link>
               )}
             </div>
@@ -1651,11 +1991,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Left Sidebar - Navigation (Fixed) - Desktop Only */}
       <aside 
-        className={`hidden lg:block fixed right-0 top-0 h-full glass-dark z-40 shadow-2xl border-l border-white/20 backdrop-blur-xl transition-all duration-300 ease-in-out ${
-          sidebarOpen 
-            ? 'w-64' 
-            : 'w-16'
-        }`}
+        className={combineStyles(
+          'hidden lg:block fixed right-0 top-0 h-full z-40 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-in-out rounded-none',
+          getSidebarStyles(theme),
+          sidebarOpen ? 'w-64' : 'w-16'
+        )}
+        suppressHydrationWarning
       >
         {/* Toggle Button - Fixed Position on Left Edge */}
         <button
@@ -1668,22 +2009,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             e.preventDefault();
             e.stopPropagation();
           }}
-          className="absolute left-0 top-1/2 -translate-x-1/2 translate-y-[-50%] z-[100] p-3 bg-gradient-to-r from-hot-pink to-rose-500 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer border-2 border-white"
+          className={`absolute left-0 top-1/2 -translate-x-1/2 translate-y-[-50%] z-[100] p-3 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer border-2 ${
+            theme === 'light'
+              ? 'bg-[#F52F8E] border-white'
+              : 'bg-gradient-to-r from-hot-pink to-rose-500 border-white'
+          }`}
           title={sidebarOpen ? 'הסתר תפריט' : 'הצג תפריט'}
           type="button"
           aria-label={sidebarOpen ? 'הסתר תפריט' : 'הצג תפריט'}
         >
           {sidebarOpen ? (
-            <ChevronRight className="w-5 h-5 pointer-events-none" />
+            <ChevronRight className="w-5 h-5 pointer-events-none text-white" />
           ) : (
-            <ChevronLeft className="w-5 h-5 pointer-events-none" />
+            <ChevronLeft className="w-5 h-5 pointer-events-none text-white" />
           )}
         </button>
 
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col" suppressHydrationWarning>
           {/* Header */}
-          <div className={`p-3 border-b border-white/20 bg-gradient-to-r from-hot-pink/10 to-rose-500/10 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'} relative min-h-[60px]`}>
-            {sidebarOpen && <h2 className="text-lg font-bold text-white">תפריט</h2>}
+          <div className={`p-3 border-b ${
+            theme === 'light' ? 'border-gray-300 bg-white' : 'border-white/20 bg-gradient-to-r from-hot-pink/10 to-rose-500/10'
+          } flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'} relative min-h-[60px]`} suppressHydrationWarning>
+            {sidebarOpen && <h2 className={`text-lg font-bold ${
+              theme === 'light' ? 'text-gray-800' : 'text-white'
+            }`}>תפריט</h2>}
           </div>
 
           {/* Navigation Items */}
@@ -1691,117 +2040,191 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex-1 p-4 space-y-2 overflow-y-auto">
             <Link
               href="/"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                activeNav === 'home' 
-                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-              }`}
+              className={combineStyles(
+                getSidebarLinkStyles(theme, activeNav === 'home'),
+                activeNav === 'home' && 'scale-105'
+              )}
+              style={activeNav === 'home' ? { color: 'white' } : undefined}
             >
-              <HomeIcon className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">בית</span>
+              <HomeIcon 
+                className={`w-5 h-5 flex-shrink-0 ${
+                  activeNav === 'home' ? '' : theme === 'light' ? 'text-gray-800' : 'text-white'
+                }`}
+                style={activeNav === 'home' ? { color: 'white' } : undefined}
+              />
+              <span 
+                className={`font-medium ${
+                  activeNav === 'home' ? '' : theme === 'light' ? 'text-gray-800' : 'text-white'
+                }`}
+                style={activeNav === 'home' ? { color: 'white' } : undefined}
+              >בית</span>
             </Link>
             <Link
               href="/members"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                activeNav === 'members' 
-                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-              }`}
+              className={combineStyles(
+                'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all',
+                getSidebarLinkStyles(theme, activeNav === 'members'),
+                activeNav === 'members' && 'scale-105'
+              )}
             >
-              <Users className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">חברים</span>
+              <Users className={`w-5 h-5 flex-shrink-0 ${
+                activeNav === 'members' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`} />
+              <span className={`font-medium ${
+                activeNav === 'members' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>חברים</span>
             </Link>
             <Link
               href="/forums"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                activeNav === 'forums' 
-                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-              }`}
+              className={combineStyles(
+                'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all',
+                getSidebarLinkStyles(theme, activeNav === 'forums'),
+                activeNav === 'forums' && 'scale-105'
+              )}
             >
-              <MessageSquare className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">פורומים</span>
+              <MessageSquare className={`w-5 h-5 flex-shrink-0 ${
+                activeNav === 'forums' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`} />
+              <span className={`font-medium ${
+                activeNav === 'forums' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>פורומים</span>
             </Link>
             <Link
               href="/recordings"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'recordings' 
-                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+                  ? theme === 'light'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105'
+                    : 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105'
+                  : theme === 'light'
+                    ? 'text-gray-800 hover:bg-pink-50 hover:text-[#F52F8E] hover:scale-[1.02]'
+                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
-              <Video className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">הקלטות</span>
+              <Video className={`w-5 h-5 flex-shrink-0 ${
+                activeNav === 'recordings' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`} />
+              <span className={`font-medium ${
+                activeNav === 'recordings' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>הקלטות</span>
             </Link>
             <Link
               href="/projects"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'projects' 
-                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+                  ? theme === 'light'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105'
+                    : 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105'
+                  : theme === 'light'
+                    ? 'text-gray-800 hover:bg-pink-50 hover:text-[#F52F8E] hover:scale-[1.02]'
+                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
-              <Briefcase className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">פרויקטים</span>
+              <Briefcase className={`w-5 h-5 flex-shrink-0 ${
+                activeNav === 'projects' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`} />
+              <span className={`font-medium ${
+                activeNav === 'projects' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>פרויקטים</span>
             </Link>
             <Link
               href="/courses"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'courses' 
-                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+                  ? theme === 'light'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105'
+                    : 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105'
+                  : theme === 'light'
+                    ? 'text-gray-800 hover:bg-pink-50 hover:text-[#F52F8E] hover:scale-[1.02]'
+                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
-              <PlayCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">קורסים</span>
+              <PlayCircle className={`w-5 h-5 flex-shrink-0 ${
+                activeNav === 'courses' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`} />
+              <span className={`font-medium ${
+                activeNav === 'courses' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>קורסים</span>
             </Link>
             <Link
               href="/live-log"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'live-log' 
-                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+                  ? theme === 'light'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105'
+                    : 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105'
+                  : theme === 'light'
+                    ? 'text-gray-800 hover:bg-pink-50 hover:text-[#F52F8E] hover:scale-[1.02]'
+                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
-              <Calendar className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">יומן לייבים</span>
+              <Calendar className={`w-5 h-5 flex-shrink-0 ${
+                activeNav === 'live-log' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`} />
+              <span className={`font-medium ${
+                activeNav === 'live-log' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>יומן לייבים</span>
             </Link>
             {/* Live Room - Dynamic Menu Item (only shows when there's a live event within 1 hour) */}
             {hasLiveEvent && (
               <Link
                 href="/live-room"
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
                   pathname === '/live-room'
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30' 
-                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+                    ? theme === 'light'
+                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105'
+                      : 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105'
+                    : theme === 'light'
+                      ? 'text-gray-800 hover:bg-pink-50 hover:text-[#F52F8E] hover:scale-[1.02]'
+                      : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
-                <Radio className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">חדר לייב</span>
+                <Radio className={`w-5 h-5 flex-shrink-0 ${
+                  pathname === '/live-room' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+                }`} />
+                <span className={`font-medium ${
+                  pathname === '/live-room' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+                }`}>חדר לייב</span>
                 <span className="ml-auto w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
               </Link>
             )}
             <Link
               href="/blog"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'blog' 
-                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+                  ? theme === 'light'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105'
+                    : 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105'
+                  : theme === 'light'
+                    ? 'text-gray-800 hover:bg-pink-50 hover:text-[#F52F8E] hover:scale-[1.02]'
+                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
-              <BookOpen className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">בלוג</span>
+              <BookOpen className={`w-5 h-5 flex-shrink-0 ${
+                activeNav === 'blog' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`} />
+              <span className={`font-medium ${
+                activeNav === 'blog' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>בלוג</span>
             </Link>
             <Link
               href="/feedback"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'feedback' 
-                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+                  ? theme === 'light'
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105'
+                    : 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105'
+                  : theme === 'light'
+                    ? 'text-gray-800 hover:bg-pink-50 hover:text-[#F52F8E] hover:scale-[1.02]'
+                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
-              <MessageCircleMore className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">פידבקים</span>
+              <MessageCircleMore className={`w-5 h-5 flex-shrink-0 ${
+                activeNav === 'feedback' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`} />
+              <span className={`font-medium ${
+                activeNav === 'feedback' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>פידבקים</span>
             </Link>
             {/* Admin Panel Link - Only for admins */}
             {currentUser && (() => {
@@ -1811,16 +2234,50 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             })() && (
               <Link
                 href="/admin"
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   activeNav === 'admin' 
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+                    ? theme === 'light'
+                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105'
+                      : 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105'
+                    : theme === 'light'
+                      ? 'text-gray-800 hover:bg-pink-50 hover:text-[#F52F8E] hover:scale-[1.02]'
+                      : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
-                <Shield className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">פאנל ניהול</span>
+                <Shield className={`w-5 h-5 flex-shrink-0 ${
+                  activeNav === 'admin' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+                }`} />
+                <span className={`font-medium ${
+                  activeNav === 'admin' ? 'text-white' : theme === 'light' ? 'text-gray-800' : 'text-white'
+                }`}>פאנל ניהול</span>
               </Link>
             )}
+
+            {/* Theme Toggle Button - Bottom of Sidebar */}
+            <div className={`p-4 border-t ${
+              theme === 'light' ? 'border-gray-300' : 'border-white/20'
+            }`} suppressHydrationWarning>
+              <button
+                onClick={toggleTheme}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  theme === 'light'
+                    ? 'text-gray-700 hover:bg-gray-50'
+                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink'
+                }`}
+                suppressHydrationWarning
+              >
+                {theme === 'light' ? (
+                  <Moon className={`w-5 h-5 flex-shrink-0 ${
+                    theme === 'light' ? 'text-gray-800' : 'text-hot-pink'
+                  }`} suppressHydrationWarning />
+                ) : (
+                  <Sun className={`w-5 h-5 flex-shrink-0 ${
+                    theme === 'light' ? 'text-[#F52F8E]' : 'text-hot-pink'
+                  }`} suppressHydrationWarning />
+                )}
+                <span className="font-medium">{theme === 'light' ? 'עיצוב כהה' : 'עיצוב בהיר'}</span>
+              </button>
+            </div>
           </div>
           )}
         </div>
@@ -1833,143 +2290,284 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           onClick={() => setMobileMenuOpen(false)}
         >
           <div 
-            className="fixed right-0 top-0 h-full w-80 glass-dark shadow-2xl overflow-y-auto"
+            className={`fixed right-0 top-0 h-full w-80 shadow-2xl overflow-y-auto rounded-none ${
+              theme === 'light'
+                ? 'bg-white border-l border-gray-300'
+                : 'glass-dark'
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-white/20 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">תפריט</h2>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 text-gray-300 hover:text-hot-pink transition-colors"
-                aria-label="סגור תפריט"
-              >
-                <X className="w-6 h-6" />
-              </button>
+            <div className={`p-4 border-b flex items-center justify-between ${
+              theme === 'light'
+                ? 'border-gray-300'
+                : 'border-white/20'
+            }`}>
+              <h2 className={`text-lg font-bold ${
+                theme === 'light' ? 'text-gray-800' : 'text-white'
+              }`}>תפריט</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleTheme}
+                  className={`p-2 transition-colors ${
+                    theme === 'light'
+                      ? 'text-gray-600 hover:text-[#F52F8E] hover:bg-pink-50'
+                      : 'text-gray-300 hover:text-hot-pink'
+                  }`}
+                  aria-label={theme === 'neon' ? 'עבור לעיצוב לבן' : 'עבור לעיצוב ניאון'}
+                >
+                  {theme === 'neon' ? (
+                    <Sun className="w-6 h-6" />
+                  ) : (
+                    <Moon className="w-6 h-6" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`p-2 transition-colors ${
+                    theme === 'light'
+                      ? 'text-gray-600 hover:text-[#F52F8E] hover:bg-pink-50'
+                      : 'text-gray-300 hover:text-hot-pink'
+                  }`}
+                  aria-label="סגור תפריט"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
             <div className="p-4 space-y-2">
               <Link
                 href="/"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                  activeNav === 'home' 
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-                }`}
+                className={combineStyles(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all',
+                  getSidebarLinkStyles(theme, activeNav === 'home'),
+                  activeNav === 'home' && 'scale-105'
+                )}
+                style={activeNav === 'home' ? { color: 'white' } : undefined}
               >
-                <HomeIcon className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">בית</span>
+                <HomeIcon 
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    activeNav === 'home' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'home' ? { color: 'white' } : undefined}
+                />
+                <span 
+                  className={`font-medium ${
+                    activeNav === 'home' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'home' ? { color: 'white' } : undefined}
+                >בית</span>
               </Link>
               <Link
                 href="/members"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                  activeNav === 'members' 
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-                }`}
+                className={combineStyles(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all',
+                  getSidebarLinkStyles(theme, activeNav === 'members'),
+                  activeNav === 'members' && 'scale-105'
+                )}
+                style={activeNav === 'members' ? { color: 'white' } : undefined}
               >
-                <Users className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">חברים</span>
+                <Users 
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    activeNav === 'members' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'members' ? { color: 'white' } : undefined}
+                />
+                <span 
+                  className={`font-medium ${
+                    activeNav === 'members' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'members' ? { color: 'white' } : undefined}
+                >חברים</span>
               </Link>
               <Link
                 href="/forums"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                  activeNav === 'forums' 
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-                }`}
+                className={combineStyles(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all',
+                  getSidebarLinkStyles(theme, activeNav === 'forums'),
+                  activeNav === 'forums' && 'scale-105'
+                )}
+                style={activeNav === 'forums' ? { color: 'white' } : undefined}
               >
-                <MessageSquare className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">פורומים</span>
+                <MessageSquare 
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    activeNav === 'forums' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'forums' ? { color: 'white' } : undefined}
+                />
+                <span 
+                  className={`font-medium ${
+                    activeNav === 'forums' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'forums' ? { color: 'white' } : undefined}
+                >פורומים</span>
               </Link>
               <Link
                 href="/recordings"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                  activeNav === 'recordings' 
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-                }`}
+                className={combineStyles(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all',
+                  getSidebarLinkStyles(theme, activeNav === 'recordings'),
+                  activeNav === 'recordings' && 'scale-105'
+                )}
+                style={activeNav === 'recordings' ? { color: 'white' } : undefined}
               >
-                <Video className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">הקלטות</span>
+                <Video 
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    activeNav === 'recordings' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'recordings' ? { color: 'white' } : undefined}
+                />
+                <span 
+                  className={`font-medium ${
+                    activeNav === 'recordings' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'recordings' ? { color: 'white' } : undefined}
+                >הקלטות</span>
               </Link>
               <Link
                 href="/projects"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                  activeNav === 'projects' 
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-                }`}
+                className={combineStyles(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all',
+                  getSidebarLinkStyles(theme, activeNav === 'projects'),
+                  activeNav === 'projects' && 'scale-105'
+                )}
+                style={activeNav === 'projects' ? { color: 'white' } : undefined}
               >
-                <Briefcase className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">פרויקטים</span>
+                <Briefcase 
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    activeNav === 'projects' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'projects' ? { color: 'white' } : undefined}
+                />
+                <span 
+                  className={`font-medium ${
+                    activeNav === 'projects' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'projects' ? { color: 'white' } : undefined}
+                >פרויקטים</span>
               </Link>
               <Link
                 href="/courses"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                  activeNav === 'courses' 
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-                }`}
+                className={combineStyles(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all',
+                  getSidebarLinkStyles(theme, activeNav === 'courses'),
+                  activeNav === 'courses' && 'scale-105'
+                )}
+                style={activeNav === 'courses' ? { color: 'white' } : undefined}
               >
-                <PlayCircle className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">קורסים</span>
+                <PlayCircle 
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    activeNav === 'courses' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'courses' ? { color: 'white' } : undefined}
+                />
+                <span 
+                  className={`font-medium ${
+                    activeNav === 'courses' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'courses' ? { color: 'white' } : undefined}
+                >קורסים</span>
               </Link>
               <Link
                 href="/live-log"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                  activeNav === 'live-log' 
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-                }`}
+                className={combineStyles(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all',
+                  getSidebarLinkStyles(theme, activeNav === 'live-log'),
+                  activeNav === 'live-log' && 'scale-105'
+                )}
+                style={activeNav === 'live-log' ? { color: 'white' } : undefined}
               >
-                <Calendar className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">יומן לייבים</span>
+                <Calendar 
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    activeNav === 'live-log' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'live-log' ? { color: 'white' } : undefined}
+                />
+                <span 
+                  className={`font-medium ${
+                    activeNav === 'live-log' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'live-log' ? { color: 'white' } : undefined}
+                >יומן לייבים</span>
               </Link>
               {/* Live Room - Dynamic Menu Item (only shows when there's a live event within 1 hour) */}
               {hasLiveEvent && (
                 <Link
                   href="/live-room"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                    pathname === '/live-room'
-                      ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                      : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-                  }`}
+                  className={combineStyles(
+                    'w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all',
+                    getSidebarLinkStyles(theme, pathname === '/live-room'),
+                    pathname === '/live-room' && 'scale-105'
+                  )}
+                  style={pathname === '/live-room' ? { color: 'white' } : undefined}
                 >
-                  <Radio className="w-5 h-5 flex-shrink-0" />
-                  <span className="font-medium">חדר לייב</span>
+                  <Radio 
+                    className={`w-5 h-5 flex-shrink-0 ${
+                      pathname === '/live-room' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                    }`}
+                    style={pathname === '/live-room' ? { color: 'white' } : undefined}
+                  />
+                  <span 
+                    className={`font-medium ${
+                      pathname === '/live-room' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                    }`}
+                    style={pathname === '/live-room' ? { color: 'white' } : undefined}
+                  >חדר לייב</span>
                   <span className="ml-auto w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                 </Link>
               )}
               <Link
                 href="/blog"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                  activeNav === 'blog' 
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-                }`}
+                className={combineStyles(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all',
+                  getSidebarLinkStyles(theme, activeNav === 'blog'),
+                  activeNav === 'blog' && 'scale-105'
+                )}
+                style={activeNav === 'blog' ? { color: 'white' } : undefined}
               >
-                <BookOpen className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">בלוג</span>
+                <BookOpen 
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    activeNav === 'blog' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'blog' ? { color: 'white' } : undefined}
+                />
+                <span 
+                  className={`font-medium ${
+                    activeNav === 'blog' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'blog' ? { color: 'white' } : undefined}
+                >בלוג</span>
               </Link>
               <Link
                 href="/feedback"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
-                  activeNav === 'feedback' 
-                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
-                }`}
+                className={combineStyles(
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all',
+                  getSidebarLinkStyles(theme, activeNav === 'feedback'),
+                  activeNav === 'feedback' && 'scale-105'
+                )}
+                style={activeNav === 'feedback' ? { color: 'white' } : undefined}
               >
-                <MessageCircleMore className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">פידבקים</span>
+                <MessageCircleMore 
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    activeNav === 'feedback' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'feedback' ? { color: 'white' } : undefined}
+                />
+                <span 
+                  className={`font-medium ${
+                    activeNav === 'feedback' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                  }`}
+                  style={activeNav === 'feedback' ? { color: 'white' } : undefined}
+                >פידבקים</span>
               </Link>
               {/* Admin Panel Link - Only for admins */}
               {currentUser && (() => {
@@ -1982,12 +2580,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                     activeNav === 'admin' 
-                      ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
-                      : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+                      ? theme === 'light'
+                        ? 'bg-gradient-to-r from-pink-500 to-rose-500 shadow-lg shadow-pink-500/30 scale-105'
+                        : 'bg-gradient-to-r from-hot-pink to-rose-500 shadow-lg shadow-hot-pink/30 scale-105'
+                      : theme === 'light'
+                        ? 'text-gray-800 hover:bg-pink-50 hover:text-[#F52F8E] hover:scale-[1.02]'
+                        : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                   }`}
+                  style={activeNav === 'admin' ? { color: 'white' } : undefined}
                 >
-                  <Shield className="w-5 h-5 flex-shrink-0" />
-                  <span className="font-medium">פאנל ניהול</span>
+                  <Shield 
+                    className={`w-5 h-5 flex-shrink-0 ${
+                      activeNav === 'admin' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                    }`}
+                    style={activeNav === 'admin' ? { color: 'white' } : undefined}
+                  />
+                  <span 
+                    className={`font-medium ${
+                      activeNav === 'admin' ? '' : theme === 'light' ? 'text-gray-800' : 'text-gray-300'
+                    }`}
+                    style={activeNav === 'admin' ? { color: 'white' } : undefined}
+                  >פאנל ניהול</span>
                 </Link>
               )}
             </div>
@@ -1996,7 +2609,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main Content */}
-      <main className={`transition-all duration-300 ease-in-out ${
+      <main id="main-content" className={`transition-all duration-300 ease-in-out ${
         pathname === '/live-room'
           ? 'lg:mr-0 mr-0' // No sidebar margin for live room to allow full screen
           : sidebarOpen 

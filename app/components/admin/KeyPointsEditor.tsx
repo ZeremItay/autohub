@@ -46,22 +46,22 @@ export default function KeyPointsEditor({ keyPoints, onChange, className = '' }:
   };
 
   return (
-    <div className={`mt-6 pt-6 border-t border-gray-300 ${className}`}>
+    <div className={`mt-6 pt-6 border-t border-white/20 ${className}`}>
       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
         <Star className="w-5 h-5 text-amber-500" />
         נקודות חשובות
       </h3>
       <div className="space-y-4">
         {(keyPoints || []).map((point, index) => (
-          <div key={index} className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div key={index} className="p-4 glass-card border border-white/20 rounded-lg">
             <div className="flex justify-between items-start mb-2">
-              <span className="text-sm font-medium text-amber-700">נקודה {index + 1}</span>
+              <span className="text-sm font-medium text-yellow-400">נקודה {index + 1}</span>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => handleMoveUp(index)}
                   disabled={index === 0}
-                  className="text-gray-500 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed p-1"
+                  className="text-gray-400 hover:text-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed p-1"
                   aria-label="הזז למעלה"
                 >
                   <ChevronUp className="w-4 h-4" />
@@ -70,7 +70,7 @@ export default function KeyPointsEditor({ keyPoints, onChange, className = '' }:
                   type="button"
                   onClick={() => handleMoveDown(index)}
                   disabled={index >= (keyPoints || []).length - 1}
-                  className="text-gray-500 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed p-1"
+                  className="text-gray-400 hover:text-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed p-1"
                   aria-label="הזז למטה"
                 >
                   <ChevronDown className="w-4 h-4" />
@@ -90,7 +90,7 @@ export default function KeyPointsEditor({ keyPoints, onChange, className = '' }:
               placeholder="כותרת הנקודה"
               value={point.title || ''}
               onChange={(e) => handleUpdatePoint(index, 'title', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
+              className="w-full px-3 py-2 border border-white/20 bg-white/5 text-white rounded-lg mb-2"
               dir="rtl"
               lang="he"
             />
@@ -100,7 +100,7 @@ export default function KeyPointsEditor({ keyPoints, onChange, className = '' }:
               onChange={(e) => handleUpdatePoint(index, 'description', e.target.value)}
               dir="rtl"
               lang="he"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
+              className="w-full px-3 py-2 border border-white/20 bg-white/5 text-white rounded-lg mb-2"
               rows={3}
             />
             <input
@@ -108,10 +108,10 @@ export default function KeyPointsEditor({ keyPoints, onChange, className = '' }:
               placeholder="קישור (URL) - אופציונלי"
               value={point.url || ''}
               onChange={(e) => handleUpdatePoint(index, 'url', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-3 py-2 border border-white/20 bg-white/5 text-white rounded-lg"
             />
             {point.url && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 💡 אם יש קישור, הטקסט בתיאור יוצג כקישור לחיצה
               </p>
             )}
@@ -120,7 +120,7 @@ export default function KeyPointsEditor({ keyPoints, onChange, className = '' }:
         <button
           type="button"
           onClick={handleAddPoint}
-          className="w-full px-4 py-2 border-2 border-dashed border-amber-300 text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
+          className="w-full px-4 py-2 border-2 border-dashed border-yellow-500/50 text-yellow-400 rounded-lg hover:bg-yellow-500/10 transition-colors"
         >
           + הוסף נקודה חשובה
         </button>

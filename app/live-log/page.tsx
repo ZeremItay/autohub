@@ -4,8 +4,19 @@ import { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft, Plus, Calendar as CalendarIcon } from 'lucide-react';
 import Link from 'next/link';
 import { getUpcomingEvents, getEventsByMonth, type Event } from '@/lib/queries/events';
+import { formatTime, formatDateObject } from '@/lib/utils/date';
+import { logError } from '@/lib/utils/errorHandler';
+import { useTheme } from '@/lib/contexts/ThemeContext';
+import {
+  getCardStyles,
+  getTextStyles,
+  getButtonStyles,
+  getBorderStyles,
+  combineStyles
+} from '@/lib/utils/themeStyles';
 
 export default function LiveLogPage() {
+  const { theme } = useTheme();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
@@ -28,7 +39,7 @@ export default function LiveLogPage() {
         setEvents(data || []);
       }
     } catch (error) {
-      console.error('Error loading events:', error);
+      logError(error, 'loadEvents');
     } finally {
       setLoading(false);
     }
@@ -41,7 +52,7 @@ export default function LiveLogPage() {
         setUpcomingEvents(data || []);
       }
     } catch (error) {
-      console.error('Error loading upcoming events:', error);
+      logError(error, 'loadUpcomingEvents');
     }
   }
 
@@ -74,21 +85,6 @@ export default function LiveLogPage() {
     return events.filter(event => event.event_date === dateStr);
   }
 
-  function formatTime(time: string) {
-    return time.substring(0, 5); // HH:MM
-  }
-
-  function formatDate(dateStr: string) {
-    const date = new Date(dateStr);
-    const monthNames = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
-    const monthShort = ['ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יוני', 'יולי', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ'];
-    return {
-      day: date.getDate(),
-      month: monthNames[date.getMonth()],
-      monthShort: monthShort[date.getMonth()],
-      year: date.getFullYear()
-    };
-  }
 
   const monthNames = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
   const dayNames = ['יום א\'', 'יום ב\'', 'יום ג\'', 'יום ד\'', 'יום ה\'', 'יום ו\'', 'שבת'];
@@ -125,15 +121,25 @@ export default function LiveLogPage() {
         <div className="max-w-7xl mx-auto">
           {/* Title and View Toggle */}
           <div className="flex items-center justify-between mb-4 sm:mb-6 lg:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">יומן לייבים</h1>
+            <h1 className={`text-2xl sm:text-3xl font-bold ${
+              theme === 'light' ? 'text-gray-800' : 'text-white'
+            }`}>יומן לייבים</h1>
             {/* View Toggle - Mobile Only */}
-            <div className="lg:hidden flex items-center gap-2 glass-card rounded-lg p-1 border border-white/20">
+            <div className={`lg:hidden flex items-center gap-2 rounded-lg p-1 ${
+              theme === 'light' 
+                ? 'bg-white border border-gray-300' 
+                : 'glass-card border border-white/20'
+            }`}>
               <button
                 onClick={() => setViewMode('list')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   viewMode === 'list'
-                    ? 'bg-hot-pink text-white'
-                    : 'text-gray-300 hover:text-hot-pink'
+                    ? theme === 'light'
+                      ? 'bg-[#F52F8E] text-white'
+                      : 'bg-hot-pink text-white'
+                    : theme === 'light'
+                      ? 'text-gray-600 hover:text-gray-800'
+                      : 'text-gray-300 hover:text-white'
                 }`}
               >
                 רשימה
@@ -142,8 +148,12 @@ export default function LiveLogPage() {
                 onClick={() => setViewMode('calendar')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   viewMode === 'calendar'
-                    ? 'bg-hot-pink text-white'
-                    : 'text-gray-300 hover:text-hot-pink'
+                    ? theme === 'light'
+                      ? 'bg-[#F52F8E] text-white'
+                      : 'bg-hot-pink text-white'
+                    : theme === 'light'
+                      ? 'text-gray-600 hover:text-gray-800'
+                      : 'text-gray-300 hover:text-white'
                 }`}
               >
                 <CalendarIcon className="w-4 h-4" />
@@ -156,30 +166,52 @@ export default function LiveLogPage() {
             {viewMode === 'list' && (
               <div className="lg:hidden space-y-4">
                 {allEvents.length === 0 ? (
-                  <div className="glass-card rounded-xl p-6 text-center">
-                    <p className="text-gray-300">אין אירועים החודש</p>
+                  <div className={`rounded-xl p-6 text-center ${
+                    theme === 'light' 
+                      ? 'bg-white border border-gray-300' 
+                      : 'glass-card'
+                  }`}>
+                    <p className={theme === 'light' ? 'text-gray-600' : 'text-gray-300'}>אין אירועים החודש</p>
                   </div>
                 ) : (
                   allEvents.map((event) => {
-                    const dateInfo = formatDate(event.event_date);
+                    const dateInfo = formatDateObject(event.event_date);
                     return (
                       <Link
                         key={event.id}
                         href={`/live/${event.id}`}
-                        className="block glass-card rounded-xl p-4 hover:border-hot-pink/60 transition-colors"
+                        className={`block rounded-xl p-4 transition-colors ${
+                          theme === 'light'
+                            ? 'bg-white border border-gray-300 hover:border-[#F52F8E]'
+                            : 'glass-card hover:border-hot-pink/60'
+                        }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-hot-pink to-rose-500 flex items-center justify-center text-white font-bold">
+                          <div className={`flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold ${
+                            theme === 'light'
+                              ? 'bg-[#F52F8E]'
+                              : 'bg-gradient-to-br from-hot-pink to-rose-500'
+                          }`}>
                             {new Date(event.event_date).getDate()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-white mb-1 text-base">{event.title}</h3>
+                            <h3 className={`font-semibold mb-1 text-base ${
+                              theme === 'light' ? 'text-gray-800' : 'text-white'
+                            }`}>{event.title}</h3>
                             {event.description && (
-                              <p className="text-sm text-gray-300 mb-2 line-clamp-2">{event.description}</p>
+                              <p className={`text-sm mb-2 line-clamp-2 ${
+                                theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                              }`}>{event.description}</p>
                             )}
                             <div className="flex items-center gap-3 flex-wrap">
-                              <span className="text-sm text-gray-300">{formatTime(event.event_time)}</span>
-                              <span className="px-2 py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
+                              <span className={`text-sm ${
+                                theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                              }`}>{formatTime(event.event_time)}</span>
+                              <span className={`px-2 py-1 text-white text-xs font-semibold rounded-full ${
+                                theme === 'light'
+                                  ? 'bg-[#F52F8E]'
+                                  : 'bg-hot-pink'
+                              }`}>
                                 {dateInfo.monthShort} {dateInfo.day}
                               </span>
                             </div>
@@ -194,29 +226,47 @@ export default function LiveLogPage() {
 
             {/* Calendar Section */}
             <div className={`flex-1 min-w-0 ${viewMode === 'list' ? 'hidden lg:block' : ''}`}>
-              <div className="glass-card rounded-xl p-3 sm:p-4 lg:p-6">
+              <div className={`rounded-xl p-3 sm:p-4 lg:p-6 ${
+                theme === 'light' 
+                  ? 'bg-white border border-gray-300' 
+                  : 'glass-card'
+              }`}>
                 {/* Month Navigation */}
                 <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2">
                   <div className="flex items-center gap-2 sm:gap-4">
                     <button
                       onClick={goToPreviousMonth}
-                      className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+                      className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+                        theme === 'light'
+                          ? 'text-gray-600 hover:bg-gray-100'
+                          : 'text-white hover:bg-white/10'
+                      }`}
                     >
                       <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
-                    <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-white">
+                    <h2 className={`text-base sm:text-lg lg:text-xl font-semibold ${
+                      theme === 'light' ? 'text-gray-800' : 'text-white'
+                    }`}>
                       {monthNames[currentMonth]} {currentYear}
                     </h2>
                     <button
                       onClick={goToNextMonth}
-                      className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+                      className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+                        theme === 'light'
+                          ? 'text-gray-600 hover:bg-gray-100'
+                          : 'text-white hover:bg-white/10'
+                      }`}
                     >
                       <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
                   <button
                     onClick={goToToday}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-hot-pink text-white rounded-full hover:bg-rose-500 transition-colors text-sm sm:text-base"
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 text-white rounded-lg transition-colors text-sm sm:text-base ${
+                      theme === 'light'
+                        ? 'bg-[#F52F8E] hover:bg-[#E01E7A]'
+                        : 'bg-hot-pink rounded-full hover:bg-rose-500'
+                    }`}
                   >
                     היום
                   </button>
@@ -225,7 +275,9 @@ export default function LiveLogPage() {
                 {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-1 sm:mb-2">
                   {dayNames.map((day, index) => (
-                    <div key={index} className="text-center text-xs sm:text-sm font-semibold text-gray-300 py-1 sm:py-2">
+                    <div key={index} className={`text-center text-xs sm:text-sm font-semibold py-1 sm:py-2 ${
+                      theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                    }`}>
                       <span className="hidden sm:inline">{day}</span>
                       <span className="sm:hidden">{day.replace('יום ', '')}</span>
                     </div>
@@ -235,7 +287,16 @@ export default function LiveLogPage() {
                 <div className="grid grid-cols-7 gap-1 sm:gap-2">
                   {calendarDays.map((date, index) => {
                     if (!date) {
-                      return <div key={index} className="aspect-square"></div>;
+                      return (
+                        <div 
+                          key={index} 
+                          className={`aspect-square ${
+                            theme === 'light' 
+                              ? 'border border-gray-200 bg-gray-50' 
+                              : ''
+                          }`}
+                        ></div>
+                      );
                     }
 
                     const dateEvents = getEventsForDate(date);
@@ -247,11 +308,25 @@ export default function LiveLogPage() {
                     return (
                       <div
                         key={index}
-                        className={`aspect-square border border-white/20 rounded-lg p-0.5 sm:p-1 ${
-                          isToday ? 'bg-hot-pink/20 border-hot-pink/50' : 'bg-white/5'
+                        className={`aspect-square rounded-lg p-0.5 sm:p-1 ${
+                          theme === 'light'
+                            ? isToday
+                              ? 'bg-pink-50 border-2 border-[#F52F8E]'
+                              : 'bg-white border border-gray-300'
+                            : isToday
+                              ? 'bg-hot-pink/20 border border-hot-pink/50'
+                              : 'bg-white/5 border border-white/20'
                         }`}
                       >
-                        <div className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${isToday ? 'text-hot-pink' : 'text-gray-100'}`}>
+                        <div className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${
+                          theme === 'light'
+                            ? isToday
+                              ? 'text-[#F52F8E]'
+                              : 'text-gray-800'
+                            : isToday
+                              ? 'text-white'
+                              : 'text-gray-100'
+                        }`}>
                           {date.getDate()}
                         </div>
                         <div className="space-y-0.5 sm:space-y-1">
@@ -259,19 +334,22 @@ export default function LiveLogPage() {
                             <Link
                               key={event.id}
                               href={`/live/${event.id}`}
-                              className="block bg-hot-pink text-white text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 rounded truncate hover:bg-rose-500 transition-colors"
+                              className={`block text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-1 rounded shadow-md hover:shadow-lg transition-all whitespace-normal break-words ${
+                                theme === 'light'
+                                  ? 'bg-[#F52F8E] border border-[#F52F8E] hover:bg-[#E01E7A]'
+                                  : 'bg-hot-pink border border-hot-pink/50 hover:bg-rose-500'
+                              }`}
                               title={`${event.title} - ${formatTime(event.event_time)}`}
                             >
-                              <span className="hidden sm:inline">
-                                {event.title.length > 15 ? `${event.title.substring(0, 15)}...` : event.title} - {formatTime(event.event_time)}
-                              </span>
-                              <span className="sm:hidden">
-                                {formatTime(event.event_time)}
+                              <span className="block font-semibold">
+                                {event.title} - {formatTime(event.event_time)}
                               </span>
                             </Link>
                           ))}
                           {dateEvents.length > 1 && (
-                            <div className="text-[10px] sm:text-xs text-gray-300">
+                            <div className={`text-[10px] sm:text-xs ${
+                              theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                            }`}>
                               +{dateEvents.length - 1}
                             </div>
                           )}
@@ -283,32 +361,60 @@ export default function LiveLogPage() {
               </div>
 
               {/* Upcoming Events Section */}
-              <div className="glass-card rounded-xl p-4 sm:p-6 mt-4 sm:mt-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">אירועים עתידיים</h2>
+              <div className={`rounded-xl p-4 sm:p-6 mt-4 sm:mt-6 ${
+                theme === 'light' 
+                  ? 'bg-white border border-gray-300' 
+                  : 'glass-card'
+              }`}>
+                <h2 className={`text-xl sm:text-2xl font-bold mb-4 sm:mb-6 ${
+                  theme === 'light' ? 'text-gray-800' : 'text-white'
+                }`}>אירועים עתידיים</h2>
                 
                 {upcomingEvents.length === 0 ? (
-                  <p className="text-gray-300 text-center py-6 sm:py-8 text-sm sm:text-base">אין אירועים קרובים</p>
+                  <p className={`text-center py-6 sm:py-8 text-sm sm:text-base ${
+                    theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                  }`}>אין אירועים קרובים</p>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     {upcomingEvents.map((event) => {
-                      const dateInfo = formatDate(event.event_date);
+                      const dateInfo = formatDateObject(event.event_date);
                       return (
                         <Link
                           key={event.id}
                           href={`/live/${event.id}`}
-                          className="flex items-start gap-2 sm:gap-4 p-3 sm:p-4 border border-white/20 rounded-lg hover:border-hot-pink/60 transition-colors bg-white/5"
+                          className={`flex items-start gap-2 sm:gap-4 p-3 sm:p-4 rounded-lg transition-colors ${
+                            theme === 'light'
+                              ? 'border border-gray-300 hover:border-[#F52F8E] bg-white'
+                              : 'border border-white/20 hover:border-hot-pink/60 bg-white/5'
+                          }`}
                         >
-                          <button className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center border border-white/20 rounded hover:bg-white/10 transition-colors flex-shrink-0">
-                            <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-gray-300" />
+                          <button className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded transition-colors flex-shrink-0 ${
+                            theme === 'light'
+                              ? 'border border-gray-300 hover:bg-gray-50'
+                              : 'border border-white/20 hover:bg-white/10'
+                          }`}>
+                            <Plus className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                              theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                            }`} />
                           </button>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-white mb-1 text-sm sm:text-base">{event.title}</h3>
+                            <h3 className={`font-semibold mb-1 text-sm sm:text-base ${
+                              theme === 'light' ? 'text-gray-800' : 'text-white'
+                            }`}>{event.title}</h3>
                             {event.description && (
-                              <p className="text-xs sm:text-sm text-gray-300 mb-2 line-clamp-2">{event.description}</p>
+                              <p className={`text-xs sm:text-sm mb-2 line-clamp-2 ${
+                                theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                              }`}>{event.description}</p>
                             )}
                             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                              <span className="text-xs sm:text-sm text-gray-300">{formatTime(event.event_time)}</span>
-                              <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
+                              <span className={`text-xs sm:text-sm ${
+                                theme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                              }`}>{formatTime(event.event_time)}</span>
+                              <span className={`px-2 sm:px-3 py-0.5 sm:py-1 text-white text-xs font-semibold rounded-full ${
+                                theme === 'light'
+                                  ? 'bg-[#F52F8E]'
+                                  : 'bg-hot-pink'
+                              }`}>
                                 {dateInfo.monthShort} {dateInfo.day}
                               </span>
                             </div>

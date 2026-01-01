@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Clock, MapPin, ArrowRight, User, CheckCircle, Video, Maximize, Minimize } from 'lucide-react';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
+import PageContainer from '@/app/components/PageContainer';
 import Link from 'next/link';
 import { getNextLiveEvent } from '@/lib/queries/events';
 import { getCurrentUser, isPremiumUser } from '@/lib/utils/user';
@@ -184,14 +186,7 @@ export default function LiveRoomPage() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-hot-pink mx-auto mb-4"></div>
-          <p className="text-gray-300">מחפש לייב קרוב...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="מחפש לייב קרוב..." size="lg" />;
   }
 
   if (!event) {
@@ -305,7 +300,7 @@ export default function LiveRoomPage() {
                 />
               </div>
             ) : (
-              <div className="min-h-screen flex items-center justify-center p-4">
+              <PageContainer className="p-4">
                 <div className="glass-card rounded-3xl shadow-2xl p-6 max-w-md text-center border-yellow-500/30 bg-yellow-500/10">
                   <h3 className="text-lg font-semibold text-yellow-300 mb-2">
                     🔒 גישה מוגבלת למנויי פרימיום
@@ -320,7 +315,7 @@ export default function LiveRoomPage() {
                     שדרג למנוי פרימיום
                   </Link>
                 </div>
-              </div>
+              </PageContainer>
             )}
           </>
         )}
