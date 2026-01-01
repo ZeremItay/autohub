@@ -15,8 +15,7 @@ export default function CoursesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('הכל');
   const [enrollments, setEnrollments] = useState<Map<string, boolean>>(new Map());
-  
-  const categories = ['הכל', 'Make.com', 'AI', 'Airtable', 'בוטים', 'עסקים', 'כללי'];
+  const [categories, setCategories] = useState<string[]>(['הכל']);
 
   useEffect(() => {
     loadCurrentUser();
@@ -24,8 +23,14 @@ export default function CoursesPage() {
 
   useEffect(() => {
     if (currentUser) {
-      loadCourses();
       loadInProgressCourses();
+      loadCategories();
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadCourses();
     }
   }, [currentUser, selectedCategory]);
 
@@ -44,9 +49,29 @@ export default function CoursesPage() {
     }
   }
 
+  async function loadCategories() {
+    try {
+      // Load all courses to extract unique categories
+      const { data: allCoursesData } = await getAllCourses(currentUser?.id);
+      if (allCoursesData && Array.isArray(allCoursesData)) {
+        const uniqueCategories = Array.from(
+          new Set(
+            allCoursesData
+              .map(course => course.category)
+              .filter(category => category && category.trim() !== '')
+          )
+        ).sort();
+        setCategories(['הכל', ...uniqueCategories]);
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  }
+
   async function loadCourses() {
     setLoading(true);
     try {
+      // Load courses based on selected category
       const { data, error } = selectedCategory === 'הכל'
         ? await getAllCourses(currentUser?.id)
         : await getCoursesByCategory(selectedCategory, currentUser?.id);
@@ -111,13 +136,13 @@ export default function CoursesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen relative">
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-7xl mx-auto">
           {/* Hero Section */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">קורסים</h1>
-            <p className="text-lg text-gray-600 mb-6">למד אוטומציות ו-AI בקצב שלך</p>
+            <h1 className="text-4xl font-bold text-white mb-2">קורסים</h1>
+            <p className="text-lg text-gray-300 mb-6">למד אוטומציות ו-AI בקצב שלך</p>
             
             {/* Search Bar */}
             <div className="relative max-w-md mb-6">
@@ -127,7 +152,7 @@ export default function CoursesPage() {
                 placeholder="חפש קורסים..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent bg-white"
+                className="modern-input w-full pr-10 pl-4 py-3 border border-white/20 rounded-full focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-white placeholder:text-gray-400"
               />
             </div>
 
@@ -137,10 +162,10 @@ export default function CoursesPage() {
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-full font-medium transition-colors ${
                     selectedCategory === category
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      ? 'bg-hot-pink text-white'
+                      : 'glass-card text-gray-200 hover:bg-white/10'
                   }`}
                 >
                   {category}
@@ -152,13 +177,13 @@ export default function CoursesPage() {
           {/* Continue Learning Section */}
           {inProgressCourses.length > 0 && (
             <div className="mb-12">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">ממשיכים ללמוד</h2>
+              <h2 className="text-2xl font-bold text-white mb-6">ממשיכים ללמוד</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {inProgressCourses.slice(0, 2).map((course) => (
                   <Link
                     key={course.id}
                     href={`/courses/${course.id}`}
-                    className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
+                    className="glass-card rounded-3xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
                   >
                     <div className="relative">
                       {course.thumbnail_url ? (
@@ -173,35 +198,35 @@ export default function CoursesPage() {
                         </div>
                       )}
                       {course.is_recommended && (
-                        <span className="absolute top-3 right-3 px-3 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+                        <span className="absolute top-3 right-3 px-3 py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
                           מומלץ
                         </span>
                       )}
                       {course.is_new && (
-                        <span className="absolute top-3 right-3 px-3 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+                        <span className="absolute top-3 right-3 px-3 py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
                           חדש
                         </span>
                       )}
                     </div>
                     <div className="p-6">
-                      <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
-                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
+                      <h3 className="text-xl font-bold text-white mb-2">{course.title}</h3>
+                      <p className="text-gray-200 text-sm mb-4 line-clamp-2">{course.description}</p>
+                      <div className="flex items-center gap-4 text-sm text-gray-300 mb-4">
                         <span>{course.duration_hours} שעות</span>
                         <span>•</span>
                         <span>{course.lessons_count} שיעורים</span>
                       </div>
                       {course.progress !== undefined && (
                         <div className="mb-4">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="w-full bg-white/10 rounded-full h-2">
                             <div
-                              className="bg-[#F52F8E] h-2 rounded-full transition-all"
+                              className="bg-hot-pink h-2 rounded-full transition-all"
                               style={{ width: `${course.progress}%` }}
                             ></div>
                           </div>
                         </div>
                       )}
-                      <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${getDifficultyColor(course.difficulty)}`}>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getDifficultyColor(course.difficulty)}`}>
                         {course.difficulty}
                       </span>
                     </div>
@@ -214,22 +239,22 @@ export default function CoursesPage() {
           {/* All Courses Section */}
           <div>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">כל הקורסים</h2>
-              <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              <h2 className="text-2xl font-bold text-white">כל הקורסים</h2>
+              <button className="flex items-center gap-2 px-4 py-2 glass-card rounded-full hover:bg-white/10 transition-colors text-white">
                 <Filter className="w-5 h-5" />
                 <span>סינון</span>
               </button>
             </div>
 
             {loading ? (
-              <div className="text-center py-12">טוען...</div>
+              <div className="text-center py-12 text-gray-300">טוען...</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredCourses().map((course) => (
                   <Link
                     key={course.id}
                     href={`/courses/${course.id}`}
-                    className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
+                    className="glass-card rounded-3xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
                   >
                     <div className="relative">
                       {course.thumbnail_url ? (
@@ -244,32 +269,32 @@ export default function CoursesPage() {
                         </div>
                       )}
                       {course.is_new && (
-                        <span className="absolute top-3 right-3 px-3 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+                        <span className="absolute top-3 right-3 px-3 py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
                           חדש
                         </span>
                       )}
                     </div>
                     <div className="p-6">
-                      <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
-                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-4 flex-wrap">
+                      <h3 className="text-xl font-bold text-white mb-2">{course.title}</h3>
+                      <p className="text-gray-200 text-sm mb-4 line-clamp-2">{course.description}</p>
+                      <div className="flex items-center gap-4 text-sm text-gray-300 mb-4 flex-wrap">
                         <span>{course.duration_hours} שעות</span>
                         <span>•</span>
                         <span>{course.lessons_count} שיעורים</span>
                         {course.is_free || !course.price || course.price === 0 ? (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">חינם</span>
+                          <span className="px-2 py-1 bg-green-500/30 text-green-300 rounded-full text-xs font-semibold border border-green-500/50">חינם</span>
                         ) : (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">{course.price} ₪</span>
+                          <span className="px-2 py-1 bg-blue-500/30 text-blue-300 rounded-full text-xs font-semibold border border-blue-500/50">{course.price} ₪</span>
                         )}
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${getDifficultyColor(course.difficulty)}`}>
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getDifficultyColor(course.difficulty)}`}>
                           {course.difficulty}
                         </span>
                         {currentUser && (enrollments.get(course.id) || isAdmin(currentUser)) ? (
-                          <span className="text-[#F52F8E] text-sm font-semibold">המשך ללמוד →</span>
+                          <span className="text-hot-pink text-sm font-semibold">המשך ללמוד →</span>
                         ) : (
-                          <span className="text-gray-500 text-sm">הירשם →</span>
+                          <span className="text-gray-300 text-sm">הירשם →</span>
                         )}
                       </div>
                     </div>

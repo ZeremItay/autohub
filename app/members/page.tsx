@@ -133,14 +133,14 @@ function MembersPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6]">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
+      <div className="glass border-b border-white/20 sticky top-0 z-20">
         <div className="px-3 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4">
           {/* Mobile Layout */}
           <div className="lg:hidden space-y-3">
             <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold text-gray-800">חברים</h1>
+              <h1 className="text-xl font-bold text-white">חברים</h1>
               <button className="px-3 py-1.5 border-b-2 border-[#F52F8E] text-[#F52F8E] font-medium text-sm">
                 כל המשתמשים
               </button>
@@ -154,32 +154,32 @@ function MembersPageContent() {
                 placeholder="חיפוש חברים..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pr-9 pl-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent bg-white text-sm"
+                className="w-full pr-9 pl-3 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent bg-white/5 text-white placeholder:text-gray-400 text-sm"
               />
             </div>
 
             {/* Filters - Mobile */}
             <div className="flex items-center justify-between gap-2">
-              <div className="text-xs text-gray-600">
+              <div className="text-xs text-gray-300">
                 {filteredMembers.length} משתמשים
               </div>
               <div className="flex items-center gap-2">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="appearance-none px-2 py-1.5 pr-6 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] bg-white text-xs"
+                  className="appearance-none px-2 py-1.5 pr-6 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] bg-white/5 text-white text-xs"
                 >
                   <option value="recently-active">פעילים לאחרונה</option>
                   <option value="points">נקודות</option>
                   <option value="rank">דרגה</option>
                 </select>
-                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                <div className="flex items-center gap-1 bg-white/10 rounded-lg p-0.5">
                   <button
                     onClick={() => setViewMode('grid')}
                     className={`p-1.5 rounded transition-colors ${
                       viewMode === 'grid'
-                        ? 'bg-white text-[#F52F8E] shadow-sm'
-                        : 'text-gray-600'
+                        ? 'bg-white/20 text-[#F52F8E] shadow-sm'
+                        : 'text-gray-300'
                     }`}
                   >
                     <Grid3x3 className="w-4 h-4" />
@@ -188,8 +188,8 @@ function MembersPageContent() {
                     onClick={() => setViewMode('list')}
                     className={`p-1.5 rounded transition-colors ${
                       viewMode === 'list'
-                        ? 'bg-white text-[#F52F8E] shadow-sm'
-                        : 'text-gray-600'
+                        ? 'bg-white/20 text-[#F52F8E] shadow-sm'
+                        : 'text-gray-300'
                     }`}
                   >
                     <List className="w-4 h-4" />
@@ -204,7 +204,7 @@ function MembersPageContent() {
             <div className="flex items-center justify-between mb-4">
               {/* Right: Title and Tab */}
               <div className="flex items-center gap-6">
-                <h1 className="text-2xl font-bold text-gray-800">חברים</h1>
+                <h1 className="text-2xl font-bold text-white">חברים</h1>
                 <button className="px-4 py-2 border-b-2 border-[#F52F8E] text-[#F52F8E] font-medium">
                   כל המשתמשים
                 </button>
@@ -219,7 +219,7 @@ function MembersPageContent() {
                     placeholder="חיפוש חברים..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent bg-white"
+                    className="w-full pr-10 pl-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent bg-white/5 text-white placeholder:text-gray-400"
                   />
                 </div>
               </div>
@@ -228,7 +228,7 @@ function MembersPageContent() {
             {/* Filter Row */}
             <div className="flex items-center justify-between">
               {/* Right: Member Count */}
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-300">
                 {filteredMembers.length} משתמשים
               </div>
 
@@ -239,7 +239,7 @@ function MembersPageContent() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="appearance-none px-4 py-2 pr-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] bg-white text-sm"
+                    className="appearance-none px-4 py-2 pr-8 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] bg-white/5 text-white text-sm"
                   >
                     <option value="recently-active">פעילים לאחרונה</option>
                     <option value="points">נקודות (גבוה לנמוך)</option>
@@ -249,13 +249,13 @@ function MembersPageContent() {
                 </div>
 
                 {/* View Toggle */}
-                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
                   <button
                     onClick={() => setViewMode('grid')}
                     className={`p-2 rounded transition-colors ${
                       viewMode === 'grid'
-                        ? 'bg-white text-[#F52F8E] shadow-sm'
-                        : 'text-gray-600 hover:text-[#F52F8E]'
+                        ? 'bg-white/20 text-[#F52F8E] shadow-sm'
+                        : 'text-gray-300 hover:text-[#F52F8E]'
                     }`}
                   >
                     <Grid3x3 className="w-5 h-5" />
@@ -264,8 +264,8 @@ function MembersPageContent() {
                     onClick={() => setViewMode('list')}
                     className={`p-2 rounded transition-colors ${
                       viewMode === 'list'
-                        ? 'bg-white text-[#F52F8E] shadow-sm'
-                        : 'text-gray-600 hover:text-[#F52F8E]'
+                        ? 'bg-white/20 text-[#F52F8E] shadow-sm'
+                        : 'text-gray-300 hover:text-[#F52F8E]'
                     }`}
                   >
                     <List className="w-5 h-5" />
@@ -286,7 +286,7 @@ function MembersPageContent() {
             </div>
           ) : filteredMembers.length === 0 ? (
             <div className="text-center py-8 sm:py-12">
-              <p className="text-sm sm:text-base text-gray-500">לא נמצאו חברים</p>
+              <p className="text-sm sm:text-base text-gray-300">לא נמצאו חברים</p>
             </div>
           ) : (
             <>
@@ -309,7 +309,7 @@ function MembersPageContent() {
               )}
 
               {/* Pagination Info */}
-              <div className="mt-6 sm:mt-8 text-xs sm:text-sm text-gray-600 text-right">
+              <div className="mt-6 sm:mt-8 text-xs sm:text-sm text-gray-300 text-right">
                 מציג 1-{filteredMembers.length} מתוך {filteredMembers.length} חברים
               </div>
             </>
@@ -342,12 +342,12 @@ function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessa
 
   return (
     <div 
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 relative cursor-pointer hover:shadow-md transition-shadow"
+      className="glass-card rounded-2xl shadow-sm p-4 sm:p-6 relative cursor-pointer"
       onClick={handleMemberClick}
     >
       {/* Three Dots Menu */}
       <button 
-        className="absolute top-3 sm:top-4 left-3 sm:left-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
+        className="absolute top-3 sm:top-4 left-3 sm:left-4 text-gray-400 hover:text-white transition-colors z-10"
         onClick={(e) => {
           e.stopPropagation();
           // TODO: Add menu functionality
@@ -373,7 +373,7 @@ function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessa
 
         {/* Badges Row */}
         <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 flex-wrap justify-center">
-          <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-[#F52F8E] text-white rounded-full text-xs font-semibold flex items-center gap-1">
+          <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-hot-pink text-white rounded-full text-xs font-semibold flex items-center gap-1">
             <Star className="w-3 h-3" />
             {points} נק'
           </span>
@@ -384,10 +384,10 @@ function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessa
         </div>
 
         {/* Name */}
-        <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1 sm:mb-2 text-center">{displayName}</h3>
+        <h3 className="text-base sm:text-lg font-bold text-white mb-1 sm:mb-2 text-center">{displayName}</h3>
 
         {/* Meta Data */}
-        <p className="text-xs sm:text-sm text-[#F52F8E] text-center mb-3 sm:mb-4">
+        <p className="text-xs sm:text-sm text-gray-400 text-center mb-3 sm:mb-4">
           {joinDate && `הצטרף ${joinDate}`}
           {joinDate && lastActive && ' • '}
           {lastActive}
@@ -399,7 +399,7 @@ function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessa
             e.stopPropagation();
             handleSendMessage(member);
           }}
-          className="w-full px-3 sm:px-4 py-1.5 sm:py-2 border-2 border-gray-300 rounded-lg hover:border-[#F52F8E] hover:text-[#F52F8E] transition-colors flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+          className="w-full px-3 sm:px-4 py-1.5 sm:py-2 border-2 border-white/20 rounded-lg hover:border-[#F52F8E] hover:text-[#F52F8E] text-gray-300 hover:text-white transition-colors flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
         >
           <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
           שליחת הודעה
@@ -431,7 +431,7 @@ function MemberCardList({ member, formatJoinDate, getLastActiveText, handleSendM
 
   return (
     <div 
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow"
+      className="glass-card rounded-2xl shadow-sm p-3 sm:p-4 cursor-pointer"
       onClick={handleMemberClick}
     >
       <div className="flex items-center gap-3 sm:gap-4">
@@ -452,9 +452,9 @@ function MemberCardList({ member, formatJoinDate, getLastActiveText, handleSendM
         {/* Info */}
         <div className="flex-1 min-w-0 pr-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1 sm:mb-2 gap-1 sm:gap-2">
-            <h3 className="text-base sm:text-lg font-bold text-gray-800 break-words">{displayName}</h3>
+            <h3 className="text-base sm:text-lg font-bold text-white break-words">{displayName}</h3>
             <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-              <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-[#F52F8E] text-white rounded-full text-xs font-semibold flex items-center gap-1">
+              <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-hot-pink text-white rounded-full text-xs font-semibold flex items-center gap-1">
                 <Star className="w-3 h-3" />
                 <span className="hidden sm:inline">{points} נק'</span>
                 <span className="sm:hidden">{points}</span>
@@ -465,7 +465,7 @@ function MemberCardList({ member, formatJoinDate, getLastActiveText, handleSendM
               </span>
             </div>
           </div>
-          <p className="text-xs sm:text-sm text-[#F52F8E] break-words">
+          <p className="text-xs sm:text-sm text-gray-400 break-words">
             {joinDate && `הצטרף ${joinDate}`}
             {joinDate && lastActive && ' • '}
             {lastActive}
@@ -479,13 +479,13 @@ function MemberCardList({ member, formatJoinDate, getLastActiveText, handleSendM
               e.stopPropagation();
               handleSendMessage(member);
             }}
-            className="px-2 sm:px-4 py-1.5 sm:py-2 border-2 border-gray-300 rounded-lg hover:border-[#F52F8E] hover:text-[#F52F8E] transition-colors flex items-center gap-1 sm:gap-2 font-medium text-xs sm:text-sm"
+            className="px-2 sm:px-4 py-1.5 sm:py-2 border-2 border-white/20 rounded-lg hover:border-[#F52F8E] hover:text-[#F52F8E] text-gray-300 hover:text-white transition-colors flex items-center gap-1 sm:gap-2 font-medium text-xs sm:text-sm"
           >
             <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">שליחת הודעה</span>
             <span className="sm:hidden">הודעה</span>
           </button>
-          <button className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 transition-colors">
+          <button className="p-1.5 sm:p-2 text-gray-400 hover:text-white transition-colors">
             <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>

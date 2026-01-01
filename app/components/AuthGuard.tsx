@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { Lock, ArrowRight, LogIn } from 'lucide-react';
+import { Lock, ArrowRight, LogIn, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface AuthGuardProps {
@@ -32,9 +32,10 @@ export default function AuthGuard({
   // Show nothing while loading or not mounted
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-[#F52F8E] text-xl">טוען...</div>
+          <Loader2 className="w-8 h-8 animate-spin text-hot-pink mx-auto mb-4" />
+          <p className="text-gray-300 text-xl">טוען...</p>
         </div>
       </div>
     );
@@ -45,19 +46,19 @@ export default function AuthGuard({
     const message = fallbackMessage || 'עליך להתחבר לאתר כדי לצפות בתוכן';
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-200 p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full glass-card rounded-3xl shadow-xl p-8 text-center">
           <div className="w-20 h-20 bg-gradient-to-br from-[#F52F8E] to-pink-400 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock className="w-10 h-10 text-white" />
           </div>
           
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">גישה מוגבלת</h2>
-          <p className="text-gray-600 mb-6 leading-relaxed">{message}</p>
+          <h2 className="text-2xl font-bold text-white mb-4">גישה מוגבלת</h2>
+          <p className="text-gray-300 mb-6 leading-relaxed">{message}</p>
           
           <div className="space-y-3">
             <Link
               href={redirectTo}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#F52F8E] to-pink-500 text-white rounded-lg hover:from-[#E01E7A] hover:to-pink-600 transition-all font-semibold shadow-md hover:shadow-lg"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#F52F8E] to-pink-500 text-white rounded-full hover:from-[#E01E7A] hover:to-pink-600 transition-all font-semibold shadow-md hover:shadow-lg"
             >
               <LogIn className="w-5 h-5" />
               <span>התחבר</span>
@@ -65,14 +66,14 @@ export default function AuthGuard({
             
             <button
               onClick={() => router.back()}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 text-gray-300 hover:text-white transition-colors"
             >
               <ArrowRight className="w-5 h-5" />
               <span>חזור</span>
             </button>
           </div>
           
-          <p className="text-sm text-gray-500 mt-6">
+          <p className="text-sm text-gray-300 mt-6">
             עדיין אין לך משתמש?{' '}
             <Link href="/auth/signup" className="text-[#F52F8E] hover:underline font-medium">
               הירשם עכשיו
@@ -89,19 +90,19 @@ export default function AuthGuard({
     const message = fallbackMessage || 'עליך להתחבר לאתר כדי לצפות בתוכן';
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-200 p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full glass-card rounded-3xl shadow-xl p-8 text-center">
           <div className="w-20 h-20 bg-gradient-to-br from-[#F52F8E] to-pink-400 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock className="w-10 h-10 text-white" />
           </div>
           
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">גישה מוגבלת</h2>
-          <p className="text-gray-600 mb-6 leading-relaxed">{message}</p>
+          <h2 className="text-2xl font-bold text-white mb-4">גישה מוגבלת</h2>
+          <p className="text-gray-300 mb-6 leading-relaxed">{message}</p>
           
           <div className="space-y-3">
             <Link
               href={redirectTo}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#F52F8E] to-pink-500 text-white rounded-lg hover:from-[#E01E7A] hover:to-pink-600 transition-all font-semibold shadow-md hover:shadow-lg"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#F52F8E] to-pink-500 text-white rounded-full hover:from-[#E01E7A] hover:to-pink-600 transition-all font-semibold shadow-md hover:shadow-lg"
             >
               <LogIn className="w-5 h-5" />
               <span>התחבר</span>
@@ -109,14 +110,14 @@ export default function AuthGuard({
             
             <button
               onClick={() => router.back()}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 text-gray-300 hover:text-white transition-colors"
             >
               <ArrowRight className="w-5 h-5" />
               <span>חזור</span>
             </button>
           </div>
           
-          <p className="text-sm text-gray-500 mt-6">
+          <p className="text-sm text-gray-300 mt-6">
             עדיין אין לך משתמש?{' '}
             <Link href="/auth/signup" className="text-[#F52F8E] hover:underline font-medium">
               הירשם עכשיו
@@ -132,19 +133,19 @@ export default function AuthGuard({
     const message = fallbackMessage || 'צריך לשדרג לפרימיום כדי לצפות בתוכן זה';
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-200 p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full glass-card rounded-3xl shadow-xl p-8 text-center">
           <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock className="w-10 h-10 text-white" />
           </div>
           
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">גישה מוגבלת</h2>
-          <p className="text-gray-600 mb-6 leading-relaxed">{message}</p>
+          <h2 className="text-2xl font-bold text-white mb-4">גישה מוגבלת</h2>
+          <p className="text-gray-300 mb-6 leading-relaxed">{message}</p>
           
           <div className="space-y-3">
             <Link
               href="/subscription"
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg hover:from-yellow-500 hover:to-orange-600 transition-all font-semibold shadow-md hover:shadow-lg"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full hover:from-yellow-500 hover:to-orange-600 transition-all font-semibold shadow-md hover:shadow-lg"
             >
               <span>שדרג לפרימיום</span>
               <ArrowRight className="w-5 h-5" />
@@ -152,7 +153,7 @@ export default function AuthGuard({
             
             <button
               onClick={() => router.back()}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 text-gray-300 hover:text-white transition-colors"
             >
               <ArrowRight className="w-5 h-5" />
               <span>חזור</span>

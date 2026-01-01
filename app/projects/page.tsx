@@ -306,15 +306,15 @@ export default function ProjectsPage() {
   function getStatusColor(status: string) {
     switch (status) {
       case 'open':
-        return 'bg-green-100 text-green-700';
+        return 'bg-green-500/20 text-green-400 border border-green-500/30';
       case 'in_progress':
-        return 'bg-yellow-100 text-yellow-700';
+        return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
       case 'completed':
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
       case 'closed':
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
       default:
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
     }
   }
 
@@ -462,14 +462,14 @@ export default function ProjectsPage() {
   }, [projects, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6]">
+    <div className="min-h-screen relative">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
           {/* Main Content - First on Mobile */}
           <main className="flex-1 min-w-0 order-1 lg:order-2">
             {/* Header with Search and View Toggle */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-              <h1 className="text-3xl font-bold text-gray-800">לוח פרויקטים</h1>
+              <h1 className="text-3xl font-bold text-white">לוח פרויקטים</h1>
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 {/* Search Bar */}
                 <div className="flex-1 sm:flex-none relative">
@@ -483,13 +483,13 @@ export default function ProjectsPage() {
                   />
                 </div>
                 {/* View Toggle */}
-                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                <div className="flex items-center gap-1 glass-card rounded-full p-1 border-white/20">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2 rounded transition-colors ${
+                    className={`p-2 rounded-full transition-colors ${
                       viewMode === 'list' 
-                        ? 'bg-[#F52F8E] text-white shadow-sm' 
-                        : 'text-gray-600 hover:bg-gray-200'
+                        ? 'bg-hot-pink text-white shadow-sm' 
+                        : 'text-gray-300 hover:bg-white/10'
                     }`}
                     title="תצוגת רשימה"
                   >
@@ -497,10 +497,10 @@ export default function ProjectsPage() {
                   </button>
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded transition-colors ${
+                    className={`p-2 rounded-full transition-colors ${
                       viewMode === 'grid' 
-                        ? 'bg-[#F52F8E] text-white shadow-sm' 
-                        : 'text-gray-600 hover:bg-gray-200'
+                        ? 'bg-hot-pink text-white shadow-sm' 
+                        : 'text-gray-300 hover:bg-white/10'
                     }`}
                     title="תצוגת רשת"
                   >
@@ -512,13 +512,13 @@ export default function ProjectsPage() {
 
             {/* Projects List/Grid */}
             {loading ? (
-              <div className="text-center py-8 text-gray-500">טוען...</div>
+              <div className="text-center py-8 text-gray-300">טוען...</div>
             ) : filteredProjects.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">אין פרויקטים זמינים</div>
+              <div className="text-center py-8 text-gray-300">אין פרויקטים זמינים</div>
             ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredProjects.map((project) => (
-                  <div key={project.id} className="modern-card rounded-2xl p-5 animate-fade-in flex flex-col">
+                  <div key={project.id} className="glass-card rounded-3xl p-5 animate-fade-in flex flex-col">
                     <div className="flex items-start justify-between mb-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(project.status)}`}>
                         {getStatusText(project.status)}
@@ -536,38 +536,38 @@ export default function ProjectsPage() {
                           </div>
                         )}
                         <div className="text-right">
-                          <p className="text-xs font-medium text-gray-800">{project.user?.display_name || 'משתמש'}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs font-medium text-white">{project.user?.display_name || 'משתמש'}</p>
+                          <p className="text-xs text-gray-300">
                             {mounted ? formatTimeAgo(project.created_at || '') : ''}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">{project.title}</h3>
-                    <p className="text-sm text-gray-600 mb-4 leading-relaxed line-clamp-3 flex-1">{project.description}</p>
+                    <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">{project.title}</h3>
+                    <p className="text-sm text-gray-200 mb-4 leading-relaxed line-clamp-3 flex-1">{project.description}</p>
 
                     <div className="flex flex-wrap gap-2 mb-4">
                       {project.technologies?.slice(0, 4).map((tech, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                        <span key={idx} className="px-2 py-1 bg-white/10 text-gray-200 rounded text-xs border border-white/10">
                           {tech}
                         </span>
                       ))}
                       {project.technologies && project.technologies.length > 4 && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                        <span className="px-2 py-1 bg-white/10 text-gray-200 rounded text-xs border border-white/10">
                           +{project.technologies.length - 4}
                         </span>
                       )}
                     </div>
 
-                    <div className="pt-4 border-t border-gray-100 space-y-3">
+                    <div className="pt-4 border-t border-white/20 space-y-3">
                       <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-1 text-gray-700">
+                        <div className="flex items-center gap-1 text-gray-200">
                           <UserIcon className="w-4 h-4" />
                           <span>{project.offers_count || 0} הצעות</span>
                         </div>
                         {project.budget_min && project.budget_max && (
-                          <div className="flex items-center gap-1 text-gray-700">
+                          <div className="flex items-center gap-1 text-gray-200">
                             <span>
                               ₪ {Number(project.budget_min).toLocaleString('he-IL')} - {Number(project.budget_max).toLocaleString('he-IL')}
                             </span>
@@ -577,7 +577,7 @@ export default function ProjectsPage() {
                       {project.status === 'closed' ? (
                         <button 
                           disabled
-                          className="w-full px-5 py-2.5 bg-gray-300 text-gray-500 rounded-xl text-sm font-medium cursor-not-allowed"
+                          className="w-full px-5 py-2.5 bg-white/10 text-gray-400 rounded-full text-sm font-medium cursor-not-allowed border border-white/10"
                         >
                           פרויקט סגור
                         </button>
@@ -591,7 +591,7 @@ export default function ProjectsPage() {
                               e.stopPropagation();
                               handleSubmitOffer(project.id);
                             }}
-                            className="w-full btn-modern px-5 py-2.5 text-white rounded-xl text-sm font-medium"
+                            className="btn-primary w-full px-5 py-2.5 text-sm font-medium"
                           >
                             הגש הצעה
                           </button>
@@ -604,7 +604,7 @@ export default function ProjectsPage() {
             ) : (
               <div className="space-y-4">
                 {filteredProjects.map((project) => (
-                  <div key={project.id} className="modern-card rounded-2xl p-5 sm:p-6 animate-fade-in">
+                  <div key={project.id} className="glass-card rounded-3xl p-5 sm:p-6 animate-fade-in">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         {project.user?.avatar_url ? (
@@ -614,13 +614,13 @@ export default function ProjectsPage() {
                             className="w-10 h-10 rounded-full"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white font-semibold">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-hot-pink to-pink-400 flex items-center justify-center text-white font-semibold">
                             {(project.user?.display_name || 'U').charAt(0)}
                           </div>
                         )}
                         <div>
-                          <p className="text-sm font-medium text-gray-800">{project.user?.display_name || 'משתמש'}</p>
-                          <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <p className="text-sm font-medium text-white">{project.user?.display_name || 'משתמש'}</p>
+                          <p className="text-xs text-gray-300 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {mounted ? formatTimeAgo(project.created_at || '') : ''}
                           </p>
@@ -631,27 +631,27 @@ export default function ProjectsPage() {
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">{project.title}</h3>
-                    <p className="text-sm text-gray-600 mb-4 leading-relaxed">{project.description}</p>
+                    <h3 className="text-lg font-semibold text-white mb-2">{project.title}</h3>
+                    <p className="text-sm text-gray-200 mb-4 leading-relaxed">{project.description}</p>
 
                     <div className="flex flex-wrap gap-2 mb-4">
                       {project.technologies?.map((tech, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                        <span key={idx} className="px-2 py-1 bg-white/10 text-gray-200 rounded text-xs border border-white/10">
                           {tech}
                         </span>
                       ))}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-white/20">
                       <div className="flex items-center gap-4 text-sm">
                         {project.budget_min && project.budget_max && (
-                          <div className="flex items-center gap-1 text-gray-700">
+                          <div className="flex items-center gap-1 text-gray-200">
                             <span>
                               ₪ {Number(project.budget_min).toLocaleString('he-IL')} - {Number(project.budget_max).toLocaleString('he-IL')}
                             </span>
                           </div>
                         )}
-                        <div className="flex items-center gap-1 text-gray-700">
+                        <div className="flex items-center gap-1 text-gray-200">
                           <UserIcon className="w-4 h-4" />
                           <span>{project.offers_count || 0} הצעות</span>
                         </div>
@@ -659,7 +659,7 @@ export default function ProjectsPage() {
                       {project.status === 'closed' ? (
                         <button 
                           disabled
-                          className="px-5 py-2.5 bg-gray-300 text-gray-500 rounded-xl text-sm font-medium cursor-not-allowed"
+                          className="px-5 py-2.5 bg-white/10 text-gray-400 rounded-full text-sm font-medium cursor-not-allowed border border-white/10"
                         >
                           פרויקט סגור
                         </button>
@@ -673,7 +673,7 @@ export default function ProjectsPage() {
                               e.stopPropagation();
                               handleSubmitOffer(project.id);
                             }}
-                            className="btn-modern px-5 py-2.5 text-white rounded-xl text-sm font-medium"
+                            className="btn-primary px-5 py-2.5 text-sm font-medium"
                           >
                             הגש הצעה
                           </button>
@@ -689,11 +689,11 @@ export default function ProjectsPage() {
           {/* Left Sidebar - Second on Mobile */}
           <aside className="w-full lg:w-64 flex-shrink-0 space-y-4 order-2 lg:order-1">
             {/* Who's Online */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-              <h3 className="text-sm font-semibold text-gray-800 mb-4">מי מחובר?</h3>
+            <div className="glass-card rounded-2xl shadow-sm p-4">
+              <h3 className="text-sm font-semibold text-white mb-4">מי מחובר?</h3>
               {onlineUsers.length === 0 ? (
-                <div className="p-4 bg-[#F3F4F6] rounded-lg border border-pink-200">
-                  <p className="text-sm text-gray-500">אין חברים מחוברים כרגע</p>
+                <div className="p-4 bg-white/10 rounded-lg border border-white/20">
+                  <p className="text-sm text-gray-300">אין חברים מחוברים כרגע</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -731,7 +731,7 @@ export default function ProjectsPage() {
             <div className="modern-card rounded-2xl p-5 animate-fade-in">
               <button
                 onClick={() => setShowNewProjectForm(true)}
-                className="btn-modern flex items-center gap-2 px-4 py-2.5 text-white rounded-xl text-sm font-medium w-full justify-center"
+                className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm font-medium w-full justify-center"
               >
                 <Plus className="w-4 h-4" />
                 פרסם פרויקט
@@ -755,12 +755,12 @@ export default function ProjectsPage() {
                 }}
               >
                 <div 
-                  className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                  className="glass-card rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Modal Header */}
-                  <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-                    <h2 className="text-2xl font-bold text-gray-800">פרסם פרויקט חדש</h2>
+                  <div className="sticky top-0 glass-card border-b border-hot-pink/30 px-6 py-4 flex items-center justify-between rounded-t-3xl">
+                    <h2 className="text-2xl font-bold text-white">פרסם פרויקט חדש</h2>
                     <button
                       onClick={() => {
                         setShowNewProjectForm(false);
@@ -773,16 +773,16 @@ export default function ProjectsPage() {
                           technologies: ''
                         });
                       }}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      className="p-2 hover:bg-white/10 rounded-full transition-colors"
                     >
-                      <X className="w-5 h-5 text-gray-500" />
+                      <X className="w-5 h-5 text-gray-300" />
                     </button>
                   </div>
 
                   {/* Modal Body */}
                   <div className="p-6 space-y-5">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-white mb-2">
                         כותרת הפרויקט *
                       </label>
                       <input
@@ -790,12 +790,12 @@ export default function ProjectsPage() {
                         placeholder="לדוגמה: פיתוח בוט טלגרם לניהול הזמנות"
                         value={newProject.title}
                         onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                        className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm text-white placeholder:text-gray-400"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-white mb-2">
                         תיאור הפרויקט *
                       </label>
                       <textarea
@@ -803,12 +803,12 @@ export default function ProjectsPage() {
                         value={newProject.description}
                         onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
                         rows={5}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm resize-none"
+                        className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm resize-none text-white placeholder:text-gray-400"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-white mb-2">
                         תקציב (בשקלים ₪)
                       </label>
                       <div className="flex gap-3">
@@ -818,7 +818,7 @@ export default function ProjectsPage() {
                             placeholder="מינימום"
                             value={newProject.budget_min}
                             onChange={(e) => setNewProject({ ...newProject, budget_min: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                            className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm text-white placeholder:text-gray-400"
                           />
                         </div>
                         <div className="flex-1">
@@ -827,14 +827,14 @@ export default function ProjectsPage() {
                             placeholder="מקסימום"
                             value={newProject.budget_max}
                             onChange={(e) => setNewProject({ ...newProject, budget_max: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                            className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm text-white placeholder:text-gray-400"
                           />
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-white mb-2">
                         יש מערכות ספציפיות שהיית רוצה שישתמשו בהן?
                       </label>
                       <input
@@ -842,14 +842,14 @@ export default function ProjectsPage() {
                         placeholder="לדוגמה: Make, Airtable, Zapier, API, Node.js (מופרדות בפסיקים)"
                         value={newProject.technologies}
                         onChange={(e) => setNewProject({ ...newProject, technologies: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                        className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm text-white placeholder:text-gray-400"
                       />
-                      <p className="text-xs text-gray-500 mt-1">הזן את הטכנולוגיות או המערכות, מופרדות בפסיקים</p>
+                      <p className="text-xs text-gray-300 mt-1">הזן את הטכנולוגיות או המערכות, מופרדות בפסיקים</p>
                     </div>
                   </div>
 
                   {/* Modal Footer */}
-                  <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
+                  <div className="sticky bottom-0 glass-card border-t border-hot-pink/30 px-6 py-4 flex items-center justify-end gap-3 rounded-b-3xl">
                     <button
                       onClick={() => {
                         setShowNewProjectForm(false);
@@ -862,13 +862,13 @@ export default function ProjectsPage() {
                           technologies: ''
                         });
                       }}
-                      className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors text-sm font-medium"
+                      className="px-6 py-2.5 bg-white/10 text-gray-200 rounded-full hover:bg-white/20 transition-colors text-sm font-medium"
                     >
                       ביטול
                     </button>
                     <button
                       onClick={handleCreateProject}
-                      className="px-6 py-2.5 bg-[#F52F8E] text-white rounded-xl hover:bg-[#E01E7A] transition-colors text-sm font-medium"
+                      className="px-6 py-2.5 bg-hot-pink text-white rounded-full hover:bg-hot-pink-dark transition-colors text-sm font-medium"
                     >
                       פרסם פרויקט
                     </button>
@@ -878,19 +878,19 @@ export default function ProjectsPage() {
             )}
 
             {/* Recent Updates */}
-            <div className="modern-card rounded-2xl p-5 animate-fade-in">
-              <h3 className="text-sm font-semibold text-gray-800 mb-3">עדכונים אחרונים</h3>
+            <div className="glass-card rounded-3xl p-5 animate-fade-in">
+              <h3 className="text-sm font-semibold text-white mb-3">עדכונים אחרונים</h3>
               <div className="space-y-3">
                 {recentUpdates.length === 0 ? (
-                  <p className="text-xs text-gray-500">אין עדכונים אחרונים</p>
+                  <p className="text-xs text-gray-300">אין עדכונים אחרונים</p>
                 ) : (
                   recentUpdates.map((update, idx) => {
                     const content = (
-                      <div className="flex items-start gap-2 text-xs cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                      <div className="flex items-start gap-2 text-xs cursor-pointer hover:bg-white/10 p-2 rounded-lg transition-colors">
                         <span className="text-lg">{update.icon}</span>
                         <div className="flex-1">
-                          <p className="text-gray-700">{update.text}</p>
-                          <p className="text-gray-500 text-xs mt-0.5">{update.time}</p>
+                          <p className="text-gray-100">{update.text}</p>
+                          <p className="text-gray-300 text-xs mt-0.5">{update.time}</p>
                         </div>
                       </div>
                     );
@@ -924,23 +924,23 @@ export default function ProjectsPage() {
             </div>
 
             {/* Upcoming Events */}
-            <div className="modern-card rounded-2xl p-5 animate-fade-in">
+            <div className="glass-card rounded-3xl p-5 animate-fade-in">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-800">אירועים קרובים</h3>
-                <Link href="/live-log" className="text-xs text-[#F52F8E] hover:underline">
+                <h3 className="text-sm font-semibold text-white">אירועים קרובים</h3>
+                <Link href="/live-log" className="text-xs text-hot-pink hover:underline">
                   הכל ←
                 </Link>
               </div>
               {upcomingEvents.length === 0 ? (
-                <p className="text-xs text-gray-500">כרגע אין אירועים קרובים</p>
+                <p className="text-xs text-gray-300">כרגע אין אירועים קרובים</p>
               ) : (
                 <div className="space-y-2">
                   {upcomingEvents.map((event) => (
                     <div key={event.id} className="flex items-start gap-2 text-xs">
-                      <span className="text-[#F52F8E]">📅</span>
+                      <span className="text-hot-pink">📅</span>
                       <div className="flex-1">
-                        <p className="text-gray-700">{event.title}</p>
-                        <p className="text-gray-500 text-xs mt-0.5">
+                        <p className="text-gray-100">{event.title}</p>
+                        <p className="text-gray-300 text-xs mt-0.5">
                           {event.event_date ? (() => {
                             try {
                               const date = new Date(event.event_date);
@@ -974,12 +974,12 @@ export default function ProjectsPage() {
           }}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            className="glass-card rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
-              <h2 className="text-2xl font-bold text-gray-800">הגשת הצעה</h2>
+            <div className="sticky top-0 glass-card border-b border-hot-pink/30 px-6 py-4 flex items-center justify-between rounded-t-3xl z-10">
+              <h2 className="text-2xl font-bold text-white">הגשת הצעה</h2>
               <button
                 onClick={() => {
                   if (!submittingOffer) {
@@ -988,7 +988,7 @@ export default function ProjectsPage() {
                     setOfferForm({ message: '', offer_amount: '' });
                   }
                 }}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-gray-300 hover:text-white transition-colors"
                 disabled={submittingOffer}
               >
                 <X className="w-6 h-6" />
@@ -999,7 +999,7 @@ export default function ProjectsPage() {
             <div className="p-6 space-y-6">
               {/* Recipient Info */}
               <div className="space-y-2">
-                <p className="text-sm text-gray-600">שליחת הצעה אל</p>
+                <p className="text-sm text-gray-300">שליחת הצעה אל</p>
                 <div className="flex items-center gap-3">
                   {selectedProject.user?.avatar_url ? (
                     <img 
@@ -1008,25 +1008,25 @@ export default function ProjectsPage() {
                       className="w-12 h-12 rounded-full"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white font-semibold text-lg">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-hot-pink to-pink-400 flex items-center justify-center text-white font-semibold text-lg">
                       {(selectedProject.user?.display_name || 'U').charAt(0)}
                     </div>
                   )}
                   <div>
-                    <p className="font-semibold text-gray-800">{selectedProject.user?.display_name || 'משתמש'}</p>
-                    <p className="text-sm text-gray-600">{selectedProject.title}</p>
+                    <p className="font-semibold text-white">{selectedProject.user?.display_name || 'משתמש'}</p>
+                    <p className="text-sm text-gray-300">{selectedProject.title}</p>
                   </div>
                 </div>
               </div>
 
               {/* Project Description */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-700 leading-relaxed">{selectedProject.description}</p>
+              <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                <p className="text-sm text-gray-200 leading-relaxed">{selectedProject.description}</p>
               </div>
 
               {/* Offer Message */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-white mb-2">
                   למה אתה מתאים לפרויקט? *
                 </label>
                 <textarea
@@ -1037,17 +1037,17 @@ export default function ProjectsPage() {
                     }
                   }}
                   placeholder="תאר את הניסיון שלך, גישה מוצעת וזמן אספקה משוער"
-                  className="w-full px-4 py-3 border border-pink-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm min-h-[120px] resize-y"
+                  className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm min-h-[120px] resize-y text-white placeholder:text-gray-400"
                   maxLength={500}
                 />
-                <p className="text-xs text-gray-500 mt-1 text-right">
+                <p className="text-xs text-gray-300 mt-1 text-right">
                   {offerForm.message.length}/500
                 </p>
               </div>
 
               {/* Price Offer */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-white mb-2">
                   הצעת מחיר ({selectedProject.budget_currency || 'USD'}) *
                 </label>
                 <input
@@ -1055,7 +1055,7 @@ export default function ProjectsPage() {
                   value={offerForm.offer_amount}
                   onChange={(e) => setOfferForm({ ...offerForm, offer_amount: e.target.value })}
                   placeholder={`תקציב הלקוח: ${selectedProject.budget_min ? Number(selectedProject.budget_min).toLocaleString('he-IL') : ''}${selectedProject.budget_min && selectedProject.budget_max ? ' - ' : ''}${selectedProject.budget_max ? Number(selectedProject.budget_max).toLocaleString('he-IL') : ''}`}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                  className="modern-input w-full px-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm text-white placeholder:text-gray-400"
                   min="0"
                   step="0.01"
                 />
@@ -1063,7 +1063,7 @@ export default function ProjectsPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
+            <div className="sticky bottom-0 glass-card border-t border-hot-pink/30 px-6 py-4 flex items-center justify-end gap-3 rounded-b-3xl">
               <button
                 onClick={() => {
                   if (!submittingOffer) {
@@ -1072,7 +1072,7 @@ export default function ProjectsPage() {
                     setOfferForm({ message: '', offer_amount: '' });
                   }
                 }}
-                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-colors font-medium text-sm"
+                className="px-6 py-2.5 border border-white/20 text-gray-200 rounded-full hover:bg-white/10 transition-colors font-medium text-sm"
                 disabled={submittingOffer}
               >
                 ביטול
@@ -1080,7 +1080,7 @@ export default function ProjectsPage() {
               <button
                 onClick={submitOffer}
                 disabled={submittingOffer || !offerForm.message.trim() || !offerForm.offer_amount}
-                className="px-6 py-2.5 bg-[#F52F8E] text-white rounded-xl hover:bg-[#E01E7A] transition-colors font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary px-6 py-2.5 font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submittingOffer ? (
                   <>

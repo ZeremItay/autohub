@@ -154,7 +154,7 @@ function BlogPostPageContent() {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto text-center py-12">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">מאמר לא נמצא</h1>
+          <h1 className="text-2xl font-bold text-white mb-4">מאמר לא נמצא</h1>
           <Link href="/blog" className="text-[#F52F8E] hover:underline">
             חזור לבלוג
           </Link>
@@ -188,22 +188,22 @@ function BlogPostPageContent() {
 
         {/* Header */}
         <div className="mb-8">
-          <span className="inline-block px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded mb-4">
+          <span className="inline-block px-3 py-1 bg-white/10 text-gray-300 text-sm rounded mb-4">
             {post.category}
           </span>
           {post.is_featured && (
-            <span className="inline-block px-3 py-1 bg-[#F52F8E] text-white text-sm rounded mr-2 mb-4">
+            <span className="inline-block px-3 py-1 bg-hot-pink text-white text-sm rounded mr-2 mb-4">
               מומלץ
             </span>
           )}
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">{post.title}</h1>
-          
+          <h1 className="text-4xl font-bold text-white mb-4">{post.title}</h1>
+
           {post.excerpt && (
-            <p className="text-xl text-gray-600 mb-6">{post.excerpt}</p>
+            <p className="text-xl text-gray-300 mb-6">{post.excerpt}</p>
           )}
 
           {/* Author and Meta */}
-          <div className="flex items-center justify-between flex-wrap gap-4 pb-6 border-b border-gray-200">
+          <div className="flex items-center justify-between flex-wrap gap-4 pb-6 border-b border-white/10">
             <div className="flex items-center gap-4">
               {post.profile && (
                 <div className="flex items-center gap-3">
@@ -219,13 +219,13 @@ function BlogPostPageContent() {
                     </div>
                   )}
                   <div>
-                    <p className="font-semibold text-gray-800">{post.profile.display_name || 'מחבר'}</p>
-                    <p className="text-sm text-gray-500">מחבר</p>
+                    <p className="font-semibold text-white">{post.profile.display_name || 'מחבר'}</p>
+                    <p className="text-sm text-gray-300">מחבר</p>
                   </div>
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-6 text-sm text-gray-500">
+            <div className="flex items-center gap-6 text-sm text-gray-300">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 <span>{formatDate(post.created_at)}</span>
@@ -243,17 +243,17 @@ function BlogPostPageContent() {
         </div>
 
         {/* Content */}
-        <div className="prose prose-lg max-w-none">
+        <div className="prose prose-lg max-w-none prose-headings:text-white prose-p:text-gray-100 prose-strong:text-white prose-a:text-hot-pink">
           <div
-            className="text-gray-700 leading-relaxed"
+            className="text-gray-100 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
         </div>
 
         {/* Share Section */}
-        <div className="mt-12 pt-8 border-t border-gray-200">
+        <div className="mt-12 pt-8 border-t border-white/10">
           <div className="flex items-center gap-4">
-            <span className="text-gray-700 font-medium">שתף מאמר:</span>
+            <span className="text-gray-100 font-medium">שתף מאמר:</span>
             <button
               onClick={() => {
                 if (navigator.share) {
@@ -267,7 +267,7 @@ function BlogPostPageContent() {
                   alert('הקישור הועתק ללוח');
                 }
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+              className="btn-primary flex items-center gap-2 px-4 py-2"
             >
               <Share2 className="w-4 h-4" />
               <span>שתף</span>
@@ -276,11 +276,11 @@ function BlogPostPageContent() {
         </div>
 
         {/* Comments Section */}
-        <div className="mt-12 pt-8 border-t border-gray-200">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="mt-12 pt-8 border-t border-white/10">
+          <div className="glass-card rounded-2xl shadow-sm p-6">
             <div className="flex items-center gap-2 mb-6">
               <MessageCircle className="w-6 h-6 text-[#F52F8E]" />
-              <h2 className="text-2xl font-bold text-gray-800">תגובות ({comments.length})</h2>
+              <h2 className="text-2xl font-bold text-white">תגובות ({comments.length})</h2>
             </div>
 
             <CommentsList
@@ -296,7 +296,7 @@ function BlogPostPageContent() {
         </div>
 
         {/* Back to Blog */}
-        <div className="mt-8 pt-8 border-t border-gray-200">
+        <div className="mt-8 pt-8 border-t border-white/10">
           <Link
             href="/blog"
             className="inline-flex items-center gap-2 text-[#F52F8E] hover:underline font-medium"

@@ -1,19 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafbfc;
-  --foreground: #0f172a;
-  --light-gray: #f1f5f9;
+  /* Dark Theme Colors */
+  --background: #0a0e27;
+  --background-light: #1a1f3a;
+  --background-lighter: #2a2f4a;
+  --foreground: #ffffff;
+  --foreground-light: #e5e7eb;
+  --foreground-muted: #9ca3af;
+  
+  /* Primary Colors */
   --hot-pink: #ec4899;
-  --hot-pink-light: #fce7f3;
+  --hot-pink-light: #f472b6;
   --hot-pink-dark: #db2777;
-  --gradient-primary: linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #fbbf24 100%);
-  --gradient-secondary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --shadow-glow: 0 0 20px rgba(236, 72, 153, 0.3);
+  --hot-pink-glow: rgba(236, 72, 153, 0.3);
+  
+  /* Accent Colors */
+  --neon-cyan: #00f5ff;
+  --neon-cyan-light: #33f7ff;
+  --neon-cyan-dark: #00d4e0;
+  --neon-cyan-glow: rgba(0, 245, 255, 0.3);
+  
+  /* Dark Purple Gradient */
+  --dark-purple: #1a0b2e;
+  --dark-purple-light: #2d1b4e;
+  --dark-purple-lighter: #3d2b5e;
+  
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #0a0e27 0%, #1a0b2e 50%, #2d1b4e 100%);
+  --gradient-secondary: linear-gradient(135deg, #1a0b2e 0%, #0a0e27 50%, #1a1f3a 100%);
+  --gradient-pink: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+  --gradient-cyan: linear-gradient(135deg, #00f5ff 0%, #33f7ff 100%);
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(236, 72, 153, 0.4);
+  --shadow-glow-cyan: 0 0 20px rgba(0, 245, 255, 0.4);
 }
 
 @theme inline {
@@ -43,14 +68,38 @@ html[dir="rtl"] * {
 }
 
 body {
-  background: linear-gradient(135deg, #fafbfc 0%, #f1f5f9 100%);
+  background: var(--gradient-primary);
+  background-image: url('/background-hexagon.webp');
+  background-size: cover;
+  background-position: center;
   background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--foreground);
   font-family: var(--font-hebrew), var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   direction: rtl;
   text-align: right;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Dark overlay for readability - ensures content remains perfectly readable */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(10, 14, 39, 0.88) 0%,
+    rgba(26, 15, 46, 0.85) 50%,
+    rgba(10, 14, 39, 0.88) 100%
+  );
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* Force RTL for all text elements */
@@ -59,39 +108,95 @@ p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a {
   text-align: inherit;
 }
 
-/* Modern Scrollbar */
+/* Modern Scrollbar - Dark Theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: rgba(26, 15, 46, 0.5);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #ec4899, #f472b6);
+  background: linear-gradient(135deg, #ec4899, #00f5ff);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #db2777, #ec4899);
+  background: linear-gradient(135deg, #db2777, #00d4e0);
 }
 
-/* Glassmorphism Effect */
+/* Glassmorphism Effect - Dark Theme */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(30, 41, 59, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1.5px solid rgba(236, 72, 153, 0.4);
+  border-radius: 1.5rem;
+  box-shadow: 
+    0 8px 32px 0 rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(236, 72, 153, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass:hover {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(236, 72, 153, 0.5);
+  box-shadow: 
+    0 12px 40px 0 rgba(0, 0, 0, 0.6),
+    0 0 20px rgba(236, 72, 153, 0.15),
+    0 0 35px rgba(236, 72, 153, 0.1),
+    inset 0 0 20px rgba(236, 72, 153, 0.05);
+  transform: translateY(-2px);
 }
 
 .glass-dark {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1.5px solid rgba(236, 72, 153, 0.3);
+  border-radius: 1.5rem;
+  box-shadow: 
+    0 8px 32px 0 rgba(0, 0, 0, 0.6),
+    0 0 15px rgba(236, 72, 153, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-dark:hover {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(236, 72, 153, 0.5);
+  box-shadow: 
+    0 12px 40px 0 rgba(0, 0, 0, 0.6),
+    0 0 20px rgba(236, 72, 153, 0.15),
+    0 0 35px rgba(236, 72, 153, 0.1),
+    inset 0 0 20px rgba(236, 72, 153, 0.05);
+  transform: translateY(-2px);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1.5px solid rgba(236, 72, 153, 0.4);
+  border-radius: 1.5rem;
+  box-shadow: 
+    0 8px 32px 0 rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(236, 72, 153, 0.15),
+    inset 0 0 20px rgba(236, 72, 153, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(236, 72, 153, 0.6);
+  box-shadow: 
+    0 12px 40px 0 rgba(0, 0, 0, 0.6),
+    0 0 25px rgba(236, 72, 153, 0.2),
+    0 0 40px rgba(236, 72, 153, 0.1),
+    inset 0 0 20px rgba(236, 72, 153, 0.05);
+  transform: translateY(-2px);
 }
 
 /* Gradient Text */
@@ -102,20 +207,28 @@ p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a {
   background-clip: text;
 }
 
-/* Modern Card */
+/* Modern Card - Dark Theme (using glass-card instead) */
 .modern-card {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1.5px solid rgba(236, 72, 153, 0.4);
+  border-radius: 1.5rem;
+  box-shadow: 
+    0 8px 32px 0 rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(236, 72, 153, 0.15),
+    inset 0 0 20px rgba(236, 72, 153, 0.05);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modern-card:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(236, 72, 153, 0.6);
+  box-shadow: 
+    0 12px 40px 0 rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(236, 72, 153, 0.25),
+    inset 0 0 30px rgba(236, 72, 153, 0.08);
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px 0 rgba(236, 72, 153, 0.15);
-  border-color: rgba(236, 72, 153, 0.2);
 }
 
 /* Smooth Animations */
@@ -163,20 +276,154 @@ p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a {
 }
 
 
-/* Modern Button */
-.btn-modern {
-  background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+/* Shine Animation Keyframes - Continuous */
+@keyframes buttonShine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Modern Button - Pill Shape with Glow - PRIMARY (Hot Pink) */
+.btn-modern,
+.btn-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #ec4899 100%);
   box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
+  transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 9999px;
+  color: white;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate; /* Creates new stacking context */
+}
+
+/* Wrapper for transform effects to prevent text movement */
+.btn-modern::after,
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.btn-modern::before,
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: buttonShine 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+
+.btn-modern:hover,
+.btn-primary:hover {
+  box-shadow: 0 6px 25px rgba(236, 72, 153, 0.6);
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #f472b6 100%);
+}
+
+.btn-modern:hover::after,
+.btn-primary:hover::after {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.btn-modern:hover::before,
+.btn-primary:hover::before {
+  animation-duration: 1s;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+}
+
+.btn-modern:active::after,
+.btn-primary:active::after {
+  transform: translateY(0) scale(1);
+}
+
+/* Ensure all content (text, icons) stays completely stable */
+.btn-modern > *,
+.btn-primary > * {
+  position: relative;
+  z-index: 1;
+  transform: none !important; /* Prevent any transform on text */
+  will-change: auto;
+}
+
+/* Secondary Button - Transparent with Border */
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 9999px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.btn-modern:hover {
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Danger Button - Red */
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 9999px;
+  color: white;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
+  box-shadow: 0 6px 25px rgba(239, 68, 68, 0.6);
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
 }
 
-.btn-modern:active {
-  transform: translateY(0);
+.btn-cyan {
+  background: var(--gradient-cyan);
+  box-shadow: 0 4px 15px var(--neon-cyan-glow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 9999px;
+  color: #0a0e27;
+  font-weight: 600;
+}
+
+.btn-cyan:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 245, 255, 0.6);
 }
 
 /* RTL for all inputs and textareas */
@@ -191,6 +438,18 @@ textarea,
 select {
   direction: rtl !important;
   text-align: right !important;
+}
+
+/* Style select options for dark theme */
+select option {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  padding: 0.75rem 1rem !important;
+}
+
+/* Ensure select dropdown background is dark */
+select:focus {
+  background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Fix Hebrew text input direction - use normal bidi for proper RTL */
@@ -219,21 +478,26 @@ textarea[lang="he"]::placeholder {
   text-align: right;
 }
 
-/* Modern Input */
+/* Modern Input - Dark Theme */
 .modern-input {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(26, 15, 46, 0.6);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(236, 72, 153, 0.2);
+  border: 1px solid rgba(236, 72, 153, 0.3);
   transition: all 0.3s ease;
   direction: rtl;
   text-align: right;
+  color: var(--foreground);
+}
+
+.modern-input::placeholder {
+  color: var(--foreground-muted);
 }
 
 .modern-input:focus {
   outline: none;
-  border-color: #ec4899;
-  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
-  background: rgba(255, 255, 255, 1);
+  border-color: var(--hot-pink);
+  box-shadow: 0 0 0 3px var(--hot-pink-glow);
+  background: rgba(26, 15, 46, 0.8);
 }
 
 /* Hide Scrollbar */
@@ -384,5 +648,51 @@ textarea[lang="he"]::placeholder {
 .react-datepicker__input-container input:focus {
   outline: none;
   border-color: #3b82f6;
-  ring: 1px solid #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* Fix Dark Mode Input Autofill - CRITICAL for Chrome autofill */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px rgba(30, 41, 59, 0.8) inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  background-color: rgba(30, 41, 59, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Video Player Lightbox Style */
+video,
+iframe[src*="youtube"],
+iframe[src*="vimeo"],
+.video-container {
+  border-radius: 20px;
+  border: 2px solid rgba(236, 72, 153, 0.4);
+  box-shadow: 
+    0 0 20px rgba(236, 72, 153, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.video-container video,
+.video-container iframe {
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
 }

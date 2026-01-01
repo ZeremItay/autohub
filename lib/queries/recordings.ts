@@ -114,9 +114,28 @@ export async function getRecordingById(id: string) {
     .eq('id', id)
     .maybeSingle()
   
+  // If no data and no meaningful error, treat as not found
+  if (!data && (!error || (typeof error === 'object' && Object.keys(error).length === 0))) {
+    return { data: null, error: null }
+  }
+  
   if (error) {
+    // Only log if it's not a "not found" error and has meaningful content
     if (!isNotFoundError(error)) {
-      logError(error, 'getRecordingById');
+      // Check if error has meaningful content before logging
+      // Skip empty objects or objects with no meaningful properties
+      const errorKeys = typeof error === 'object' && error !== null ? Object.keys(error) : [];
+      const hasMeaningfulContent = 
+        (error?.message && error.message !== '{}' && error.message !== '[object Object]') ||
+        (error?.code && error.code !== '{}') ||
+        (errorKeys.length > 0 && errorKeys.some(key => {
+          const value = error[key];
+          return value !== null && value !== undefined && value !== '' && value !== '{}';
+        }));
+      
+      if (hasMeaningfulContent) {
+        logError(error, 'getRecordingById');
+      }
     }
     return { data: null, error }
   }

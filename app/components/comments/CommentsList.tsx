@@ -90,7 +90,7 @@ export default function CommentsList({
     <div className="space-y-4">
       {/* Add Comment Form */}
       {showForm && currentUser && (
-        <div className="mb-4 pb-4 border-b border-gray-200">
+        <div className="mb-4 pb-4 border-b border-white/10">
           <CommentForm
             onSubmit={onSubmitComment}
             placeholder="כתוב תגובה..."
@@ -124,7 +124,7 @@ export default function CommentsList({
           );
         })
       ) : (
-        <p className={`${size === 'sm' ? 'text-xs' : 'text-sm'} text-gray-500 text-center py-4`}>
+        <p className={`${size === 'sm' ? 'text-xs' : 'text-sm'} text-gray-300 text-center py-4`}>
           {emptyMessage}
         </p>
       )}

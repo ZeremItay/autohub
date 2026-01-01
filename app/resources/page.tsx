@@ -116,7 +116,7 @@ export default function ResourcesPage() {
                 onClick={() => setSelectedCategory(category)}
                 className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
                   selectedCategory === category
-                    ? 'bg-[#F52F8E] text-white'
+                    ? 'bg-hot-pink text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
                 }`}
               >
@@ -142,7 +142,7 @@ export default function ResourcesPage() {
                 </p>
                 <Link
                   href="/subscription"
-                  className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-medium text-sm sm:text-base"
+                  className="btn-primary inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 font-medium text-sm sm:text-base"
                 >
                   <span>שדרג את המנוי כאן</span>
                   <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -196,7 +196,7 @@ export default function ResourcesPage() {
                 {userIsPremium ? (
                   <button
                     onClick={() => handleDownload(resource)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-medium"
+                    className="btn-primary w-full flex items-center justify-center gap-2 px-4 py-2 font-medium"
                   >
                     <Download className="w-5 h-5" />
                     <span>הורד</span>

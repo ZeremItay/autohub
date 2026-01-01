@@ -1,477 +1,525 @@
-import { supabase } from '../supabase'
-import { getCached, setCached, invalidateCache } from '../cache'
+import { supabase } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase-server';
+import { logError } from '@/lib/utils/errorHandler';
 
 export interface Project {
-  id: string
-  user_id: string
-  title: string
-  description: string
-  status: 'open' | 'in_progress' | 'completed' | 'closed'
-  budget_min?: number
-  budget_max?: number
-  budget_currency?: string
-  technologies?: string[]
-  offers_count?: number
-  views?: number
-  created_at?: string
-  updated_at?: string
-  user?: {
-    user_id: string
-    display_name?: string
-    avatar_url?: string
-  }
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  status: 'open' | 'in_progress' | 'completed' | 'closed';
+  budget_min?: number;
+  budget_max?: number;
+  budget_currency?: string;
+  technologies?: string[];
+  offers_count?: number;
+  views?: number;
+  created_at: string;
+  updated_at: string;
+  profiles?: {
+    id: string;
+    first_name?: string;
+    last_name?: string;
+    nickname?: string;
+    avatar_url?: string;
+  };
 }
 
 export interface ProjectOffer {
-  id: string
-  project_id: string
-  user_id: string
-  offer_amount?: number
-  offer_currency?: string
-  message?: string
-  status: 'pending' | 'accepted' | 'rejected'
-  created_at?: string
-  updated_at?: string
-  user?: {
-    user_id: string
-    display_name?: string
-    avatar_url?: string
-  }
+  id: string;
+  project_id: string;
+  user_id: string;
+  offer_amount?: number;
+  offer_currency?: string;
+  message?: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  updated_at: string;
+  profiles?: {
+    id: string;
+    first_name?: string;
+    last_name?: string;
+    nickname?: string;
+    avatar_url?: string;
+  };
+  projects?: Project;
 }
 
-// Get all projects
-export async function getAllProjects() {
-  const cacheKey = 'projects:all';
-  const cached = getCached(cacheKey);
-  if (cached) {
-    return { data: Array.isArray(cached) ? cached : [], error: null };
-  }
+export async function getAllProjects(): Promise<{ data: Project[] | null; error: any }> {
+  try {
+    // First, get all projects
+    const { data: projects, error: projectsError } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  const { data: projects, error } = await supabase
-    .from('projects')
-    .select('id, user_id, title, description, status, budget_min, budget_max, budget_currency, technologies, offers_count, views, created_at, updated_at')
-    .order('created_at', { ascending: false })
-    .limit(50) // Limit to improve performance
+    if (projectsError) {
+      // Only log meaningful errors
+      if (projectsError.message && projectsError.message !== '{}' && projectsError.message !== '[object Object]') {
+        logError(projectsError, 'getAllProjects');
+      }
+      return { data: null, error: projectsError };
+    }
 
-  if (error) {
-    console.error('Error fetching projects:', error)
-    return { data: null, error }
-  }
+    if (!projects || projects.length === 0) {
+      return { data: [], error: null };
+    }
 
-  // Fetch user profiles for each project
-  if (projects && projects.length > 0) {
-    const userIds = [...new Set(projects.map(p => p.user_id))]
-    const { data: profiles } = await supabase
+    // Get unique user IDs
+    const userIds = [...new Set(projects.map((p: any) => p.user_id))];
+
+    // Fetch profiles for these users
+    const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('user_id, display_name, avatar_url')
-      .in('user_id', userIds)
+      .select('user_id, id, first_name, last_name, nickname, avatar_url')
+      .in('user_id', userIds);
 
-    const profileMap = new Map(profiles?.map((p: any) => [p.user_id, p]) || [])
+    // Create a map of user_id to profile
+    const profilesMap = new Map();
+    if (profiles) {
+      profiles.forEach((profile: any) => {
+        profilesMap.set(profile.user_id, {
+          id: profile.id,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          nickname: profile.nickname,
+          avatar_url: profile.avatar_url
+        });
+      });
+    }
 
-    const projectsWithUsers = projects.map(project => ({
+    // Combine projects with profiles
+    const projectsWithProfiles = projects.map((project: any) => ({
       ...project,
-      user: profileMap.get(project.user_id) || null
-    }))
+      profiles: profilesMap.get(project.user_id) || null
+    }));
 
-    setCached(cacheKey, projectsWithUsers);
-    return { data: Array.isArray(projectsWithUsers) ? projectsWithUsers : [], error: null }
+    return { data: projectsWithProfiles as Project[], error: null };
+  } catch (error: any) {
+    // Only log meaningful errors
+    const errorMessage = error?.message || String(error);
+    if (errorMessage && errorMessage !== '{}' && errorMessage !== '[object Object]' && errorMessage !== '') {
+      logError(error, 'getAllProjects');
+    }
+    return { data: null, error };
   }
-
-  return { data: [], error: null }
 }
 
-// Get project by ID
-export async function getProjectById(id: string) {
-  const { data: project, error } = await supabase
-    .from('projects')
-    .select('id, user_id, title, description, status, budget_min, budget_max, budget_currency, technologies, offers_count, views, created_at, updated_at')
-    .eq('id', id)
-    .single()
+export async function getProjectById(id: string): Promise<{ data: Project | null; error: any }> {
+  try {
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-  if (error) {
-    console.error('Error fetching project:', error)
-    return { data: null, error }
-  }
+    if (projectError) {
+      // Only log meaningful errors
+      if (projectError.message && projectError.message !== '{}' && projectError.message !== '[object Object]') {
+        logError(projectError, 'getProjectById');
+      }
+      return { data: null, error: projectError };
+    }
 
-  // Fetch user profile
-  if (project) {
+    if (!project) {
+      return { data: null, error: null };
+    }
+
+    // Fetch profile for this user
     const { data: profile } = await supabase
       .from('profiles')
-      .select('user_id, display_name, avatar_url')
+      .select('user_id, id, first_name, last_name, nickname, avatar_url')
       .eq('user_id', project.user_id)
-      .single()
+      .single();
 
-    return { 
-      data: { ...project, user: profile || null }, 
-      error: null 
-    }
-  }
-
-  return { data: null, error: null }
-}
-
-// Create project
-export async function createProject(project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) {
-  const { data, error } = await supabase
-    .from('projects')
-    .insert([project])
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error creating project:', error)
-    return { data: null, error }
-  }
-
-  return { data, error: null }
-}
-
-// Update project
-export async function updateProject(id: string, updates: Partial<Project>) {
-  const { data, error } = await supabase
-    .from('projects')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error updating project:', error)
-    return { data: null, error }
-  }
-
-  // Invalidate cache
-  if (data) {
-    invalidateCache('projects:all');
-    invalidateCache(`projects:user:${data.user_id}`);
-  }
-
-  return { data, error: null }
-}
-
-// Get project offers
-export async function getProjectOffers(projectId: string) {
-  const { data: offers, error } = await supabase
-    .from('project_offers')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching offers:', error)
-    return { data: null, error }
-  }
-
-  // Fetch user profiles
-  if (offers && offers.length > 0) {
-    const userIds = [...new Set(offers.map(o => o.user_id))]
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, display_name, avatar_url')
-      .in('user_id', userIds)
-
-    const profileMap = new Map(profiles?.map((p: any) => [p.user_id, p]) || [])
-
-    const offersWithUsers = offers.map(offer => ({
-      ...offer,
-      user: profileMap.get(offer.user_id) || null
-    }))
-
-    return { data: Array.isArray(offersWithUsers) ? offersWithUsers : [], error: null }
-  }
-
-  return { data: [], error: null }
-}
-
-// Create project offer
-export async function createProjectOffer(offer: Omit<ProjectOffer, 'id' | 'created_at' | 'updated_at'>) {
-  const { data, error } = await supabase
-    .from('project_offers')
-    .insert([offer])
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error creating offer:', error)
-    return { data: null, error }
-  }
-
-  // Increment offers_count in project
-  const { data: project } = await supabase
-    .from('projects')
-    .select('offers_count')
-    .eq('id', offer.project_id)
-    .single()
-
-  if (project) {
-    await supabase
-      .from('projects')
-      .update({ offers_count: (project.offers_count || 0) + 1 })
-      .eq('id', offer.project_id)
-  }
-
-  return { data, error: null }
-}
-
-// Get user's project offers
-export async function getUserProjectOffers(userId: string) {
-  const { data, error } = await supabase
-    .from('project_offers')
-    .select(`
-      *,
-      project:projects (
-        id,
-        title,
-        description,
-        status,
-        budget_min,
-        budget_max,
-        budget_currency,
-        user_id
-      )
-    `)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(10)
-  
-  if (error) {
-    console.error('Error fetching user project offers:', error)
-    return { data: null, error }
-  }
-  
-  return { data: Array.isArray(data) ? data : [], error: null }
-}
-
-// Update project offer (e.g., change status)
-export async function updateProjectOffer(id: string, updates: Partial<ProjectOffer>) {
-  const { data, error } = await supabase
-    .from('project_offers')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error updating project offer:', error)
-    return { data: null, error }
-  }
-
-  // If status changed to accepted, update project status to in_progress
-  if (updates.status === 'accepted' && data) {
-    await supabase
-      .from('projects')
-      .update({ status: 'in_progress', updated_at: new Date().toISOString() })
-      .eq('id', data.project_id)
-  }
-
-  return { data, error: null }
-}
-
-// Delete project offer
-export async function deleteProjectOffer(id: string) {
-  // Get offer to update project offers_count
-  const { data: offer } = await supabase
-    .from('project_offers')
-    .select('project_id')
-    .eq('id', id)
-    .single()
-
-  const { data, error } = await supabase
-    .from('project_offers')
-    .delete()
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error deleting project offer:', error)
-    return { data: null, error }
-  }
-
-  // Decrement offers_count in project
-  if (offer) {
-    const { data: project } = await supabase
-      .from('projects')
-      .select('offers_count')
-      .eq('id', offer.project_id)
-      .single()
-
-    if (project) {
-      await supabase
-        .from('projects')
-        .update({ offers_count: Math.max(0, (project.offers_count || 0) - 1) })
-        .eq('id', offer.project_id)
-    }
-  }
-
-  return { data, error: null }
-}
-
-// Get all project offers (for admin panel)
-export async function getAllProjectOffers() {
-  const cacheKey = 'project_offers:all';
-  const cached = getCached(cacheKey);
-  if (cached) {
-    return { data: Array.isArray(cached) ? cached : [], error: null };
-  }
-
-  const { data: offers, error } = await supabase
-    .from('project_offers')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(200)
-
-  if (error) {
-    console.error('Error fetching all project offers:', error)
-    return { data: null, error }
-  }
-
-  // Fetch user profiles and project details
-  if (offers && offers.length > 0) {
-    const userIds = [...new Set(offers.map(o => o.user_id))]
-    const projectIds = [...new Set(offers.map(o => o.project_id))]
-    
-    const [profilesRes, projectsRes] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('user_id, display_name, avatar_url')
-        .in('user_id', userIds),
-      supabase
-        .from('projects')
-        .select('id, title, user_id')
-        .in('id', projectIds)
-    ])
-
-    const profileMap = new Map(profilesRes.data?.map((p: any) => [p.user_id, p]) || [])
-    const projectMap = new Map(projectsRes.data?.map((p: any) => [p.id, p]) || [])
-
-    const offersWithDetails = offers.map(offer => ({
-      ...offer,
-      user: profileMap.get(offer.user_id) || null,
-      project: projectMap.get(offer.project_id) || null
-    }))
-
-    setCached(cacheKey, offersWithDetails, 60000); // Cache for 1 minute
-    return { data: Array.isArray(offersWithDetails) ? offersWithDetails : [], error: null }
-  }
-
-  return { data: [], error: null }
-}
-
-// Get all projects by a specific user
-export async function getUserProjects(userId: string) {
-  const cacheKey = `projects:user:${userId}`;
-  const cached = getCached(cacheKey);
-  if (cached) {
-    return { data: Array.isArray(cached) ? cached : [], error: null };
-  }
-
-  const { data: projects, error } = await supabase
-    .from('projects')
-    .select('id, user_id, title, description, status, budget_min, budget_max, budget_currency, technologies, offers_count, views, created_at, updated_at')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching user projects:', error)
-    return { data: null, error }
-  }
-
-  // Fetch user profile
-  if (projects && projects.length > 0) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('user_id, display_name, avatar_url')
-      .eq('user_id', userId)
-      .single()
-
-    const projectsWithUser = projects.map(project => ({
+    const projectWithProfile = {
       ...project,
-      user: profile || null
-    }))
+      profiles: profile ? {
+        id: profile.id,
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        nickname: profile.nickname,
+        avatar_url: profile.avatar_url
+      } : null
+    };
 
-    setCached(cacheKey, projectsWithUser, 60000); // Cache for 1 minute
-    return { data: Array.isArray(projectsWithUser) ? projectsWithUser : [], error: null }
+    return { data: projectWithProfile as Project, error: null };
+  } catch (error: any) {
+    // Only log meaningful errors
+    const errorMessage = error?.message || String(error);
+    if (errorMessage && errorMessage !== '{}' && errorMessage !== '[object Object]' && errorMessage !== '') {
+      logError(error, 'getProjectById');
+    }
+    return { data: null, error };
   }
-
-  return { data: [], error: null }
 }
 
-// Get all project offers by a specific user
-export async function getProjectOffersByUser(userId: string) {
-  const cacheKey = `project_offers:user:${userId}`;
-  const cached = getCached(cacheKey);
-  if (cached) {
-    return { data: Array.isArray(cached) ? cached : [], error: null };
-  }
+export async function getUserProjects(userId: string): Promise<{ data: Project[] | null; error: any }> {
+  try {
+    const { data: projects, error: projectsError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-  const { data: offers, error } = await supabase
-    .from('project_offers')
-    .select(`
-      *,
-      project:projects (
-        id,
-        title,
-        description,
-        status,
-        budget_min,
-        budget_max,
-        budget_currency,
-        user_id,
-        created_at
-      )
-    `)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+    if (projectsError) {
+      // Only log meaningful errors
+      if (projectsError.message && projectsError.message !== '{}' && projectsError.message !== '[object Object]') {
+        logError(projectsError, 'getUserProjects');
+      }
+      return { data: null, error: projectsError };
+    }
 
-  if (error) {
-    console.error('Error fetching project offers by user:', error)
-    return { data: null, error }
-  }
+    if (!projects || projects.length === 0) {
+      return { data: [], error: null };
+    }
 
-  // Fetch user profile
-  if (offers && offers.length > 0) {
+    // Fetch profile for this user
     const { data: profile } = await supabase
       .from('profiles')
-      .select('user_id, display_name, avatar_url')
+      .select('user_id, id, first_name, last_name, nickname, avatar_url')
       .eq('user_id', userId)
-      .single()
+      .single();
 
-    const offersWithUser = offers.map(offer => ({
-      ...offer,
-      user: profile || null
-    }))
+    const profileData = profile ? {
+      id: profile.id,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      nickname: profile.nickname,
+      avatar_url: profile.avatar_url
+    } : null;
 
-    setCached(cacheKey, offersWithUser, 60000); // Cache for 1 minute
-    return { data: Array.isArray(offersWithUser) ? offersWithUser : [], error: null }
+    // Combine projects with profile
+    const projectsWithProfile = projects.map((project: any) => ({
+      ...project,
+      profiles: profileData
+    }));
+
+    return { data: projectsWithProfile as Project[], error: null };
+  } catch (error: any) {
+    // Only log meaningful errors
+    const errorMessage = error?.message || String(error);
+    if (errorMessage && errorMessage !== '{}' && errorMessage !== '[object Object]' && errorMessage !== '') {
+      logError(error, 'getUserProjects');
+    }
+    return { data: null, error };
   }
-
-  return { data: [], error: null }
 }
 
-// Get project offers by user (alias for getUserProjectOffers with better naming)
-// This function is kept for backward compatibility but delegates to getUserProjectOffers
+export async function createProject(projectData: {
+  user_id: string;
+  title: string;
+  description: string;
+  status?: 'open' | 'in_progress' | 'completed' | 'closed';
+  budget_min?: number;
+  budget_max?: number;
+  budget_currency?: string;
+  technologies?: string[];
+}): Promise<{ data: Project | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert([{
+        user_id: projectData.user_id,
+        title: projectData.title,
+        description: projectData.description,
+        status: projectData.status || 'open',
+        budget_min: projectData.budget_min || null,
+        budget_max: projectData.budget_max || null,
+        budget_currency: projectData.budget_currency || 'ILS',
+        technologies: projectData.technologies || []
+      }])
+      .select(`
+        *,
+        profiles (
+          id,
+          first_name,
+          last_name,
+          nickname,
+          avatar_url
+        )
+      `)
+      .single();
 
-// Delete project
-export async function deleteProject(id: string) {
-  const { data, error } = await supabase
-    .from('projects')
-    .delete()
-    .eq('id', id)
-    .select()
-    .single()
+    if (error) {
+      logError(error, 'createProject');
+      return { data: null, error };
+    }
 
-  if (error) {
-    console.error('Error deleting project:', error)
-    return { data: null, error }
+    return { data: data as Project, error: null };
+  } catch (error: any) {
+    logError(error, 'createProject');
+    return { data: null, error };
   }
-
-  // Invalidate cache
-  if (data) {
-    invalidateCache('projects:all');
-    invalidateCache(`projects:user:${data.user_id}`);
-  }
-
-  return { data, error: null }
 }
 
+export async function updateProject(
+  id: string,
+  updateData: Partial<Project>
+): Promise<{ data: Project | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .update({
+        ...updateData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        profiles (
+          id,
+          first_name,
+          last_name,
+          nickname,
+          avatar_url
+        )
+      `)
+      .single();
+
+    if (error) {
+      logError(error, 'updateProject');
+      return { data: null, error };
+    }
+
+    return { data: data as Project, error: null };
+  } catch (error: any) {
+    logError(error, 'updateProject');
+    return { data: null, error };
+  }
+}
+
+export async function deleteProject(id: string): Promise<{ error: any }> {
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      logError(error, 'deleteProject');
+      return { error };
+    }
+
+    return { error: null };
+  } catch (error: any) {
+    logError(error, 'deleteProject');
+    return { error };
+  }
+}
+
+export async function getAllProjectOffers(): Promise<{ data: ProjectOffer[] | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('project_offers')
+      .select(`
+        *,
+        profiles (
+          id,
+          first_name,
+          last_name,
+          nickname,
+          avatar_url
+        ),
+        projects (
+          *
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      logError(error, 'getAllProjectOffers');
+      return { data: null, error };
+    }
+
+    return { data: data as ProjectOffer[], error: null };
+  } catch (error: any) {
+    logError(error, 'getAllProjectOffers');
+    return { data: null, error };
+  }
+}
+
+export async function getProjectOffers(projectId: string): Promise<{ data: ProjectOffer[] | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('project_offers')
+      .select(`
+        *,
+        profiles (
+          id,
+          first_name,
+          last_name,
+          nickname,
+          avatar_url
+        ),
+        projects (
+          *
+        )
+      `)
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      logError(error, 'getProjectOffers');
+      return { data: null, error };
+    }
+
+    return { data: data as ProjectOffer[], error: null };
+  } catch (error: any) {
+    logError(error, 'getProjectOffers');
+    return { data: null, error };
+  }
+}
+
+export async function getProjectOffersByUser(userId: string): Promise<{ data: ProjectOffer[] | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('project_offers')
+      .select(`
+        *,
+        profiles (
+          id,
+          first_name,
+          last_name,
+          nickname,
+          avatar_url
+        ),
+        projects (
+          *
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      logError(error, 'getProjectOffersByUser');
+      return { data: null, error };
+    }
+
+    return { data: data as ProjectOffer[], error: null };
+  } catch (error: any) {
+    logError(error, 'getProjectOffersByUser');
+    return { data: null, error };
+  }
+}
+
+export async function createProjectOffer(offerData: {
+  project_id: string;
+  user_id: string;
+  offer_amount?: number;
+  offer_currency?: string;
+  message?: string;
+  status?: 'pending' | 'accepted' | 'rejected';
+}): Promise<{ data: ProjectOffer | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('project_offers')
+      .insert([{
+        project_id: offerData.project_id,
+        user_id: offerData.user_id,
+        offer_amount: offerData.offer_amount || null,
+        offer_currency: offerData.offer_currency || 'ILS',
+        message: offerData.message || null,
+        status: offerData.status || 'pending'
+      }])
+      .select(`
+        *,
+        profiles (
+          id,
+          first_name,
+          last_name,
+          nickname,
+          avatar_url
+        ),
+        projects (
+          *
+        )
+      `)
+      .single();
+
+    if (error) {
+      logError(error, 'createProjectOffer');
+      return { data: null, error };
+    }
+
+    // Update offers_count in project
+    const { error: updateError } = await supabase.rpc('increment', {
+      table_name: 'projects',
+      row_id: offerData.project_id,
+      column_name: 'offers_count'
+    });
+
+    if (updateError) {
+      // If RPC doesn't exist, manually update
+      const { data: projectData } = await getProjectById(offerData.project_id);
+      if (projectData) {
+        await updateProject(offerData.project_id, {
+          offers_count: (projectData.offers_count || 0) + 1
+        });
+      }
+    }
+
+    return { data: data as ProjectOffer, error: null };
+  } catch (error: any) {
+    logError(error, 'createProjectOffer');
+    return { data: null, error };
+  }
+}
+
+export async function updateProjectOffer(
+  id: string,
+  updateData: Partial<ProjectOffer>
+): Promise<{ data: ProjectOffer | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('project_offers')
+      .update({
+        ...updateData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        profiles (
+          id,
+          first_name,
+          last_name,
+          nickname,
+          avatar_url
+        ),
+        projects (
+          *
+        )
+      `)
+      .single();
+
+    if (error) {
+      logError(error, 'updateProjectOffer');
+      return { data: null, error };
+    }
+
+    return { data: data as ProjectOffer, error: null };
+  } catch (error: any) {
+    logError(error, 'updateProjectOffer');
+    return { data: null, error };
+  }
+}
+
+export async function deleteProjectOffer(id: string): Promise<{ error: any }> {
+  try {
+    const { error } = await supabase
+      .from('project_offers')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      logError(error, 'deleteProjectOffer');
+      return { error };
+    }
+
+    return { error: null };
+  } catch (error: any) {
+    logError(error, 'deleteProjectOffer');
+    return { error };
+  }
+}

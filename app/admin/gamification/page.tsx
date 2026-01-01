@@ -169,7 +169,7 @@ export default function GamificationAdmin() {
                     description: ''
                   })
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                className="btn-primary flex items-center gap-2 px-4 py-2"
               >
                 <Plus className="w-5 h-5" />
                 הוסף כלל חדש
@@ -232,7 +232,7 @@ export default function GamificationAdmin() {
                           : { ...formData, id: editing }
                         saveRule(ruleToSave)
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                      className="btn-primary flex items-center gap-2 px-4 py-2"
                     >
                       <Save className="w-4 h-4" />
                       שמור

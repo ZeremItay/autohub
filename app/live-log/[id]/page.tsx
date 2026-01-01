@@ -97,9 +97,9 @@ function EventDetailPageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen">
         <div className="px-4 sm:px-6 lg:px-8 py-8">
-          <div className="max-w-7xl mx-auto text-center py-12">טוען...</div>
+          <div className="max-w-7xl mx-auto text-center py-12 text-white">טוען...</div>
         </div>
       </div>
     );
@@ -107,11 +107,11 @@ function EventDetailPageContent() {
 
   if (!event) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen">
         <div className="px-4 sm:px-6 lg:px-8 py-8">
           <div className="max-w-7xl mx-auto text-center py-12">
-            <p className="text-gray-500 text-lg">אירוע לא נמצא</p>
-            <Link href="/live-log" className="text-[#F52F8E] hover:underline mt-4 inline-block">
+            <p className="text-gray-300 text-lg">אירוע לא נמצא</p>
+            <Link href="/live-log" className="text-hot-pink hover:underline mt-4 inline-block">
               חזרה ליומן
             </Link>
           </div>
@@ -121,7 +121,7 @@ function EventDetailPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* Hero Banner - Pink Gradient */}
       <div className="bg-gradient-to-b from-pink-400 via-pink-500 to-purple-600 relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
@@ -166,30 +166,30 @@ function EventDetailPageContent() {
           <div className="flex gap-6 flex-col lg:flex-row">
             {/* Left Column - Event Logistics */}
             <div className="lg:w-80 flex-shrink-0">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-8">
+              <div className="glass-card rounded-3xl p-6 sticky top-8">
                 {/* Date */}
                 <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-600 mb-2">תאריך</h3>
-                  <div className="flex items-center gap-2 text-gray-800">
-                    <Calendar className="w-5 h-5 text-[#F52F8E]" />
+                  <h3 className="text-sm font-semibold text-gray-300 mb-2">תאריך</h3>
+                  <div className="flex items-center gap-2 text-white">
+                    <Calendar className="w-5 h-5 text-hot-pink" />
                     <span>{formatDateShort(event.event_date)}</span>
                   </div>
                 </div>
 
                 {/* Time */}
                 <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-600 mb-2">שעה</h3>
-                  <div className="flex items-center gap-2 text-gray-800">
-                    <Clock className="w-5 h-5 text-[#F52F8E]" />
+                  <h3 className="text-sm font-semibold text-gray-300 mb-2">שעה</h3>
+                  <div className="flex items-center gap-2 text-white">
+                    <Clock className="w-5 h-5 text-hot-pink" />
                     <span>{formatTime(event.event_time)}</span>
                   </div>
                 </div>
 
                 {/* Location */}
                 <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-600 mb-2">מיקום</h3>
-                  <div className="flex items-center gap-2 text-gray-800">
-                    <MapPin className="w-5 h-5 text-[#F52F8E]" />
+                  <h3 className="text-sm font-semibold text-gray-300 mb-2">מיקום</h3>
+                  <div className="flex items-center gap-2 text-white">
+                    <MapPin className="w-5 h-5 text-hot-pink" />
                     <span>{event.location || 'Google Meet'}</span>
                   </div>
                 </div>
@@ -198,19 +198,19 @@ function EventDetailPageContent() {
                 {event.status === 'completed' && event.recording_id ? (
                   <Link
                     href={`/recordings/${event.recording_id}`}
-                    className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-center block"
+                    className="w-full px-6 py-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors font-semibold text-center block shadow-lg hover:shadow-xl"
                   >
                     הלייב הסתיים, כאן אפשר לצפות בהקלטה
                   </Link>
                 ) : (event.status === 'active' || (isEventStarted(event) && event.zoom_meeting_id)) ? (
                   <Link
                     href="/live-room"
-                    className="w-full px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-semibold text-center block"
+                    className="w-full px-6 py-3 bg-hot-pink text-white rounded-full hover:bg-rose-500 transition-colors font-semibold text-center block"
                   >
                     הלייב התחיל, כאן אפשר לצפות
                   </Link>
                 ) : (
-                  <button className="w-full px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-semibold">
+                  <button className="w-full px-6 py-3 bg-hot-pink text-white rounded-full hover:bg-rose-500 transition-colors font-semibold">
                     הרשמה לאירוע
                   </button>
                 )}
@@ -221,23 +221,23 @@ function EventDetailPageContent() {
             <div className="flex-1 space-y-6">
               {/* About the Event */}
               {event.about_text && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">על האירוע</h2>
-                  <p className="text-gray-700 leading-relaxed">{event.about_text}</p>
+                <div className="glass-card rounded-3xl p-6">
+                  <h2 className="text-2xl font-bold text-white mb-4">על האירוע</h2>
+                  <p className="text-gray-100 leading-relaxed">{event.about_text}</p>
                 </div>
               )}
 
               {/* What will be learned */}
               {event.learning_points && event.learning_points.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">מה נלמד?</h2>
+                <div className="glass-card rounded-3xl p-6">
+                  <h2 className="text-2xl font-bold text-white mb-4">מה נלמד?</h2>
                   <ul className="space-y-3">
                     {event.learning_points.map((point, index) => (
                       <li key={index} className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-[#F52F8E] text-white flex items-center justify-center flex-shrink-0 mt-0.5 text-sm font-semibold">
+                        <div className="w-6 h-6 rounded-full bg-hot-pink text-white flex items-center justify-center flex-shrink-0 mt-0.5 text-sm font-semibold">
                           {index + 1}
                         </div>
-                        <span className="text-gray-700">{point}</span>
+                        <span className="text-gray-100">{point}</span>
                       </li>
                     ))}
                   </ul>
@@ -246,8 +246,8 @@ function EventDetailPageContent() {
 
               {/* Instructor */}
               {event.instructor_name && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">מנחים</h2>
+                <div className="glass-card rounded-3xl p-6">
+                  <h2 className="text-2xl font-bold text-white mb-4">מנחים</h2>
                   <div className="flex items-center gap-4">
                     {event.instructor_avatar_url ? (
                       <img
@@ -256,14 +256,14 @@ function EventDetailPageContent() {
                         className="w-16 h-16 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white font-semibold text-xl">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-hot-pink to-rose-500 flex items-center justify-center text-white font-semibold text-xl">
                         {event.instructor_name.charAt(0)}
                       </div>
                     )}
                     <div>
-                      <h3 className="font-semibold text-gray-800 text-lg">{event.instructor_name}</h3>
+                      <h3 className="font-semibold text-white text-lg">{event.instructor_name}</h3>
                       {event.instructor_title && (
-                        <p className="text-gray-600">{event.instructor_title}</p>
+                        <p className="text-gray-300">{event.instructor_title}</p>
                       )}
                     </div>
                   </div>

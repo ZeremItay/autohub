@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Video, MessageSquare, FileText, Briefcase, BookOpen, ArrowRight } from 'lucide-react';
+import { Search, Video, MessageSquare, FileText, Briefcase, BookOpen, ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 function SearchResultsContent() {
@@ -252,10 +252,10 @@ function SearchResultsContent() {
 export default function SearchResultsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#F3F4F6] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#F52F8E] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">טוען...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-hot-pink mx-auto mb-4" />
+          <p className="text-gray-300">טוען...</p>
         </div>
       </div>
     }>

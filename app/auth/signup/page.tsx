@@ -158,19 +158,19 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">הצטרף למועדון</h1>
-          <p className="text-gray-600">צור חשבון חדש והתחל להנות מכל התכונות</p>
+          <h1 className="text-4xl font-bold text-white mb-2">הצטרף למועדון</h1>
+          <p className="text-gray-300">צור חשבון חדש והתחל להנות מכל התכונות</p>
         </div>
 
         {/* Signup Form */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8">
+        <div className="glass-card rounded-3xl shadow-2xl p-6 sm:p-8">
           {/* Error Message */}
           {error && (
-            <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+            <div className="mb-5 bg-red-500/20 border border-red-400/50 text-red-300 px-4 py-3 rounded-xl text-sm">
               {error}
             </div>
           )}
@@ -180,7 +180,7 @@ export default function SignupPage() {
             onClick={handleGoogleSignup}
             disabled={googleLoading || loading}
             type="button"
-            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-sm mb-5"
+            className="w-full bg-white/10 border-2 border-white/30 text-white py-3 rounded-full font-semibold hover:bg-white/20 hover:border-white/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-sm mb-5"
           >
             {googleLoading ? (
               <>
@@ -215,17 +215,17 @@ export default function SignupPage() {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
+              <div className="w-full border-t border-white/20"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">או</span>
+              <span className="px-4 glass-card text-gray-300">או</span>
             </div>
           </div>
 
           <form onSubmit={handleSignup} className="space-y-5">
             {/* Display Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 שם תצוגה *
               </label>
               <div className="relative">
@@ -236,7 +236,7 @@ export default function SignupPage() {
                   placeholder="הזן שם תצוגה"
                   value={formData.displayName}
                   onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white placeholder-gray-400"
                   required
                 />
               </div>
@@ -244,7 +244,7 @@ export default function SignupPage() {
 
             {/* First Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 שם פרטי
               </label>
               <div className="relative">
@@ -255,14 +255,14 @@ export default function SignupPage() {
                   placeholder="הזן שם פרטי"
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white placeholder-gray-400"
                 />
               </div>
             </div>
 
             {/* Last Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 שם משפחה
               </label>
               <div className="relative">
@@ -273,14 +273,14 @@ export default function SignupPage() {
                   placeholder="הזן שם משפחה"
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white placeholder-gray-400"
                 />
               </div>
             </div>
 
             {/* How to Address */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 איך צריך לפנות אליך בקהילה שלנו? *
               </label>
               <div className="relative">
@@ -290,19 +290,19 @@ export default function SignupPage() {
                   lang="he"
                   value={formData.how_to_address}
                   onChange={(e) => setFormData({ ...formData, how_to_address: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm bg-white appearance-none"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white appearance-none"
                   required
                 >
-                  <option value="">בחר אפשרות</option>
-                  <option value="אוטומטור">אוטומטור</option>
-                  <option value="אוטומטורית">אוטומטורית</option>
+                  <option value="" className="bg-[#1e293b] text-white">בחר אפשרות</option>
+                  <option value="אוטומטור" className="bg-[#1e293b] text-white">אוטומטור</option>
+                  <option value="אוטומטורית" className="bg-[#1e293b] text-white">אוטומטורית</option>
                 </select>
               </div>
             </div>
 
             {/* NoCode Experience */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 מה הניסיון שלך עם אוטומציות No Code בטופ 100? *
               </label>
               <div className="relative">
@@ -312,20 +312,20 @@ export default function SignupPage() {
                   lang="he"
                   value={formData.nocode_experience}
                   onChange={(e) => setFormData({ ...formData, nocode_experience: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm bg-white appearance-none"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white appearance-none"
                   required
                 >
-                  <option value="">בחר רמת ניסיון</option>
-                  <option value="מתחיל">מתחיל</option>
-                  <option value="בינוני">בינוני</option>
-                  <option value="מתקדם">מתקדם</option>
+                  <option value="" className="bg-[#1e293b] text-white">בחר רמת ניסיון</option>
+                  <option value="מתחיל" className="bg-[#1e293b] text-white">מתחיל</option>
+                  <option value="בינוני" className="bg-[#1e293b] text-white">בינוני</option>
+                  <option value="מתקדם" className="bg-[#1e293b] text-white">מתקדם</option>
                 </select>
               </div>
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 אימייל *
               </label>
               <div className="relative">
@@ -336,7 +336,7 @@ export default function SignupPage() {
                   placeholder="הזן כתובת אימייל"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white placeholder-gray-400"
                   required
                 />
               </div>
@@ -344,7 +344,7 @@ export default function SignupPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 סיסמה *
               </label>
               <div className="relative">
@@ -355,7 +355,7 @@ export default function SignupPage() {
                   placeholder="הזן סיסמה (לפחות 6 תווים)"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white placeholder-gray-400"
                   required
                   minLength={6}
                 />
@@ -366,7 +366,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="w-full bg-[#F52F8E] text-white py-3 rounded-xl font-semibold hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="btn-primary w-full py-3 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -384,9 +384,9 @@ export default function SignupPage() {
 
           {/* Login Link */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-300">
               כבר יש לך חשבון?{' '}
-              <Link href="/auth/login" className="text-[#F52F8E] hover:underline font-semibold">
+              <Link href="/auth/login" className="text-hot-pink hover:text-rose-400 hover:underline font-semibold transition-colors">
                 התחבר כאן
               </Link>
             </p>
@@ -394,7 +394,7 @@ export default function SignupPage() {
         </div>
 
         {/* Footer */}
-        <div className="mt-6 text-center text-sm text-gray-500">
+        <div className="mt-6 text-center text-sm text-gray-400">
           <p>על ידי הרשמה, אתה מסכים לתנאי השימוש ומדיניות הפרטיות שלנו</p>
         </div>
       </div>

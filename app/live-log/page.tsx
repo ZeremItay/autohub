@@ -120,20 +120,20 @@ export default function LiveLogPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
         <div className="max-w-7xl mx-auto">
           {/* Title and View Toggle */}
           <div className="flex items-center justify-between mb-4 sm:mb-6 lg:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">יומן לייבים</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">יומן לייבים</h1>
             {/* View Toggle - Mobile Only */}
-            <div className="lg:hidden flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200">
+            <div className="lg:hidden flex items-center gap-2 glass-card rounded-lg p-1 border border-white/20">
               <button
                 onClick={() => setViewMode('list')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   viewMode === 'list'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-600 hover:text-[#F52F8E]'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:text-hot-pink'
                 }`}
               >
                 רשימה
@@ -142,8 +142,8 @@ export default function LiveLogPage() {
                 onClick={() => setViewMode('calendar')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   viewMode === 'calendar'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-600 hover:text-[#F52F8E]'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:text-hot-pink'
                 }`}
               >
                 <CalendarIcon className="w-4 h-4" />
@@ -156,8 +156,8 @@ export default function LiveLogPage() {
             {viewMode === 'list' && (
               <div className="lg:hidden space-y-4">
                 {allEvents.length === 0 ? (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
-                    <p className="text-gray-500">אין אירועים החודש</p>
+                  <div className="glass-card rounded-xl p-6 text-center">
+                    <p className="text-gray-300">אין אירועים החודש</p>
                   </div>
                 ) : (
                   allEvents.map((event) => {
@@ -166,20 +166,20 @@ export default function LiveLogPage() {
                       <Link
                         key={event.id}
                         href={`/live/${event.id}`}
-                        className="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:border-[#F52F8E] transition-colors"
+                        className="block glass-card rounded-xl p-4 hover:border-hot-pink/60 transition-colors"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-pink-500 to-rose-400 flex items-center justify-center text-white font-bold">
+                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-hot-pink to-rose-500 flex items-center justify-center text-white font-bold">
                             {new Date(event.event_date).getDate()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-800 mb-1 text-base">{event.title}</h3>
+                            <h3 className="font-semibold text-white mb-1 text-base">{event.title}</h3>
                             {event.description && (
-                              <p className="text-sm text-gray-600 mb-2 line-clamp-2">{event.description}</p>
+                              <p className="text-sm text-gray-300 mb-2 line-clamp-2">{event.description}</p>
                             )}
                             <div className="flex items-center gap-3 flex-wrap">
-                              <span className="text-sm text-gray-500">{formatTime(event.event_time)}</span>
-                              <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+                              <span className="text-sm text-gray-300">{formatTime(event.event_time)}</span>
+                              <span className="px-2 py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
                                 {dateInfo.monthShort} {dateInfo.day}
                               </span>
                             </div>
@@ -194,29 +194,29 @@ export default function LiveLogPage() {
 
             {/* Calendar Section */}
             <div className={`flex-1 min-w-0 ${viewMode === 'list' ? 'hidden lg:block' : ''}`}>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 lg:p-6">
+              <div className="glass-card rounded-xl p-3 sm:p-4 lg:p-6">
                 {/* Month Navigation */}
                 <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2">
                   <div className="flex items-center gap-2 sm:gap-4">
                     <button
                       onClick={goToPreviousMonth}
-                      className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
                     >
                       <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
-                    <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800">
+                    <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-white">
                       {monthNames[currentMonth]} {currentYear}
                     </h2>
                     <button
                       onClick={goToNextMonth}
-                      className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
                     >
                       <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
                   <button
                     onClick={goToToday}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors text-sm sm:text-base"
+                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-hot-pink text-white rounded-full hover:bg-rose-500 transition-colors text-sm sm:text-base"
                   >
                     היום
                   </button>
@@ -225,7 +225,7 @@ export default function LiveLogPage() {
                 {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-1 sm:mb-2">
                   {dayNames.map((day, index) => (
-                    <div key={index} className="text-center text-xs sm:text-sm font-semibold text-gray-600 py-1 sm:py-2">
+                    <div key={index} className="text-center text-xs sm:text-sm font-semibold text-gray-300 py-1 sm:py-2">
                       <span className="hidden sm:inline">{day}</span>
                       <span className="sm:hidden">{day.replace('יום ', '')}</span>
                     </div>
@@ -247,11 +247,11 @@ export default function LiveLogPage() {
                     return (
                       <div
                         key={index}
-                        className={`aspect-square border border-gray-200 rounded-lg p-0.5 sm:p-1 ${
-                          isToday ? 'bg-yellow-50 border-yellow-300' : 'bg-white'
+                        className={`aspect-square border border-white/20 rounded-lg p-0.5 sm:p-1 ${
+                          isToday ? 'bg-hot-pink/20 border-hot-pink/50' : 'bg-white/5'
                         }`}
                       >
-                        <div className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${isToday ? 'text-[#F52F8E]' : 'text-gray-700'}`}>
+                        <div className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${isToday ? 'text-hot-pink' : 'text-gray-100'}`}>
                           {date.getDate()}
                         </div>
                         <div className="space-y-0.5 sm:space-y-1">
@@ -259,7 +259,7 @@ export default function LiveLogPage() {
                             <Link
                               key={event.id}
                               href={`/live/${event.id}`}
-                              className="block bg-[#F52F8E] text-white text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 rounded truncate hover:bg-[#E01E7A] transition-colors"
+                              className="block bg-hot-pink text-white text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 rounded truncate hover:bg-rose-500 transition-colors"
                               title={`${event.title} - ${formatTime(event.event_time)}`}
                             >
                               <span className="hidden sm:inline">
@@ -271,7 +271,7 @@ export default function LiveLogPage() {
                             </Link>
                           ))}
                           {dateEvents.length > 1 && (
-                            <div className="text-[10px] sm:text-xs text-gray-500">
+                            <div className="text-[10px] sm:text-xs text-gray-300">
                               +{dateEvents.length - 1}
                             </div>
                           )}
@@ -283,11 +283,11 @@ export default function LiveLogPage() {
               </div>
 
               {/* Upcoming Events Section */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 mt-4 sm:mt-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">אירועים עתידיים</h2>
+              <div className="glass-card rounded-xl p-4 sm:p-6 mt-4 sm:mt-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">אירועים עתידיים</h2>
                 
                 {upcomingEvents.length === 0 ? (
-                  <p className="text-gray-500 text-center py-6 sm:py-8 text-sm sm:text-base">אין אירועים קרובים</p>
+                  <p className="text-gray-300 text-center py-6 sm:py-8 text-sm sm:text-base">אין אירועים קרובים</p>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     {upcomingEvents.map((event) => {
@@ -296,19 +296,19 @@ export default function LiveLogPage() {
                         <Link
                           key={event.id}
                           href={`/live/${event.id}`}
-                          className="flex items-start gap-2 sm:gap-4 p-3 sm:p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] transition-colors"
+                          className="flex items-start gap-2 sm:gap-4 p-3 sm:p-4 border border-white/20 rounded-lg hover:border-hot-pink/60 transition-colors bg-white/5"
                         >
-                          <button className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 transition-colors flex-shrink-0">
-                            <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600" />
+                          <button className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center border border-white/20 rounded hover:bg-white/10 transition-colors flex-shrink-0">
+                            <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-gray-300" />
                           </button>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{event.title}</h3>
+                            <h3 className="font-semibold text-white mb-1 text-sm sm:text-base">{event.title}</h3>
                             {event.description && (
-                              <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{event.description}</p>
+                              <p className="text-xs sm:text-sm text-gray-300 mb-2 line-clamp-2">{event.description}</p>
                             )}
                             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                              <span className="text-xs sm:text-sm text-gray-500">{formatTime(event.event_time)}</span>
-                              <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+                              <span className="text-xs sm:text-sm text-gray-300">{formatTime(event.event_time)}</span>
+                              <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
                                 {dateInfo.monthShort} {dateInfo.day}
                               </span>
                             </div>

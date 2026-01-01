@@ -184,19 +184,19 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] w-full bg-white items-center justify-center">
-        <p className="text-gray-500">טוען...</p>
+      <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
+        <p className="text-gray-300">טוען...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full bg-white">
+    <div className="flex h-[calc(100vh-4rem)] w-full">
       {/* Right Sidebar - Conversations List */}
-      <aside className={`${showConversationList ? 'flex' : 'hidden'} lg:flex w-full lg:w-80 border-l border-gray-200 bg-white flex-col`}>
+      <aside className={`${showConversationList ? 'flex' : 'hidden'} lg:flex w-full lg:w-80 border-l border-white/20 glass-card flex-col`}>
         {/* Header */}
-        <div className="p-3 sm:p-4 border-b border-gray-200">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">הודעות</h2>
+        <div className="p-3 sm:p-4 border-b border-white/20">
+          <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">הודעות</h2>
           
           {/* Search */}
           <div className="relative">
@@ -206,7 +206,7 @@ export default function MessagesPage() {
               placeholder="חיפוש שיחות..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pr-9 pl-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent bg-gray-50 text-sm"
+              className="w-full pr-9 pl-3 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent bg-white/5 text-sm text-white placeholder-gray-400"
               suppressHydrationWarning
             />
           </div>
@@ -215,9 +215,9 @@ export default function MessagesPage() {
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto">
           {filteredConversations.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">
+            <div className="p-4 text-center text-gray-400">
               <p className="text-sm">אין שיחות עדיין</p>
-              <p className="text-xs mt-2">התחל שיחה חדשה מחברי הקהילה</p>
+              <p className="text-xs mt-2 text-gray-500">התחל שיחה חדשה מחברי הקהילה</p>
             </div>
           ) : (
             filteredConversations.map((conversation) => (
@@ -242,8 +242,8 @@ export default function MessagesPage() {
                   setActiveConversation(conversation);
                 }
               }}
-              className={`w-full p-3 sm:p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors text-right ${
-                activeConversation && activeConversation.id === conversation.id ? 'bg-[#F52F8E]/10' : ''
+              className={`w-full p-3 sm:p-4 border-b border-white/10 hover:bg-white/10 transition-colors text-right ${
+                activeConversation && activeConversation.id === conversation.id ? 'bg-hot-pink/20 border-l-2 border-l-hot-pink' : ''
               }`}
               suppressHydrationWarning
             >
@@ -254,26 +254,26 @@ export default function MessagesPage() {
                     {conversation.avatar}
                   </div>
                   {conversation.isOnline && (
-                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-400 rounded-full border-2 border-[#1e293b]"></div>
                   )}
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1 gap-2">
-                    <h3 className="font-semibold text-gray-800 text-sm break-words">
+                    <h3 className="font-semibold text-white text-sm break-words">
                       {conversation.name}
                     </h3>
                     {conversation.unreadCount > 0 && (
-                      <div className="flex-shrink-0 w-5 h-5 bg-[#F52F8E] rounded-full flex items-center justify-center">
+                      <div className="flex-shrink-0 w-5 h-5 bg-hot-pink rounded-full flex items-center justify-center">
                         <span className="text-white text-xs font-semibold">{conversation.unreadCount}</span>
                       </div>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 line-clamp-1 mb-1">
+                  <p className="text-sm text-gray-300 line-clamp-1 mb-1">
                     {conversation.lastMessage}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-400">
                     {conversation.timestamp}
                   </p>
                 </div>
@@ -286,34 +286,34 @@ export default function MessagesPage() {
 
       {/* Main Chat Area */}
       {activeConversation && (
-        <main className={`flex-1 flex flex-col bg-white ${showConversationList ? 'hidden' : 'flex'} lg:flex`}>
+        <main className={`flex-1 flex flex-col glass-card ${showConversationList ? 'hidden' : 'flex'} lg:flex`}>
           {/* Chat Header */}
-          <div className="p-3 sm:p-4 border-b border-gray-200 bg-white">
+          <div className="p-3 sm:p-4 border-b border-white/20">
             <div className="flex items-center gap-3">
               {/* Back Button - Mobile Only */}
               <button
                 onClick={() => setActiveConversation(null)}
-                className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="lg:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
-                <ArrowRight className="w-5 h-5 text-gray-600" />
+                <ArrowRight className="w-5 h-5 text-gray-300" />
               </button>
               <div className="relative">
                 <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${activeConversation.avatarColor} flex items-center justify-center text-white font-semibold text-base sm:text-lg`}>
                   {activeConversation.avatar}
                 </div>
                 {activeConversation.isOnline && (
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-[#1e293b]"></div>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-800 text-sm sm:text-base">{activeConversation.name}</h3>
-                <p className="text-xs sm:text-sm text-[#F52F8E]">מחובר/ת</p>
+                <h3 className="font-semibold text-white text-sm sm:text-base">{activeConversation.name}</h3>
+                <p className="text-xs sm:text-sm text-cyan-400">מחובר/ת</p>
               </div>
             </div>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 space-y-3 sm:space-y-4 bg-gray-50">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 space-y-3 sm:space-y-4 bg-black/20">
             {activeConversation.messages.map((message) => (
               <div
                 key={message.id}
@@ -322,14 +322,14 @@ export default function MessagesPage() {
                 <div
                   className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 sm:px-4 py-2 ${
                     message.sender === 'me'
-                      ? 'bg-white border border-gray-200'
-                      : 'bg-[#F52F8E] text-white'
+                      ? 'bg-white/10 border border-white/20 text-white'
+                      : 'bg-hot-pink text-white'
                   }`}
                 >
                   <p className="text-sm mb-1 break-words text-right" dir="rtl">{message.text}</p>
                   <p
                     className={`text-xs ${
-                      message.sender === 'me' ? 'text-gray-500' : 'text-pink-100'
+                      message.sender === 'me' ? 'text-gray-400' : 'text-pink-100'
                     }`}
                   >
                     {message.timestamp}
@@ -340,7 +340,7 @@ export default function MessagesPage() {
           </div>
 
           {/* Message Input */}
-          <div className="p-3 sm:p-4 border-t border-gray-200 bg-white">
+          <div className="p-3 sm:p-4 border-t border-white/20">
             <div className="flex items-center gap-2 sm:gap-3">
               <input
                 type="text"
@@ -353,12 +353,12 @@ export default function MessagesPage() {
                     handleSendMessage();
                   }
                 }}
-                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent bg-gray-50 text-sm sm:text-base text-right"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent bg-white/5 text-sm sm:text-base text-right text-white placeholder-gray-400"
                 suppressHydrationWarning
               />
               <button
                 onClick={handleSendMessage}
-                className="p-2.5 sm:p-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors flex-shrink-0"
+                className="p-2.5 sm:p-3 bg-hot-pink text-white rounded-full hover:bg-rose-500 transition-colors flex-shrink-0 shadow-lg hover:shadow-xl"
                 suppressHydrationWarning
               >
                 <Send className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -370,8 +370,8 @@ export default function MessagesPage() {
 
       {/* Empty State - Mobile */}
       {!activeConversation && (
-        <main className="hidden lg:flex flex-1 flex-col items-center justify-center bg-gray-50">
-          <p className="text-gray-500">בחר שיחה כדי להתחיל</p>
+        <main className="hidden lg:flex flex-1 flex-col items-center justify-center bg-black/20">
+          <p className="text-gray-300">בחר שיחה כדי להתחיל</p>
         </main>
       )}
     </div>

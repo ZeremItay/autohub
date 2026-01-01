@@ -104,8 +104,8 @@ export default function BlogPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-2">הבלוג</h1>
-          <p className="text-base sm:text-lg text-gray-600">מאמרים, מדריכים וטיפים מהקהילה</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">הבלוג</h1>
+          <p className="text-base sm:text-lg text-gray-300">מאמרים, מדריכים וטיפים מהקהילה</p>
         </div>
 
         {/* Search Bar */}
@@ -117,7 +117,7 @@ export default function BlogPage() {
               placeholder="חיפוש מאמרים..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] bg-white/5 text-white placeholder:text-gray-400 text-sm sm:text-base"
             />
           </div>
         </div>
@@ -128,10 +128,10 @@ export default function BlogPage() {
             <button
               key={category.id}
               onClick={() => setSelectedCategory(category.id)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-full font-medium transition-colors ${
                 selectedCategory === category.id
-                  ? 'bg-[#F52F8E] text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                  ? 'bg-hot-pink text-white'
+                  : 'glass-card text-gray-300 hover:bg-white/20 border border-white/20'
               }`}
             >
               {category.name}
@@ -144,14 +144,14 @@ export default function BlogPage() {
           <div className="mb-12">
             <div className="flex items-center gap-2 mb-6">
               <Flame className="w-6 h-6 text-[#F52F8E]" />
-              <h2 className="text-2xl font-bold text-gray-800">פוסטים מומלצים</h2>
+              <h2 className="text-2xl font-bold text-white">פוסטים מומלצים</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {featuredPosts.map((post) => (
                 <Link
                   key={post.id}
                   href={`/blog/${post.slug}`}
-                  className="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all"
+                  className="group glass-card rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-all"
                 >
                   <div className="relative h-48 overflow-hidden">
                     {post.featured_image_url ? (
@@ -166,24 +166,24 @@ export default function BlogPage() {
                       </div>
                     )}
                     <div className="absolute top-3 right-3">
-                      <span className="px-3 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+                      <span className="px-3 py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
                         מומלץ
                       </span>
                     </div>
                   </div>
                   <div className="p-6">
-                    <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded mb-3">
+                    <span className="inline-block px-2 py-1 bg-white/10 text-gray-300 text-xs rounded mb-3">
                       {categories.find(c => c.id === post.category)?.name || post.category}
                     </span>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-[#F52F8E] transition-colors line-clamp-2">
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#F52F8E] transition-colors line-clamp-2">
                       {post.title}
                     </h3>
                     {post.excerpt && (
-                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                      <p className="text-gray-300 text-sm mb-4 line-clamp-2">
                         {post.excerpt}
                       </p>
                     )}
-                    <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center justify-between text-sm text-gray-300">
                       <div className="flex items-center gap-4">
                         {post.profile && (
                           <div className="flex items-center gap-2">
@@ -222,10 +222,10 @@ export default function BlogPage() {
 
         {/* All Posts */}
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">כל המאמרים</h2>
+          <h2 className="text-2xl font-bold text-white mb-6">כל המאמרים</h2>
           {filteredPosts.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-              <p className="text-gray-500">לא נמצאו מאמרים</p>
+            <div className="glass-card rounded-2xl shadow-sm p-12 text-center">
+              <p className="text-gray-300">לא נמצאו מאמרים</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -233,7 +233,7 @@ export default function BlogPage() {
                 <Link
                   key={post.id}
                   href={`/blog/${post.slug}`}
-                  className="group block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all"
+                  className="group block glass-card rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-all"
                 >
                   <div className="flex flex-col md:flex-row">
                     <div className="md:w-1/3 relative h-48 md:h-auto overflow-hidden">
@@ -250,7 +250,7 @@ export default function BlogPage() {
                       )}
                       {post.is_featured && (
                         <div className="absolute top-3 right-3">
-                          <span className="px-3 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+                          <span className="px-3 py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
                             מומלץ
                           </span>
                         </div>
@@ -258,19 +258,19 @@ export default function BlogPage() {
                     </div>
                     <div className="md:w-2/3 p-6 flex flex-col justify-between">
                       <div>
-                        <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded mb-3">
+                        <span className="inline-block px-2 py-1 bg-white/10 text-gray-300 text-xs rounded mb-3">
                           {categories.find(c => c.id === post.category)?.name || post.category}
                         </span>
-                        <h3 className="text-2xl font-bold text-gray-800 mb-3 group-hover:text-[#F52F8E] transition-colors">
+                        <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-[#F52F8E] transition-colors">
                           {post.title}
                         </h3>
                         {post.excerpt && (
-                          <p className="text-gray-600 mb-4 line-clamp-2">
+                          <p className="text-gray-300 mb-4 line-clamp-2">
                             {post.excerpt}
                           </p>
                         )}
                       </div>
-                      <div className="flex items-center justify-between text-sm text-gray-500">
+                      <div className="flex items-center justify-between text-sm text-gray-300">
                         <div className="flex items-center gap-4">
                           {post.profile && (
                             <div className="flex items-center gap-2">
@@ -286,8 +286,8 @@ export default function BlogPage() {
                                 </div>
                               )}
                               <div>
-                                <p className="font-medium text-gray-700">{post.profile.display_name || 'מחבר'}</p>
-                                <p className="text-xs text-gray-500">מחבר</p>
+                                <p className="font-medium text-white">{post.profile.display_name || 'מחבר'}</p>
+                                <p className="text-xs text-gray-300">מחבר</p>
                               </div>
                             </div>
                           )}

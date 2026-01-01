@@ -98,7 +98,7 @@ export default function LiveEventPage() {
   if (loading) {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <div className="max-w-7xl mx-auto text-center py-12">טוען...</div>
+        <div className="max-w-7xl mx-auto text-center py-12 text-gray-300">טוען...</div>
       </div>
     );
   }
@@ -107,8 +107,8 @@ export default function LiveEventPage() {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-7xl mx-auto text-center py-12">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">אירוע לא נמצא</h1>
-          <Link href="/live" className="text-[#F52F8E] hover:underline">
+          <h1 className="text-2xl font-bold text-white mb-4">אירוע לא נמצא</h1>
+          <Link href="/live-log" className="text-hot-pink hover:text-rose-400 hover:underline transition-colors">
             חזור ליומן
           </Link>
         </div>
@@ -117,9 +117,9 @@ export default function LiveEventPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* Header Banner */}
-      <div className="bg-gradient-to-b from-pink-600 to-pink-400 relative overflow-hidden">
+      <div className="bg-gradient-to-b from-hot-pink via-pink-500 to-purple-600 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
             backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)',
@@ -159,35 +159,35 @@ export default function LiveEventPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Left Column - Event Details Card */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:sticky lg:top-4">
+              <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6 lg:sticky lg:top-4">
                 <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0">
-                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-hot-pink/20 flex items-center justify-center flex-shrink-0 border border-hot-pink/30">
+                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-hot-pink" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-sm text-gray-500">תאריך</p>
-                      <p className="font-semibold text-gray-800 text-sm sm:text-base">{formatDate(event.event_date)}</p>
+                      <p className="text-xs sm:text-sm text-gray-400">תאריך</p>
+                      <p className="font-semibold text-white text-sm sm:text-base">{formatDate(event.event_date)}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0">
-                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-hot-pink/20 flex items-center justify-center flex-shrink-0 border border-hot-pink/30">
+                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-hot-pink" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-sm text-gray-500">שעה</p>
-                      <p className="font-semibold text-gray-800 text-sm sm:text-base">{formatTime(event.event_time)}</p>
+                      <p className="text-xs sm:text-sm text-gray-400">שעה</p>
+                      <p className="font-semibold text-white text-sm sm:text-base">{formatTime(event.event_time)}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-hot-pink/20 flex items-center justify-center flex-shrink-0 border border-hot-pink/30">
+                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-hot-pink" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-sm text-gray-500">מיקום</p>
-                      <p className="font-semibold text-gray-800 text-sm sm:text-base truncate">{event.location || 'Google Meet'}</p>
+                      <p className="text-xs sm:text-sm text-gray-400">מיקום</p>
+                      <p className="font-semibold text-white text-sm sm:text-base truncate">{event.location || 'Google Meet'}</p>
                     </div>
                   </div>
                 </div>
@@ -196,14 +196,14 @@ export default function LiveEventPage() {
                 {event.status === 'completed' && event.recording_id ? (
                   <Link
                     href={`/recordings/${event.recording_id}`}
-                    className="w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base bg-green-600 text-white hover:bg-green-700 text-center block"
+                    className="w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-full font-semibold transition-colors text-sm sm:text-base bg-green-500 text-white hover:bg-green-600 text-center block shadow-lg hover:shadow-xl"
                   >
                     הלייב הסתיים, כאן אפשר לצפות בהקלטה
                   </Link>
                 ) : (event.status === 'active' || (isEventStarted(event) && event.zoom_meeting_id)) ? (
                   <Link
                     href="/live-room"
-                    className="w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base bg-[#F52F8E] text-white hover:bg-[#E01E7A] text-center block"
+                    className="btn-primary w-full py-2.5 sm:py-3 px-3 sm:px-4 font-semibold text-sm sm:text-base text-center block"
                   >
                     הלייב התחיל, כאן אפשר לצפות
                   </Link>
@@ -211,10 +211,10 @@ export default function LiveEventPage() {
                   <button
                     onClick={handleRegister}
                     disabled={registered}
-                    className={`w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base ${
+                    className={`w-full py-2.5 sm:py-3 px-3 sm:px-4 font-semibold text-sm sm:text-base ${
                       registered
-                        ? 'bg-green-500 text-white cursor-not-allowed'
-                        : 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
+                        ? 'bg-green-500 text-white cursor-not-allowed rounded-full'
+                        : 'btn-primary'
                     }`}
                   >
                     {registered ? (
@@ -234,23 +234,23 @@ export default function LiveEventPage() {
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               {/* About the Event */}
               {event.about_text && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">על האירוע</h2>
-                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">{event.about_text}</p>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">על האירוע</h2>
+                  <p className="text-sm sm:text-base text-gray-100 leading-relaxed">{event.about_text}</p>
                 </div>
               )}
 
               {/* What will be learned? */}
               {event.learning_points && event.learning_points.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">מה נלמד?</h2>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">מה נלמד?</h2>
                   <ul className="space-y-2 sm:space-y-3">
                     {event.learning_points.map((point: string, index: number) => (
                       <li key={index} className="flex items-start gap-2 sm:gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-[#F52F8E] text-white flex items-center justify-center font-bold text-xs sm:text-sm">
+                        <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-hot-pink text-white flex items-center justify-center font-bold text-xs sm:text-sm">
                           {index + 1}
                         </div>
-                        <p className="text-sm sm:text-base text-gray-700 pt-0.5 sm:pt-1">{point}</p>
+                        <p className="text-sm sm:text-base text-gray-100 pt-0.5 sm:pt-1">{point}</p>
                       </li>
                     ))}
                   </ul>
@@ -259,24 +259,24 @@ export default function LiveEventPage() {
 
               {/* Instructors */}
               {event.instructor_name && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">מנחים</h2>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">מנחים</h2>
                   <div className="flex items-center gap-3 sm:gap-4">
                     {event.instructor_avatar_url ? (
                       <img
                         src={event.instructor_avatar_url}
                         alt={event.instructor_name}
-                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0"
+                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border-2 border-hot-pink/30"
                       />
                     ) : (
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-400 flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-hot-pink to-rose-500 flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0">
                         {event.instructor_name.charAt(0)}
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="font-semibold text-gray-800 text-base sm:text-lg">{event.instructor_name}</p>
+                      <p className="font-semibold text-white text-base sm:text-lg">{event.instructor_name}</p>
                       {event.instructor_title && (
-                        <p className="text-sm sm:text-base text-gray-600">{event.instructor_title}</p>
+                        <p className="text-sm sm:text-base text-gray-300">{event.instructor_title}</p>
                       )}
                     </div>
                   </div>
@@ -285,9 +285,9 @@ export default function LiveEventPage() {
 
               {/* Description (fallback) */}
               {!event.about_text && event.description && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">תיאור</h2>
-                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">{event.description}</p>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">תיאור</h2>
+                  <p className="text-sm sm:text-base text-gray-100 leading-relaxed">{event.description}</p>
                 </div>
               )}
             </div>

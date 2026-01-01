@@ -237,18 +237,18 @@ function RecordingDetailPageContent() {
         {/* Back Button */}
         <button
           onClick={() => router.push('/recordings')}
-          className="flex items-center gap-2 text-gray-600 hover:text-[#F52F8E] transition-colors mb-6"
+          className="flex items-center gap-2 text-gray-300 hover:text-[#F52F8E] transition-colors mb-6"
         >
           <ArrowRight className="w-5 h-5" />
           <span>חזרה להקלטות</span>
         </button>
 
         {/* Video Player */}
-        <div className="bg-black rounded-xl overflow-hidden mb-6 aspect-video relative">
+        <div className="bg-black rounded-[20px] overflow-hidden mb-6 aspect-video relative border-2 border-hot-pink/40 shadow-[0_0_20px_rgba(236,72,153,0.3),0_8px_32px_rgba(0,0,0,0.5)]">
           {!userIsPremium ? (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8">
               <div className="text-center max-w-md">
-                <div className="w-20 h-20 bg-[#F52F8E] rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-20 h-20 bg-hot-pink rounded-full flex items-center justify-center mx-auto mb-6">
                   <Play className="w-10 h-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold mb-4">גישה מוגבלת</h3>
@@ -257,7 +257,7 @@ function RecordingDetailPageContent() {
                 </p>
                 <button
                   onClick={() => window.location.href = '/subscription'}
-                  className="px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-semibold text-lg"
+                  className="btn-primary px-6 py-3 font-semibold text-lg"
                 >
                   שדרג למנוי פרימיום
                 </button>
@@ -344,7 +344,7 @@ function RecordingDetailPageContent() {
         </div>
 
         {/* Recording Info */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="glass-card rounded-2xl shadow-sm p-6 mb-6">
           {/* Tags */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             {recording.is_new && (
@@ -356,7 +356,7 @@ function RecordingDetailPageContent() {
               <div className="flex flex-wrap gap-2">
                 {Array.isArray(recording.category) ? (
                   recording.category.map((cat: string, idx: number) => (
-                    <span key={idx} className="px-3 py-1 bg-[#F52F8E] text-white text-sm font-semibold rounded flex items-center gap-1">
+                    <span key={idx} className="px-3 py-1 bg-hot-pink text-white text-sm font-semibold rounded flex items-center gap-1">
                       <Tag className="w-3 h-3" />
                       {cat}
                     </span>
@@ -372,24 +372,24 @@ function RecordingDetailPageContent() {
           </div>
 
           {/* Title */}
-          <h1 className="text-3xl font-bold text-gray-800 mb-4">{recording.title}</h1>
+          <h1 className="text-3xl font-bold text-white mb-4">{recording.title}</h1>
 
           {/* Metadata */}
           <div className="flex items-center gap-6 mb-6 flex-wrap">
             {recording.views !== undefined && (
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-300">
                 <Eye className="w-5 h-5" />
                 <span>{recording.views} צפיות</span>
               </div>
             )}
             {recording.duration && (
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-300">
                 <Clock className="w-5 h-5" />
                 <span>{recording.duration}</span>
               </div>
             )}
             {recording.created_at && (
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-300">
                 <Calendar className="w-5 h-5" />
                 <span>{formatDate(recording.created_at)}</span>
               </div>
@@ -397,7 +397,7 @@ function RecordingDetailPageContent() {
           </div>
 
           {/* Share Button */}
-          <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors mb-6">
+          <button className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white rounded-lg transition-colors mb-6">
             <Share2 className="w-5 h-5" />
             <span>שיתוף</span>
           </button>
@@ -405,7 +405,7 @@ function RecordingDetailPageContent() {
           {/* Loading indicator for additional details */}
           {detailsLoading && (
             <div className="mb-6 text-center py-4">
-              <div className="inline-flex items-center gap-2 text-gray-500 text-sm">
+              <div className="inline-flex items-center gap-2 text-gray-300 text-sm">
                 <div className="w-4 h-4 border-2 border-[#F52F8E] border-t-transparent rounded-full animate-spin"></div>
                 <span>טוען פרטים נוספים...</span>
               </div>
@@ -420,14 +420,14 @@ function RecordingDetailPageContent() {
             
             return (
               <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-3">תיאור</h2>
-                <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                <h2 className="text-xl font-bold text-white mb-3">תיאור</h2>
+                <div className="text-gray-100 leading-relaxed whitespace-pre-line">
                   {shouldTruncate && !descriptionExpanded ? (
                     <>
                       {truncatedText}...
                       <button
                         onClick={() => setDescriptionExpanded(true)}
-                        className="text-[#F52F8E] hover:text-[#E01E7A] font-medium ml-2 transition-colors"
+                        className="text-hot-pink hover:text-rose-500 font-medium ml-2 transition-colors"
                       >
                         המשך קריאה
                       </button>
@@ -438,7 +438,7 @@ function RecordingDetailPageContent() {
                       {shouldTruncate && descriptionExpanded && (
                         <button
                           onClick={() => setDescriptionExpanded(false)}
-                          className="block text-[#F52F8E] hover:text-[#E01E7A] font-medium mt-2 transition-colors"
+                          className="block text-hot-pink hover:text-rose-500 font-medium mt-2 transition-colors"
                         >
                           הצג פחות
                         </button>
@@ -452,14 +452,14 @@ function RecordingDetailPageContent() {
 
           {/* Key Points Section */}
           {recording.key_points && recording.key_points.length > 0 && (
-            <div className="mb-6 pt-6 border-t border-gray-200">
+            <div className="mb-6 pt-6 border-t border-white/10">
               <div className="flex items-center gap-2 mb-4">
                 <Star className="w-6 h-6 text-amber-500" />
-                <h2 className="text-xl font-bold text-gray-800">נקודות חשובות</h2>
+                <h2 className="text-xl font-bold text-white">נקודות חשובות</h2>
               </div>
               <div className="space-y-4">
                 {recording.key_points.map((point: any, index: number) => (
-                  <div key={index} className="bg-amber-50 border-r-4 border-amber-400 p-4 rounded-lg">
+                  <div key={index} className="bg-white/10 border-r-4 border-amber-400 p-4 rounded-lg">
                     {point.url ? (
                       <a
                         href={point.url}
@@ -467,21 +467,21 @@ function RecordingDetailPageContent() {
                         rel="noopener noreferrer"
                         className="block"
                       >
-                        <h3 className="font-semibold text-gray-800 mb-2 hover:text-blue-600 transition-colors inline-flex items-center gap-2">
+                        <h3 className="font-semibold text-white mb-2 hover:text-hot-pink transition-colors inline-flex items-center gap-2">
                           {point.title || `נקודה ${index + 1}`}
                           <ExternalLink className="w-4 h-4" />
                         </h3>
                         {point.description && (
-                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                          <p className="text-gray-100 leading-relaxed whitespace-pre-line">
                             {point.description}
                           </p>
                         )}
                       </a>
                     ) : (
                       <>
-                        <h3 className="font-semibold text-gray-800 mb-2">{point.title || `נקודה ${index + 1}`}</h3>
+                        <h3 className="font-semibold text-white mb-2">{point.title || `נקודה ${index + 1}`}</h3>
                         {point.description && (
-                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                          <p className="text-gray-100 leading-relaxed whitespace-pre-line">
                             {point.description}
                           </p>
                         )}
@@ -495,34 +495,34 @@ function RecordingDetailPageContent() {
 
           {/* Q&A Section - Accordion */}
           {recording.qa_section && recording.qa_section.length > 0 && (
-            <div className="pt-6 border-t border-gray-200">
+            <div className="pt-6 border-t border-white/20">
               <div className="flex items-center gap-2 mb-4">
-                <HelpCircle className="w-6 h-6 text-blue-500" />
-                <h2 className="text-xl font-bold text-gray-800">שאלות ותשובות</h2>
+                <HelpCircle className="w-6 h-6 text-cyan-400" />
+                <h2 className="text-xl font-bold text-white">שאלות ותשובות</h2>
               </div>
               <div className="space-y-2">
                 {recording.qa_section.map((qa: any, index: number) => {
                   const isOpen = openQaIndex === index;
                   return (
-                    <div key={index} className="border border-blue-200 rounded-lg overflow-hidden">
+                    <div key={index} className="border border-cyan-500/30 rounded-lg overflow-hidden bg-cyan-500/5">
                       <button
                         onClick={() => setOpenQaIndex(isOpen ? null : index)}
-                        className="w-full bg-blue-50 hover:bg-blue-100 p-4 flex items-center justify-between text-right transition-colors"
+                        className="w-full hover:bg-cyan-500/10 p-4 flex items-center justify-between text-right transition-colors"
                       >
                         <div className="flex items-start gap-2 flex-1">
-                          <span className="text-blue-500 font-semibold">ש:</span>
-                          <span className="font-semibold text-gray-800">{qa.question}</span>
+                          <span className="text-cyan-400 font-semibold">ש:</span>
+                          <span className="font-semibold text-white">{qa.question}</span>
                         </div>
                         {isOpen ? (
-                          <ChevronUp className="w-5 h-5 text-blue-500 flex-shrink-0 mr-2" />
+                          <ChevronUp className="w-5 h-5 text-cyan-400 flex-shrink-0 mr-2" />
                         ) : (
-                          <ChevronDown className="w-5 h-5 text-blue-500 flex-shrink-0 mr-2" />
+                          <ChevronDown className="w-5 h-5 text-cyan-400 flex-shrink-0 mr-2" />
                         )}
                       </button>
                       {isOpen && qa.answer && (
-                        <div className="p-4 bg-white border-t border-blue-200">
-                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            <span className="text-blue-600 font-medium">ת: </span>
+                        <div className="p-4 bg-white/5 border-t border-white/10">
+                          <p className="text-gray-200 leading-relaxed whitespace-pre-line">
+                            <span className="text-cyan-400 font-medium">ת: </span>
                             {qa.answer}
                           </p>
                         </div>
@@ -536,10 +536,10 @@ function RecordingDetailPageContent() {
         </div>
 
         {/* Comments Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="glass-card rounded-2xl shadow-sm p-6">
           <div className="flex items-center gap-2 mb-6">
             <MessageCircle className="w-6 h-6 text-[#F52F8E]" />
-            <h2 className="text-2xl font-bold text-gray-800">תגובות ({comments.length})</h2>
+            <h2 className="text-2xl font-bold text-white">תגובות ({comments.length})</h2>
           </div>
 
           <CommentsList

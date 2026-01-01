@@ -504,10 +504,10 @@ export default function CourseDetailPage() {
 
   if (loading || checkingEnrollment) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F52F8E] mx-auto mb-4"></div>
-          <p className="text-gray-600">טוען...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-hot-pink mx-auto mb-4"></div>
+          <p className="text-gray-300">טוען...</p>
         </div>
       </div>
     );
@@ -515,10 +515,10 @@ export default function CourseDetailPage() {
 
   if (!course) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">הקורס לא נמצא</p>
-          <Link href="/courses" className="text-[#F52F8E] hover:underline">
+          <p className="text-gray-300 mb-4">הקורס לא נמצא</p>
+          <Link href="/courses" className="text-hot-pink hover:underline">
             חזור לרשימת הקורסים
           </Link>
         </div>
@@ -529,29 +529,29 @@ export default function CourseDetailPage() {
   // Show enrollment screen if not enrolled and not admin
   if (!isEnrolled && !isAdmin(currentUser)) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Link href="/courses" className="text-[#F52F8E] hover:underline mb-6 inline-block">
+          <Link href="/courses" className="text-hot-pink hover:underline mb-6 inline-block">
             ← חזור לקורסים
           </Link>
           
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 sm:p-10 lg:p-12">
+          <div className="glass-card rounded-xl p-8 sm:p-10 lg:p-12">
             {/* Course Header */}
             <div className="text-center mb-10">
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-6">{course.title}</h1>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-6">{course.title}</h1>
               {course.description && (() => {
                 const words = course.description.split(/\s+/);
                 const shouldTruncate = words.length > 25;
                 const truncatedText = shouldTruncate ? words.slice(0, 25).join(' ') : course.description;
                 
                 return (
-                  <div className="text-lg sm:text-xl text-gray-600 leading-relaxed max-w-3xl mx-auto px-4 whitespace-pre-line">
+                  <div className="text-lg sm:text-xl text-gray-300 leading-relaxed max-w-3xl mx-auto px-4 whitespace-pre-line">
                     {shouldTruncate && !descriptionExpanded ? (
                       <>
                         {truncatedText}...
                         <button
                           onClick={() => setDescriptionExpanded(true)}
-                          className="text-[#F52F8E] hover:text-[#E01E7A] font-medium mr-2 transition-colors"
+                          className="text-hot-pink hover:text-rose-500 font-medium mr-2 transition-colors"
                         >
                           המשך קריאה
                         </button>
@@ -562,7 +562,7 @@ export default function CourseDetailPage() {
                         {shouldTruncate && descriptionExpanded && (
                           <button
                             onClick={() => setDescriptionExpanded(false)}
-                            className="block text-[#F52F8E] hover:text-[#E01E7A] font-medium mt-2 transition-colors"
+                            className="block text-hot-pink hover:text-rose-500 font-medium mt-2 transition-colors"
                           >
                             הצג פחות
                           </button>
@@ -575,20 +575,20 @@ export default function CourseDetailPage() {
             </div>
 
             {/* Course Info Cards */}
-            <div className="border-t border-gray-200 pt-8 mb-8">
+            <div className="border-t border-white/20 pt-8 mb-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="text-center p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                  <Clock className="w-8 h-8 text-[#F52F8E] mx-auto mb-3" />
-                  <p className="text-sm text-gray-600 mb-1">משך הקורס</p>
-                  <p className="text-xl font-bold text-gray-800">{course.duration_hours} שעות</p>
+                <div className="text-center p-6 glass-card rounded-xl">
+                  <Clock className="w-8 h-8 text-hot-pink mx-auto mb-3" />
+                  <p className="text-sm text-gray-300 mb-1">משך הקורס</p>
+                  <p className="text-xl font-bold text-white">{course.duration_hours} שעות</p>
                 </div>
-                <div className="text-center p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                  <Play className="w-8 h-8 text-[#F52F8E] mx-auto mb-3" />
-                  <p className="text-sm text-gray-600 mb-1">מספר שיעורים</p>
-                  <p className="text-xl font-bold text-gray-800">{course.lessons_count} שיעורים</p>
+                <div className="text-center p-6 glass-card rounded-xl">
+                  <Play className="w-8 h-8 text-hot-pink mx-auto mb-3" />
+                  <p className="text-sm text-gray-300 mb-1">מספר שיעורים</p>
+                  <p className="text-xl font-bold text-white">{course.lessons_count} שיעורים</p>
                 </div>
-                <div className="text-center p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 flex flex-col items-center justify-center">
-                  <p className="text-sm text-gray-600 mb-2">רמת קושי</p>
+                <div className="text-center p-6 glass-card rounded-xl flex flex-col items-center justify-center">
+                  <p className="text-sm text-gray-300 mb-2">רמת קושי</p>
                   <span className={`inline-block px-4 py-2 rounded-lg text-sm font-semibold ${getDifficultyColor(course.difficulty)}`}>
                     {course.difficulty}
                   </span>
@@ -598,30 +598,30 @@ export default function CourseDetailPage() {
               {/* Price Display */}
               <div className="text-center mb-8">
                 {course.is_premium_only ? (
-                  <div className="inline-block px-8 py-4 bg-gradient-to-r from-amber-50 to-amber-100 border-2 border-amber-300 rounded-xl shadow-sm">
-                    <p className="text-amber-800 font-semibold text-lg">קורס זה זמין למשתמשי פרימיום בלבד</p>
+                  <div className="inline-block px-8 py-4 bg-gradient-to-r from-amber-500/20 to-amber-600/20 border-2 border-amber-400/50 rounded-xl shadow-sm">
+                    <p className="text-amber-300 font-semibold text-lg">קורס זה זמין למשתמשי פרימיום בלבד</p>
                   </div>
                 ) : course.is_free_for_premium ? (
                   isPremiumUser(currentUser) ? (
-                    <div className="inline-block px-8 py-4 bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl shadow-sm">
-                      <p className="text-green-800 font-bold text-2xl">חינם לך (פרימיום)</p>
+                    <div className="inline-block px-8 py-4 bg-gradient-to-r from-green-500/20 to-green-600/20 border-2 border-green-400/50 rounded-xl shadow-sm">
+                      <p className="text-green-300 font-bold text-2xl">חינם לך (פרימיום)</p>
                       {course.price && course.price > 0 && (
-                        <p className="text-green-600 text-sm mt-1">מחיר למנויים חינמיים: {course.price} ₪</p>
+                        <p className="text-green-400 text-sm mt-1">מחיר למנויים חינמיים: {course.price} ₪</p>
                       )}
                     </div>
                   ) : (
-                    <div className="inline-block px-8 py-4 bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl shadow-sm">
-                      <p className="text-blue-800 font-bold text-2xl">{course.price} ₪</p>
-                      <p className="text-blue-600 text-sm mt-1">חינם למנויי פרימיום</p>
+                    <div className="inline-block px-8 py-4 bg-gradient-to-r from-blue-500/20 to-blue-600/20 border-2 border-blue-400/50 rounded-xl shadow-sm">
+                      <p className="text-blue-300 font-bold text-2xl">{course.price} ₪</p>
+                      <p className="text-blue-400 text-sm mt-1">חינם למנויי פרימיום</p>
                     </div>
                   )
                 ) : course.is_free || !course.price || course.price === 0 ? (
-                  <div className="inline-block px-8 py-4 bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl shadow-sm">
-                    <p className="text-green-800 font-bold text-2xl">חינם</p>
+                  <div className="inline-block px-8 py-4 bg-gradient-to-r from-green-500/20 to-green-600/20 border-2 border-green-400/50 rounded-xl shadow-sm">
+                    <p className="text-green-300 font-bold text-2xl">חינם</p>
                   </div>
                 ) : (
-                  <div className="inline-block px-8 py-4 bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl shadow-sm">
-                    <p className="text-blue-800 font-bold text-2xl">{course.price} ₪</p>
+                  <div className="inline-block px-8 py-4 bg-gradient-to-r from-blue-500/20 to-blue-600/20 border-2 border-blue-400/50 rounded-xl shadow-sm">
+                    <p className="text-blue-300 font-bold text-2xl">{course.price} ₪</p>
                   </div>
                 )}
               </div>
@@ -635,7 +635,7 @@ export default function CourseDetailPage() {
                   <button
                     onClick={handleEnroll}
                     disabled={enrolling}
-                    className="px-10 py-4 bg-gradient-to-r from-[#F52F8E] to-pink-500 text-white rounded-xl hover:from-[#E01E7A] hover:to-pink-600 transition-all font-semibold text-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                    className="px-10 py-4 bg-gradient-to-r from-hot-pink to-rose-500 text-white rounded-full hover:from-rose-500 hover:to-pink-600 transition-all font-semibold text-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
                   >
                     {enrolling ? 'נרשם...' : (course.is_free ? 'התחל ללמוד' : 'הירשם לקורס')}
                   </button>
@@ -649,11 +649,11 @@ export default function CourseDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="glass-card border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <Link href="/courses" className="text-[#F52F8E] hover:underline mb-4 inline-block">
+          <Link href="/courses" className="text-hot-pink hover:underline mb-4 inline-block">
             ← חזור לקורסים
           </Link>
           <div className="flex flex-col md:flex-row gap-6">
@@ -674,31 +674,31 @@ export default function CourseDetailPage() {
                   {course.difficulty}
                 </span>
                 {course.is_new && (
-                  <span className="px-3 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+                  <span className="px-3 py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
                     חדש
                   </span>
                 )}
                 {course.is_recommended && (
-                  <span className="px-3 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+                  <span className="px-3 py-1 bg-hot-pink text-white text-xs font-semibold rounded-full">
                     מומלץ
                   </span>
                 )}
               </div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-3">{course.title}</h1>
+              <h1 className="text-3xl font-bold text-white mb-3">{course.title}</h1>
               {course.description && (() => {
                 const words = course.description.split(/\s+/);
                 const shouldTruncate = words.length > 25;
                 const truncatedText = shouldTruncate ? words.slice(0, 25).join(' ') : course.description;
                 
                 return (
-                  <div className="mb-4">
-                    <div className="text-gray-600 leading-relaxed whitespace-pre-line">
+                    <div className="mb-4">
+                    <div className="text-gray-300 leading-relaxed whitespace-pre-line">
                       {shouldTruncate && !descriptionExpanded ? (
                         <>
                           {truncatedText}...
                           <button
                             onClick={() => setDescriptionExpanded(true)}
-                            className="text-[#F52F8E] hover:text-[#E01E7A] font-medium mr-2 transition-colors"
+                            className="text-hot-pink hover:text-rose-500 font-medium mr-2 transition-colors"
                           >
                             המשך קריאה
                           </button>
@@ -709,7 +709,7 @@ export default function CourseDetailPage() {
                           {shouldTruncate && descriptionExpanded && (
                             <button
                               onClick={() => setDescriptionExpanded(false)}
-                              className="block text-[#F52F8E] hover:text-[#E01E7A] font-medium mt-2 transition-colors"
+                              className="block text-hot-pink hover:text-rose-500 font-medium mt-2 transition-colors"
                             >
                               הצג פחות
                             </button>
@@ -720,7 +720,7 @@ export default function CourseDetailPage() {
                   </div>
                 );
               })()}
-              <div className="flex items-center gap-6 text-sm text-gray-500 flex-wrap">
+              <div className="flex items-center gap-6 text-sm text-gray-300 flex-wrap">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4" />
                   <span>{course.duration_hours} שעות</span>
@@ -735,24 +735,24 @@ export default function CourseDetailPage() {
                   </div>
                 )}
                 {course.is_free || (!course.price || course.price === 0 && !course.is_free_for_premium) ? (
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">חינם</span>
+                  <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs font-semibold border border-green-500/30">חינם</span>
                 ) : course.is_free_for_premium ? (
-                  <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-semibold">
+                  <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs font-semibold border border-purple-500/30">
                     {isPremiumUser(currentUser) ? 'חינם (פרימיום)' : `${course.price} ₪`}
                   </span>
                 ) : (
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">{course.price} ₪</span>
+                  <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs font-semibold border border-blue-500/30">{course.price} ₪</span>
                 )}
               </div>
               {course.progress !== undefined && course.progress > 0 && (
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">התקדמות</span>
-                    <span className="text-sm font-semibold text-gray-800">{course.progress}%</span>
+                    <span className="text-sm text-gray-300">התקדמות</span>
+                    <span className="text-sm font-semibold text-white">{course.progress}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-white/10 rounded-full h-2">
                     <div
-                      className="bg-[#F52F8E] h-2 rounded-full transition-all"
+                      className="bg-hot-pink h-2 rounded-full transition-all"
                       style={{ width: `${course.progress}%` }}
                     ></div>
                   </div>
@@ -768,10 +768,10 @@ export default function CourseDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Lessons List */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:sticky lg:top-4">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">תוכן הקורס</h2>
+            <div className="glass-card rounded-xl p-4 sm:p-6 lg:sticky lg:top-4">
+              <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">תוכן הקורס</h2>
               {lessons.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-300">
                   <p className="text-sm">אין שיעורים זמינים בקורס זה</p>
                   <p className="text-xs mt-2">השיעורים יופיעו כאן כאשר הם יועלו</p>
                 </div>
@@ -793,37 +793,37 @@ export default function CourseDetailPage() {
                       disabled={isLocked}
                       className={`w-full text-right p-3 sm:p-4 rounded-lg border transition-all ${
                         selectedLesson?.id === lesson.id
-                          ? 'border-[#F52F8E] bg-pink-50'
+                          ? 'border-hot-pink bg-hot-pink/20'
                           : isLocked
-                          ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          ? 'border-white/10 bg-white/5 opacity-60 cursor-not-allowed'
+                          : 'border-white/20 hover:border-hot-pink/50 hover:bg-white/10'
                       }`}
                       title={isLocked ? 'עליך לסיים את השיעור הקודם' : ''}
                     >
                       <div className="flex items-start justify-between gap-2 sm:gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
-                            <span className="text-xs sm:text-sm font-semibold text-gray-500">
+                            <span className="text-xs sm:text-sm font-semibold text-gray-300">
                               שיעור {index + 1}
                             </span>
                             {isCompleted && (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
+                              <CheckCircle className="w-4 h-4 text-green-400" />
                             )}
                             {isLocked && (
                               <Lock className="w-4 h-4 text-gray-400" />
                             )}
                             {lesson.is_preview && (
-                              <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                              <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded border border-blue-500/30">
                                 תצוגה מקדימה
                               </span>
                             )}
                           </div>
-                          <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
+                          <h3 className="font-semibold text-white mb-1 text-sm sm:text-base">{lesson.title}</h3>
                           {lesson.description && (
-                            <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                            <p className="text-xs sm:text-sm text-gray-300 line-clamp-2">{lesson.description}</p>
                           )}
                           {lesson.duration_minutes && (
-                            <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
+                            <div className="flex items-center gap-1 text-xs text-gray-400 mt-1.5 sm:mt-2">
                               <Clock className="w-3 h-3" />
                               <span>{formatDuration(lesson.duration_minutes)}</span>
                             </div>
@@ -831,7 +831,7 @@ export default function CourseDetailPage() {
                         </div>
                         <div className="flex-shrink-0">
                           {selectedLesson?.id === lesson.id ? (
-                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-hot-pink" />
                           ) : isLocked ? (
                             <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                           ) : (
@@ -850,27 +850,27 @@ export default function CourseDetailPage() {
           {/* Lesson Content */}
           <div className="lg:col-span-2">
             {selectedLesson ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+              <div className="glass-card rounded-xl p-4 sm:p-6">
                 <div className="mb-6">
                   <div className="flex items-center gap-2 mb-3">
                     {selectedLesson.is_preview && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-semibold rounded">
+                      <span className="px-3 py-1 bg-blue-500/20 text-blue-300 text-sm font-semibold rounded border border-blue-500/30">
                         תצוגה מקדימה
                       </span>
                     )}
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-300">
                       שיעור {lessons.findIndex(l => l.id === selectedLesson.id) + 1} מתוך {lessons.length}
                     </span>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3">{selectedLesson.title}</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-3">{selectedLesson.title}</h2>
                   {selectedLesson.description && (
-                    <p className="text-gray-600 mb-4">{selectedLesson.description}</p>
+                    <p className="text-gray-300 mb-4">{selectedLesson.description}</p>
                   )}
                 </div>
 
                 {selectedLesson.video_url ? (
                   <div className="mb-6">
-                    <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
+                    <div className="relative w-full aspect-video bg-black rounded-[20px] overflow-hidden border-2 border-hot-pink/40 shadow-[0_0_20px_rgba(236,72,153,0.3),0_8px_32px_rgba(0,0,0,0.5)]">
                       {(() => {
                         // Check if it's a YouTube URL
                         const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
@@ -921,24 +921,24 @@ export default function CourseDetailPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mb-6 bg-gray-100 rounded-lg aspect-video flex items-center justify-center">
+                  <div className="mb-6 bg-white/5 rounded-lg aspect-video flex items-center justify-center border border-white/10">
                     <div className="text-center">
                       <Play className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">אין וידאו זמין לשיעור זה</p>
+                      <p className="text-gray-300">אין וידאו זמין לשיעור זה</p>
                     </div>
                   </div>
                 )}
 
                 {/* Key Points Section */}
                 {selectedLesson.key_points && selectedLesson.key_points.length > 0 && (
-                  <div className="mb-6 pt-6 border-t border-gray-200">
+                  <div className="mb-6 pt-6 border-t border-white/20">
                     <div className="flex items-center gap-2 mb-4">
-                      <Star className="w-6 h-6 text-amber-500" />
-                      <h2 className="text-xl font-bold text-gray-800">נקודות חשובות</h2>
+                      <Star className="w-6 h-6 text-amber-400" />
+                      <h2 className="text-xl font-bold text-white">נקודות חשובות</h2>
                     </div>
                     <div className="space-y-4">
                       {selectedLesson.key_points.map((point: any, index: number) => (
-                        <div key={index} className="bg-amber-50 border-r-4 border-amber-400 p-4 rounded-lg">
+                        <div key={index} className="bg-amber-500/10 border-r-4 border-amber-400/50 p-4 rounded-lg">
                           {point.url ? (
                             <a
                               href={point.url}
@@ -946,21 +946,21 @@ export default function CourseDetailPage() {
                               rel="noopener noreferrer"
                               className="block"
                             >
-                              <h3 className="font-semibold text-gray-800 mb-2 hover:text-blue-600 transition-colors inline-flex items-center gap-2">
+                              <h3 className="font-semibold text-white mb-2 hover:text-cyan-400 transition-colors inline-flex items-center gap-2">
                                 {point.title || `נקודה ${index + 1}`}
                                 <ExternalLink className="w-4 h-4" />
                               </h3>
                               {point.description && (
-                                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                                <p className="text-gray-200 leading-relaxed whitespace-pre-line">
                                   {point.description}
                                 </p>
                               )}
                             </a>
                           ) : (
                             <>
-                              <h3 className="font-semibold text-gray-800 mb-2">{point.title || `נקודה ${index + 1}`}</h3>
+                              <h3 className="font-semibold text-white mb-2">{point.title || `נקודה ${index + 1}`}</h3>
                               {point.description && (
-                                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                                <p className="text-gray-200 leading-relaxed whitespace-pre-line">
                                   {point.description}
                                 </p>
                               )}
@@ -974,34 +974,34 @@ export default function CourseDetailPage() {
 
                 {/* Q&A Section - Accordion */}
                 {selectedLesson.qa_section && selectedLesson.qa_section.length > 0 && (
-                  <div className="mb-6 pt-6 border-t border-gray-200">
+                  <div className="mb-6 pt-6 border-t border-white/20">
                     <div className="flex items-center gap-2 mb-4">
-                      <HelpCircle className="w-6 h-6 text-blue-500" />
-                      <h2 className="text-xl font-bold text-gray-800">שאלות ותשובות</h2>
+                      <HelpCircle className="w-6 h-6 text-cyan-400" />
+                      <h2 className="text-xl font-bold text-white">שאלות ותשובות</h2>
                     </div>
                     <div className="space-y-2">
                       {selectedLesson.qa_section.map((qa: any, index: number) => {
                         const isOpen = openQaIndex === index;
                         return (
-                          <div key={index} className="border border-blue-200 rounded-lg overflow-hidden">
+                          <div key={index} className="border border-cyan-500/30 rounded-lg overflow-hidden bg-cyan-500/5">
                             <button
                               onClick={() => setOpenQaIndex(isOpen ? null : index)}
-                              className="w-full bg-blue-50 hover:bg-blue-100 p-4 flex items-center justify-between text-right transition-colors"
+                              className="w-full hover:bg-cyan-500/10 p-4 flex items-center justify-between text-right transition-colors"
                             >
                               <div className="flex items-start gap-2 flex-1">
-                                <span className="text-blue-500 font-semibold">ש:</span>
-                                <span className="font-semibold text-gray-800">{qa.question}</span>
+                                <span className="text-cyan-400 font-semibold">ש:</span>
+                                <span className="font-semibold text-white">{qa.question}</span>
                               </div>
                               {isOpen ? (
-                                <ChevronUp className="w-5 h-5 text-blue-500 flex-shrink-0 mr-2" />
+                                <ChevronUp className="w-5 h-5 text-cyan-400 flex-shrink-0 mr-2" />
                               ) : (
-                                <ChevronDown className="w-5 h-5 text-blue-500 flex-shrink-0 mr-2" />
+                                <ChevronDown className="w-5 h-5 text-cyan-400 flex-shrink-0 mr-2" />
                               )}
                             </button>
                             {isOpen && qa.answer && (
-                              <div className="p-4 bg-white border-t border-blue-200">
-                                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                                  <span className="text-blue-600 font-medium">ת: </span>
+                              <div className="p-4 bg-white/5 border-t border-cyan-500/30">
+                                <p className="text-gray-200 leading-relaxed whitespace-pre-line">
+                                  <span className="text-cyan-400 font-medium">ת: </span>
                                   {qa.answer}
                                 </p>
                               </div>
@@ -1015,13 +1015,13 @@ export default function CourseDetailPage() {
 
                 {/* Mark Complete Button */}
                 {currentUser && selectedLesson && (
-                  <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="mt-6 pt-6 border-t border-white/20">
                     <button
                       onClick={handleMarkComplete}
                       disabled={markingComplete || completedLessons.includes(selectedLesson.id)}
-                      className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg transition-all font-semibold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                      className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full transition-all font-semibold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
                         completedLessons.includes(selectedLesson.id)
-                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          ? 'bg-white/10 text-gray-300 hover:bg-white/20'
                           : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'
                       }`}
                     >
@@ -1052,9 +1052,9 @@ export default function CourseDetailPage() {
                   // For sequential courses, only show if current lesson is completed
                   if (course?.is_sequential && !isCurrentCompleted) {
                     return (
-                      <div className="mt-6 pt-6 border-t border-gray-200">
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
-                          <p className="text-sm text-amber-800">
+                      <div className="mt-6 pt-6 border-t border-white/20">
+                        <div className="bg-amber-500/10 border border-amber-400/30 rounded-lg p-4 text-center">
+                          <p className="text-sm text-amber-300">
                             <Lock className="w-4 h-4 inline-block ml-1" />
                             עליך לסיים את השיעור הנוכחי כדי לגשת לשיעור הבא
                           </p>
@@ -1066,15 +1066,15 @@ export default function CourseDetailPage() {
                   // Show next lesson button if available
                   if (nextAvailableLesson) {
                     return (
-                      <div className="mt-6 pt-6 border-t border-gray-200">
+                      <div className="mt-6 pt-6 border-t border-white/20">
                         <button
                           onClick={() => setSelectedLesson(nextAvailableLesson)}
-                          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#F52F8E] to-pink-500 text-white rounded-lg hover:from-[#E01E7A] hover:to-pink-600 transition-all font-semibold shadow-md hover:shadow-lg"
+                          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-hot-pink to-rose-500 text-white rounded-full hover:from-rose-500 hover:to-pink-600 transition-all font-semibold shadow-md hover:shadow-lg"
                         >
                           <ArrowLeft className="w-5 h-5" />
                           <span>לשיעור הבא</span>
                         </button>
-                        <p className="text-center text-sm text-gray-500 mt-2">
+                        <p className="text-center text-sm text-gray-300 mt-2">
                           {nextAvailableLesson.title}
                         </p>
                       </div>
@@ -1085,23 +1085,23 @@ export default function CourseDetailPage() {
                 })()}
 
                 {selectedLesson.content && (
-                  <div className="prose max-w-none prose-headings:text-gray-800 prose-headings:font-bold prose-p:text-gray-700 prose-ul:text-gray-700 prose-li:text-gray-700">
+                  <div className="prose max-w-none prose-headings:text-white prose-headings:font-bold prose-p:text-gray-200 prose-ul:text-gray-200 prose-li:text-gray-200">
                     <div
-                      className="text-gray-700 leading-relaxed space-y-4"
+                      className="text-gray-200 leading-relaxed space-y-4"
                       dangerouslySetInnerHTML={{ __html: selectedLesson.content }}
                     />
                   </div>
                 )}
 
                 {!selectedLesson.video_url && !selectedLesson.content && (
-                  <div className="text-center py-12 text-gray-500">
+                  <div className="text-center py-12 text-gray-300">
                     <p>תוכן השיעור יופיע כאן בקרוב</p>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-                <p className="text-gray-600">בחר שיעור מהרשימה</p>
+              <div className="glass-card rounded-xl p-12 text-center">
+                <p className="text-gray-300">בחר שיעור מהרשימה</p>
               </div>
             )}
           </div>

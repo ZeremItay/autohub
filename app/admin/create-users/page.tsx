@@ -62,7 +62,7 @@ export default function CreateTestUsersPage() {
           <button
             onClick={handleCreateUsers}
             disabled={loading}
-            className="w-full bg-[#F52F8E] text-white py-3 px-6 rounded-lg font-semibold hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary w-full py-3 px-6 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'יוצר משתמשים...' : 'צור משתמשי בדיקה'}
           </button>

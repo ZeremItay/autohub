@@ -109,7 +109,7 @@ export default function CommentForm({
           placeholder={placeholder}
           dir="rtl"
           lang="he"
-          className={`w-full ${paddingSize} border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] resize-none ${textSize}`}
+          className={`w-full ${paddingSize} border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] resize-none ${textSize} bg-white/5 text-white placeholder:text-gray-400`}
           rows={size === 'sm' ? 2 : 2}
           disabled={loading}
         />
@@ -118,7 +118,7 @@ export default function CommentForm({
             <button
               type="button"
               onClick={onCancel}
-              className={`${paddingSize} ${textSize} text-gray-600 hover:text-gray-800`}
+              className={`${paddingSize} ${textSize} text-gray-300 hover:text-white`}
               disabled={loading}
             >
               בטל
@@ -127,7 +127,7 @@ export default function CommentForm({
           <button
             type="submit"
             disabled={!text.trim() || loading}
-            className={`flex items-center gap-1 ${paddingSize} ${textSize} bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={`btn-primary flex items-center gap-1 ${paddingSize} ${textSize} disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <Send className={size === 'sm' ? 'w-3 h-3' : 'w-3 h-3'} />
             <span>{buttonText}</span>

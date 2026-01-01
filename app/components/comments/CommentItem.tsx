@@ -115,15 +115,15 @@ export default function CommentItem({
       <div className="flex-1">
         <div className={`flex items-center justify-between mb-${isReply ? '1' : '1'}`}>
           <div>
-            <h4 className={`font-semibold text-gray-800 ${textSize}`}>
+            <h4 className={`font-semibold text-white ${textSize}`}>
               {displayName}
             </h4>
             {comment.user?.role?.name === 'admin' && (
-              <span className="px-2 py-0.5 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+              <span className="px-2 py-0.5 bg-hot-pink text-white text-xs font-semibold rounded-full">
                 אדמין
               </span>
             )}
-            <p className={`${textSize} text-gray-500`}>{formatTimeAgo(comment.created_at)}</p>
+            <p className={`${textSize} text-gray-300`}>{formatTimeAgo(comment.created_at)}</p>
           </div>
           {canDelete && onDelete && (
             <button
@@ -135,7 +135,7 @@ export default function CommentItem({
             </button>
           )}
         </div>
-        <p className={`text-gray-700 ${textSize} mb-2 whitespace-pre-line`}>{comment.content}</p>
+        <p className={`text-gray-100 ${textSize} mb-2 whitespace-pre-line`}>{comment.content}</p>
         
         {/* Reply Button */}
         {currentUser && onReply && onToggleReply && !isReply && (
@@ -165,7 +165,7 @@ export default function CommentItem({
 
         {/* Replies */}
         {showReplies && comment.replies && comment.replies.length > 0 && (
-          <div className={`mt-2 ${isReply ? '' : 'pr-4 space-y-2 border-r-2 border-gray-200'}`}>
+          <div className={`mt-2 ${isReply ? '' : 'pr-4 space-y-2 border-r-2 border-white/10'}`}>
             {comment.replies.map((reply) => {
               const replyUserId = reply.user_id || reply.user?.user_id;
               const replyBadge = replyUserId && badge ? badge : undefined;

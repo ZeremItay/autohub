@@ -650,8 +650,7 @@ export default function ProfilePage() {
     setLoadingOffers(true)
     try {
       const userId = profile.user_id || profile.id
-      const { getUserProjectOffers } = await import('@/lib/queries/projects')
-      const { data, error } = await getUserProjectOffers(userId)
+      const { data, error } = await getProjectOffersByUser(userId)
       
       if (error) {
         console.error('Error loading offers:', error?.message || String(error))
@@ -876,9 +875,12 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen relative flex items-center justify-center">
         <div className="text-center">
-          <div className="text-[#F52F8E] text-xl">טוען...</div>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-4 border-hot-pink border-t-transparent rounded-full animate-spin"></div>
+            <div className="text-hot-pink text-xl font-medium">טוען...</div>
+          </div>
         </div>
       </div>
     )
@@ -886,9 +888,9 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen relative flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-xl">לא נמצא פרופיל</div>
+          <div className="text-red-400 text-xl">לא נמצא פרופיל</div>
         </div>
       </div>
     )
@@ -900,27 +902,23 @@ export default function ProfilePage() {
   const rank = profile.rank || 1
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
         {/* Profile Header */}
-        <div className="bg-white border-b border-gray-200 pb-4 sm:pb-6 mb-4 sm:mb-6">
+        <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6 border-b-0">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 w-full sm:w-auto">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{fullName}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">{fullName}</h1>
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm sm:text-base">
+                <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-hot-pink/20 text-white border border-hot-pink/30 rounded-full font-semibold text-sm sm:text-base">
                   {points} נקודות
-                </div>
-                <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold flex items-center gap-2 text-sm sm:text-base">
-                  <Trophy className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
-                  דירוג {rank}
                 </div>
                 {highestBadge?.badge && (
                   <div className="relative group">
                     <span 
                       style={{ color: highestBadge.badge.icon_color || '#FFD700' }}
                       className="text-2xl sm:text-3xl cursor-pointer"
-                      title={highestBadge.badge.name + (highestBadge.badge.description ? ` - ${highestBadge.badge.description}` : '')}
+                      title={`${highestBadge.badge.name}${highestBadge.badge.description ? ` - ${highestBadge.badge.description}` : ''} | דירוג ${rank}`}
                     >
                       {highestBadge.badge.icon || '⭐'}
                     </span>
@@ -973,7 +971,7 @@ export default function ProfilePage() {
                     case 'website':
                       return 'bg-gray-600';
                     default:
-                      return 'bg-[#F52F8E]';
+                      return 'bg-hot-pink';
                   }
                 };
 
@@ -1072,7 +1070,7 @@ export default function ProfilePage() {
           <div className="lg:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-xl shadow-sm border border-gray-100 text-gray-700"
+              className="w-full flex items-center justify-between px-4 py-3 glass-card rounded-3xl text-white"
             >
               <span className="font-medium">
                 {activeTab === 'profile' && 'פרופיל'}
@@ -1087,13 +1085,13 @@ export default function ProfilePage() {
               <Menu className="w-5 h-5" />
             </button>
             {mobileMenuOpen && (
-              <div className="mt-2 bg-white rounded-xl shadow-sm border border-gray-100 p-2 space-y-1">
+              <div className="mt-2 glass-card rounded-3xl p-2 space-y-1">
                 <button
                   onClick={() => { setActiveTab('profile'); setMobileMenuOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === 'profile'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                      ? 'bg-hot-pink text-white'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                   }`}
                 >
                   <User className="w-5 h-5" />
@@ -1103,8 +1101,8 @@ export default function ProfilePage() {
                   onClick={() => { setActiveTab('timeline'); setMobileMenuOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === 'timeline'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                      ? 'bg-hot-pink text-white'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                   }`}
                 >
                   <Activity className="w-5 h-5" />
@@ -1115,8 +1113,8 @@ export default function ProfilePage() {
                     onClick={() => { setActiveTab('messages'); setMobileMenuOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       activeTab === 'messages'
-                        ? 'bg-[#F52F8E] text-white'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                        ? 'bg-hot-pink text-white'
+                        : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                     }`}
                   >
                     <MessageSquare className="w-5 h-5" />
@@ -1127,8 +1125,8 @@ export default function ProfilePage() {
                   onClick={() => { setActiveTab('forums'); setMobileMenuOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === 'forums'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                      ? 'bg-hot-pink text-white'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                   }`}
                 >
                   <MessageSquare className="w-5 h-5" />
@@ -1138,8 +1136,8 @@ export default function ProfilePage() {
                   onClick={() => { setActiveTab('points'); setMobileMenuOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === 'points'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                      ? 'bg-hot-pink text-white'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                   }`}
                 >
                   <History className="w-5 h-5" />
@@ -1150,8 +1148,8 @@ export default function ProfilePage() {
                     onClick={() => { setActiveTab('courses'); setMobileMenuOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       activeTab === 'courses'
-                        ? 'bg-[#F52F8E] text-white'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                        ? 'bg-hot-pink text-white'
+                        : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                     }`}
                   >
                     <BookOpen className="w-5 h-5" />
@@ -1163,8 +1161,8 @@ export default function ProfilePage() {
                     onClick={() => { setActiveTab('notifications'); setMobileMenuOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       activeTab === 'notifications'
-                        ? 'bg-[#F52F8E] text-white'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                        ? 'bg-hot-pink text-white'
+                        : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                     }`}
                   >
                     <Bell className="w-5 h-5" />
@@ -1176,8 +1174,8 @@ export default function ProfilePage() {
                     onClick={() => { setActiveTab('projects'); setMobileMenuOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       activeTab === 'projects'
-                        ? 'bg-[#F52F8E] text-white'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                        ? 'bg-hot-pink text-white'
+                        : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                     }`}
                   >
                     <Briefcase className="w-5 h-5" />
@@ -1190,13 +1188,13 @@ export default function ProfilePage() {
 
           {/* Right Sidebar - Menu (Desktop) */}
           <aside className="hidden lg:block w-64 flex-shrink-0">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-2">
+            <div className="glass-card rounded-3xl p-4 space-y-2">
               <button
                 onClick={() => setActiveTab('profile')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'profile'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                 }`}
               >
                 <User className="w-5 h-5" />
@@ -1206,8 +1204,8 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab('timeline')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'timeline'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                 }`}
               >
                 <Activity className="w-5 h-5" />
@@ -1218,8 +1216,8 @@ export default function ProfilePage() {
                   onClick={() => setActiveTab('messages')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === 'messages'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                      ? 'bg-hot-pink text-white'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                   }`}
                 >
                   <MessageSquare className="w-5 h-5" />
@@ -1230,8 +1228,8 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab('forums')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'forums'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                 }`}
               >
                 <MessageSquare className="w-5 h-5" />
@@ -1241,8 +1239,8 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab('points')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'points'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                 }`}
               >
                 <History className="w-5 h-5" />
@@ -1253,8 +1251,8 @@ export default function ProfilePage() {
                   onClick={() => setActiveTab('courses')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === 'courses'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                      ? 'bg-hot-pink text-white'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                   }`}
                 >
                   <BookOpen className="w-5 h-5" />
@@ -1266,8 +1264,8 @@ export default function ProfilePage() {
                   onClick={() => setActiveTab('notifications')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === 'notifications'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                      ? 'bg-hot-pink text-white'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                   }`}
                 >
                   <Bell className="w-5 h-5" />
@@ -1279,8 +1277,8 @@ export default function ProfilePage() {
                   onClick={() => setActiveTab('projects')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === 'projects'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                      ? 'bg-hot-pink text-white'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                   }`}
                 >
                   <Briefcase className="w-5 h-5" />
@@ -1297,13 +1295,13 @@ export default function ProfilePage() {
             {activeTab === 'profile' && (
               <>
                 {/* Details Card */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
-                    <h2 className="text-lg sm:text-xl font-semibold text-[#F52F8E]">פרטים</h2>
+                    <h2 className="text-lg sm:text-xl font-semibold text-hot-pink">פרטים</h2>
                     {!editingDetails && currentLoggedInUserId && profile && (currentLoggedInUserId === (profile.user_id || profile.id)) && (
                       <button
                         onClick={() => setEditingDetails(true)}
-                        className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-sm sm:text-base"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/10 text-white hover:bg-white/20 border border-white/20 rounded-full transition-colors text-sm sm:text-base"
                       >
                         <Edit className="w-4 h-4" />
                         עריכה
@@ -1319,7 +1317,7 @@ export default function ProfilePage() {
                           type="text"
                           value={formData.first_name}
                           onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base"
+                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400 text-sm sm:text-base"
                         />
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
@@ -1328,7 +1326,7 @@ export default function ProfilePage() {
                           type="text"
                           value={formData.last_name}
                           onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base"
+                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400 text-sm sm:text-base"
                         />
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
@@ -1337,7 +1335,7 @@ export default function ProfilePage() {
                           type="text"
                           value={formData.nickname}
                           onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
-                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base"
+                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400 text-sm sm:text-base"
                         />
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
@@ -1347,7 +1345,7 @@ export default function ProfilePage() {
                           lang="he"
                           value={formData.how_to_address}
                           onChange={(e) => setFormData({ ...formData, how_to_address: e.target.value })}
-                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base bg-white"
+                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white text-sm sm:text-base"
                           required
                         >
                           <option value="">בחר אפשרות</option>
@@ -1362,7 +1360,7 @@ export default function ProfilePage() {
                           lang="he"
                           value={formData.nocode_experience}
                           onChange={(e) => setFormData({ ...formData, nocode_experience: e.target.value })}
-                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base bg-white"
+                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white text-sm sm:text-base"
                           required
                         >
                           <option value="">בחר רמת ניסיון</option>
@@ -1378,7 +1376,7 @@ export default function ProfilePage() {
                           value={formData.instagram_url}
                           onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
                           placeholder="https://instagram.com/..."
-                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base"
+                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400 text-sm sm:text-base"
                         />
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
@@ -1388,13 +1386,13 @@ export default function ProfilePage() {
                           value={formData.facebook_url}
                           onChange={(e) => setFormData({ ...formData, facebook_url: e.target.value })}
                           placeholder="https://facebook.com/..."
-                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] text-sm sm:text-base"
+                          className="w-full sm:w-3/4 px-3 sm:px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400 text-sm sm:text-base"
                         />
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2">
                         <button
                           onClick={() => saveDetails()}
-                          className="flex items-center justify-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors text-sm sm:text-base"
+                          className="btn-primary flex items-center justify-center gap-2 px-4 py-2 text-sm sm:text-base"
                         >
                           <Save className="w-4 h-4" />
                           שמור
@@ -1404,7 +1402,7 @@ export default function ProfilePage() {
                             setEditingDetails(false)
                             loadProfile()
                           }}
-                          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base"
+                          className="btn-secondary flex items-center justify-center gap-2 px-4 py-2 text-sm sm:text-base"
                         >
                           <X className="w-4 h-4" />
                           ביטול
@@ -1415,36 +1413,36 @@ export default function ProfilePage() {
                     <div className="space-y-3 sm:space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                         <span className="text-xs sm:text-sm font-medium text-[#F52F8E]">שם פרטי*</span>
-                        <span className="text-sm sm:text-base text-gray-800 font-medium">{formData.first_name || '-'}</span>
+                        <span className="text-sm sm:text-base text-white font-medium">{formData.first_name || '-'}</span>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                         <span className="text-xs sm:text-sm font-medium text-[#F52F8E]">שם משפחה*</span>
-                        <span className="text-sm sm:text-base text-gray-800 font-medium">{formData.last_name || '-'}</span>
+                        <span className="text-sm sm:text-base text-white font-medium">{formData.last_name || '-'}</span>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                         <span className="text-xs sm:text-sm font-medium text-[#F52F8E]">כינוי*</span>
-                        <span className="text-sm sm:text-base text-gray-800 font-medium">{formData.nickname || '-'}</span>
+                        <span className="text-sm sm:text-base text-white font-medium">{formData.nickname || '-'}</span>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                         <span className="text-xs sm:text-sm font-medium text-[#F52F8E]">איך צריך לפנות אליך בקהילה שלנו?*</span>
-                        <span className="text-sm sm:text-base text-gray-800 font-medium text-right">{formData.how_to_address || '-'}</span>
+                        <span className="text-sm sm:text-base text-white font-medium text-right">{formData.how_to_address || '-'}</span>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                         <span className="text-xs sm:text-sm font-medium text-[#F52F8E]">מה הניסיון שלך עם אוטומציות No Code בטופ 100*</span>
-                        <span className="text-sm sm:text-base text-gray-800 font-medium text-right">{formData.nocode_experience || '-'}</span>
+                        <span className="text-sm sm:text-base text-white font-medium text-right">{formData.nocode_experience || '-'}</span>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Personal Information Card */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
                     <h2 className="text-lg sm:text-xl font-semibold text-[#F52F8E]">מידע אישי</h2>
                     {!editingPersonal && (
                       <button
                         onClick={() => setEditingPersonal(true)}
-                        className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-sm sm:text-base"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/10 text-white hover:bg-white/20 rounded-full transition-colors text-sm sm:text-base"
                       >
                         <Edit className="w-4 h-4" />
                         עריכה
@@ -1455,28 +1453,28 @@ export default function ProfilePage() {
                   {editingPersonal ? (
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">ביוגרפיה</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">ביוגרפיה</label>
                         <textarea
                           value={formData.bio}
                           onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                           rows={4}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">URL תמונת פרופיל</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">URL תמונת פרופיל</label>
                         <input
                           type="text"
                           value={formData.avatar_url}
                           onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
                           placeholder="https://..."
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400"
                         />
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2">
                         <button
                           onClick={savePersonal}
-                          className="flex items-center justify-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors text-sm sm:text-base"
+                          className="btn-primary flex items-center justify-center gap-2 px-4 py-2 text-sm sm:text-base"
                         >
                           <Save className="w-4 h-4" />
                           שמור
@@ -1486,7 +1484,7 @@ export default function ProfilePage() {
                             setEditingPersonal(false)
                             loadProfile()
                           }}
-                          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base"
+                          className="btn-secondary flex items-center justify-center gap-2 px-4 py-2 text-sm sm:text-base"
                         >
                           <X className="w-4 h-4" />
                           ביטול
@@ -1496,12 +1494,12 @@ export default function ProfilePage() {
                   ) : (
                     <div className="space-y-4">
                       <div>
-                        <span className="text-sm text-gray-500">ביוגרפיה:</span>
-                        <p className="text-gray-800 font-medium mt-1">{formData.bio || '-'}</p>
+                        <span className="text-sm text-gray-400">ביוגרפיה:</span>
+                        <p className="text-white font-medium mt-1">{formData.bio || '-'}</p>
                       </div>
                       <div>
-                        <span className="text-sm text-gray-500">אימייל:</span>
-                        <p className="text-gray-800 font-medium mt-1">{profile.email || '-'}</p>
+                        <span className="text-sm text-gray-400">אימייל:</span>
+                        <p className="text-white font-medium mt-1">{profile.email || '-'}</p>
                       </div>
                     </div>
                   )}
@@ -1511,22 +1509,22 @@ export default function ProfilePage() {
             )}
 
             {activeTab === 'timeline' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">ציר זמן</h2>
-                <p className="text-sm sm:text-base text-gray-500">אין פעילות עדיין</p>
+              <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">ציר זמן</h2>
+                <p className="text-sm sm:text-base text-gray-400">אין פעילות עדיין</p>
               </div>
             )}
 
             {activeTab === 'messages' && (
               <>
                 {isOwnerOrAdmin() ? (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">הודעות</h2>
+                  <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                    <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">הודעות</h2>
                     <p className="text-sm sm:text-base text-gray-500">אין הודעות חדשות</p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">הודעות</h2>
+                  <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                    <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">הודעות</h2>
                     <p className="text-sm sm:text-base text-gray-500">אין גישה למידע זה</p>
                   </div>
                 )}
@@ -1534,17 +1532,17 @@ export default function ProfilePage() {
             )}
 
             {activeTab === 'forums' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">פורומים שלי</h2>
+              <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">פורומים שלי</h2>
                 
                 {/* Tabs for Posts and Replies */}
-                <div className="flex gap-2 mb-6 border-b border-gray-200">
+                <div className="flex gap-2 mb-6 border-b border-white/20">
                   <button
                     onClick={() => setForumsTab('posts')}
                     className={`px-4 py-2 font-medium transition-colors border-b-2 ${
                       forumsTab === 'posts'
-                        ? 'border-[#F52F8E] text-[#F52F8E]'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-hot-pink text-hot-pink'
+                        : 'border-transparent text-gray-400 hover:text-gray-300'
                     }`}
                   >
                     הפוסטים שלי
@@ -1553,8 +1551,8 @@ export default function ProfilePage() {
                     onClick={() => setForumsTab('replies')}
                     className={`px-4 py-2 font-medium transition-colors border-b-2 ${
                       forumsTab === 'replies'
-                        ? 'border-[#F52F8E] text-[#F52F8E]'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-hot-pink text-hot-pink'
+                        : 'border-transparent text-gray-400 hover:text-gray-300'
                     }`}
                   >
                     התגובות שלי
@@ -1576,15 +1574,15 @@ export default function ProfilePage() {
                           <Link
                             key={post.id}
                             href={`/forums/${post.forum_id}/posts/${post.id}`}
-                            className="block p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] hover:shadow-md transition-all"
+                            className="block p-4 border border-white/20 rounded-lg hover:border-hot-pink hover:shadow-md transition-all glass-card"
                           >
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                                <h3 className="text-lg font-semibold text-white mb-2">
                                   {post.title}
                                 </h3>
-                                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{post.content}</p>
-                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                <p className="text-gray-300 text-sm mb-3 line-clamp-2">{post.content}</p>
+                                <div className="flex items-center gap-4 text-sm text-gray-400">
                                   <span>בפורום: {post.forums?.display_name || post.forums?.name || 'לא ידוע'}</span>
                                   <span>•</span>
                                   <div className="flex items-center gap-1">
@@ -1622,15 +1620,15 @@ export default function ProfilePage() {
                           <Link
                             key={reply.id}
                             href={`/forums/${reply.forum_posts?.forum_id}/posts/${reply.post_id}`}
-                            className="block p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] hover:shadow-md transition-all"
+                            className="block p-4 border border-white/20 rounded-lg hover:border-hot-pink hover:shadow-md transition-all glass-card"
                           >
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                                <h3 className="text-lg font-semibold text-white mb-2">
                                   {reply.forum_posts?.title || 'פוסט'}
                                 </h3>
-                                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{reply.content}</p>
-                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                <p className="text-gray-300 text-sm mb-3 line-clamp-2">{reply.content}</p>
+                                <div className="flex items-center gap-4 text-sm text-gray-400">
                                   <span>בפורום: {reply.forum_posts?.forums?.display_name || reply.forum_posts?.forums?.name || 'לא ידוע'}</span>
                                   <span>•</span>
                                   <div className="flex items-center gap-1">
@@ -1652,20 +1650,20 @@ export default function ProfilePage() {
             {activeTab === 'points' && (
               <div className="space-y-6">
                 {/* Badges Section */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">תגים</h2>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">תגים</h2>
                   {userBadges.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Star className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                      <p>אין תגים עדיין</p>
-                      <p className="text-sm mt-2">צבר נקודות כדי לקבל תגים!</p>
+                    <div className="text-center py-8 text-gray-300">
+                      <Star className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <p className="text-white">אין תגים עדיין</p>
+                      <p className="text-sm mt-2 text-gray-400">צבר נקודות כדי לקבל תגים!</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                       {userBadges.map((userBadge: any) => (
                         <div
                           key={userBadge.id}
-                          className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] transition-all bg-gradient-to-br from-white to-gray-50"
+                          className="flex flex-col items-center p-4 glass-card rounded-xl border-white/20 hover:border-hot-pink/50 transition-all"
                         >
                           <span 
                             style={{ color: userBadge.badge?.icon_color || '#FFD700' }}
@@ -1673,11 +1671,11 @@ export default function ProfilePage() {
                           >
                             {userBadge.badge?.icon || '⭐'}
                           </span>
-                          <h3 className="font-semibold text-gray-800 text-sm text-center mb-1">
+                          <h3 className="font-semibold text-white text-sm text-center mb-1">
                             {userBadge.badge?.name || 'תג'}
                           </h3>
                           {userBadge.badge?.description && (
-                            <p className="text-xs text-gray-500 text-center">
+                            <p className="text-xs text-gray-300 text-center">
                               {userBadge.badge.description}
                             </p>
                           )}
@@ -1691,15 +1689,15 @@ export default function ProfilePage() {
                 </div>
                 
                 {/* Points History Section */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">היסטוריית נקודות</h2>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">היסטוריית נקודות</h2>
                   
                   {loadingPoints ? (
-                    <div className="text-center py-8 text-gray-500">טוען...</div>
+                    <div className="text-center py-8 text-gray-300">טוען...</div>
                   ) : pointsHistory.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
-                      <Trophy className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                      <p>אין היסטוריית נקודות</p>
+                    <div className="text-center py-12 text-gray-300">
+                      <Trophy className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <p className="text-gray-300">אין היסטוריית נקודות</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1710,16 +1708,16 @@ export default function ProfilePage() {
                         return (
                           <div
                             key={entry.id}
-                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] transition-all"
+                            className="flex items-center justify-between p-4 glass-card rounded-xl border-white/20 hover:border-hot-pink/50 transition-all"
                           >
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <Trophy className="w-5 h-5 text-yellow-500" />
-                                <span className="font-semibold text-gray-800">
+                                <Trophy className="w-5 h-5 text-yellow-400" />
+                                <span className="font-semibold text-white">
                                   {actionText}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <div className="flex items-center gap-4 text-sm text-gray-300">
                                 <div className="flex items-center gap-1">
                                   <Clock className="w-4 h-4" />
                                   <span>{formatTimeAgo(entry.created_at)}</span>
@@ -1728,11 +1726,11 @@ export default function ProfilePage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`text-lg font-bold ${
-                                entry.points > 0 ? 'text-green-600' : 'text-red-600'
+                                entry.points > 0 ? 'text-green-400' : 'text-red-400'
                               }`}>
                                 {entry.points > 0 ? '+' : ''}{entry.points}
                               </span>
-                              <span className="text-sm text-gray-500">נקודות</span>
+                              <span className="text-sm text-gray-300">נקודות</span>
                             </div>
                           </div>
                         );
@@ -1744,19 +1742,19 @@ export default function ProfilePage() {
             )}
 
             {activeTab === 'courses' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6">קורסים שלי</h2>
+              <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">קורסים שלי</h2>
                 
                 {loadingCourses ? (
                   <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F52F8E] mx-auto mb-4"></div>
-                    <p className="text-gray-600">טוען קורסים...</p>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-hot-pink mx-auto mb-4"></div>
+                    <p className="text-gray-300">טוען קורסים...</p>
                   </div>
                 ) : myCourses.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg mb-2">עדיין לא נרשמת לקורסים</p>
-                    <Link href="/courses" className="text-[#F52F8E] hover:underline">
+                  <div className="text-center py-12 text-gray-300">
+                    <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                    <p className="text-lg mb-2 text-white">עדיין לא נרשמת לקורסים</p>
+                    <Link href="/courses" className="text-hot-pink hover:underline">
                       גלה קורסים חדשים
                     </Link>
                   </div>
@@ -1766,7 +1764,7 @@ export default function ProfilePage() {
                       <Link
                         key={course.id}
                         href={`/courses/${course.id}`}
-                        className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-col"
+                        className="glass-card rounded-xl border-white/20 overflow-hidden hover:border-hot-pink/50 transition-all flex flex-col"
                       >
                         <div className="relative">
                           {course.thumbnail_url ? (
@@ -1787,25 +1785,25 @@ export default function ProfilePage() {
                           )}
                         </div>
                         <div className="p-4 sm:p-5 flex flex-col flex-grow">
-                          <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2 line-clamp-2">{course.title}</h3>
-                          <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-grow">{course.description}</p>
+                          <h3 className="text-lg sm:text-xl font-bold text-white mb-2 line-clamp-2">{course.title}</h3>
+                          <p className="text-gray-300 text-sm mb-4 line-clamp-2 flex-grow">{course.description}</p>
                           
                           {/* Progress Bar */}
                           {course.totalLessons > 0 && (
                             <div className="mb-4">
                               <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs text-gray-600">
+                                <span className="text-xs text-gray-300">
                                   {course.completedLessons !== undefined && course.totalLessons !== undefined
                                     ? `${course.completedLessons} מתוך ${course.totalLessons} שיעורים`
                                     : 'התקדמות'}
                                 </span>
-                                <span className="text-xs font-semibold text-gray-800">
+                                <span className="text-xs font-semibold text-white">
                                   {course.progress !== undefined ? `${Math.round(course.progress)}%` : '0%'}
                                 </span>
                               </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div className="w-full bg-white/10 rounded-full h-2">
                                 <div
-                                  className="bg-[#F52F8E] h-2 rounded-full transition-all"
+                                  className="bg-hot-pink h-2 rounded-full transition-all"
                                   style={{ width: `${course.progress || 0}%` }}
                                 ></div>
                               </div>
@@ -1832,13 +1830,13 @@ export default function ProfilePage() {
             {activeTab === 'notifications' && (
               <>
                 {isOwnerOrAdmin() ? (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                  <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-4 sm:mb-6">
-                      <h2 className="text-lg sm:text-xl font-semibold text-gray-800">התראות</h2>
+                      <h2 className="text-lg sm:text-xl font-semibold text-white">התראות</h2>
                       {notifications.filter((n: any) => !n.is_read).length > 0 && (
                         <button
                           onClick={handleMarkAllNotificationsAsRead}
-                          className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors text-sm font-medium"
+                          className="btn-primary flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium"
                         >
                           <CheckCheck className="w-4 h-4" />
                           סמן הכל כנקרא
@@ -1848,18 +1846,18 @@ export default function ProfilePage() {
 
                 {loadingNotifications ? (
                   <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F52F8E] mx-auto mb-4"></div>
-                    <p className="text-gray-600">טוען התראות...</p>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-hot-pink mx-auto mb-4"></div>
+                    <p className="text-gray-300">טוען התראות...</p>
                   </div>
                 ) : notifications.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <Bell className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg mb-2">אין התראות</p>
-                    <p className="text-sm">כשיהיו התראות חדשות, הן יופיעו כאן</p>
+                  <div className="text-center py-12 text-gray-300">
+                    <Bell className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                    <p className="text-lg mb-2 text-white">אין התראות</p>
+                    <p className="text-sm text-gray-400">כשיהיו התראות חדשות, הן יופיעו כאן</p>
                   </div>
                 ) : (
                   <>
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-white/10">
                       {notifications.map((notification: any) => {
                         const isPointsNotification = 
                           notification.title?.includes('נקודות') || 
@@ -1868,26 +1866,26 @@ export default function ProfilePage() {
                         return (
                           <div
                             key={notification.id}
-                            className={`p-4 sm:p-5 hover:bg-gray-50 transition-colors cursor-pointer ${
-                              !notification.is_read ? 'bg-pink-50/50' : ''
+                            className={`p-4 sm:p-5 hover:bg-white/10 transition-colors cursor-pointer ${
+                              !notification.is_read ? 'bg-hot-pink/10' : ''
                             }`}
                             onClick={() => !isPointsNotification && handleNotificationClick(notification)}
                           >
                             <div className="flex items-start gap-4">
                               {/* Read indicator */}
                               <div className={`flex-shrink-0 w-3 h-3 rounded-full mt-2 ${
-                                !notification.is_read ? 'bg-[#F52F8E]' : 'bg-gray-300'
+                                !notification.is_read ? 'bg-hot-pink' : 'bg-gray-500'
                               }`}></div>
 
                               {/* Content */}
                               <div className="flex-1 min-w-0">
-                                <p className="text-base font-semibold text-gray-800 mb-2">
+                                <p className="text-base font-semibold text-white mb-2">
                                   {notification.title}
                                 </p>
-                                <p className="text-sm text-gray-600 mb-2">
+                                <p className="text-sm text-gray-300 mb-2">
                                   {notification.message}
                                 </p>
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-gray-400">
                                   {formatTimeAgo(notification.created_at)}
                                 </p>
                               </div>
@@ -1903,10 +1901,10 @@ export default function ProfilePage() {
                         <button
                           onClick={() => handleNotificationPageChange(notificationsPage - 1)}
                           disabled={notificationsPage === 1}
-                          className={`px-4 py-2 rounded-lg border transition-colors ${
+                          className={`px-4 py-2 rounded-full border transition-colors ${
                             notificationsPage === 1
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
-                              : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                              ? 'bg-white/10 text-gray-500 cursor-not-allowed border-white/20'
+                              : 'glass-card text-white hover:bg-white/10 border-white/20'
                           }`}
                         >
                           <ChevronRight className="w-5 h-5" />
@@ -1917,10 +1915,10 @@ export default function ProfilePage() {
                             <button
                               key={page}
                               onClick={() => handleNotificationPageChange(page)}
-                              className={`px-4 py-2 rounded-lg border transition-colors ${
+                              className={`px-4 py-2 rounded-full border transition-colors ${
                                 notificationsPage === page
-                                  ? 'bg-[#F52F8E] text-white border-[#F52F8E]'
-                                  : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                                  ? 'bg-hot-pink text-white border-hot-pink'
+                                  : 'glass-card text-white hover:bg-white/10 border-white/20'
                               }`}
                             >
                               {page}
@@ -1931,10 +1929,10 @@ export default function ProfilePage() {
                         <button
                           onClick={() => handleNotificationPageChange(notificationsPage + 1)}
                           disabled={notificationsPage === notificationsTotalPages}
-                          className={`px-4 py-2 rounded-lg border transition-colors ${
+                          className={`px-4 py-2 rounded-full border transition-colors ${
                             notificationsPage === notificationsTotalPages
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
-                              : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                              ? 'bg-white/10 text-gray-500 cursor-not-allowed border-white/20'
+                              : 'glass-card text-white hover:bg-white/10 border-white/20'
                           }`}
                         >
                           <ChevronLeft className="w-5 h-5" />
@@ -1945,9 +1943,9 @@ export default function ProfilePage() {
                 )}
                   </div>
                 ) : (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">התראות</h2>
-                    <p className="text-sm sm:text-base text-gray-500">אין גישה למידע זה</p>
+                  <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                    <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">התראות</h2>
+                    <p className="text-sm sm:text-base text-gray-300">אין גישה למידע זה</p>
                   </div>
                 )}
               </>
@@ -1958,18 +1956,18 @@ export default function ProfilePage() {
                 {isOwnerOrAdmin() ? (
                   <div className="space-y-6">
                 {/* פרויקטים שפרסמתי */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">פרויקטים שפרסמתי</h2>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">פרויקטים שפרסמתי</h2>
                   {loadingProjects ? (
                     <div className="text-center py-12">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F52F8E] mx-auto mb-4"></div>
-                      <p className="text-gray-600">טוען פרויקטים...</p>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-hot-pink mx-auto mb-4"></div>
+                      <p className="text-gray-300">טוען פרויקטים...</p>
                     </div>
                   ) : myProjects.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
-                      <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg mb-2">אין פרויקטים שפרסמת</p>
-                      <p className="text-sm">כשתיצור פרויקטים, הם יופיעו כאן</p>
+                    <div className="text-center py-12 text-gray-300">
+                      <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <p className="text-lg mb-2 text-white">אין פרויקטים שפרסמת</p>
+                      <p className="text-sm text-gray-400">כשתיצור פרויקטים, הם יופיעו כאן</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -1977,26 +1975,26 @@ export default function ProfilePage() {
                         const offers = projectOffers[project.id] || []
                         const showOffers = expandedProjects.has(project.id)
                         return (
-                          <div key={project.id} className="border border-gray-200 rounded-lg p-4">
+                          <div key={project.id} className="glass-card rounded-xl border-white/20 p-4">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
-                                <h3 className="font-semibold text-gray-800 mb-1">{project.title}</h3>
-                                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{project.description}</p>
-                                <div className="flex items-center gap-3 text-xs text-gray-500">
-                                  <span className={`px-2 py-1 rounded ${
-                                    project.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                    project.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
-                                    project.status === 'closed' ? 'bg-red-100 text-red-700' :
-                                    'bg-blue-100 text-blue-700'
+                                <h3 className="font-semibold text-white mb-1">{project.title}</h3>
+                                <p className="text-sm text-gray-300 mb-2 line-clamp-2">{project.description}</p>
+                                <div className="flex items-center gap-3 text-xs text-gray-400">
+                                  <span className={`px-2 py-1 rounded-full ${
+                                    project.status === 'completed' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                    project.status === 'in_progress' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
+                                    project.status === 'closed' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                    'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                                   }`}>
                                     {project.status === 'completed' ? 'הושלם' :
                                      project.status === 'in_progress' ? 'בביצוע' :
                                      project.status === 'closed' ? 'סגור' :
                                      'פתוח'}
                                   </span>
-                                  <span>{offers.length} הגשות</span>
+                                  <span className="text-gray-300">{offers.length} הגשות</span>
                                   {project.created_at && (
-                                    <span>{new Date(project.created_at).toLocaleDateString('he-IL')}</span>
+                                    <span className="text-gray-400">{new Date(project.created_at).toLocaleDateString('he-IL')}</span>
                                   )}
                                 </div>
                               </div>
@@ -2012,29 +2010,29 @@ export default function ProfilePage() {
                                     return next
                                   })
                                 }}
-                                className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                className="btn-secondary px-3 py-1 text-sm rounded-full"
                               >
                                 {showOffers ? 'הסתר' : 'הצג'} הגשות
                               </button>
                             </div>
                             {showOffers && offers.length > 0 && (
-                              <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                                <h4 className="font-medium text-gray-700 mb-2">הגשות:</h4>
+                              <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
+                                <h4 className="font-medium text-white mb-2">הגשות:</h4>
                                 {offers.map((offer: any) => (
-                                  <div key={offer.id} className="bg-gray-50 p-3 rounded-lg">
+                                  <div key={offer.id} className="glass-card rounded-xl border-white/10 p-3">
                                     <div className="flex items-start justify-between">
                                       <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <span className="font-medium text-sm">{offer.user?.display_name || 'משתמש לא ידוע'}</span>
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                          <span className="font-medium text-sm text-white">{offer.user?.display_name || 'משתמש לא ידוע'}</span>
                                           {offer.offer_amount && (
-                                            <span className="text-[#F52F8E] font-semibold text-sm">
+                                            <span className="text-hot-pink font-semibold text-sm">
                                               {offer.offer_amount} {offer.offer_currency || 'ILS'}
                                             </span>
                                           )}
-                                          <span className={`px-2 py-0.5 text-xs rounded ${
-                                            offer.status === 'accepted' ? 'bg-green-100 text-green-700' :
-                                            offer.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                            'bg-yellow-100 text-yellow-700'
+                                          <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                            offer.status === 'accepted' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                            offer.status === 'rejected' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                            'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
                                           }`}>
                                             {offer.status === 'accepted' ? 'אושר' :
                                              offer.status === 'rejected' ? 'נדחה' :
@@ -2042,7 +2040,7 @@ export default function ProfilePage() {
                                           </span>
                                         </div>
                                         {offer.message && (
-                                          <p className="text-sm text-gray-600 mb-1">{offer.message}</p>
+                                          <p className="text-sm text-gray-300 mb-1">{offer.message}</p>
                                         )}
                                         <span className="text-xs text-gray-400">
                                           {offer.created_at ? new Date(offer.created_at).toLocaleDateString('he-IL') : '-'}
@@ -2054,7 +2052,7 @@ export default function ProfilePage() {
                               </div>
                             )}
                             {showOffers && offers.length === 0 && (
-                              <div className="mt-4 pt-4 border-t border-gray-200 text-center text-gray-500 text-sm">
+                              <div className="mt-4 pt-4 border-t border-white/10 text-center text-gray-300 text-sm">
                                 אין הגשות לפרויקט זה
                               </div>
                             )}
@@ -2066,58 +2064,58 @@ export default function ProfilePage() {
                 </div>
 
                 {/* פרויקטים שהגשתי להם מועמדות */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">פרויקטים שהגשתי להם מועמדות</h2>
+                <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">פרויקטים שהגשתי להם מועמדות</h2>
                   {loadingProjects ? (
                     <div className="text-center py-12">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F52F8E] mx-auto mb-4"></div>
-                      <p className="text-gray-600">טוען הגשות...</p>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-hot-pink mx-auto mb-4"></div>
+                      <p className="text-gray-300">טוען הגשות...</p>
                     </div>
                   ) : mySubmissions.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
-                      <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg mb-2">אין הגשות</p>
-                      <p className="text-sm">כשתיגש לפרויקטים, הם יופיעו כאן</p>
+                    <div className="text-center py-12 text-gray-300">
+                      <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <p className="text-lg mb-2 text-white">אין הגשות</p>
+                      <p className="text-sm text-gray-400">כשתיגש לפרויקטים, הם יופיעו כאן</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {mySubmissions.map((submission: any) => (
-                        <div key={submission.id} className="border border-gray-200 rounded-lg p-4">
+                        <div key={submission.id} className="glass-card rounded-xl border-white/20 p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <h3 className="font-semibold text-gray-800 mb-1">
+                              <h3 className="font-semibold text-white mb-1">
                                 {submission.project?.title || 'פרויקט לא זמין'}
                               </h3>
                               {submission.project?.description && (
-                                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{submission.project.description}</p>
+                                <p className="text-sm text-gray-300 mb-2 line-clamp-2">{submission.project.description}</p>
                               )}
-                              <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                              <div className="flex items-center gap-3 text-xs text-gray-400 mb-2 flex-wrap">
                                 {submission.offer_amount && (
-                                  <span className="text-[#F52F8E] font-semibold">
+                                  <span className="text-hot-pink font-semibold">
                                     {submission.offer_amount} {submission.offer_currency || 'ILS'}
                                   </span>
                                 )}
-                                <span className={`px-2 py-1 rounded ${
-                                  submission.status === 'accepted' ? 'bg-green-100 text-green-700' :
-                                  submission.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                  'bg-yellow-100 text-yellow-700'
+                                <span className={`px-2 py-1 rounded-full ${
+                                  submission.status === 'accepted' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                  submission.status === 'rejected' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                  'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
                                 }`}>
                                   {submission.status === 'accepted' ? 'אושר' :
                                    submission.status === 'rejected' ? 'נדחה' :
                                    'ממתין'}
                                 </span>
                                 {submission.created_at && (
-                                  <span>{new Date(submission.created_at).toLocaleDateString('he-IL')}</span>
+                                  <span className="text-gray-400">{new Date(submission.created_at).toLocaleDateString('he-IL')}</span>
                                 )}
                               </div>
                               {submission.message && (
-                                <p className="text-sm text-gray-600 mb-2">{submission.message}</p>
+                                <p className="text-sm text-gray-300 mb-2">{submission.message}</p>
                               )}
                             </div>
                             {submission.project?.id && (
                               <Link
                                 href={`/projects`}
-                                className="px-3 py-1 text-sm bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                                className="btn-primary px-3 py-1 text-sm rounded-full"
                               >
                                 צפה בפרויקט
                               </Link>
@@ -2130,7 +2128,7 @@ export default function ProfilePage() {
                 </div>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                  <div className="glass-card rounded-3xl shadow-2xl p-4 sm:p-6">
                     <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">פרויקטים</h2>
                     <p className="text-sm sm:text-base text-gray-500">אין גישה למידע זה</p>
                   </div>
@@ -2166,12 +2164,12 @@ export default function ProfilePage() {
       {/* Avatar Modal */}
       {showAvatarModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAvatarModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-card rounded-3xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-800">החלף תמונת פרופיל</h2>
+              <h2 className="text-xl font-bold text-white">החלף תמונת פרופיל</h2>
               <button
                 onClick={() => setShowAvatarModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-400 hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2183,8 +2181,8 @@ export default function ProfilePage() {
                 onClick={() => setAvatarMode('upload')}
                 className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
                   avatarMode === 'upload'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-hot-pink text-white'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
                 }`}
               >
                 העלה תמונה
@@ -2193,8 +2191,8 @@ export default function ProfilePage() {
                 onClick={() => setAvatarMode('avatar')}
                 className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
                   avatarMode === 'avatar'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-hot-pink text-white'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
                 }`}
               >
                 בחר אווטר
@@ -2204,9 +2202,9 @@ export default function ProfilePage() {
             {/* Upload Mode */}
             {avatarMode === 'upload' && (
               <div className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <div className="border-2 border-dashed border-white/20 rounded-lg p-8 text-center">
                   <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-4">העלה תמונה מהמחשב</p>
+                  <p className="text-gray-300 mb-4">העלה תמונה מהמחשב</p>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -2217,7 +2215,7 @@ export default function ProfilePage() {
                   />
                   <label
                     htmlFor="avatar-upload-modal"
-                    className="inline-block px-6 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors cursor-pointer"
+                    className="btn-primary inline-block px-6 py-2 cursor-pointer"
                   >
                     {uploadingAvatar ? 'מעלה...' : 'בחר קובץ'}
                   </label>
@@ -2233,7 +2231,7 @@ export default function ProfilePage() {
             {/* Avatar Mode */}
             {avatarMode === 'avatar' && (
               <div className="space-y-4">
-                <p className="text-gray-600 text-sm mb-4">בחר אווטר מוכן</p>
+                <p className="text-gray-300 text-sm mb-4">בחר אווטר מוכן</p>
                 <div className="grid grid-cols-4 gap-3">
                   {[
                     'adventurer', 'avataaars', 'big-smile', 'bottts',
@@ -2245,22 +2243,22 @@ export default function ProfilePage() {
                       <button
                         key={style}
                         onClick={() => handleAvatarSelect(avatarUrl)}
-                        className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-[#F52F8E] transition-colors"
+                        className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-white/20 hover:border-hot-pink transition-colors"
                       >
                         <Image src={avatarUrl} alt={style} fill className="object-cover" />
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-xs text-gray-500 text-center mt-4">
-                  אווטרים נוצרים על ידי <a href="https://dicebear.com" target="_blank" rel="noopener noreferrer" className="text-[#F52F8E] hover:underline">DiceBear</a>
+                <p className="text-xs text-gray-400 text-center mt-4">
+                  אווטרים נוצרים על ידי <a href="https://dicebear.com" target="_blank" rel="noopener noreferrer" className="text-hot-pink hover:underline">DiceBear</a>
                 </p>
               </div>
             )}
 
             {/* Remove Avatar Button */}
             {(formData.avatar_url || profile.avatar_url) && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="mt-6 pt-6 border-t border-white/10">
                 <button
                   onClick={async () => {
                     setFormData({ ...formData, avatar_url: '' });

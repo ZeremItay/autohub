@@ -15,7 +15,7 @@ export interface ErrorInfo {
  */
 export function logError(error: Error | any, context?: string): void {
   // Skip logging if error is empty or null
-  if (!error || (typeof error === 'object' && Object.keys(error).length === 0)) {
+  if (!error) {
     return;
   }
   
@@ -24,10 +24,23 @@ export function logError(error: Error | any, context?: string): void {
     return;
   }
   
+  // Skip if error is an empty object
+  if (typeof error === 'object' && Object.keys(error).length === 0) {
+    return;
+  }
+  
+  // Extract error message
+  const errorMessage = error?.message || error?.error?.message || String(error) || '';
+  
+  // Skip if we don't have a meaningful message
+  if (!errorMessage || errorMessage === '{}' || errorMessage === '[object Object]') {
+    return;
+  }
+  
   const errorInfo: ErrorInfo = {
-    message: error?.message || String(error) || 'Unknown error',
-    code: error?.code,
-    details: error?.details || error,
+    message: errorMessage,
+    code: error?.code || error?.error?.code,
+    details: error?.details || error?.error || error,
     timestamp: new Date(),
     context
   };
@@ -44,11 +57,28 @@ export function logError(error: Error | any, context?: string): void {
         // Try to extract meaningful information from the object
         const keys = Object.keys(errorInfo.details);
         if (keys.length > 0) {
-          safeDetails = JSON.stringify(
-            Object.fromEntries(
-              keys.slice(0, 5).map(key => [key, errorInfo.details[key]])
-            )
-          );
+          // Filter out React internal properties and circular references
+          const filteredKeys = keys.filter(key => !key.startsWith('_') && !key.startsWith('__'));
+          if (filteredKeys.length > 0) {
+            safeDetails = JSON.stringify(
+              Object.fromEntries(
+                filteredKeys.slice(0, 5).map(key => {
+                  try {
+                    const value = errorInfo.details[key];
+                    // Only include primitive values
+                    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+                      return [key, value];
+                    }
+                    return [key, String(value).substring(0, 100)];
+                  } catch {
+                    return [key, '[Unable to serialize]'];
+                  }
+                })
+              )
+            );
+          } else {
+            safeDetails = '[Empty object]';
+          }
         } else {
           safeDetails = '[Empty object]';
         }
@@ -70,7 +100,7 @@ export function logError(error: Error | any, context?: string): void {
     logData.code = errorInfo.code;
   }
   
-  if (safeDetails && safeDetails !== '[Empty object]') {
+  if (safeDetails && safeDetails !== '[Empty object]' && safeDetails !== '{}') {
     logData.details = safeDetails;
   }
   
@@ -78,7 +108,13 @@ export function logError(error: Error | any, context?: string): void {
     logData.context = errorInfo.context;
   }
   
-  console.error(`[${context || 'Error'}]`, logData);
+  // Only log if we have meaningful content (not empty object)
+  const hasContent = (logData.message && logData.message !== '{}' && logData.message !== '[object Object]') || 
+                    (logData.code && logData.code !== '{}');
+  
+  if (hasContent && Object.keys(logData).length > 0) {
+    console.error(`[${context || 'Error'}]`, logData);
+  }
   
   // In production, you might want to send this to an error tracking service
   // e.g., Sentry, LogRocket, etc.

@@ -703,11 +703,11 @@ export default function Home() {
         }
       `}} />
       <div className="max-w-7xl mx-auto mb-6">
-        <div className="w-full bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden h-12 flex items-center relative">
+        <div className="w-full glass-card shadow-sm rounded-2xl overflow-hidden h-12 flex items-center relative">
           {/* Badge - Absolutely positioned on the right with gradient fade */}
           <div className="absolute right-0 z-10 h-full flex items-center pr-4">
-            <div className="bg-gradient-to-l from-white via-white to-transparent w-24 h-full absolute right-0"></div>
-            <div className="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full relative z-10">
+            <div className="bg-gradient-to-l from-dark-purple via-dark-purple to-transparent w-24 h-full absolute right-0"></div>
+            <div className="bg-hot-pink text-white text-xs font-bold px-3 py-1 rounded-full relative z-10">
               דיווחים
             </div>
           </div>
@@ -721,46 +721,44 @@ export default function Home() {
               {/* Set 1 */}
               {reports.map((report, index) => (
                 <span key={`report-1-${index}-${report.id}`} className="inline-flex items-center">
-                  {index > 0 && <span className="text-gray-800 mx-2">•</span>}
                   <Link
                     href={`/reports/${report.id}`}
                     dir="rtl"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-gray-800 hover:text-red-600 transition-colors whitespace-nowrap px-4"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-white hover:text-hot-pink transition-colors whitespace-nowrap px-4"
                   >
-                    <span className="text-red-600 font-medium text-xs">
+                    <span className="text-hot-pink font-medium text-xs">
                       {report.created_at ? formatTimeFromDate(report.created_at) : ''}
                     </span>
-                    <span className="text-gray-800">
+                    <span className="text-white">
                       {report.title}
                     </span>
                   </Link>
-                  <span className="text-red-400 mx-4">|</span>
+                  <span className="text-hot-pink mx-6 text-lg">|</span>
                 </span>
               ))}
               {/* Set 2 - Duplicate for seamless loop */}
               {reports.map((report, index) => (
                 <span key={`report-2-${index}-${report.id}`} className="inline-flex items-center">
-                  {index > 0 && <span className="text-gray-800 mx-2">•</span>}
                   <Link
                     href={`/reports/${report.id}`}
                     dir="rtl"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-gray-800 hover:text-red-600 transition-colors whitespace-nowrap px-4"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-white hover:text-hot-pink transition-colors whitespace-nowrap px-4"
                   >
-                    <span className="text-red-600 font-medium text-xs">
+                    <span className="text-hot-pink font-medium text-xs">
                       {report.created_at ? formatTimeFromDate(report.created_at) : ''}
                     </span>
-                    <span className="text-gray-800">
+                    <span className="text-white">
                       {report.title}
                     </span>
                   </Link>
-                  <span className="text-red-400 mx-4">|</span>
+                  <span className="text-hot-pink mx-6 text-lg">|</span>
                 </span>
               ))}
             </div>
           </div>
         ) : (
           <div className="flex items-center">
-            <span className="text-sm font-medium text-gray-800">אין דיווחים חדשים</span>
+            <span className="text-sm font-medium text-white">אין דיווחים חדשים</span>
           </div>
         )}
       </div>
@@ -771,11 +769,11 @@ export default function Home() {
         {/* Left Sidebar - Desktop */}
         <aside className="hidden lg:block w-80 flex-shrink-0 space-y-4 sm:space-y-6">
           {/* Who is Online */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">מי מחובר?</h2>
+          <div className="glass-card rounded-2xl shadow-sm p-5">
+            <h2 className="text-lg font-semibold text-white mb-4">מי מחובר?</h2>
             {onlineUsers.length === 0 ? (
-              <div className="p-4 bg-[#F3F4F6] rounded-lg border border-pink-200">
-                <p className="text-sm text-gray-500">אין חברים מחוברים כרגע</p>
+              <div className="p-4 bg-white/10 rounded-lg border border-white/20">
+                <p className="text-sm text-gray-300">אין חברים מחוברים כרגע</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -798,13 +796,13 @@ export default function Home() {
                           {getInitials(user.display_name || user.first_name)}
                         </div>
                       )}
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white z-10"></div>
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-dark-purple z-10"></div>
                       {/* Badge overlay - bottom left */}
                       {(() => {
                         const userBadge = friendsBadges[user.user_id || user.id];
                         if (userBadge?.badge) {
                           return (
-                            <div className="absolute bottom-0 left-0 w-5 h-5 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg border-2 border-white z-10">
+                            <div className="absolute bottom-0 left-0 w-5 h-5 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg border-2 border-dark-purple z-10">
                               <span 
                                 style={{ color: userBadge.badge.icon_color || '#FFD700', fontSize: '10px' }}
                                 className="leading-none"
@@ -819,7 +817,7 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-300">
                   {onlineUsers.length} {onlineUsers.length === 1 ? 'חבר מחובר' : 'חברים מחוברים'}
                 </p>
               </div>
@@ -827,24 +825,24 @@ export default function Home() {
           </div>
 
           {/* Recent Updates */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">עדכונים אחרונים</h2>
+          <div className="glass-card rounded-2xl shadow-sm p-5">
+            <h2 className="text-lg font-semibold text-white mb-4">עדכונים אחרונים</h2>
             {recentUpdates.length === 0 ? (
-              <div className="p-4 bg-[#F3F4F6] rounded-lg border border-pink-200">
-                <p className="text-sm text-gray-500">מצטערים, לא נמצאה פעילות.</p>
+              <div className="p-4 bg-white/10 rounded-lg border border-white/20">
+                <p className="text-sm text-gray-300">מצטערים, לא נמצאה פעילות.</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {recentUpdates.map((update, index) => {
                   const content = (
-                    <div className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
-                      {update.type === 'forum' && <MessageSquare className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
-                      {update.type === 'project' && <Briefcase className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />}
-                      {update.type === 'recording' && <Video className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />}
-                      {update.type === 'event' && <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
+                    <div className="flex items-start gap-3 cursor-pointer hover:bg-white/10 p-2 rounded-lg transition-colors">
+                      {update.type === 'forum' && <MessageSquare className="w-5 h-5 text-hot-pink flex-shrink-0 mt-0.5" />}
+                      {update.type === 'project' && <Briefcase className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />}
+                      {update.type === 'recording' && <Video className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />}
+                      {update.type === 'event' && <Calendar className="w-5 h-5 text-hot-pink flex-shrink-0 mt-0.5" />}
                       <div className="flex-1">
-                        <p className="text-sm text-gray-700">{update.text}</p>
-                        <p className="text-xs text-gray-500 mt-1">{update.time}</p>
+                        <p className="text-sm text-gray-100">{update.text}</p>
+                        <p className="text-xs text-gray-300 mt-1">{update.time}</p>
                       </div>
                     </div>
                   );
@@ -864,14 +862,14 @@ export default function Home() {
           </div>
 
           {/* Upcoming Events */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="glass-card rounded-2xl shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">אירועים עתידיים</h2>
-              <Link href="/live-log" className="text-sm text-[#F52F8E] hover:underline">הכל ←</Link>
+              <h2 className="text-lg font-semibold text-white">אירועים עתידיים</h2>
+              <Link href="/live-log" className="text-sm text-hot-pink hover:underline">הכל ←</Link>
             </div>
             {upcomingEvents.length === 0 ? (
-              <div className="p-4 bg-[#F3F4F6] rounded-lg border border-pink-200">
-                <p className="text-sm text-gray-500">כרגע אין אירועים קרובים</p>
+              <div className="p-4 bg-white/10 rounded-lg border border-white/20">
+                <p className="text-sm text-gray-300">כרגע אין אירועים קרובים</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -879,12 +877,12 @@ export default function Home() {
                   <Link
                     key={event.id}
                     href={`/live/${event.id}`}
-                    className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
+                    className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer group"
                   >
-                    <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5 group-hover:text-[#E01E7A] transition-colors" />
+                    <Calendar className="w-5 h-5 text-hot-pink flex-shrink-0 mt-0.5 group-hover:text-hot-pink-light transition-colors" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-800 group-hover:text-[#F52F8E] transition-colors">{event.title}</p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-sm font-medium text-gray-100 group-hover:text-hot-pink transition-colors">{event.title}</p>
+                      <p className="text-xs text-gray-300 mt-1">
                         {new Date(event.event_date).toLocaleDateString('he-IL')} • {event.event_time}
                       </p>
                     </div>
@@ -899,7 +897,7 @@ export default function Home() {
         <main className="flex-1 min-w-0 space-y-4 sm:space-y-6">
           {/* News Carousel */}
           {news && news.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 relative overflow-hidden">
+            <div className="glass-card rounded-2xl shadow-sm p-4 sm:p-6 relative overflow-hidden">
               <div className="relative">
                 {/* Carousel Container */}
                 <div className="relative h-48 sm:h-64 overflow-hidden rounded-lg">
@@ -958,14 +956,14 @@ export default function Home() {
                   <>
                     <button
                       onClick={() => setCurrentNewsIndex((prev) => (prev === 0 ? news.length - 1 : prev - 1))}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg transition-all z-10"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 glass-card hover:bg-white/20 text-white rounded-full p-2 shadow-lg transition-all z-10"
                       aria-label="חדשה קודמת"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => setCurrentNewsIndex((prev) => (prev === news.length - 1 ? 0 : prev + 1))}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg transition-all z-10"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 glass-card hover:bg-white/20 text-white rounded-full p-2 shadow-lg transition-all z-10"
                       aria-label="חדשה הבאה"
                     >
                       <ChevronLeft className="w-5 h-5" />
@@ -982,7 +980,7 @@ export default function Home() {
                         onClick={() => setCurrentNewsIndex(index)}
                         className={`w-2 h-2 rounded-full transition-all ${
                           index === currentNewsIndex
-                            ? 'bg-[#F52F8E] w-6'
+                            ? 'bg-hot-pink w-6'
                             : 'bg-gray-300 hover:bg-gray-400'
                         }`}
                         aria-label={`עבור לחדשה ${index + 1}`}
@@ -996,11 +994,11 @@ export default function Home() {
 
           {/* Create Post Form (Admin Only) */}
           {userIsAdmin && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+            <div className="glass-card rounded-2xl shadow-sm p-4 sm:p-6">
               {!showPostForm ? (
                 <button
                   onClick={() => setShowPostForm(true)}
-                  className="w-full px-4 py-3 bg-gradient-to-r from-[#F52F8E] to-pink-500 text-white rounded-lg hover:from-[#E01E7A] hover:to-pink-600 transition-all flex items-center justify-center gap-2 font-semibold"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-hot-pink to-rose-500 text-white rounded-full hover:from-hot-pink-dark hover:to-rose-600 transition-all flex items-center justify-center gap-2 font-semibold"
                 >
                   <Plus className="w-5 h-5" />
                   <span>פרסם הודעה חדשה</span>
@@ -1008,14 +1006,14 @@ export default function Home() {
               ) : (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800">פרסם הודעה חדשה</h3>
+                    <h3 className="text-lg font-semibold text-white">פרסם הודעה חדשה</h3>
                     <button
                       onClick={() => {
                         setShowPostForm(false);
                         setNewPostContent('');
                         setNewPostImageUrl('');
                       }}
-                      className="text-gray-500 hover:text-gray-700"
+                      className="text-gray-300 hover:text-white"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -1026,7 +1024,7 @@ export default function Home() {
                     placeholder="מה אתה רוצה לשתף?"
                     dir="rtl"
                     lang="he"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] resize-none"
+                    className="modern-input w-full px-4 py-3 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink resize-none text-white placeholder:text-gray-400"
                     rows={4}
                   />
                   <input
@@ -1034,7 +1032,7 @@ export default function Home() {
                     value={newPostImageUrl}
                     onChange={(e) => setNewPostImageUrl(e.target.value)}
                     placeholder="קישור לתמונה (אופציונלי)"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                    className="modern-input w-full px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink text-white placeholder:text-gray-400"
                   />
                   <div className="flex items-center justify-end gap-2">
                     <button
@@ -1043,14 +1041,14 @@ export default function Home() {
                         setNewPostContent('');
                         setNewPostImageUrl('');
                       }}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                      className="px-4 py-2 bg-white/10 text-gray-200 rounded-full hover:bg-white/20 transition-colors"
                     >
                       ביטול
                     </button>
                     <button
                       onClick={handleCreatePost}
                       disabled={!newPostContent.trim()}
-                      className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="px-4 py-2 bg-hot-pink text-white rounded-full hover:bg-hot-pink-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       <Send className="w-4 h-4" />
                       <span>פרסם</span>
@@ -1062,15 +1060,15 @@ export default function Home() {
           )}
 
           {announcements.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-              <div className="p-3 sm:p-4 bg-[#F3F4F6] rounded-lg border-l-4 border-[#F52F8E]">
-                <p className="text-xs sm:text-sm text-gray-500">מצטערים, לא נמצאה פעילות.</p>
+            <div className="glass-card rounded-2xl shadow-sm p-4 sm:p-6">
+              <div className="p-3 sm:p-4 bg-white/5 rounded-lg border-l-4 border-hot-pink">
+                <p className="text-xs sm:text-sm text-gray-300">מצטערים, לא נמצאה פעילות.</p>
               </div>
             </div>
           ) : (
             <div className="space-y-4 sm:space-y-6">
               {announcements.map((post) => (
-                <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                <div key={post.id} className="glass-card rounded-2xl shadow-sm p-4 sm:p-6">
                   <div className="flex gap-3 sm:gap-4">
                     <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
                       {post.profile?.avatar_url ? (
@@ -1107,28 +1105,28 @@ export default function Home() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                          <h3 className="font-semibold text-gray-800 text-sm sm:text-base">
+                          <h3 className="font-semibold text-white text-sm sm:text-base">
                             {post.profile?.display_name || 'מנהל'}
                           </h3>
-                          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs rounded-full font-medium shadow-md shadow-pink-500/30">
+                          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-gradient-to-r from-hot-pink to-rose-500 text-white text-xs rounded-full font-medium shadow-md shadow-hot-pink/30">
                             מנהל
                           </span>
-                          <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">•</span>
-                          <span className="text-xs sm:text-sm text-gray-500">{formatTimeAgo(post.created_at)}</span>
+                          <span className="text-xs sm:text-sm text-gray-300 hidden sm:inline">•</span>
+                          <span className="text-xs sm:text-sm text-gray-300">{formatTimeAgo(post.created_at)}</span>
                         </div>
                         {currentUser && (currentUser.id === post.user_id || currentUser.user_id === post.user_id) && (
                           <button
                             onClick={() => handleDeletePost(post.id)}
-                            className="text-red-500 hover:text-red-700 transition-colors p-1 rounded-lg hover:bg-red-50"
+                            className="text-red-400 hover:text-red-300 transition-colors p-1 rounded-lg hover:bg-red-500/20"
                             title="מחק פוסט"
                           >
                             <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         )}
                       </div>
-                      <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 leading-relaxed whitespace-pre-line">
+                      <div className="text-sm sm:text-base text-gray-100 mb-3 sm:mb-4 leading-relaxed whitespace-pre-line">
                         {post.content}
-                      </p>
+                      </div>
                       {(post.image_url || post.media_url) && (
                         <div className="mb-3 sm:mb-4">
                           <img 
@@ -1138,13 +1136,13 @@ export default function Home() {
                           />
                         </div>
                       )}
-                      <div className="flex items-center gap-3 sm:gap-6 pt-3 sm:pt-4 border-t border-gray-100 flex-wrap">
+                      <div className="flex items-center gap-3 sm:gap-6 pt-3 sm:pt-4 border-t border-white/10 flex-wrap">
                         <button 
                           onClick={() => handleToggleLike(post.id)}
-                          className={`flex items-center gap-1.5 sm:gap-2 transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-pink-50 ${
+                          className={`flex items-center gap-1.5 sm:gap-2 transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-hot-pink/20 ${
                             likedPosts[post.id] 
-                              ? 'text-pink-500' 
-                              : 'text-gray-600 hover:text-pink-500'
+                              ? 'text-hot-pink' 
+                              : 'text-gray-300 hover:text-hot-pink'
                           }`}
                         >
                           <Heart 
@@ -1156,7 +1154,7 @@ export default function Home() {
                         </button>
                         <button 
                           onClick={() => handleToggleComments(post.id)}
-                          className="flex items-center gap-1.5 sm:gap-2 text-gray-600 hover:text-pink-500 transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-pink-50"
+                          className="flex items-center gap-1.5 sm:gap-2 text-gray-300 hover:text-hot-pink transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-hot-pink/20"
                         >
                           <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
                           <span className="text-xs sm:text-sm font-medium">{post.comments_count || 0} תגובות</span>
@@ -1166,7 +1164,7 @@ export default function Home() {
                             <ChevronDown className="w-4 h-4" />
                           )}
                         </button>
-                        <button className="flex items-center gap-1.5 sm:gap-2 text-gray-600 hover:text-pink-500 transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-pink-50">
+                        <button className="flex items-center gap-1.5 sm:gap-2 text-gray-300 hover:text-hot-pink transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-hot-pink/20">
                           <Share2 className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
                           <span className="text-xs sm:text-sm font-medium">שיתוף</span>
                         </button>
@@ -1174,7 +1172,7 @@ export default function Home() {
 
                       {/* Comments Section */}
                       {expandedComments[post.id] && (
-                        <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="mt-4 pt-4 border-t border-white/10">
                           <CommentsList
                             comments={postComments[post.id] || []}
                             currentUser={currentUser || undefined}
@@ -1201,11 +1199,11 @@ export default function Home() {
           {/* Mobile Sections - Show after posts */}
           <div className="lg:hidden space-y-4 sm:space-y-6">
             {/* Who is Online */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">מי מחובר?</h2>
+            <div className="glass-card rounded-2xl shadow-sm p-5">
+              <h2 className="text-lg font-semibold text-white mb-4">מי מחובר?</h2>
               {onlineUsers.length === 0 ? (
-                <div className="p-4 bg-[#F3F4F6] rounded-lg border border-pink-200">
-                  <p className="text-sm text-gray-500">אין חברים מחוברים כרגע</p>
+                <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                  <p className="text-sm text-gray-300">אין חברים מחוברים כרגע</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1228,13 +1226,13 @@ export default function Home() {
                             {getInitials(user.display_name || user.first_name)}
                           </div>
                         )}
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white z-10"></div>
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-dark-purple z-10"></div>
                         {/* Badge overlay - bottom left */}
                         {(() => {
                           const userBadge = friendsBadges[user.user_id || user.id];
                           if (userBadge?.badge) {
                             return (
-                              <div className="absolute bottom-0 left-0 w-5 h-5 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg border-2 border-white z-10">
+                              <div className="absolute bottom-0 left-0 w-5 h-5 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg border-2 border-dark-purple z-10">
                                 <span 
                                   style={{ color: userBadge.badge.icon_color || '#FFD700', fontSize: '10px' }}
                                   className="leading-none"
@@ -1249,7 +1247,7 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-300">
                     {onlineUsers.length} {onlineUsers.length === 1 ? 'חבר מחובר' : 'חברים מחוברים'}
                   </p>
                 </div>
@@ -1257,24 +1255,24 @@ export default function Home() {
             </div>
 
             {/* Recent Updates */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">עדכונים אחרונים</h2>
+            <div className="glass-card rounded-2xl shadow-sm p-5">
+              <h2 className="text-lg font-semibold text-white mb-4">עדכונים אחרונים</h2>
               {recentUpdates.length === 0 ? (
-                <div className="p-4 bg-[#F3F4F6] rounded-lg border border-pink-200">
-                  <p className="text-sm text-gray-500">מצטערים, לא נמצאה פעילות.</p>
+                <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                  <p className="text-sm text-gray-300">מצטערים, לא נמצאה פעילות.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {recentUpdates.map((update, index) => {
                     const content = (
-                      <div className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
-                        {update.type === 'forum' && <MessageSquare className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
-                        {update.type === 'project' && <Briefcase className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />}
-                        {update.type === 'recording' && <Video className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />}
-                        {update.type === 'event' && <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
+                      <div className="flex items-start gap-3 cursor-pointer hover:bg-white/10 p-2 rounded-lg transition-colors">
+                        {update.type === 'forum' && <MessageSquare className="w-5 h-5 text-hot-pink flex-shrink-0 mt-0.5" />}
+                        {update.type === 'project' && <Briefcase className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'recording' && <Video className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'event' && <Calendar className="w-5 h-5 text-hot-pink flex-shrink-0 mt-0.5" />}
                         <div className="flex-1">
-                          <p className="text-sm text-gray-700">{update.text}</p>
-                          <p className="text-xs text-gray-500 mt-1">{update.time}</p>
+                          <p className="text-sm text-gray-100">{update.text}</p>
+                          <p className="text-xs text-gray-300 mt-1">{update.time}</p>
                         </div>
                       </div>
                     );
@@ -1294,14 +1292,14 @@ export default function Home() {
             </div>
 
             {/* Upcoming Events */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="glass-card rounded-2xl shadow-sm p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-800">אירועים עתידיים</h2>
-                <Link href="/live-log" className="text-sm text-[#F52F8E] hover:underline">הכל ←</Link>
+                <h2 className="text-lg font-semibold text-white">אירועים עתידיים</h2>
+                <Link href="/live-log" className="text-sm text-hot-pink hover:underline">הכל ←</Link>
               </div>
               {upcomingEvents.length === 0 ? (
-                <div className="p-4 bg-[#F3F4F6] rounded-lg border border-pink-200">
-                  <p className="text-sm text-gray-500">כרגע אין אירועים קרובים</p>
+                <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                  <p className="text-sm text-gray-300">כרגע אין אירועים קרובים</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1309,12 +1307,12 @@ export default function Home() {
                     <Link
                       key={`mobile-${event.id}`}
                       href={`/live/${event.id}`}
-                      className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
+                      className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer group"
                     >
-                      <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5 group-hover:text-[#E01E7A] transition-colors" />
+                      <Calendar className="w-5 h-5 text-hot-pink flex-shrink-0 mt-0.5 group-hover:text-hot-pink-light transition-colors" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-800 group-hover:text-[#F52F8E] transition-colors">{event.title}</p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-sm font-medium text-gray-100 group-hover:text-hot-pink transition-colors">{event.title}</p>
+                        <p className="text-xs text-gray-300 mt-1">
                           {new Date(event.event_date).toLocaleDateString('he-IL')} • {event.event_time}
                         </p>
                       </div>
@@ -1325,27 +1323,27 @@ export default function Home() {
             </div>
 
             {/* Friends - Mobile */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">חברים</h2>
+            <div className="glass-card rounded-2xl shadow-sm p-5">
+              <h2 className="text-lg font-semibold text-white mb-4">חברים</h2>
               
               {/* Tabs */}
               <div className="flex gap-2 mb-4">
                 <button
                   onClick={() => setActiveFriendsTab('active')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     activeFriendsTab === 'active'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'bg-green-500/30 text-green-300 border border-green-500/50'
+                      : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10'
                   }`}
                 >
                   פעילים
                 </button>
                 <button
                   onClick={() => setActiveFriendsTab('new')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     activeFriendsTab === 'new'
-                      ? 'bg-pink-100 text-[#F52F8E]'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'bg-hot-pink/30 text-hot-pink-light border border-hot-pink/50'
+                      : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10'
                   }`}
                 >
                   חדשים
@@ -1354,8 +1352,8 @@ export default function Home() {
 
               {/* Friends List */}
               {filteredFriends.length === 0 ? (
-                <div className="p-4 bg-[#F3F4F6] rounded-lg">
-                  <p className="text-sm text-gray-500">אין חברים {activeFriendsTab === 'active' ? 'פעילים' : 'חדשים'}</p>
+                <div className="p-4 bg-white/5 rounded-lg">
+                  <p className="text-sm text-gray-300">אין חברים {activeFriendsTab === 'active' ? 'פעילים' : 'חדשים'}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1371,7 +1369,7 @@ export default function Home() {
                     return (
                       <div 
                         key={`mobile-${friend.id || friend.user_id}`} 
-                        className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -mx-2 transition-colors"
+                        className="flex items-center gap-3 cursor-pointer hover:bg-white/10 rounded-lg p-2 -mx-2 transition-colors"
                         onClick={handleFriendClick}
                       >
                         <div className="relative">
@@ -1409,11 +1407,11 @@ export default function Home() {
                           })()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">
+                          <p className="text-sm font-medium text-white truncate">
                             {friend.display_name || friend.full_name || 'משתמש'}
                           </p>
                           {activeFriendsTab === 'new' && friend.created_at && (
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-400">
                               הצטרף {formatTimeAgo(friend.created_at)}
                             </p>
                           )}
@@ -1429,27 +1427,27 @@ export default function Home() {
 
         {/* Right Sidebar - Friends */}
         <aside className="hidden lg:block w-80 flex-shrink-0">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">חברים</h2>
+          <div className="glass-card rounded-2xl shadow-sm p-5">
+            <h2 className="text-lg font-semibold text-white mb-4">חברים</h2>
             
             {/* Tabs */}
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setActiveFriendsTab('active')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   activeFriendsTab === 'active'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-green-500/30 text-green-300 border border-green-500/50'
+                    : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10'
                 }`}
               >
                 פעילים
               </button>
               <button
                 onClick={() => setActiveFriendsTab('new')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   activeFriendsTab === 'new'
-                    ? 'bg-pink-100 text-[#F52F8E]'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-hot-pink/30 text-hot-pink-light border border-hot-pink/50'
+                    : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10'
                 }`}
               >
                 חדשים
@@ -1458,8 +1456,8 @@ export default function Home() {
 
             {/* Friends List */}
             {filteredFriends.length === 0 ? (
-              <div className="p-4 bg-[#F3F4F6] rounded-lg">
-                <p className="text-sm text-gray-500">אין חברים {activeFriendsTab === 'active' ? 'פעילים' : 'חדשים'}</p>
+              <div className="p-4 bg-white/10 rounded-lg">
+                <p className="text-sm text-gray-300">אין חברים {activeFriendsTab === 'active' ? 'פעילים' : 'חדשים'}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1475,7 +1473,7 @@ export default function Home() {
                   return (
                     <div 
                       key={friend.id || friend.user_id} 
-                      className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -mx-2 transition-colors"
+                      className="flex items-center gap-3 cursor-pointer hover:bg-white/10 rounded-lg p-2 -mx-2 transition-colors"
                       onClick={handleFriendClick}
                     >
                       <div className="relative">
@@ -1513,11 +1511,11 @@ export default function Home() {
                         })()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">
+                        <p className="text-sm font-medium text-white truncate">
                           {friend.display_name || friend.full_name || 'משתמש'}
                         </p>
                         {activeFriendsTab === 'new' && friend.created_at && (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-300">
                             הצטרף {formatTimeAgo(friend.created_at)}
                           </p>
                         )}

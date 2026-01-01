@@ -103,7 +103,7 @@ export default function TagDetailPage() {
                 <p className="text-gray-600 mb-6">התגית שחיפשת לא קיימת</p>
                 <Link
                   href="/tags"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                  className="btn-primary inline-flex items-center gap-2 px-4 py-2"
                 >
                   חזרה לתגיות
                 </Link>
@@ -155,7 +155,7 @@ export default function TagDetailPage() {
                   onClick={() => setContentType('all')}
                   className={`px-4 py-2 rounded-lg transition-colors ${
                     contentType === 'all'
-                      ? 'bg-[#F52F8E] text-white'
+                      ? 'bg-hot-pink text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-100'
                   }`}
                 >
@@ -165,7 +165,7 @@ export default function TagDetailPage() {
                   onClick={() => setContentType('project')}
                   className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
                     contentType === 'project'
-                      ? 'bg-[#F52F8E] text-white'
+                      ? 'bg-hot-pink text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-100'
                   }`}
                 >
@@ -176,7 +176,7 @@ export default function TagDetailPage() {
                   onClick={() => setContentType('recording')}
                   className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
                     contentType === 'recording'
-                      ? 'bg-[#F52F8E] text-white'
+                      ? 'bg-hot-pink text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-100'
                   }`}
                 >
@@ -187,7 +187,7 @@ export default function TagDetailPage() {
                   onClick={() => setContentType('course')}
                   className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
                     contentType === 'course'
-                      ? 'bg-[#F52F8E] text-white'
+                      ? 'bg-hot-pink text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-100'
                   }`}
                 >

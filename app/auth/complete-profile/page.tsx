@@ -134,29 +134,29 @@ export default function CompleteProfilePage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#F52F8E] mb-4" />
-          <p className="text-gray-600">בודק פרופיל...</p>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-hot-pink mb-4" />
+          <p className="text-gray-300">בודק פרופיל...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">השלם את הפרופיל שלך</h1>
-          <p className="text-gray-600">אנא מלא את הפרטים הבאים כדי להמשיך</p>
+          <h1 className="text-4xl font-bold text-white mb-2">השלם את הפרופיל שלך</h1>
+          <p className="text-gray-300">אנא מלא את הפרטים הבאים כדי להמשיך</p>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8">
+        <div className="glass-card rounded-3xl shadow-2xl p-6 sm:p-8">
           {/* Error Message */}
           {error && (
-            <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+            <div className="mb-5 bg-red-500/20 border border-red-400/50 text-red-300 px-4 py-3 rounded-xl text-sm">
               {error}
             </div>
           )}
@@ -164,7 +164,7 @@ export default function CompleteProfilePage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Display Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 שם תצוגה *
               </label>
               <div className="relative">
@@ -175,7 +175,7 @@ export default function CompleteProfilePage() {
                   placeholder="הזן שם תצוגה"
                   value={formData.displayName}
                   onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white placeholder-gray-400"
                   required
                 />
               </div>
@@ -183,7 +183,7 @@ export default function CompleteProfilePage() {
 
             {/* First Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 שם פרטי
               </label>
               <div className="relative">
@@ -194,14 +194,14 @@ export default function CompleteProfilePage() {
                   placeholder="הזן שם פרטי"
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white placeholder-gray-400"
                 />
               </div>
             </div>
 
             {/* Last Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 שם משפחה
               </label>
               <div className="relative">
@@ -212,14 +212,14 @@ export default function CompleteProfilePage() {
                   placeholder="הזן שם משפחה"
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white placeholder-gray-400"
                 />
               </div>
             </div>
 
             {/* How to Address */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 איך צריך לפנות אליך בקהילה שלנו? *
               </label>
               <div className="relative">
@@ -229,19 +229,19 @@ export default function CompleteProfilePage() {
                   lang="he"
                   value={formData.how_to_address}
                   onChange={(e) => setFormData({ ...formData, how_to_address: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm bg-white appearance-none"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white appearance-none"
                   required
                 >
-                  <option value="">בחר אפשרות</option>
-                  <option value="אוטומטור">אוטומטור</option>
-                  <option value="אוטומטורית">אוטומטורית</option>
+                  <option value="" className="bg-[#1e293b] text-white">בחר אפשרות</option>
+                  <option value="אוטומטור" className="bg-[#1e293b] text-white">אוטומטור</option>
+                  <option value="אוטומטורית" className="bg-[#1e293b] text-white">אוטומטורית</option>
                 </select>
               </div>
             </div>
 
             {/* NoCode Experience */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-white mb-2">
                 מה הניסיון שלך עם אוטומציות No Code בטופ 100? *
               </label>
               <div className="relative">
@@ -251,14 +251,14 @@ export default function CompleteProfilePage() {
                   lang="he"
                   value={formData.nocode_experience}
                   onChange={(e) => setFormData({ ...formData, nocode_experience: e.target.value })}
-                  className="w-full pr-11 pl-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm bg-white appearance-none"
+                  className="w-full pr-11 pl-4 py-3 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent text-sm bg-white/5 text-white appearance-none"
                   required
                 >
-                  <option value="">בחר רמת ניסיון</option>
-                  <option value="מתחיל">מתחיל</option>
-                  <option value="בינוני">בינוני</option>
-                  <option value="מתקדם">מתקדם</option>
-                  <option value="מומחה">מומחה</option>
+                  <option value="" className="bg-[#1e293b] text-white">בחר רמת ניסיון</option>
+                  <option value="מתחיל" className="bg-[#1e293b] text-white">מתחיל</option>
+                  <option value="בינוני" className="bg-[#1e293b] text-white">בינוני</option>
+                  <option value="מתקדם" className="bg-[#1e293b] text-white">מתקדם</option>
+                  <option value="מומחה" className="bg-[#1e293b] text-white">מומחה</option>
                 </select>
               </div>
             </div>
@@ -267,7 +267,7 @@ export default function CompleteProfilePage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#F52F8E] text-white py-3 rounded-xl font-semibold hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="btn-primary w-full py-3 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

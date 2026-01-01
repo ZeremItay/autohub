@@ -202,10 +202,13 @@ export default function SubscriptionPage() {
   // Subscription data based on user subscription or role
   // If user has subscription (paid) → show subscription details
   // If no subscription → show free plan (based on role_id)
+  const subscriptionPrice = userSubscription?.roles?.price || 0;
   const subscriptionData = userSubscription ? {
     status: userSubscription.status || 'active',
-    type: userSubscription.roles?.display_name || 'Pro',
-    price: userSubscription.roles?.price || 0,
+    type: subscriptionPrice > 0 
+      ? (userSubscription.roles?.display_name || 'Pro')
+      : (userSubscription.roles?.display_name || 'חינמי'),
+    price: subscriptionPrice,
     currency: 'ILS',
     billingCycle: 'monthly',
     nextRenewal: userSubscription.end_date || null,
@@ -213,13 +216,17 @@ export default function SubscriptionPage() {
     endDate: userSubscription.end_date || null,
     needsWarning: needsWarning(userSubscription.end_date),
     expired: isExpired(userSubscription.end_date),
-    isPaidSubscription: true,
-    features: [
+    isPaidSubscription: subscriptionPrice > 0, // Only paid if price > 0
+    features: subscriptionPrice > 0 ? [
       'גישה לכל הקורסים',
       'הקלטות ללא הגבלה',
       'תמיכה בעדיפות גבוהה',
       'גישה לפורום VIP',
       'הורדת חומרים'
+    ] : [
+      'גישה בסיסית לקהילה',
+      'צפייה בפורומים',
+      'גישה לקורסים בסיסיים'
     ]
   } : {
     // No subscription = free plan (based on role_id)
@@ -294,29 +301,29 @@ export default function SubscriptionPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#F52F8E] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">טוען...</p>
+          <p className="text-gray-300">טוען...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="text-right">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">המנוי שלי</h1>
-          <p className="text-gray-600 text-sm sm:text-base">נהל את המנוי והתשלומים שלך</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">המנוי שלי</h1>
+          <p className="text-gray-300 text-sm sm:text-base">נהל את המנוי והתשלומים שלך</p>
         </div>
 
         {/* Warning Alert - Only show if end_date passed + 2 days */}
         {subscriptionData.needsWarning && !subscriptionData.expired && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+          <div className="glass-card rounded-3xl border-yellow-500/30 bg-yellow-500/10 p-4 mb-6">
             <div className="flex items-start gap-3">
-              <div className="text-yellow-600 text-xl">⚠️</div>
+              <div className="text-yellow-400 text-xl">⚠️</div>
               <div className="flex-1">
-                <h3 className="font-semibold text-yellow-800 mb-1">המנוי שלך עומד לרדת</h3>
-                <p className="text-sm text-yellow-700">
+                <h3 className="font-semibold text-yellow-300 mb-1">המנוי שלך עומד לרדת</h3>
+                <p className="text-sm text-yellow-200">
                   המנוי שלך פג ב-{subscriptionData.endDate ? formatDate(subscriptionData.endDate) : 'תאריך לא ידוע'}. 
                   לא התקבל תשלום. אם לא יתקבל תשלום תוך 3 ימים, המנוי ירד למנוי הקודם שלך.
                 </p>
@@ -326,12 +333,12 @@ export default function SubscriptionPage() {
         )}
 
         {subscriptionData.expired && subscriptionData.status === 'active' && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+          <div className="glass-card rounded-3xl border-red-500/30 bg-red-500/10 p-4 mb-6">
             <div className="flex items-start gap-3">
-              <div className="text-red-600 text-xl">⛔</div>
+              <div className="text-red-400 text-xl">⛔</div>
               <div className="flex-1">
-                <h3 className="font-semibold text-red-800 mb-1">המנוי שלך פג</h3>
-                <p className="text-sm text-red-700">
+                <h3 className="font-semibold text-red-300 mb-1">המנוי שלך פג</h3>
+                <p className="text-sm text-red-200">
                   המנוי שלך פג עקב חוסר תשלום. אנא צור קשר עם התמיכה או עדכן את אמצעי התשלום.
                 </p>
               </div>
@@ -340,17 +347,17 @@ export default function SubscriptionPage() {
         )}
 
         {/* Subscription Card */}
-        <div className={`rounded-2xl shadow-lg border p-6 sm:p-8 relative overflow-hidden ${
+        <div className={`glass-card rounded-3xl shadow-2xl p-6 sm:p-8 relative overflow-hidden ${
           subscriptionData.isPaidSubscription 
-            ? 'bg-gradient-to-br from-pink-50 to-rose-50 border-pink-100' 
-            : 'bg-gradient-to-br from-gray-50 to-slate-50 border-gray-200'
+            ? 'border-hot-pink/40' 
+            : 'border-white/20'
         }`}>
           {/* Status Badge */}
           {subscriptionData.status === 'active' && (
             <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-semibold ${
               subscriptionData.isPaidSubscription 
-                ? 'bg-[#F52F8E] text-white' 
-                : 'bg-gray-400 text-white'
+                ? 'bg-hot-pink text-white' 
+                : 'bg-gray-500 text-white'
             }`}>
               {subscriptionData.isPaidSubscription ? 'פעיל' : 'מנוי חינמי'}
             </div>
@@ -358,8 +365,8 @@ export default function SubscriptionPage() {
           
           {/* Free Plan Notice */}
           {!subscriptionData.isPaidSubscription && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
+            <div className="mb-4 p-3 glass-card rounded-xl border-hot-pink/30 bg-hot-pink/10">
+              <p className="text-sm text-hot-pink-light">
                 💡 זהו מנוי חינמי. כדי לשדרג למנוי פרימיום, לחץ על "שדרוג מנוי" (כשיהיה זמין).
               </p>
             </div>
@@ -370,32 +377,32 @@ export default function SubscriptionPage() {
             <div className="space-y-4 sm:space-y-6">
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <Crown className="w-6 h-6 sm:w-7 sm:h-7 text-[#F52F8E]" />
-                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">מנוי {subscriptionData.type}</h2>
+                  <Crown className="w-6 h-6 sm:w-7 sm:h-7 text-hot-pink" />
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white">מנוי {subscriptionData.type}</h2>
                 </div>
-                <p className="text-gray-600 text-sm sm:text-base">מנוי חודשי</p>
+                <p className="text-gray-300 text-sm sm:text-base">מנוי חודשי</p>
               </div>
 
               {/* Subscription Details */}
               <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center gap-3 text-sm sm:text-base">
-                  <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0" />
-                  <span className="text-gray-700">
+                  <Calendar className="w-5 h-5 text-hot-pink flex-shrink-0" />
+                  <span className="text-white">
                     <span className="font-semibold">מחיר:</span> ₪{subscriptionData.price} / חודש
                   </span>
                 </div>
                 {subscriptionData.endDate && (
                   <div className="flex items-center gap-3 text-sm sm:text-base">
-                    <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0" />
-                    <span className="text-gray-700">
+                    <Calendar className="w-5 h-5 text-hot-pink flex-shrink-0" />
+                    <span className="text-white">
                       <span className="font-semibold">תאריך סיום:</span> {formatDate(subscriptionData.endDate)}
                     </span>
                   </div>
                 )}
                 {subscriptionData.startDate && (
                   <div className="flex items-center gap-3 text-sm sm:text-base">
-                    <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0" />
-                    <span className="text-gray-700">
+                    <Calendar className="w-5 h-5 text-hot-pink flex-shrink-0" />
+                    <span className="text-white">
                       <span className="font-semibold">תאריך התחלה:</span> {formatDate(subscriptionData.startDate)}
                     </span>
                   </div>
@@ -405,12 +412,12 @@ export default function SubscriptionPage() {
 
             {/* Right Side - Features */}
             <div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">כלול במנוי:</h3>
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-4">כלול במנוי:</h3>
               <ul className="space-y-2 sm:space-y-3">
                 {subscriptionData.features.map((feature, index) => (
                   <li key={index} className="flex items-center gap-3 text-sm sm:text-base">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-gray-700">{feature}</span>
+                    <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    <span className="text-gray-200">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -419,24 +426,24 @@ export default function SubscriptionPage() {
 
           {/* Action Buttons */}
           <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-            {isPremium ? (
+            {subscriptionData.isPaidSubscription ? (
               <>
                 <button
                   onClick={handleCancelSubscription}
-                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+                  className="btn-danger px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
                 >
                   <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   בטל מנוי
                 </button>
                 <button
                   onClick={handleChangePlan}
-                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm sm:text-base"
+                  className="btn-secondary px-4 sm:px-6 py-2.5 sm:py-3 font-medium text-sm sm:text-base"
                 >
                   שנה תוכנית
                 </button>
                 <button
                   onClick={handleUpdatePayment}
-                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+                  className="btn-secondary px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
                 >
                   <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
                   עדכן אמצעי תשלום
@@ -445,7 +452,7 @@ export default function SubscriptionPage() {
             ) : (
               <button
                 onClick={handleChangePlan}
-                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-medium text-sm sm:text-base"
+                className="btn-primary px-4 sm:px-6 py-2.5 sm:py-3 font-medium text-sm sm:text-base"
               >
                 שדרג למנוי פרימיום
               </button>
@@ -455,10 +462,10 @@ export default function SubscriptionPage() {
 
         {/* Payment History - Only for premium users */}
         {isPremium && (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8">
+          <div className="glass-card rounded-3xl shadow-2xl p-6 sm:p-8">
             <div className="text-right mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">היסטוריית תשלומים</h2>
-              <p className="text-gray-600 text-sm sm:text-base">כל התשלומים והחשבוניות שלך</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">היסטוריית תשלומים</h2>
+              <p className="text-gray-300 text-sm sm:text-base">כל התשלומים והחשבוניות שלך</p>
             </div>
 
             {/* Payment List */}
@@ -467,23 +474,23 @@ export default function SubscriptionPage() {
                 paymentHistory.map((payment, index) => (
                 <div
                   key={index}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-4 sm:p-5 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-4 sm:p-5 bg-white/5 rounded-xl hover:bg-white/10 transition-colors glass-card"
                 >
                   {/* Left Side - Date and Status */}
                   <div className="flex items-center gap-3 sm:gap-4 flex-1">
                     <div className="flex items-center gap-2">
                       {payment.status === 'success' ? (
-                        <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0" />
+                        <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0" />
                       ) : (
-                        <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 flex-shrink-0" />
+                        <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-400 flex-shrink-0" />
                       )}
                       <div>
-                        <p className="text-sm sm:text-base font-semibold text-gray-800">
+                        <p className="text-sm sm:text-base font-semibold text-white">
                           {formatDate(payment.date)}
                         </p>
                         <p className={`text-xs sm:text-sm ${
-                          payment.status === 'success' ? 'text-green-600' : 
-                          payment.status === 'failed' ? 'text-red-600' : 'text-yellow-600'
+                          payment.status === 'success' ? 'text-green-400' : 
+                          payment.status === 'failed' ? 'text-red-400' : 'text-yellow-400'
                         }`}>
                           {payment.status === 'success' ? 'הצליח' : 
                            payment.status === 'failed' ? 'נכשל' : 'ממתין'}
@@ -493,7 +500,7 @@ export default function SubscriptionPage() {
                     {payment.invoice_url && (
                       <button
                         onClick={() => handleDownloadInvoice(payment)}
-                        className="p-2 text-gray-400 hover:text-[#F52F8E] transition-colors"
+                        className="p-2 text-gray-400 hover:text-hot-pink transition-colors"
                         title="הורד חשבונית"
                       >
                         <Download className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -504,8 +511,8 @@ export default function SubscriptionPage() {
                 {/* Right Side - Amount and Payment Method */}
                 <div className="flex items-center gap-4 sm:gap-6">
                   <div className="text-left sm:text-right">
-                    <p className="text-lg sm:text-xl font-bold text-gray-800">₪{payment.amount}</p>
-                    <p className="text-xs sm:text-sm text-gray-600">{payment.method}</p>
+                    <p className="text-lg sm:text-xl font-bold text-white">₪{payment.amount}</p>
+                    <p className="text-xs sm:text-sm text-gray-400">{payment.method}</p>
                   </div>
                 </div>
               </div>
@@ -513,7 +520,7 @@ export default function SubscriptionPage() {
               ) : (
                 <div className="text-center py-8">
                   <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">אין תשלומים עדיין</p>
+                  <p className="text-gray-400">אין תשלומים עדיין</p>
                 </div>
               )}
             </div>
@@ -524,12 +531,12 @@ export default function SubscriptionPage() {
         {isAdmin && (
           <>
             {/* Edit Roles Section */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8">
+            <div className="glass-card rounded-3xl shadow-2xl p-6 sm:p-8">
               <div className="flex items-center gap-3 mb-6">
-                <Settings className="w-6 h-6 text-[#F52F8E]" />
+                <Settings className="w-6 h-6 text-hot-pink" />
                 <div className="text-right">
-                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">ניהול מנויים</h2>
-                  <p className="text-gray-600 text-sm sm:text-base">ערוך את המנויים והמחירים שלהם</p>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">ניהול מנויים</h2>
+                  <p className="text-gray-300 text-sm sm:text-base">ערוך את המנויים והמחירים שלהם</p>
                 </div>
               </div>
 
@@ -537,12 +544,12 @@ export default function SubscriptionPage() {
                 {roles.map((role) => (
                   <div
                     key={role.id}
-                    className="p-4 bg-gray-50 rounded-xl border border-gray-200"
+                    className="p-4 bg-white/5 rounded-xl border border-white/20 glass-card"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-800">
+                          <h3 className="text-lg font-semibold text-white">
                             {editingRole === role.id ? (
                               <input
                                 type="text"
@@ -556,20 +563,20 @@ export default function SubscriptionPage() {
                                     }
                                   });
                                 }}
-                                className="px-3 py-1 border border-gray-300 rounded-lg text-lg font-semibold"
+                                className="px-3 py-1 border border-white/20 rounded-lg text-lg font-semibold bg-white/5 text-white"
                               />
                             ) : (
                               role.display_name
                             )}
                           </h3>
-                          <span className="text-xs px-2 py-1 bg-gray-200 text-gray-600 rounded">
+                          <span className="text-xs px-2 py-1 bg-white/10 text-gray-300 rounded">
                             {role.name}
                           </span>
                         </div>
                         {editingRole === role.id ? (
                           <div className="space-y-2">
                             <div>
-                              <label className="block text-sm text-gray-600 mb-1">מחיר (₪):</label>
+                              <label className="block text-sm text-gray-300 mb-1">מחיר (₪):</label>
                               <input
                                 type="number"
                                 value={roleEditData[role.id]?.price || 0}
@@ -582,13 +589,13 @@ export default function SubscriptionPage() {
                                     }
                                   });
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                className="w-full px-3 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400"
                                 min="0"
                                 step="0.01"
                               />
                             </div>
                             <div>
-                              <label className="block text-sm text-gray-600 mb-1">תיאור:</label>
+                              <label className="block text-sm text-gray-300 mb-1">תיאור:</label>
                               <textarea
                                 value={roleEditData[role.id]?.description || ''}
                                 onChange={(e) => {
@@ -600,18 +607,18 @@ export default function SubscriptionPage() {
                                     }
                                   });
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                className="w-full px-3 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400"
                                 rows={2}
                               />
                             </div>
                           </div>
                         ) : (
                           <div className="space-y-1">
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-gray-300">
                               <span className="font-semibold">מחיר:</span> ₪{role.price || 0} / חודש
                             </p>
                             {role.description && (
-                              <p className="text-sm text-gray-500">{role.description}</p>
+                              <p className="text-sm text-gray-400">{role.description}</p>
                             )}
                           </div>
                         )}
@@ -621,7 +628,7 @@ export default function SubscriptionPage() {
                           <>
                             <button
                               onClick={() => handleSaveRole(role.id)}
-                              className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                              className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
                               title="שמור"
                             >
                               <Save className="w-5 h-5" />
@@ -632,7 +639,7 @@ export default function SubscriptionPage() {
                                 // Reset edit data
                                 loadAdminData();
                               }}
-                              className="p-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                              className="p-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition-colors"
                               title="בטל"
                             >
                               <X className="w-5 h-5" />
@@ -641,7 +648,7 @@ export default function SubscriptionPage() {
                         ) : (
                           <button
                             onClick={() => setEditingRole(role.id)}
-                            className="p-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                            className="p-2 bg-hot-pink text-white rounded-full hover:bg-rose-500 transition-colors"
                             title="ערוך"
                           >
                             <Edit className="w-5 h-5" />
@@ -655,24 +662,24 @@ export default function SubscriptionPage() {
             </div>
 
             {/* All Users Subscriptions Section */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8">
+            <div className="glass-card rounded-3xl shadow-2xl p-6 sm:p-8">
               <div className="flex items-center gap-3 mb-6">
-                <Users className="w-6 h-6 text-[#F52F8E]" />
+                <Users className="w-6 h-6 text-hot-pink" />
                 <div className="text-right">
-                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">כל המנויים</h2>
-                  <p className="text-gray-600 text-sm sm:text-base">צפה בכל המשתמשים והמנויים שלהם</p>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">כל המנויים</h2>
+                  <p className="text-gray-300 text-sm sm:text-base">צפה בכל המשתמשים והמנויים שלהם</p>
                 </div>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">שם משתמש</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">אימייל</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">מנוי</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">מחיר</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">תאריך הצטרפות</th>
+                    <tr className="border-b border-white/20">
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white">שם משתמש</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white">אימייל</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white">מנוי</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white">מחיר</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-white">תאריך הצטרפות</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -683,18 +690,18 @@ export default function SubscriptionPage() {
                       const rolePrice = typeof userRole === 'object' ? userRole?.price : 0;
                       
                       return (
-                        <tr key={user.id || user.user_id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4 text-sm text-gray-800">
+                        <tr key={user.id || user.user_id} className="border-b border-white/20 hover:bg-white/5">
+                          <td className="py-3 px-4 text-sm text-white">
                             {user.display_name || user.first_name || 'ללא שם'}
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
+                          <td className="py-3 px-4 text-sm text-gray-300">
                             {user.email || '-'}
                           </td>
                           <td className="py-3 px-4 text-sm">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                               roleName === 'admin' ? 'bg-purple-100 text-purple-700' :
                               roleName === 'premium' ? 'bg-pink-100 text-pink-700' :
-                              'bg-gray-100 text-gray-700'
+                              'bg-white/10 text-white'
                             }`}>
                               {roleDisplayName || roleName || 'ללא מנוי'}
                             </span>
@@ -702,7 +709,7 @@ export default function SubscriptionPage() {
                           <td className="py-3 px-4 text-sm text-gray-800">
                             ₪{rolePrice || 0} / חודש
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
+                          <td className="py-3 px-4 text-sm text-gray-300">
                             {user.created_at ? formatDate(user.created_at) : '-'}
                           </td>
                         </tr>

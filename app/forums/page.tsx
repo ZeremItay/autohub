@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Edit, MessageSquare, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { getAllForums, type Forum } from '@/lib/queries/forums';
+import GlassCard from '@/app/components/GlassCard';
 
 export default function ForumsPage() {
   const [forums, setForums] = useState<Forum[]>([]);
@@ -114,9 +115,9 @@ export default function ForumsPage() {
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <div className="max-w-7xl mx-auto">
         {/* Hero Section */}
-        <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl p-8 mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">תכנים מקצועיים</h1>
-          <p className="text-lg text-gray-700 mb-6 leading-relaxed">
+        <GlassCard rounded="3xl" padding="lg" className="mb-8">
+          <h1 className="text-4xl font-bold text-white mb-4">תכנים מקצועיים</h1>
+          <p className="text-lg text-gray-200 mb-6 leading-relaxed">
             קהילה מקצועית שעוזרת בסיוע, בתמיכה, מציאת פתרונות ועזרה בכל מה שקשור לאוטומציות No Code ובינה מלאכותית.
           </p>
           
@@ -133,7 +134,7 @@ export default function ForumsPage() {
                 }
               }}
               placeholder="חיפוש בפוסטים ותגובות..."
-              className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent bg-white"
+              className="w-full pr-10 pl-4 py-3 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent bg-white/5 text-white placeholder-gray-400"
             />
             {isSearching && (
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
@@ -144,7 +145,7 @@ export default function ForumsPage() {
             {/* Search Results Dropdown */}
             {showSearchResults && searchResults && (
               <div 
-                className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 z-[60] max-h-[600px] overflow-y-auto"
+                className="fixed glass-card rounded-xl shadow-2xl border border-white/20 z-[60] max-h-[600px] overflow-y-auto"
                 style={searchDropdownStyle}
               >
                 <div className="p-3">
@@ -152,8 +153,8 @@ export default function ForumsPage() {
                   {searchResults.forumPosts.length > 0 && (
                     <div className="mb-5">
                       <div className="flex items-center gap-2 mb-2 px-2">
-                        <MessageSquare className="w-5 h-5 text-blue-600" />
-                        <h3 className="text-base font-bold text-gray-800">פוסטים בפורומים ({searchResults.forumPosts.length})</h3>
+                        <MessageSquare className="w-5 h-5 text-cyan-400" />
+                        <h3 className="text-base font-bold text-white">פוסטים בפורומים ({searchResults.forumPosts.length})</h3>
                       </div>
                       <div className="space-y-2.5">
                         {searchResults.forumPosts.slice(0, 5).map((post: any) => (
@@ -164,11 +165,11 @@ export default function ForumsPage() {
                               setShowSearchResults(false);
                               setSearchQuery('');
                             }}
-                            className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                            className="block px-4 py-3 rounded-xl hover:bg-hot-pink/20 transition-colors border border-white/20 bg-white/5 shadow-sm active:bg-hot-pink/30"
                           >
-                            <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{post.title}</p>
+                            <p className="text-sm font-semibold text-white break-words leading-relaxed">{post.title}</p>
                             {post.forums && (
-                              <p className="text-xs text-gray-600 mt-1.5 break-words leading-relaxed">בפורום: {post.forums.display_name}</p>
+                              <p className="text-xs text-gray-300 mt-1.5 break-words leading-relaxed">בפורום: {post.forums.display_name}</p>
                             )}
                           </Link>
                         ))}
@@ -180,8 +181,8 @@ export default function ForumsPage() {
                   {searchResults.forumReplies.length > 0 && (
                     <div className="mb-5">
                       <div className="flex items-center gap-2 mb-2 px-2">
-                        <MessageSquare className="w-5 h-5 text-[#F52F8E]" />
-                        <h3 className="text-base font-bold text-gray-800">תגובות ({searchResults.forumReplies.length})</h3>
+                        <MessageSquare className="w-5 h-5 text-hot-pink" />
+                        <h3 className="text-base font-bold text-white">תגובות ({searchResults.forumReplies.length})</h3>
                       </div>
                       <div className="space-y-2.5">
                         {searchResults.forumReplies.slice(0, 5).map((reply: any) => (
@@ -192,14 +193,14 @@ export default function ForumsPage() {
                               setShowSearchResults(false);
                               setSearchQuery('');
                             }}
-                            className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                            className="block px-4 py-3 rounded-xl hover:bg-hot-pink/20 transition-colors border border-white/20 bg-white/5 shadow-sm active:bg-hot-pink/30"
                           >
-                            <p className="text-sm text-gray-900 line-clamp-2 break-words leading-relaxed">{reply.content}</p>
+                            <p className="text-sm text-white line-clamp-2 break-words leading-relaxed">{reply.content}</p>
                             {reply.forum_posts && (
                               <div className="mt-1.5">
-                                <p className="text-xs text-gray-600 break-words leading-relaxed">בפוסט: {reply.forum_posts.title}</p>
+                                <p className="text-xs text-gray-300 break-words leading-relaxed">בפוסט: {reply.forum_posts.title}</p>
                                 {reply.forum_posts.forums && (
-                                  <p className="text-xs text-gray-500 break-words leading-relaxed">בפורום: {reply.forum_posts.forums.display_name}</p>
+                                  <p className="text-xs text-gray-400 break-words leading-relaxed">בפורום: {reply.forum_posts.forums.display_name}</p>
                                 )}
                               </div>
                             )}
@@ -211,20 +212,20 @@ export default function ForumsPage() {
 
                   {/* No Results */}
                   {searchResults.forumPosts.length === 0 && searchResults.forumReplies.length === 0 && (
-                    <div className="p-6 text-center text-gray-500">
+                    <div className="p-6 text-center text-gray-300">
                       <p className="text-sm">לא נמצאו תוצאות עבור "{searchQuery}"</p>
                     </div>
                   )}
 
                   {/* View All Results Link */}
                   {(searchResults.forumPosts.length > 5 || searchResults.forumReplies.length > 5) && (
-                    <div className="pt-4 border-t-2 border-gray-200 mt-4">
+                    <div className="pt-4 border-t-2 border-white/20 mt-4">
                       <Link
                         href={`/search?q=${encodeURIComponent(searchQuery)}`}
                         onClick={() => {
                           setShowSearchResults(false);
                         }}
-                        className="block text-center px-6 py-3.5 text-base font-bold text-[#F52F8E] hover:bg-pink-50 rounded-xl transition-colors border-2 border-[#F52F8E] active:bg-pink-100"
+                        className="block text-center px-6 py-3.5 text-base font-bold text-hot-pink hover:bg-hot-pink/20 rounded-full transition-colors border-2 border-hot-pink active:bg-hot-pink/30"
                       >
                         לכל התוצאות →
                       </Link>
@@ -234,7 +235,7 @@ export default function ForumsPage() {
               </div>
             )}
           </div>
-        </div>
+        </GlassCard>
 
         <div className="flex gap-6 flex-col lg:flex-row">
           {/* Main Content - Forum Cards */}
@@ -245,87 +246,94 @@ export default function ForumsPage() {
               <>
                 {/* Forum Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  {forums.map((forum) => (
-                    <Link 
-                      key={forum.id} 
-                      href={`/forums/${forum.id}`}
-                      className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                    >
-                      {/* Header */}
-                      <div className={`${forum.header_color || 'bg-blue-900'} px-6 py-4`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            {forum.name === 'airtable' ? (
-                              <div className="flex gap-1">
-                                <div className="w-4 h-4 bg-yellow-400 rounded-sm"></div>
-                                <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
-                                <div className="w-4 h-4 bg-purple-500 rounded-sm"></div>
-                              </div>
-                            ) : (
-                              <div className="w-8 h-8 bg-purple-600 rounded flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">M</span>
-                              </div>
-                            )}
-                            <h3 className="text-white font-bold text-lg">{forum.logo_text || forum.display_name}</h3>
+                  {forums.map((forum) => {
+                    // Determine border color based on forum name
+                    const borderColor = forum.name === 'airtable' 
+                      ? 'border-t-4 border-blue-500' 
+                      : 'border-t-4 border-purple-500';
+                    
+                    return (
+                      <Link 
+                        key={forum.id} 
+                        href={`/forums/${forum.id}`}
+                        className="glass-card rounded-3xl overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                      >
+                        {/* Header with colored top border */}
+                        <div className={`${borderColor} px-6 py-4 bg-transparent`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              {forum.name === 'airtable' ? (
+                                <div className="flex gap-1">
+                                  <div className="w-4 h-4 bg-yellow-400 rounded-sm"></div>
+                                  <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                                  <div className="w-4 h-4 bg-purple-500 rounded-sm"></div>
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 bg-purple-500/30 border border-purple-500/50 rounded flex items-center justify-center">
+                                  <span className="text-white font-bold text-sm">M</span>
+                                </div>
+                              )}
+                              <h3 className="text-white font-bold text-lg">{forum.logo_text || forum.display_name}</h3>
+                            </div>
                           </div>
+                          <p className="text-gray-300 text-sm">פורום</p>
                         </div>
-                        <p className="text-white text-sm opacity-90">פורום</p>
-                      </div>
-                      
-                      {/* Body */}
-                      <div className="p-6">
-                        <h4 className="text-xl font-semibold text-gray-800 mb-2">{forum.display_name}</h4>
-                        {forum.description && (
-                          <p className="text-gray-600 text-sm mb-3">{forum.description}</p>
-                        )}
-                        {forum.posts_count === 0 ? (
-                          <p className="text-gray-500 text-sm">אין פוסטים</p>
-                        ) : (
-                          <p className="text-[#F52F8E] text-sm font-medium">{forum.posts_count} פוסטים</p>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
+                        
+                        {/* Body */}
+                        <div className="p-6">
+                          <h4 className="text-xl font-semibold text-white mb-2">{forum.display_name}</h4>
+                          {forum.description && (
+                            <p className="text-gray-300 text-sm mb-3">{forum.description}</p>
+                          )}
+                          {forum.posts_count === 0 ? (
+                            <p className="text-gray-400 text-sm">אין פוסטים</p>
+                          ) : (
+                            <p className="text-hot-pink text-sm font-medium">{forum.posts_count} פוסטים</p>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
 
                 {/* Viewing Info */}
-                <div className="text-sm text-gray-500 mb-8">
+                <div className="text-sm text-gray-300 mb-8">
                   מציג {forums.length} פורומים
                 </div>
 
                 {/* All Posts Section */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">כל הפוסטים</h2>
+                <GlassCard rounded="3xl" padding="lg">
+                  <h2 className="text-2xl font-bold text-white mb-6">כל הפוסטים</h2>
                   <div className="min-h-[200px] flex items-center justify-center">
-                    <p className="text-gray-500 text-lg">לא נמצאו פוסטים</p>
+                    <p className="text-gray-300 text-lg">לא נמצאו פוסטים</p>
                   </div>
-                </div>
+                </GlassCard>
               </>
             )}
           </div>
 
           {/* Right Sidebar - Discussion Groups */}
           <aside className="lg:w-80 flex-shrink-0">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-              <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mb-6">
+            <GlassCard rounded="3xl" padding="lg" className="mb-6">
+              <button className="w-full flex items-center justify-center gap-2 px-4 py-3 btn-primary mb-6">
                 <Edit className="w-5 h-5" />
                 <span>פוסט חדש</span>
               </button>
-              <h2 className="text-xl font-bold text-gray-800 mb-4">קבוצות דיונים</h2>
+              <h2 className="text-xl font-bold text-white mb-4">קבוצות דיונים</h2>
               <div className="space-y-3">
                 {forums.map((forum) => (
                   <Link 
                     key={forum.id} 
                     href={`/forums/${forum.id}`}
-                    className="flex items-center gap-2 hover:text-[#F52F8E] transition-colors"
+                    className="flex items-center gap-2 hover:text-hot-pink transition-colors"
                   >
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="text-gray-700 flex-1">{forum.display_name}</span>
-                    <span className="text-[#F52F8E] text-sm font-medium">{forum.posts_count}</span>
+                    <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                    <span className="text-gray-200 flex-1">{forum.display_name}</span>
+                    <span className="text-hot-pink text-sm font-medium">{forum.posts_count}</span>
                   </Link>
                 ))}
               </div>
-            </div>
+            </GlassCard>
           </aside>
         </div>
       </div>

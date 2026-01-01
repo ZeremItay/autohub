@@ -129,7 +129,7 @@ export default function TagsPage() {
                   onClick={() => setSortBy('popular')}
                   className={`px-4 py-2 rounded-lg transition-colors ${
                     sortBy === 'popular'
-                      ? 'bg-[#F52F8E] text-white'
+                      ? 'bg-hot-pink text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-100'
                   }`}
                 >
@@ -139,7 +139,7 @@ export default function TagsPage() {
                   onClick={() => setSortBy('alphabetical')}
                   className={`px-4 py-2 rounded-lg transition-colors ${
                     sortBy === 'alphabetical'
-                      ? 'bg-[#F52F8E] text-white'
+                      ? 'bg-hot-pink text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-100'
                   }`}
                 >

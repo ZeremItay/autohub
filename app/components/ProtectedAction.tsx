@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
@@ -29,6 +29,8 @@ export default function ProtectedAction({
   const router = useRouter();
   const { user, loading, isPremium } = useCurrentUser();
   const [showTooltip, setShowTooltip] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
 
   // Show loading state
   if (loading) {
@@ -39,6 +41,30 @@ export default function ProtectedAction({
     );
   }
 
+  // Helper function to show tooltip with delay
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setShowTooltip(true);
+  };
+
+  // Helper function to hide tooltip with delay
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setShowTooltip(false);
+    }, 200); // 200ms delay before hiding
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   // Check authentication requirement
   if (requireAuth && !user) {
     const message = disabledMessage || 'עליך להתחבר לאתר כדי לצפות בתוכן';
@@ -46,8 +72,8 @@ export default function ProtectedAction({
     return (
       <div 
         className="relative inline-block"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {React.isValidElement(children) ? (
           React.cloneElement(children as React.ReactElement<any>, {
@@ -67,25 +93,28 @@ export default function ProtectedAction({
         
         {showTooltip && (
           <div 
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
+            ref={tooltipRef}
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 glass-card border border-hot-pink/30 text-white text-sm rounded-xl p-4 shadow-xl z-50 pointer-events-auto"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start gap-2">
-              <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <div className="flex items-start gap-3">
+              <Lock className="w-5 h-5 mt-0.5 flex-shrink-0 text-hot-pink" />
               <div className="flex-1">
-                <p className="font-medium mb-2">{message}</p>
+                <p className="font-medium mb-3 text-white">{message}</p>
                 <Link
                   href={redirectTo}
-                  className="inline-flex items-center gap-1 text-[#F52F8E] hover:underline font-medium"
+                  className="btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm font-medium"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <LogIn className="w-3 h-3" />
+                  <LogIn className="w-4 h-4" />
                   <span>התחבר</span>
                 </Link>
               </div>
             </div>
             <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
-              <div className="w-2 h-2 bg-gray-900 rotate-45"></div>
+              <div className="w-3 h-3 bg-[#1e293b] border-r border-b border-hot-pink/30 rotate-45"></div>
             </div>
           </div>
         )}
@@ -101,8 +130,8 @@ export default function ProtectedAction({
     return (
       <div 
         className="relative inline-block"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {React.isValidElement(children) ? (
           React.cloneElement(children as React.ReactElement<any>, {
@@ -122,25 +151,28 @@ export default function ProtectedAction({
         
         {showTooltip && (
           <div 
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
+            ref={tooltipRef}
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 glass-card border border-hot-pink/30 text-white text-sm rounded-xl p-4 shadow-xl z-50 pointer-events-auto"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start gap-2">
-              <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <div className="flex items-start gap-3">
+              <Lock className="w-5 h-5 mt-0.5 flex-shrink-0 text-hot-pink" />
               <div className="flex-1">
-                <p className="font-medium mb-2">{message}</p>
+                <p className="font-medium mb-3 text-white">{message}</p>
                 <Link
                   href={redirectTo}
-                  className="inline-flex items-center gap-1 text-[#F52F8E] hover:underline font-medium"
+                  className="btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm font-medium"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <LogIn className="w-3 h-3" />
+                  <LogIn className="w-4 h-4" />
                   <span>התחבר</span>
                 </Link>
               </div>
             </div>
             <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
-              <div className="w-2 h-2 bg-gray-900 rotate-45"></div>
+              <div className="w-3 h-3 bg-[#1e293b] border-r border-b border-hot-pink/30 rotate-45"></div>
             </div>
           </div>
         )}
@@ -154,9 +186,9 @@ export default function ProtectedAction({
     
     return (
       <div 
-        className="relative"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        className="relative inline-block"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {React.isValidElement(children) ? (
           React.cloneElement(children as React.ReactElement<any>, {
@@ -176,24 +208,27 @@ export default function ProtectedAction({
         
         {showTooltip && (
           <div 
-            className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
+            ref={tooltipRef}
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 glass-card border border-yellow-400/30 text-white text-sm rounded-xl p-4 shadow-xl z-50 pointer-events-auto"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start gap-2">
-              <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <div className="flex items-start gap-3">
+              <Lock className="w-5 h-5 mt-0.5 flex-shrink-0 text-yellow-400" />
               <div className="flex-1">
-                <p className="font-medium mb-2">{message}</p>
+                <p className="font-medium mb-3 text-white">{message}</p>
                 <Link
                   href="/subscription"
-                  className="inline-flex items-center gap-1 text-yellow-400 hover:underline font-medium"
+                  className="btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-yellow-500 hover:bg-yellow-600"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <span>שדרג לפרימיום</span>
                 </Link>
               </div>
             </div>
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-              <div className="w-2 h-2 bg-gray-900 rotate-45"></div>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
+              <div className="w-3 h-3 bg-[#1e293b] border-r border-b border-yellow-400/30 rotate-45"></div>
             </div>
           </div>
         )}

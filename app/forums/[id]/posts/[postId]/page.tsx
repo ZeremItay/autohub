@@ -291,7 +291,7 @@ export default function ForumPostDetailPage() {
   if (loading) {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <div className="max-w-4xl mx-auto text-center py-12">טוען...</div>
+        <div className="max-w-4xl mx-auto text-center py-12 text-white">טוען...</div>
       </div>
     );
   }
@@ -300,7 +300,7 @@ export default function ForumPostDetailPage() {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto text-center py-12">
-          <p className="text-gray-500 text-lg">פוסט לא נמצא</p>
+          <p className="text-gray-300 text-lg">פוסט לא נמצא</p>
           <Link href={`/forums/${forumId}`} className="text-[#F52F8E] hover:underline mt-4 inline-block">
             חזור לפורום
           </Link>
@@ -310,20 +310,20 @@ export default function ForumPostDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Back Button */}
           <button
             onClick={() => router.push(`/forums/${forumId}`)}
-            className="flex items-center gap-2 text-gray-600 hover:text-[#F52F8E] mb-6 transition-colors"
+            className="flex items-center gap-2 text-gray-300 hover:text-[#F52F8E] mb-6 transition-colors"
           >
             <ArrowRight className="w-5 h-5" />
             <span>חזור לפורום</span>
           </button>
 
           {/* Post Content */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div className="glass-card rounded-2xl shadow-sm p-6 mb-6">
             {/* Author Info */}
             <div className="flex items-center gap-4 mb-4">
               {post.profile?.avatar_url ? (
@@ -339,17 +339,17 @@ export default function ForumPostDetailPage() {
                 </div>
               )}
               <div>
-                <h3 className="font-semibold text-gray-800">{post.profile?.display_name || 'משתמש'}</h3>
-                <p className="text-sm text-gray-500">{formatDate(post.created_at)}</p>
+                <h3 className="font-semibold text-white">{post.profile?.display_name || 'משתמש'}</h3>
+                <p className="text-sm text-gray-300">{formatDate(post.created_at)}</p>
               </div>
             </div>
 
             {/* Post Title */}
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">{post.title}</h1>
+            <h1 className="text-3xl font-bold text-white mb-4">{post.title}</h1>
 
             {/* Post Content */}
             <div 
-              className="text-gray-700 leading-relaxed prose prose-sm max-w-none prose-img:max-w-full prose-img:rounded-lg prose-img:my-4 mb-6"
+              className="text-gray-100 leading-relaxed prose prose-sm max-w-none prose-img:max-w-full prose-img:rounded-lg prose-img:my-4 mb-6 prose-headings:text-white prose-p:text-gray-100 prose-strong:text-white prose-a:text-hot-pink"
               dir="rtl"
               dangerouslySetInnerHTML={{ 
                 __html: (() => {
@@ -388,33 +388,33 @@ export default function ForumPostDetailPage() {
                   <video 
                     src={post.media_url} 
                     controls 
-                    className="w-full max-h-96 rounded-lg border border-gray-200"
+                    className="w-full max-h-96 rounded-[20px] border-2 border-hot-pink/40 shadow-[0_0_20px_rgba(236,72,153,0.3),0_8px_32px_rgba(0,0,0,0.5)]"
                   />
                 ) : null}
               </div>
             )}
 
             {/* Actions */}
-            <div className="flex items-center gap-6 pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-6 pt-4 border-t border-white/10">
               <button
                 onClick={handleLike}
                 disabled={!currentUser}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                   post.user_liked
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-hot-pink text-white'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <Heart className={`w-5 h-5 ${post.user_liked ? 'fill-current' : ''}`} />
                 <span>{post.likes_count || 0}</span>
               </button>
               
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-300">
                 <MessageCircle className="w-5 h-5" />
                 <span>{post.replies_count || 0} תגובות</span>
               </div>
               
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-300">
                 <Eye className="w-5 h-5" />
                 <span>{post.views || 0} צפיות</span>
               </div>
@@ -422,7 +422,7 @@ export default function ForumPostDetailPage() {
           </div>
 
           {/* Replies Section */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="glass-card rounded-2xl shadow-sm p-6">
             <CommentsList
               comments={adaptForumRepliesToComments(post.replies || [])}
               currentUser={currentUser}

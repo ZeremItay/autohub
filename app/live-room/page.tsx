@@ -14,7 +14,7 @@ const ZoomMeeting = dynamic(
   () => import('@/app/components/zoom/ZoomMeeting'),
   { 
     ssr: false,
-    loading: () => <div className="w-full h-96 bg-gray-100 rounded animate-pulse flex items-center justify-center">
+    loading: () => <div className="w-full h-96 bg-white/10 rounded animate-pulse flex items-center justify-center">
       <p className="text-gray-500">טוען חדר לייב...</p>
     </div>
   }
@@ -185,10 +185,10 @@ export default function LiveRoomPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F52F8E] mx-auto mb-4"></div>
-          <p className="text-gray-600">מחפש לייב קרוב...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-hot-pink mx-auto mb-4"></div>
+          <p className="text-gray-300">מחפש לייב קרוב...</p>
         </div>
       </div>
     );
@@ -196,28 +196,28 @@ export default function LiveRoomPage() {
 
   if (!event) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen">
         <div className="px-4 sm:px-6 lg:px-8 py-12">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 sm:p-12">
-              <Video className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">
+            <div className="glass-card rounded-3xl shadow-2xl p-8 sm:p-12">
+              <Video className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">
                 אין לייב קרוב כרגע
               </h1>
-              <p className="text-gray-600 mb-6 text-lg">
+              <p className="text-gray-300 mb-6 text-lg">
                 החדר לייב יפתח אוטומטית שעה לפני תחילת הלייב הקרוב ביותר.
               </p>
               <div className="space-y-3">
                 <Link
                   href="/live-log"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-semibold"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-hot-pink text-white rounded-full hover:bg-rose-500 transition-colors font-semibold shadow-lg hover:shadow-xl"
                 >
                   <Calendar className="w-5 h-5" />
                   <span>צפה ביומן הלייבים</span>
                 </Link>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-400">
                   או חזור ל
-                  <Link href="/" className="text-[#F52F8E] hover:underline mr-1">
+                  <Link href="/" className="text-hot-pink hover:text-rose-400 hover:underline mr-1 transition-colors">
                     עמוד הבית
                   </Link>
                 </div>
@@ -232,7 +232,7 @@ export default function LiveRoomPage() {
   return (
     <div className={`h-screen bg-gray-900 flex flex-col ${isFullscreen ? 'overflow-visible' : 'overflow-hidden'}`}>
       {/* Minimal Header */}
-      <div className="bg-gradient-to-b from-pink-600 to-pink-400 relative overflow-hidden flex-shrink-0 z-50">
+      <div className="bg-gradient-to-b from-hot-pink via-pink-500 to-purple-600 relative overflow-hidden flex-shrink-0 z-50">
         <div className="relative px-3 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             {/* Back Button and Title */}
@@ -305,17 +305,17 @@ export default function LiveRoomPage() {
                 />
               </div>
             ) : (
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 max-w-md text-center">
-                  <h3 className="text-lg font-semibold text-yellow-800 mb-2">
+              <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="glass-card rounded-3xl shadow-2xl p-6 max-w-md text-center border-yellow-500/30 bg-yellow-500/10">
+                  <h3 className="text-lg font-semibold text-yellow-300 mb-2">
                     🔒 גישה מוגבלת למנויי פרימיום
                   </h3>
-                  <p className="text-yellow-700 mb-4">
+                  <p className="text-yellow-200 mb-4">
                     כדי לצפות בפגישת הלייב, עליך להיות מנוי פרימיום.
                   </p>
                   <Link
                     href="/subscription"
-                    className="inline-block bg-[#F52F8E] text-white px-6 py-2 rounded-lg hover:bg-[#E01E7A] transition-colors"
+                    className="inline-block bg-hot-pink text-white px-6 py-2 rounded-full hover:bg-rose-500 transition-colors shadow-lg hover:shadow-xl"
                   >
                     שדרג למנוי פרימיום
                   </Link>

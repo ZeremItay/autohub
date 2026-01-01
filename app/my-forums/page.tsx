@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MessageSquare, MessageCircle, Heart, Eye, Pin, Clock } from 'lucide-react';
+import { MessageSquare, MessageCircle, Heart, Eye, Pin, Clock, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { getUserForumPosts, getUserForumReplies, getUserLikedForumPosts } from '@/lib/queries/forums';
 import { getAllProfiles } from '@/lib/queries/profiles';
@@ -169,7 +169,7 @@ function MyForumsContent() {
             href="/my-forums?tab=discussions"
             className={`px-6 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'discussions'
-                ? 'bg-[#F52F8E] text-white'
+                ? 'bg-hot-pink text-white'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -179,7 +179,7 @@ function MyForumsContent() {
             href="/my-forums?tab=replies"
             className={`px-6 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'replies'
-                ? 'bg-[#F52F8E] text-white'
+                ? 'bg-hot-pink text-white'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -189,7 +189,7 @@ function MyForumsContent() {
             href="/my-forums?tab=favorites"
             className={`px-6 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'favorites'
-                ? 'bg-[#F52F8E] text-white'
+                ? 'bg-hot-pink text-white'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -356,10 +356,10 @@ function MyForumsContent() {
 export default function MyForumsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#F3F4F6] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#F52F8E] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">טוען...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-hot-pink mx-auto mb-4" />
+          <p className="text-gray-300">טוען...</p>
         </div>
       </div>
     }>

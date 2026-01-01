@@ -28,7 +28,8 @@ import {
   AlignJustify,
   Calendar,
   Shield,
-  Radio
+  Radio,
+  MessageCircleMore
 } from 'lucide-react';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -685,6 +686,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (pathname?.startsWith('/courses')) return 'courses';
     if (pathname?.startsWith('/live-log') || pathname?.startsWith('/live/')) return 'live-log';
     if (pathname === '/live-room') return 'live-room';
+    if (pathname?.startsWith('/feedback')) return 'feedback';
     if (pathname?.startsWith('/admin')) return 'admin';
     return '';
   };
@@ -704,9 +706,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20">
+    <div className="min-h-screen relative">
       {/* Top Header - Minimal (Mobile & Desktop) */}
-      <header className="sticky top-0 z-50 glass border-b border-white/20 shadow-lg backdrop-blur-xl">
+      <header className="sticky top-0 z-50 glass border-b border-hot-pink/30 shadow-lg backdrop-blur-xl rounded-t-none rounded-b-2xl">
         <div className={`px-2 sm:px-4 lg:px-6 xl:px-8 transition-all duration-300 ease-in-out ${
           sidebarOpen 
             ? 'lg:mr-64 mr-0' 
@@ -716,7 +718,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* Mobile Hamburger Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-gray-700 hover:text-pink-500 transition-colors"
+              className="lg:hidden p-2 text-white hover:text-hot-pink transition-colors"
               aria-label="תפריט"
             >
               <AlignJustify className="w-6 h-6" />
@@ -724,7 +726,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Club Name - Right side (RTL) */}
             <div className="hidden sm:flex items-center">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-800 whitespace-nowrap">
+              <h1 className="text-lg sm:text-xl font-bold text-white whitespace-nowrap">
                 מועדון האוטומטורים
               </h1>
             </div>
@@ -734,7 +736,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {/* Mobile: Search Icon Button */}
               <button
                 onClick={() => setMobileSearchOpen(true)}
-                className="lg:hidden p-2.5 text-gray-600 hover:text-pink-500 cursor-pointer transition-all rounded-lg hover:bg-pink-50/50"
+                className="lg:hidden p-2.5 text-white hover:text-hot-pink cursor-pointer transition-all rounded-full hover:bg-hot-pink/20"
                 aria-label="חיפוש"
               >
                 <Search className="w-6 h-6" />
@@ -742,7 +744,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               
               {/* Desktop: Full Search Bar */}
               <div className="hidden lg:block relative w-full">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5 z-10" />
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground-muted w-4 h-4 sm:w-5 sm:h-5 z-10" />
                 <input
                   type="text"
                   dir="rtl"
@@ -750,16 +752,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
-                  className="modern-input w-full pr-9 sm:pr-10 pl-3 sm:pl-4 py-1.5 sm:py-2.5 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500/50 shadow-md text-sm text-right"
+                  className="modern-input w-full pr-9 sm:pr-10 pl-3 sm:pl-4 py-1.5 sm:py-2.5 rounded-full focus:outline-none focus:ring-2 focus:ring-hot-pink/30 focus:border-hot-pink/50 shadow-md text-sm text-right"
                 />
                 
                 {/* Search Results Dropdown - Desktop Only */}
                 {showSearchResults && searchResults && (
                   <>
                     {/* Desktop: Dropdown */}
-                    <div className="hidden lg:block fixed bg-white rounded-xl shadow-2xl border border-gray-200 z-[60] max-h-[600px] overflow-y-auto" style={searchDropdownStyle}>
+                    <div className="hidden lg:block fixed glass-card rounded-2xl shadow-2xl z-[60] max-h-[600px] overflow-y-auto" style={searchDropdownStyle}>
                       {getTotalResults() === 0 ? (
-                        <div className="p-6 text-center text-gray-500">
+                        <div className="p-6 text-center text-foreground-muted">
                           <p className="text-sm">לא נמצאו תוצאות</p>
                         </div>
                       ) : (
@@ -774,7 +776,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-5">
                                     <div className="flex items-center gap-2 mb-2 px-2">
                                       <Video className="w-4 h-4 text-[#F52F8E]" />
-                                      <h3 className="text-sm font-bold text-gray-800">הקלטות ({searchResults.recordings.length})</h3>
+                                      <h3 className="text-sm font-bold text-white">הקלטות ({searchResults.recordings.length})</h3>
                                     </div>
                                     <div className="space-y-1">
                                       {limited.recordings.map((recording: any) => (
@@ -785,11 +787,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       setShowSearchResults(false);
                                       setSearchQuery('');
                                     }}
-                                    className="block px-3 py-2 rounded-xl hover:bg-pink-50 transition-colors"
+                                    className="block px-3 py-2 rounded-xl hover:bg-hot-pink/20 transition-colors"
                                   >
-                                    <p className="text-sm font-semibold text-gray-900 break-words">{recording.title}</p>
+                                    <p className="text-sm font-semibold text-white break-words">{recording.title}</p>
                                     {recording.description && (
-                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{recording.description}</p>
+                                      <p className="text-xs text-foreground-light line-clamp-1 mt-1 break-words">{recording.description}</p>
                                     )}
                                   </Link>
                                       ))}
@@ -802,7 +804,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-5">
                                     <div className="flex items-center gap-2 mb-2 px-2">
                                       <MessageSquare className="w-4 h-4 text-[#F52F8E]" />
-                                      <h3 className="text-sm font-bold text-gray-800">פורומים ({searchResults.forums.length})</h3>
+                                      <h3 className="text-sm font-bold text-white">פורומים ({searchResults.forums.length})</h3>
                                     </div>
                                     <div className="space-y-1">
                                       {limited.forums.map((forum: any) => (
@@ -813,11 +815,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       setShowSearchResults(false);
                                       setSearchQuery('');
                                     }}
-                                    className="block px-3 py-2 rounded-xl hover:bg-pink-50 transition-colors"
+                                    className="block px-3 py-2 rounded-xl hover:bg-hot-pink/20 transition-colors"
                                   >
-                                    <p className="text-sm font-semibold text-gray-900 break-words">{forum.display_name || forum.name}</p>
+                                    <p className="text-sm font-semibold text-white break-words">{forum.display_name || forum.name}</p>
                                     {forum.description && (
-                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{forum.description}</p>
+                                      <p className="text-xs text-foreground-light line-clamp-1 mt-1 break-words">{forum.description}</p>
                                     )}
                                   </Link>
                                       ))}
@@ -830,7 +832,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-5">
                                     <div className="flex items-center gap-2 mb-2 px-2">
                                       <MessageSquare className="w-4 h-4 text-blue-600" />
-                                      <h3 className="text-sm font-bold text-gray-800">פוסטים בפורומים ({searchResults.forumPosts.length})</h3>
+                                      <h3 className="text-sm font-bold text-white">פוסטים בפורומים ({searchResults.forumPosts.length})</h3>
                                     </div>
                                     <div className="space-y-1">
                                       {limited.forumPosts.map((post: any) => (
@@ -841,11 +843,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       setShowSearchResults(false);
                                       setSearchQuery('');
                                     }}
-                                    className="block px-3 py-2 rounded-xl hover:bg-pink-50 transition-colors"
+                                    className="block px-3 py-2 rounded-xl hover:bg-hot-pink/20 transition-colors"
                                   >
-                                    <p className="text-sm font-semibold text-gray-900 break-words">{post.title}</p>
+                                    <p className="text-sm font-semibold text-white break-words">{post.title}</p>
                                     {post.forums && (
-                                      <p className="text-xs text-gray-600 mt-1 break-words">בפורום: {post.forums.display_name}</p>
+                                      <p className="text-xs text-foreground-light mt-1 break-words">בפורום: {post.forums.display_name}</p>
                                     )}
                                   </Link>
                                       ))}
@@ -858,17 +860,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-5">
                                     <div className="flex items-center gap-2 mb-2 px-2">
                                       <FileText className="w-4 h-4 text-purple-600" />
-                                      <h3 className="text-sm font-bold text-gray-800">הכרזות ({searchResults.posts.length})</h3>
+                                      <h3 className="text-sm font-bold text-white">הכרזות ({searchResults.posts.length})</h3>
                                     </div>
                                     <div className="space-y-1">
                                       {limited.posts.map((post: any) => (
                                   <div
                                     key={post.id}
-                                    className="block px-3 py-2 rounded-xl hover:bg-pink-50 transition-colors"
+                                    className="block px-3 py-2 rounded-xl hover:bg-hot-pink/20 transition-colors"
                                   >
-                                    <p className="text-sm text-gray-900 line-clamp-2 break-words">{post.content}</p>
+                                    <p className="text-sm text-white line-clamp-2 break-words">{post.content}</p>
                                     {post.profiles && (
-                                      <p className="text-xs text-gray-600 mt-1 break-words">מאת: {post.profiles.display_name}</p>
+                                      <p className="text-xs text-foreground-light mt-1 break-words">מאת: {post.profiles.display_name}</p>
                                     )}
                                   </div>
                                       ))}
@@ -881,7 +883,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-5">
                                     <div className="flex items-center gap-2 mb-2 px-2">
                                       <Briefcase className="w-4 h-4 text-green-600" />
-                                      <h3 className="text-sm font-bold text-gray-800">פרויקטים ({searchResults.projects.length})</h3>
+                                      <h3 className="text-sm font-bold text-white">פרויקטים ({searchResults.projects.length})</h3>
                                     </div>
                                     <div className="space-y-1">
                                       {limited.projects.map((project: any) => (
@@ -892,11 +894,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       setShowSearchResults(false);
                                       setSearchQuery('');
                                     }}
-                                    className="block px-3 py-2 rounded-xl hover:bg-pink-50 transition-colors"
+                                    className="block px-3 py-2 rounded-xl hover:bg-hot-pink/20 transition-colors"
                                   >
-                                    <p className="text-sm font-semibold text-gray-900 break-words">{project.title}</p>
+                                    <p className="text-sm font-semibold text-white break-words">{project.title}</p>
                                     {project.description && (
-                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{project.description}</p>
+                                      <p className="text-xs text-foreground-light line-clamp-1 mt-1 break-words">{project.description}</p>
                                     )}
                                   </Link>
                                       ))}
@@ -909,7 +911,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-5">
                                     <div className="flex items-center gap-2 mb-2 px-2">
                                       <BookOpen className="w-4 h-4 text-orange-600" />
-                                      <h3 className="text-sm font-bold text-gray-800">קורסים ({searchResults.courses.length})</h3>
+                                      <h3 className="text-sm font-bold text-white">קורסים ({searchResults.courses.length})</h3>
                                     </div>
                                     <div className="space-y-1">
                                       {limited.courses.map((course: any) => (
@@ -920,11 +922,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                       setShowSearchResults(false);
                                       setSearchQuery('');
                                     }}
-                                    className="block px-3 py-2 rounded-xl hover:bg-pink-50 transition-colors"
+                                    className="block px-3 py-2 rounded-xl hover:bg-hot-pink/20 transition-colors"
                                   >
-                                    <p className="text-sm font-semibold text-gray-900 break-words">{course.title}</p>
+                                    <p className="text-sm font-semibold text-white break-words">{course.title}</p>
                                     {course.description && (
-                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{course.description}</p>
+                                      <p className="text-xs text-foreground-light line-clamp-1 mt-1 break-words">{course.description}</p>
                                     )}
                                   </Link>
                                       ))}
@@ -934,13 +936,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                                 {/* View All Results Link */}
                                 {hasMoreResults() && (
-                                  <div className="pt-3 border-t border-gray-200 mt-3">
+                                  <div className="pt-3 border-t border-hot-pink/20 mt-3">
                                     <Link
                                       href={`/search?q=${encodeURIComponent(searchQuery)}`}
                                       onClick={() => {
                                         setShowSearchResults(false);
                                       }}
-                                      className="block text-center px-4 py-2 text-sm font-semibold text-[#F52F8E] hover:bg-pink-50 rounded-lg transition-colors"
+                                      className="block text-center px-4 py-2 text-sm font-semibold text-hot-pink hover:bg-hot-pink/20 rounded-full transition-colors"
                                     >
                                       לכל התוצאות →
                                     </Link>
@@ -973,17 +975,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Mobile Search Modal */}
             {mobileSearchOpen && (
-              <div className="fixed inset-0 bg-white z-[100] flex flex-col lg:hidden">
+              <div className="fixed inset-0 glass-card z-[100] flex flex-col lg:hidden">
                 {/* Header */}
-                <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-10">
-                  <h2 className="text-lg font-bold text-gray-800">חיפוש</h2>
+                <div className="sticky top-0 glass-card border-b border-hot-pink/30 px-4 py-3 flex items-center justify-between z-10">
+                  <h2 className="text-lg font-bold text-white">חיפוש</h2>
                   <button
                     onClick={() => {
                       setMobileSearchOpen(false);
                       setSearchQuery('');
                       setShowSearchResults(false);
                     }}
-                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+                    className="p-2 text-foreground-muted hover:text-white hover:bg-hot-pink/20 rounded-full transition-colors"
                     aria-label="סגור"
                   >
                     <X className="w-5 h-5" />
@@ -991,9 +993,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Search Input */}
-                <div className="px-4 py-3 border-b border-gray-200">
+                <div className="px-4 py-3 border-b border-hot-pink/20">
                   <div className="relative">
-                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
+                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground-muted w-5 h-5 z-10" />
                     <input
                       ref={mobileSearchInputRef}
                       type="text"
@@ -1033,7 +1035,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-6">
                                     <div className="flex items-center gap-2 mb-3">
                                       <Video className="w-5 h-5 text-[#F52F8E]" />
-                                      <h3 className="text-base font-bold text-gray-800">הקלטות ({searchResults.recordings.length})</h3>
+                                      <h3 className="text-base font-bold text-white">הקלטות ({searchResults.recordings.length})</h3>
                                     </div>
                                     <div className="space-y-2.5">
                                       {limited.recordings.map((recording: any) => (
@@ -1045,11 +1047,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                             setShowSearchResults(false);
                                             setSearchQuery('');
                                           }}
-                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                                          className="block px-4 py-3 rounded-xl hover:bg-hot-pink/20 transition-colors border border-hot-pink/30 glass-card active:bg-hot-pink/30"
                                         >
-                                          <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{recording.title}</p>
+                                          <p className="text-sm font-semibold text-white break-words leading-relaxed">{recording.title}</p>
                                           {recording.description && (
-                                            <p className="text-xs text-gray-600 line-clamp-2 mt-1.5 break-words leading-relaxed">{recording.description}</p>
+                                            <p className="text-xs text-foreground-light line-clamp-2 mt-1.5 break-words leading-relaxed">{recording.description}</p>
                                           )}
                                         </Link>
                                       ))}
@@ -1062,7 +1064,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-6">
                                     <div className="flex items-center gap-2 mb-3">
                                       <MessageSquare className="w-5 h-5 text-[#F52F8E]" />
-                                      <h3 className="text-base font-bold text-gray-800">פורומים ({searchResults.forums.length})</h3>
+                                      <h3 className="text-base font-bold text-white">פורומים ({searchResults.forums.length})</h3>
                                     </div>
                                     <div className="space-y-2.5">
                                       {limited.forums.map((forum: any) => (
@@ -1074,11 +1076,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                             setShowSearchResults(false);
                                             setSearchQuery('');
                                           }}
-                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                                          className="block px-4 py-3 rounded-xl hover:bg-hot-pink/20 transition-colors border border-hot-pink/30 glass-card active:bg-hot-pink/30"
                                         >
-                                          <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{forum.display_name || forum.name}</p>
+                                          <p className="text-sm font-semibold text-white break-words leading-relaxed">{forum.display_name || forum.name}</p>
                                           {forum.description && (
-                                            <p className="text-xs text-gray-600 line-clamp-2 mt-1.5 break-words leading-relaxed">{forum.description}</p>
+                                            <p className="text-xs text-foreground-light line-clamp-2 mt-1.5 break-words leading-relaxed">{forum.description}</p>
                                           )}
                                         </Link>
                                       ))}
@@ -1091,7 +1093,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-6">
                                     <div className="flex items-center gap-2 mb-3">
                                       <MessageSquare className="w-5 h-5 text-blue-600" />
-                                      <h3 className="text-base font-bold text-gray-800">פוסטים בפורומים ({searchResults.forumPosts.length})</h3>
+                                      <h3 className="text-base font-bold text-white">פוסטים בפורומים ({searchResults.forumPosts.length})</h3>
                                     </div>
                                     <div className="space-y-2.5">
                                       {limited.forumPosts.map((post: any) => (
@@ -1103,11 +1105,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                             setShowSearchResults(false);
                                             setSearchQuery('');
                                           }}
-                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                                          className="block px-4 py-3 rounded-xl hover:bg-hot-pink/20 transition-colors border border-hot-pink/30 glass-card active:bg-hot-pink/30"
                                         >
-                                          <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{post.title}</p>
+                                          <p className="text-sm font-semibold text-white break-words leading-relaxed">{post.title}</p>
                                           {post.forums && (
-                                            <p className="text-xs text-gray-600 mt-1.5 break-words leading-relaxed">בפורום: {post.forums.display_name}</p>
+                                            <p className="text-xs text-foreground-light mt-1.5 break-words leading-relaxed">בפורום: {post.forums.display_name}</p>
                                           )}
                                         </Link>
                                       ))}
@@ -1120,17 +1122,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-6">
                                     <div className="flex items-center gap-2 mb-3">
                                       <FileText className="w-5 h-5 text-purple-600" />
-                                      <h3 className="text-base font-bold text-gray-800">הכרזות ({searchResults.posts.length})</h3>
+                                      <h3 className="text-base font-bold text-white">הכרזות ({searchResults.posts.length})</h3>
                                     </div>
                                     <div className="space-y-2.5">
                                       {limited.posts.map((post: any) => (
                                         <div
                                           key={post.id}
-                                          className="block px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm"
+                                          className="block px-4 py-3 rounded-xl border border-hot-pink/30 glass-card"
                                         >
-                                          <p className="text-sm text-gray-900 line-clamp-3 break-words leading-relaxed">{post.content}</p>
+                                          <p className="text-sm text-white line-clamp-3 break-words leading-relaxed">{post.content}</p>
                                           {post.profiles && (
-                                            <p className="text-xs text-gray-600 mt-1.5 break-words leading-relaxed">מאת: {post.profiles.display_name}</p>
+                                            <p className="text-xs text-foreground-light mt-1.5 break-words leading-relaxed">מאת: {post.profiles.display_name}</p>
                                           )}
                                         </div>
                                       ))}
@@ -1143,7 +1145,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div className="mb-6">
                                     <div className="flex items-center gap-2 mb-3">
                                       <Briefcase className="w-5 h-5 text-green-600" />
-                                      <h3 className="text-base font-bold text-gray-800">פרויקטים ({searchResults.projects.length})</h3>
+                                      <h3 className="text-base font-bold text-white">פרויקטים ({searchResults.projects.length})</h3>
                                     </div>
                                     <div className="space-y-2.5">
                                       {limited.projects.map((project: any) => (
@@ -1155,11 +1157,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                             setShowSearchResults(false);
                                             setSearchQuery('');
                                           }}
-                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                                          className="block px-4 py-3 rounded-xl hover:bg-hot-pink/20 transition-colors border border-hot-pink/30 glass-card active:bg-hot-pink/30"
                                         >
-                                          <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{project.title}</p>
+                                          <p className="text-sm font-semibold text-white break-words leading-relaxed">{project.title}</p>
                                           {project.description && (
-                                            <p className="text-xs text-gray-600 line-clamp-2 mt-1.5 break-words leading-relaxed">{project.description}</p>
+                                            <p className="text-xs text-foreground-light line-clamp-2 mt-1.5 break-words leading-relaxed">{project.description}</p>
                                           )}
                                         </Link>
                                       ))}
@@ -1198,14 +1200,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                                 {/* View All Results Link */}
                                 {hasMoreResults() && (
-                                  <div className="pt-4 border-t-2 border-gray-200 mt-4">
+                                  <div className="pt-4 border-t-2 border-hot-pink/30 mt-4">
                                     <Link
                                       href={`/search?q=${encodeURIComponent(searchQuery)}`}
                                       onClick={() => {
                                         setMobileSearchOpen(false);
                                         setShowSearchResults(false);
                                       }}
-                                      className="block text-center px-6 py-3.5 text-base font-bold text-[#F52F8E] hover:bg-pink-50 rounded-xl transition-colors border-2 border-[#F52F8E] active:bg-pink-100"
+                                      className="block text-center px-6 py-3.5 text-base font-bold text-hot-pink hover:bg-hot-pink/20 rounded-full transition-colors border-2 border-hot-pink active:bg-hot-pink/30"
                                     >
                                       לכל התוצאות →
                                     </Link>
@@ -1218,10 +1220,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       )}
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-gray-500">
-                      <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <div className="p-8 text-center text-foreground-muted">
+                      <Search className="w-12 h-12 mx-auto mb-3 text-foreground-muted" />
                       <p className="text-base">התחל לחפש</p>
-                      <p className="text-sm mt-2 text-gray-400">הקלד לפחות 2 תווים כדי להתחיל לחפש</p>
+                      <p className="text-sm mt-2 text-foreground-muted">הקלד לפחות 2 תווים כדי להתחיל לחפש</p>
                     </div>
                   )}
                 </div>
@@ -1235,7 +1237,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <button 
                   ref={notificationsButtonRef}
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="relative p-2.5 text-gray-600 hover:text-pink-500 cursor-pointer transition-all rounded-lg hover:bg-pink-50/50 group"
+                  className="relative p-2.5 text-white hover:text-hot-pink cursor-pointer transition-all rounded-full hover:bg-hot-pink/20 group"
                 >
                   <Bell className="w-6 h-6 group-hover:scale-110 transition-transform" />
                   {unreadCount > 0 && (
@@ -1252,22 +1254,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <div className="fixed inset-0 top-16 bg-black/50 z-[60] lg:hidden" onClick={() => setNotificationsOpen(false)}></div>
                     
                     {/* Mobile: Full Screen Modal */}
-                    <div className="fixed inset-0 top-16 bg-white z-[61] flex flex-col lg:hidden">
+                    <div className="fixed inset-0 top-16 glass-card z-[61] flex flex-col lg:hidden">
                       {/* Header */}
-                      <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
-                        <h3 className="text-xl font-bold text-gray-800">התראות</h3>
+                      <div className="p-4 border-b border-hot-pink/30 flex items-center justify-between glass-card">
+                        <h3 className="text-xl font-bold text-white">התראות</h3>
                         <div className="flex items-center gap-3">
                           {unreadCount > 0 && (
                             <button
                               onClick={markAllAsRead}
-                              className="text-sm text-[#F52F8E] hover:underline"
+                              className="text-sm text-hot-pink hover:underline"
                             >
                               קראתי הכל
                             </button>
                           )}
                           <button
                             onClick={() => setNotificationsOpen(false)}
-                            className="p-2 text-gray-500 hover:text-gray-700"
+                            className="p-2 text-foreground-muted hover:text-white"
                           >
                             <X className="w-5 h-5" />
                           </button>
@@ -1277,18 +1279,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       {/* Notifications List */}
                       <div className="flex-1 overflow-y-auto">
                         {notifications.length === 0 ? (
-                          <div className="p-6 text-center text-gray-500 mt-20">
-                            <Bell className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                          <div className="p-6 text-center text-foreground-muted mt-20">
+                            <Bell className="w-16 h-16 mx-auto mb-4 text-foreground-muted" />
                             <p className="text-lg">אין התראות חדשות</p>
                           </div>
                         ) : unreadCount === 0 && notifications.length > 0 && notifications.every(n => n.is_read) ? (
-                          <div className="p-6 text-center text-gray-500">
-                            <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                          <div className="p-6 text-center text-foreground-muted">
+                            <Bell className="w-12 h-12 mx-auto mb-2 text-foreground-muted" />
                             <p>אין התראות חדשות</p>
-                            <p className="text-xs text-gray-400 mt-1">כל ההתראות נקראו</p>
+                            <p className="text-xs text-foreground-muted mt-1">כל ההתראות נקראו</p>
                           </div>
                         ) : (
-                          <div className="divide-y divide-gray-100">
+                          <div className="divide-y divide-hot-pink/20">
                             {notifications.map((notification) => {
                               const isPointsNotification = notification.title?.includes('נקודות') || notification.message?.includes('נקודות');
                               const NotificationContent = (
@@ -1296,22 +1298,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   !isPointsNotification ? 'cursor-pointer' : ''
                                 }`}>
                                   <div className={`flex-shrink-0 w-3 h-3 rounded-full mt-2 ${
-                                    !notification.is_read ? 'bg-[#F52F8E]' : 'bg-gray-300'
+                                    !notification.is_read ? 'bg-hot-pink' : 'bg-foreground-muted'
                                   }`}></div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-base font-semibold text-gray-800 mb-2">
+                                    <p className="text-base font-semibold text-white mb-2">
                                       {notification.title}
                                     </p>
-                                    <p className="text-sm text-gray-600 mb-2">
+                                    <p className="text-sm text-foreground-light mb-2">
                                       {notification.message}
                                     </p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-foreground-muted">
                                       {formatTimeAgo(notification.created_at)}
                                     </p>
                                   </div>
                                   <button
                                     onClick={(e) => handleDeleteNotification(notification.id, e)}
-                                    className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                    className="flex-shrink-0 p-1 text-foreground-muted hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
                                     title="מחק התראה"
                                   >
                                     <X className="w-4 h-4" />
@@ -1358,16 +1360,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     {/* Desktop: Dropdown */}
                     <div 
                       ref={notificationsMenuRef}
-                      className="hidden lg:block fixed w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-[60] max-h-[600px] overflow-hidden flex flex-col"
+                      className="hidden lg:block fixed w-96 glass-card rounded-2xl shadow-2xl z-[60] max-h-[600px] overflow-hidden flex flex-col"
                       style={notificationsDropdownStyle}
                     >
                       {/* Header */}
-                      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                        <h3 className="text-lg font-bold text-gray-800">התראות</h3>
+                      <div className="p-4 border-b border-hot-pink/30 flex items-center justify-between">
+                        <h3 className="text-lg font-bold text-white">התראות</h3>
                         {unreadCount > 0 && (
                           <button
                             onClick={markAllAsRead}
-                            className="text-sm text-[#F52F8E] hover:underline"
+                            className="text-sm text-hot-pink hover:underline"
                           >
                             קראתי הכל
                           </button>
@@ -1377,18 +1379,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       {/* Notifications List */}
                       <div className="flex-1 overflow-y-auto">
                         {notifications.length === 0 ? (
-                          <div className="p-6 text-center text-gray-500">
-                            <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                          <div className="p-6 text-center text-foreground-muted">
+                            <Bell className="w-12 h-12 mx-auto mb-2 text-foreground-muted" />
                             <p>אין התראות חדשות</p>
                           </div>
                         ) : unreadCount === 0 && notifications.length > 0 && notifications.every(n => n.is_read) ? (
-                          <div className="p-6 text-center text-gray-500">
-                            <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                          <div className="p-6 text-center text-foreground-muted">
+                            <Bell className="w-12 h-12 mx-auto mb-2 text-foreground-muted" />
                             <p>אין התראות חדשות</p>
-                            <p className="text-xs text-gray-400 mt-1">כל ההתראות נקראו</p>
+                            <p className="text-xs text-foreground-muted mt-1">כל ההתראות נקראו</p>
                           </div>
                         ) : (
-                          <div className="divide-y divide-gray-100">
+                          <div className="divide-y divide-hot-pink/20">
                             {notifications.map((notification) => {
                               const isPointsNotification = notification.title?.includes('נקודות') || notification.message?.includes('נקודות');
                               const NotificationContent = (
@@ -1396,22 +1398,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   !isPointsNotification ? 'cursor-pointer' : ''
                                 }`}>
                                   <div className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
-                                    !notification.is_read ? 'bg-[#F52F8E]' : 'bg-gray-300'
+                                    !notification.is_read ? 'bg-hot-pink' : 'bg-foreground-muted'
                                   }`}></div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-gray-800 mb-1">
+                                    <p className="text-sm font-semibold text-white mb-1">
                                       {notification.title}
                                     </p>
-                                    <p className="text-sm text-gray-600 mb-2">
+                                    <p className="text-sm text-foreground-light mb-2">
                                       {notification.message}
                                     </p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-foreground-muted">
                                       {formatTimeAgo(notification.created_at)}
                                     </p>
                                   </div>
                                   <button
                                     onClick={(e) => handleDeleteNotification(notification.id, e)}
-                                    className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                    className="flex-shrink-0 p-1 text-foreground-muted hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
                                     title="מחק התראה"
                                   >
                                     <X className="w-4 h-4" />
@@ -1424,7 +1426,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   <div
                                     key={notification.id}
                                     className={`block p-4 ${
-                                      !notification.is_read ? 'bg-pink-50/50' : ''
+                                      !notification.is_read ? 'bg-hot-pink/20' : ''
                                     }`}
                                   >
                                     {NotificationContent}
@@ -1442,8 +1444,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                     }
                                     setNotificationsOpen(false);
                                   }}
-                                  className={`block p-4 hover:bg-gray-50 transition-colors ${
-                                    !notification.is_read ? 'bg-pink-50/50' : ''
+                                  className={`block p-4 hover:bg-hot-pink/20 transition-colors ${
+                                    !notification.is_read ? 'bg-hot-pink/20' : ''
                                   }`}
                                 >
                                   {NotificationContent}
@@ -1459,10 +1461,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </div>
 
               {/* Private Messages */}
-              <Link href="/messages" className="relative p-2.5 text-gray-600 hover:text-pink-500 cursor-pointer transition-all rounded-lg hover:bg-pink-50/50 group">
+              <Link href="/messages" className="relative p-2.5 text-white hover:text-hot-pink cursor-pointer transition-all rounded-full hover:bg-hot-pink/20 group">
                 <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
                 {unreadMessagesCount > 0 && (
-                  <span className="absolute top-1 left-1 w-2.5 h-2.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full animate-pulse-glow"></span>
+                  <span className="absolute top-1 left-1 w-2.5 h-2.5 bg-gradient-to-r from-hot-pink to-rose-500 rounded-full animate-pulse-glow"></span>
                 )}
               </Link>
 
@@ -1488,9 +1490,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <span>{currentUser?.display_name?.charAt(0) || currentUser?.first_name?.charAt(0) || 'א'}</span>
                       )}
                     </div>
-                    <span className="text-sm font-medium text-gray-700">{currentUser?.display_name || currentUser?.first_name || 'משתמש'}</span>
-                    <span className="text-sm text-gray-500">{currentUser?.points || 0}</span>
-                    <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                    <span className="text-sm font-medium text-white">{currentUser?.display_name || currentUser?.first_name || 'משתמש'}</span>
+                    <span className="text-sm text-foreground-muted">{currentUser?.points || 0}</span>
+                    <ChevronDown className={`w-4 h-4 text-foreground-muted transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {/* Profile Dropdown Menu */}
@@ -1502,14 +1504,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     />
                     <div 
                       ref={profileMenuRef}
-                      className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 z-[102] overflow-hidden animate-fade-in"
+                      className="fixed glass-card rounded-2xl shadow-2xl border border-hot-pink/30 z-[102] overflow-hidden animate-fade-in"
                       style={profileMenuStyle}
                     >
                       {/* User Info Header */}
-                      <div className="p-4 border-b border-white/20 bg-gradient-to-r from-pink-50/50 to-rose-50/50">
+                      <div className="p-4 border-b border-hot-pink/30 bg-gradient-to-r from-hot-pink/20 to-rose-500/20">
                         <div className="flex items-center gap-4">
                           <div 
-                            className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 via-rose-400 to-amber-300 flex items-center justify-center text-white font-semibold text-xl flex-shrink-0 shadow-lg shadow-pink-500/30 ring-2 ring-white/50"
+                            className="w-16 h-16 rounded-full bg-gradient-to-br from-hot-pink via-rose-400 to-amber-300 flex items-center justify-center text-white font-semibold text-xl flex-shrink-0 shadow-lg shadow-hot-pink/30 ring-2 ring-white/50"
                           >
                             {avatarUrl ? (
                               <img 
@@ -1522,7 +1524,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             )}
                           </div>
                           <div className="flex-1">
-                            <h3 className="font-bold text-gray-800">{currentUser?.display_name || currentUser?.first_name || 'משתמש'}</h3>
+                            <h3 className="font-bold text-white">{currentUser?.display_name || currentUser?.first_name || 'משתמש'}</h3>
                             <p className="text-sm gradient-text font-medium">{currentUser?.email?.split('@')[0] || 'zeremitay'}@</p>
                           </div>
                         </div>
@@ -1532,52 +1534,52 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <div className="py-2">
                         <Link
                           href="/profile"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 transition-all rounded-lg group"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink transition-all rounded-lg group"
                           onClick={closeProfileMenu}
                         >
-                          <User className="w-5 h-5 text-pink-500 group-hover:scale-110 transition-transform" />
+                          <User className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
                           <span className="font-medium">פרופיל</span>
                         </Link>
                         <Link
                           href="/account"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink transition-all rounded-lg group"
                           onClick={closeProfileMenu}
                         >
-                          <UserCircle className="w-5 h-5 text-[#F52F8E]" />
-                          <span>חשבון</span>
+                          <UserCircle className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                          <span className="font-medium">חשבון</span>
                         </Link>
                         <Link
                           href="/timeline"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink transition-all rounded-lg group"
                           onClick={closeProfileMenu}
                         >
-                          <Activity className="w-5 h-5 text-[#F52F8E]" />
-                          <span>ציר זמן</span>
+                          <Activity className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                          <span className="font-medium">ציר זמן</span>
                         </Link>
                         <Link
                           href="/messages"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink transition-all rounded-lg group"
                           onClick={closeProfileMenu}
                         >
-                          <MessageSquare className="w-5 h-5 text-[#F52F8E]" />
-                          <span>הודעות</span>
+                          <MessageSquare className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                          <span className="font-medium">הודעות</span>
                         </Link>
                         <Link
                           href="/subscription"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink transition-all rounded-lg group"
                           onClick={closeProfileMenu}
                         >
-                          <CreditCard className="w-5 h-5 text-[#F52F8E]" />
-                          <span>מנוי</span>
+                          <CreditCard className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                          <span className="font-medium">מנוי</span>
                         </Link>
                       </div>
 
                       {/* Divider */}
-                      <div className="border-t border-gray-200"></div>
+                      <div className="border-t border-hot-pink/30"></div>
 
                       {/* Logout */}
                       <button
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 w-full text-right transition-colors"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gradient-to-r hover:from-hot-pink/20 hover:to-rose-500/20 hover:text-hot-pink w-full text-right transition-all rounded-lg group cursor-pointer"
                         onClick={async () => {
                           try {
                             // Update is_online to false before signing out
@@ -1626,8 +1628,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                           }
                         }}
                       >
-                        <ArrowRight className="w-5 h-5 text-[#F52F8E]" />
-                        <span>התנתקות</span>
+                        <ArrowRight className="w-5 h-5 text-hot-pink group-hover:scale-110 transition-transform" />
+                        <span className="font-medium">התנתקות</span>
                       </button>
                     </div>
                   </>
@@ -1636,7 +1638,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               ) : (
                 <Link
                   href="/auth/login"
-                  className="flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-hot-pink text-white rounded-full hover:bg-hot-pink-dark transition-colors"
                 >
                   <span className="text-sm font-medium">התחבר</span>
                 </Link>
@@ -1649,7 +1651,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Left Sidebar - Navigation (Fixed) - Desktop Only */}
       <aside 
-        className={`hidden lg:block fixed right-0 top-0 h-full glass z-40 shadow-2xl border-l border-white/20 backdrop-blur-xl transition-all duration-300 ease-in-out ${
+        className={`hidden lg:block fixed right-0 top-0 h-full glass-dark z-40 shadow-2xl border-l border-white/20 backdrop-blur-xl transition-all duration-300 ease-in-out ${
           sidebarOpen 
             ? 'w-64' 
             : 'w-16'
@@ -1666,7 +1668,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             e.preventDefault();
             e.stopPropagation();
           }}
-          className="absolute left-0 top-1/2 -translate-x-1/2 translate-y-[-50%] z-[100] p-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer border-2 border-white"
+          className="absolute left-0 top-1/2 -translate-x-1/2 translate-y-[-50%] z-[100] p-3 bg-gradient-to-r from-hot-pink to-rose-500 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer border-2 border-white"
           title={sidebarOpen ? 'הסתר תפריט' : 'הצג תפריט'}
           type="button"
           aria-label={sidebarOpen ? 'הסתר תפריט' : 'הצג תפריט'}
@@ -1680,8 +1682,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         <div className="h-full flex flex-col">
           {/* Header */}
-          <div className={`p-3 border-b border-white/20 bg-gradient-to-r from-pink-50/30 to-rose-50/30 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'} relative min-h-[60px]`}>
-            {sidebarOpen && <h2 className="text-lg font-bold gradient-text">תפריט</h2>}
+          <div className={`p-3 border-b border-white/20 bg-gradient-to-r from-hot-pink/10 to-rose-500/10 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'} relative min-h-[60px]`}>
+            {sidebarOpen && <h2 className="text-lg font-bold text-white">תפריט</h2>}
           </div>
 
           {/* Navigation Items */}
@@ -1689,10 +1691,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex-1 p-4 space-y-2 overflow-y-auto">
             <Link
               href="/"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                 activeNav === 'home' 
-                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
+                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
               <HomeIcon className="w-5 h-5 flex-shrink-0" />
@@ -1700,10 +1702,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/members"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                 activeNav === 'members' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
               <Users className="w-5 h-5 flex-shrink-0" />
@@ -1711,10 +1713,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/forums"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                 activeNav === 'forums' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
               <MessageSquare className="w-5 h-5 flex-shrink-0" />
@@ -1722,10 +1724,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/recordings"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                 activeNav === 'recordings' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
               <Video className="w-5 h-5 flex-shrink-0" />
@@ -1733,10 +1735,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/projects"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                 activeNav === 'projects' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
               <Briefcase className="w-5 h-5 flex-shrink-0" />
@@ -1744,10 +1746,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/courses"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                 activeNav === 'courses' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
               <PlayCircle className="w-5 h-5 flex-shrink-0" />
@@ -1755,10 +1757,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/live-log"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                 activeNav === 'live-log' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
               <Calendar className="w-5 h-5 flex-shrink-0" />
@@ -1768,10 +1770,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {hasLiveEvent && (
               <Link
                 href="/live-room"
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-colors ${
                   pathname === '/live-room'
-                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600'
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30' 
+                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
                 <Radio className="w-5 h-5 flex-shrink-0" />
@@ -1781,14 +1783,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             )}
             <Link
               href="/blog"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                 activeNav === 'blog' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
               }`}
             >
               <BookOpen className="w-5 h-5 flex-shrink-0" />
               <span className="font-medium">בלוג</span>
+            </Link>
+            <Link
+              href="/feedback"
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
+                activeNav === 'feedback' 
+                  ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                  : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+              }`}
+            >
+              <MessageCircleMore className="w-5 h-5 flex-shrink-0" />
+              <span className="font-medium">פידבקים</span>
             </Link>
             {/* Admin Panel Link - Only for admins */}
             {currentUser && (() => {
@@ -1798,10 +1811,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             })() && (
               <Link
                 href="/admin"
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                   activeNav === 'admin' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                    : 'text-white hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
                 <Shield className="w-5 h-5 flex-shrink-0" />
@@ -1820,14 +1833,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           onClick={() => setMobileMenuOpen(false)}
         >
           <div 
-            className="fixed right-0 top-0 h-full w-80 bg-white shadow-2xl overflow-y-auto"
+            className="fixed right-0 top-0 h-full w-80 glass-dark shadow-2xl overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold gradient-text">תפריט</h2>
+            <div className="p-4 border-b border-white/20 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-white">תפריט</h2>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-2 text-gray-600 hover:text-pink-500 transition-colors"
+                className="p-2 text-gray-300 hover:text-hot-pink transition-colors"
                 aria-label="סגור תפריט"
               >
                 <X className="w-6 h-6" />
@@ -1837,10 +1850,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                   activeNav === 'home' 
-                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
                 <HomeIcon className="w-5 h-5 flex-shrink-0" />
@@ -1849,10 +1862,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/members"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                   activeNav === 'members' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
                 <Users className="w-5 h-5 flex-shrink-0" />
@@ -1861,10 +1874,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/forums"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                   activeNav === 'forums' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
                 <MessageSquare className="w-5 h-5 flex-shrink-0" />
@@ -1873,10 +1886,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/recordings"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                   activeNav === 'recordings' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
                 <Video className="w-5 h-5 flex-shrink-0" />
@@ -1885,10 +1898,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/projects"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                   activeNav === 'projects' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
                 <Briefcase className="w-5 h-5 flex-shrink-0" />
@@ -1897,10 +1910,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/courses"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                   activeNav === 'courses' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
                 <PlayCircle className="w-5 h-5 flex-shrink-0" />
@@ -1909,10 +1922,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/live-log"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                   activeNav === 'live-log' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
                 <Calendar className="w-5 h-5 flex-shrink-0" />
@@ -1923,10 +1936,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Link
                   href="/live-room"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                     pathname === '/live-room'
-                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30' 
-                      : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600'
+                      ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                      : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                   }`}
                 >
                   <Radio className="w-5 h-5 flex-shrink-0" />
@@ -1937,14 +1950,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/blog"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                   activeNav === 'blog' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                 }`}
               >
                 <BookOpen className="w-5 h-5 flex-shrink-0" />
                 <span className="font-medium">בלוג</span>
+              </Link>
+              <Link
+                href="/feedback"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
+                  activeNav === 'feedback' 
+                    ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                    : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
+                }`}
+              >
+                <MessageCircleMore className="w-5 h-5 flex-shrink-0" />
+                <span className="font-medium">פידבקים</span>
               </Link>
               {/* Admin Panel Link - Only for admins */}
               {currentUser && (() => {
@@ -1955,10 +1980,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Link
                   href="/admin"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all ${
                     activeNav === 'admin' 
-                      ? 'bg-[#F52F8E] text-white' 
-                      : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                      ? 'bg-gradient-to-r from-hot-pink to-rose-500 text-white shadow-lg shadow-hot-pink/30 scale-105' 
+                      : 'text-gray-300 hover:bg-gradient-to-r hover:from-hot-pink/10 hover:to-rose-500/10 hover:text-hot-pink/80 hover:scale-[1.02]'
                   }`}
                 >
                   <Shield className="w-5 h-5 flex-shrink-0" />

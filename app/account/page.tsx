@@ -220,18 +220,18 @@ export default function AccountSettingsPage() {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">הגדרות חשבון</h1>
+        <h1 className="text-3xl font-bold text-white mb-8">הגדרות חשבון</h1>
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Navigation */}
           <aside className="lg:w-64 flex-shrink-0">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-2">
+            <div className="glass-card rounded-3xl shadow-2xl p-4 space-y-2">
               <button
                 onClick={() => setActiveTab('login')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-right ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-colors text-right ${
                   activeTab === 'login'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                 }`}
               >
                 <Settings className="w-5 h-5" />
@@ -241,8 +241,8 @@ export default function AccountSettingsPage() {
                 onClick={() => setActiveTab('notifications')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-right ${
                   activeTab === 'notifications'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                 }`}
               >
                 <Bell className="w-5 h-5" />
@@ -250,10 +250,10 @@ export default function AccountSettingsPage() {
               </button>
               <button
                 onClick={() => setActiveTab('social')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-right ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-colors text-right ${
                   activeTab === 'social'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                 }`}
               >
                 <LinkIcon className="w-5 h-5" />
@@ -261,10 +261,10 @@ export default function AccountSettingsPage() {
               </button>
               <button
                 onClick={() => setActiveTab('privacy')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-right ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-colors text-right ${
                   activeTab === 'privacy'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                 }`}
               >
                 <Lock className="w-5 h-5" />
@@ -272,10 +272,10 @@ export default function AccountSettingsPage() {
               </button>
               <button
                 onClick={() => setActiveTab('export')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-right ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-full transition-colors text-right ${
                   activeTab === 'export'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-hot-pink text-white'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-hot-pink'
                 }`}
               >
                 <Download className="w-5 h-5" />
@@ -286,21 +286,21 @@ export default function AccountSettingsPage() {
 
           {/* Main Content */}
           <main className="flex-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="glass-card rounded-3xl shadow-2xl p-6">
               {activeTab === 'login' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">פרטי התחברות</h2>
+                  <h2 className="text-2xl font-bold text-white mb-6">פרטי התחברות</h2>
                   
                   {/* Email */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
                       אימייל חשבון
                     </label>
                     <input
                       type="email"
                       value={formData.email}
                       disabled
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-gray-400"
                     />
                     <p className="text-xs text-gray-500 mt-1">לא ניתן לשנות את כתובת האימייל</p>
                   </div>
@@ -314,7 +314,7 @@ export default function AccountSettingsPage() {
                       onChange={(e) => setFormData({ ...formData, keepPasswordEmpty: e.target.checked, password: '', confirmPassword: '' })}
                       className="w-5 h-5 text-[#F52F8E] rounded focus:ring-[#F52F8E]"
                     />
-                    <label htmlFor="keepPasswordEmpty" className="text-sm text-gray-700">
+                    <label htmlFor="keepPasswordEmpty" className="text-sm text-gray-300">
                       השאר את שדות הסיסמה ריקים אם אינך רוצה לשנות
                     </label>
                   </div>
@@ -323,26 +323,26 @@ export default function AccountSettingsPage() {
                   {!formData.keepPasswordEmpty && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
                           הזן סיסמה חדשה
                         </label>
                         <input
                           type="password"
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
                           חזור על הסיסמה החדשה
                         </label>
                         <input
                           type="password"
                           value={formData.confirmPassword}
                           onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400"
                         />
                       </div>
                     </>
@@ -350,7 +350,7 @@ export default function AccountSettingsPage() {
 
                   {/* Display Name */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
                       שם תצוגה
                     </label>
                     <input
@@ -363,14 +363,14 @@ export default function AccountSettingsPage() {
 
                   {/* Bio */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
                       תיאור קצר
                     </label>
                     <textarea
                       value={formData.bio}
                       onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                       rows={4}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] resize-none"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400 resize-none"
                     />
                   </div>
 
@@ -407,7 +407,7 @@ export default function AccountSettingsPage() {
                           </div>
                         </div>
                         {/* Upload Indicator Badge */}
-                        <div className="absolute -bottom-1 -right-1 bg-[#F52F8E] text-white rounded-full p-1.5 shadow-lg">
+                        <div className="absolute -bottom-1 -right-1 bg-hot-pink text-white rounded-full p-1.5 shadow-lg">
                           <Upload className="w-4 h-4" />
                         </div>
                       </div>
@@ -419,7 +419,7 @@ export default function AccountSettingsPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors flex items-center gap-2 text-sm font-medium"
+                            className="btn-primary px-4 py-2 flex items-center gap-2 text-sm font-medium"
                           >
                             <Upload className="w-4 h-4" />
                             העלה תמונה
@@ -427,7 +427,7 @@ export default function AccountSettingsPage() {
                           {avatarPreview && (
                             <button
                               onClick={removeAvatar}
-                              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2 text-sm font-medium"
+                              className="px-4 py-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition-colors flex items-center gap-2 text-sm font-medium"
                             >
                               <X className="w-4 h-4" />
                               הסר
@@ -451,7 +451,7 @@ export default function AccountSettingsPage() {
                     
                     {/* Avatar URL (Alternative) */}
                     <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
                         או הזן קישור לתמונת פרופיל
                       </label>
                       <input
@@ -483,7 +483,7 @@ export default function AccountSettingsPage() {
 
               {activeTab === 'notifications' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">הגדרות התראות</h2>
+                  <h2 className="text-2xl font-bold text-white mb-6">הגדרות התראות</h2>
                   <p className="text-gray-600">הגדרות התראות יגיעו בקרוב...</p>
                 </div>
               )}
@@ -491,14 +491,14 @@ export default function AccountSettingsPage() {
               {activeTab === 'social' && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">Social Accounts</h2>
+                    <h2 className="text-2xl font-bold text-white">Social Accounts</h2>
                     <button
                       onClick={() => {
                         setEditingSocialIndex(null);
                         setSocialForm({ platform: '', url: '' });
                         setShowSocialModal(true);
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors"
+                      className="btn-primary flex items-center gap-2 px-4 py-2"
                     >
                       <Plus className="w-4 h-4" />
                       <span>הוסף רשת חברתית</span>
@@ -506,7 +506,7 @@ export default function AccountSettingsPage() {
                   </div>
 
                   {socialLinks.length === 0 ? (
-                    <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+                    <div className="text-center py-12 border-2 border-dashed border-white/20 rounded-lg">
                       <LinkIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-600 mb-4">עדיין לא הוספת רשתות חברתיות</p>
                       <button
@@ -515,7 +515,7 @@ export default function AccountSettingsPage() {
                           setSocialForm({ platform: '', url: '' });
                           setShowSocialModal(true);
                         }}
-                        className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors"
+                        className="btn-primary px-4 py-2"
                       >
                         הוסף רשת חברתית ראשונה
                       </button>
@@ -528,7 +528,7 @@ export default function AccountSettingsPage() {
                         return (
                           <div
                             key={index}
-                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] transition-colors"
+                            className="flex items-center justify-between p-4 border border-white/20 rounded-lg hover:border-hot-pink transition-colors glass-card"
                           >
                             <div className="flex items-center gap-4">
                               <div className={`w-10 h-10 rounded-lg ${platform?.color || 'bg-gray-500'} flex items-center justify-center text-white`}>
@@ -599,7 +599,7 @@ export default function AccountSettingsPage() {
                           }
                         }}
                         disabled={saving}
-                        className="flex items-center gap-2 px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="btn-primary flex items-center gap-2 px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Save className="w-5 h-5" />
                         <span>שמור שינויים</span>
@@ -629,13 +629,13 @@ export default function AccountSettingsPage() {
 
                         <div className="space-y-4">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
                               פלטפורמה
                             </label>
                             <select
                               value={socialForm.platform}
                               onChange={(e) => setSocialForm({ ...socialForm, platform: e.target.value })}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                              className="w-full px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400"
                             >
                               <option value="">בחר פלטפורמה</option>
                               {socialPlatforms.map((platform) => (
@@ -647,7 +647,7 @@ export default function AccountSettingsPage() {
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
                               קישור (URL)
                             </label>
                             <input
@@ -655,7 +655,7 @@ export default function AccountSettingsPage() {
                               value={socialForm.url}
                               onChange={(e) => setSocialForm({ ...socialForm, url: e.target.value })}
                               placeholder="https://..."
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                              className="w-full px-4 py-2 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-hot-pink bg-white/5 text-white placeholder-gray-400"
                             />
                           </div>
                         </div>
@@ -680,7 +680,7 @@ export default function AccountSettingsPage() {
                               setEditingSocialIndex(null);
                               setSocialForm({ platform: '', url: '' });
                             }}
-                            className="flex-1 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors"
+                            className="btn-primary flex-1 px-4 py-2"
                           >
                             שמור
                           </button>

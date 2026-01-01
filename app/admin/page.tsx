@@ -30,7 +30,8 @@ import {
   Calendar,
   Download,
   BookOpen,
-  Tag as TagIcon
+  Tag as TagIcon,
+  MessageCircleMore
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -41,7 +42,7 @@ const DatePicker = dynamic(
   () => import('react-datepicker').then((mod) => mod.default as any),
   { 
     ssr: false,
-    loading: () => <div className="w-full h-10 bg-gray-100 rounded animate-pulse" />
+    loading: () => <div className="w-full h-10 bg-white/10 rounded animate-pulse" />
   }
 ) as any
 
@@ -49,7 +50,7 @@ const RichTextEditor = dynamic(
   () => import('@/app/components/RichTextEditor'),
   { 
     ssr: false,
-    loading: () => <div className="w-full h-32 bg-gray-100 rounded animate-pulse" />
+    loading: () => <div className="w-full h-32 bg-white/10 rounded animate-pulse" />
   }
 )
 
@@ -57,7 +58,7 @@ const QASectionEditor = dynamic(
   () => import('@/app/components/admin/QASectionEditor'),
   { 
     ssr: false,
-    loading: () => <div className="w-full h-24 bg-gray-100 rounded animate-pulse" />
+    loading: () => <div className="w-full h-24 bg-white/10 rounded animate-pulse" />
   }
 )
 
@@ -65,7 +66,7 @@ const KeyPointsEditor = dynamic(
   () => import('@/app/components/admin/KeyPointsEditor'),
   { 
     ssr: false,
-    loading: () => <div className="w-full h-24 bg-gray-100 rounded animate-pulse" />
+    loading: () => <div className="w-full h-24 bg-white/10 rounded animate-pulse" />
   }
 )
 
@@ -74,7 +75,7 @@ import { he } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks'>('users')
   const [users, setUsers] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [roles, setRoles] = useState<any[]>([])
@@ -94,6 +95,7 @@ export default function AdminPanel() {
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [tags, setTags] = useState<Tag[]>([])
   const [unapprovedTags, setUnapprovedTags] = useState<Tag[]>([])
+  const [feedbacks, setFeedbacks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<string | null>(null)
   const [formData, setFormData] = useState<any>({})
@@ -382,6 +384,23 @@ export default function AdminPanel() {
         const { data: unapprovedData, error: unapprovedError } = await getUnapprovedTags()
         if (!unapprovedError && unapprovedData && Array.isArray(unapprovedData)) {
           setUnapprovedTags(unapprovedData)
+        }
+      } else if (activeTab === 'feedbacks') {
+        const { data, error } = await supabase
+          .from('feedbacks')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              user_id,
+              first_name,
+              last_name,
+              nickname
+            )
+          `)
+          .order('created_at', { ascending: false })
+        if (!error && data && Array.isArray(data)) {
+          setFeedbacks(data)
         }
       }
     } catch (error) {
@@ -1469,8 +1488,11 @@ export default function AdminPanel() {
           const { error } = await deleteProject(id)
           
           if (error) {
-            console.error('Error deleting project:', error)
-            alert(`שגיאה במחיקת הפרויקט: ${error?.message || 'שגיאה לא ידועה'}`)
+            // Only show error if it has meaningful content
+            const errorMessage = error?.message || (typeof error === 'object' && Object.keys(error).length > 0 ? 'שגיאה במחיקת הפרויקט' : null);
+            if (errorMessage) {
+              alert(`שגיאה במחיקת הפרויקט: ${errorMessage}`)
+            }
           } else {
             console.log('Project deleted successfully:', id)
             setProjects(prevProjects => prevProjects.filter(p => p.id !== id))
@@ -1478,7 +1500,11 @@ export default function AdminPanel() {
             alert('הפרויקט נמחק בהצלחה!')
           }
         } catch (err) {
-          console.error('Exception deleting project:', err)
+          // Only log if error has meaningful content
+          if (err && (err instanceof Error || (typeof err === 'object' && Object.keys(err).length > 0))) {
+            const { logError } = await import('@/lib/utils/errorHandler');
+            logError(err, 'handleDelete (projects)');
+          }
           alert(`שגיאה במחיקת הפרויקט: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`)
         }
       }
@@ -1523,10 +1549,10 @@ export default function AdminPanel() {
   // Show loading while checking authorization
   if (isAuthorized === null) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F52F8E] mx-auto mb-4"></div>
-          <p className="text-gray-600">בודק הרשאות...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-hot-pink mx-auto mb-4"></div>
+          <p className="text-gray-300">בודק הרשאות...</p>
         </div>
       </div>
     )
@@ -1535,18 +1561,18 @@ export default function AdminPanel() {
   // Show error if not authorized
   if (isAuthorized === false) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-xl shadow-lg">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <X className="w-8 h-8 text-red-600" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8 glass-card rounded-3xl shadow-2xl">
+          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-400/50">
+            <X className="w-8 h-8 text-red-400" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">גישה נדחתה</h1>
-          <p className="text-gray-600 mb-6">
+          <h1 className="text-2xl font-bold text-white mb-4">גישה נדחתה</h1>
+          <p className="text-gray-300 mb-6">
             אין לך הרשאה לגשת לפאנל הניהול. רק מנהלים יכולים לגשת לדף זה.
           </p>
           <Link
             href="/"
-            className="inline-block px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+            className="inline-block px-6 py-3 bg-hot-pink text-white rounded-full hover:bg-rose-500 transition-colors shadow-lg hover:shadow-xl"
           >
             חזור לדף הבית
           </Link>
@@ -1556,19 +1582,19 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-[#F52F8E]">פאנל ניהול</h1>
+          <h1 className="text-3xl font-bold text-hot-pink">פאנל ניהול</h1>
         </div>
         {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-gray-200 overflow-x-auto">
+        <div className="flex gap-4 mb-6 border-b border-white/20 overflow-x-auto">
           <button
             onClick={() => setActiveTab('users')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'users'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <Users className="w-5 h-5 inline-block ml-2" />
@@ -1578,8 +1604,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('posts')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'posts'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <FileText className="w-5 h-5 inline-block ml-2" />
@@ -1589,8 +1615,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('roles')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'roles'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <Settings className="w-5 h-5 inline-block ml-2" />
@@ -1600,8 +1626,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('subscriptions')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'subscriptions'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <CreditCard className="w-5 h-5 inline-block ml-2" />
@@ -1611,8 +1637,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('payments')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'payments'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <CreditCard className="w-5 h-5 inline-block ml-2" />
@@ -1622,8 +1648,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('recordings')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'recordings'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <Video className="w-5 h-5 inline-block ml-2" />
@@ -1633,8 +1659,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('resources')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'resources'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <FileIcon className="w-5 h-5 inline-block ml-2" />
@@ -1644,8 +1670,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('blog')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'blog'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <FileText className="w-5 h-5 inline-block ml-2" />
@@ -1655,8 +1681,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('reports')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'reports'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <FileText className="w-5 h-5 inline-block ml-2" />
@@ -1666,8 +1692,8 @@ export default function AdminPanel() {
             href="/admin/gamification"
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'gamification'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <Trophy className="w-5 h-5 inline-block ml-2" />
@@ -1677,8 +1703,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('badges')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'badges'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <Star className="w-5 h-5 inline-block ml-2" />
@@ -1688,8 +1714,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('courses')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'courses'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <BookOpen className="w-5 h-5 inline-block ml-2" />
@@ -1699,8 +1725,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('events')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'events'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <Calendar className="w-5 h-5 inline-block ml-2" />
@@ -1710,8 +1736,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('projects')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'projects'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <FileText className="w-5 h-5 inline-block ml-2" />
@@ -1721,23 +1747,34 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('tags')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'tags'
-                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
-                : 'text-gray-600 hover:text-[#F52F8E]'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
             }`}
           >
             <TagIcon className="w-5 h-5 inline-block ml-2" />
             תגיות
           </button>
+          <button
+            onClick={() => setActiveTab('feedbacks')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'feedbacks'
+                ? 'text-hot-pink border-b-2 border-hot-pink'
+                : 'text-gray-300 hover:text-hot-pink'
+            }`}
+          >
+            <MessageCircleMore className="w-5 h-5 inline-block ml-2" />
+            פידבקים
+          </button>
         </div>
 
         {/* Content */}
         {loading ? (
-          <div className="text-center py-12">טוען...</div>
+          <div className="text-center py-12 text-gray-300">טוען...</div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="glass-card rounded-3xl shadow-2xl p-6">
             {/* Create Button */}
             <div className="mb-6 flex justify-between items-center">
-              <h2 className="text-xl font-semibold">
+              <h2 className="text-xl font-semibold text-white">
                 {activeTab === 'users' && 'משתמשים'}
                 {activeTab === 'posts' && 'הודעות ראשיות'}
                 {activeTab === 'roles' && 'תפקידים'}
@@ -1748,6 +1785,7 @@ export default function AdminPanel() {
                 {activeTab === 'events' && 'לייבים'}
                 {activeTab === 'projects' && 'פרויקטים'}
                 {activeTab === 'tags' && 'תגיות'}
+                {activeTab === 'feedbacks' && 'פידבקים'}
               </h2>
               {activeTab === 'subscriptions' && (
                 <div className="flex gap-2">
@@ -1765,7 +1803,7 @@ export default function AdminPanel() {
                         alert('שגיאה בבדיקת מנויים שקרובים לפוג');
                       }
                     }}
-                    className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm"
+                    className="btn-primary px-4 py-2 text-sm bg-yellow-500 hover:bg-yellow-600"
                   >
                     בדוק מנויים שקרובים לפוג
                   </button>
@@ -1783,7 +1821,7 @@ export default function AdminPanel() {
                         alert('שגיאה בבדיקת מנויים שפגו');
                       }
                     }}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+                    className="btn-danger px-4 py-2 text-sm"
                   >
                     בדוק מנויים שפגו
                   </button>
@@ -1793,7 +1831,7 @@ export default function AdminPanel() {
                 {activeTab === 'posts' && (
                   <button
                     onClick={handleDeleteAllForumPosts}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    className="btn-danger flex items-center gap-2 px-4 py-2"
                   >
                     <Trash2 className="w-5 h-5" />
                     מחק כל הפוסטים בפורומים
@@ -1804,7 +1842,7 @@ export default function AdminPanel() {
                     setEditing('new')
                     setFormData({})
                   }}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-hot-pink text-white rounded-full hover:bg-rose-500 transition-colors shadow-lg hover:shadow-xl"
                 >
                   <Plus className="w-5 h-5" />
                   יצירה חדשה
@@ -1814,7 +1852,7 @@ export default function AdminPanel() {
 
             {/* Create/Edit Form */}
             {editing && (
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <div className="mb-6 p-4 bg-white/10 rounded-lg border border-white/20">
                 <h3 className="font-semibold mb-4">
                   {editing === 'new' ? 'יצירה חדשה' : 'עריכה'}
                 </h3>
@@ -1825,33 +1863,33 @@ export default function AdminPanel() {
                       placeholder="User ID (UUID)"
                       value={formData.user_id || ''}
                       onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <input
                       type="text"
                       placeholder="שם תצוגה"
                       value={formData.display_name || ''}
                       onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <input
                       type="text"
                       placeholder="כינוי"
                       value={formData.nickname || ''}
                       onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <input
                       type="email"
                       placeholder="אימייל"
                       value={formData.email || ''}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <select
                       value={formData.experience_level || 'מתחיל'}
                       onChange={(e) => setFormData({ ...formData, experience_level: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     >
                       <option value="מתחיל">מתחיל</option>
                       <option value="בינוני">בינוני</option>
@@ -1861,7 +1899,7 @@ export default function AdminPanel() {
                     <select
                       value={formData.role_id || ''}
                       onChange={(e) => setFormData({ ...formData, role_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     >
                       <option value="">בחר תפקיד</option>
                       {availableRoles.map(role => (
@@ -1875,7 +1913,7 @@ export default function AdminPanel() {
                       placeholder="URL תמונה"
                       value={formData.avatar_url || ''}
                       onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                   </div>
                 )}
@@ -1884,7 +1922,7 @@ export default function AdminPanel() {
                     <select
                       value={formData.user_id || ''}
                       onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     >
                       <option value="">בחר משתמש *</option>
@@ -1904,7 +1942,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       rows={4}
                     />
                     <input
@@ -1912,7 +1950,7 @@ export default function AdminPanel() {
                       placeholder="URL תמונה (אופציונלי)"
                       value={formData.image_url || ''}
                       onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     </div>
                 )}
@@ -1925,7 +1963,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <textarea
@@ -1934,7 +1972,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       rows={3}
                     />
                     <input
@@ -1944,10 +1982,10 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-white mb-2">
                         העלה קובץ
                       </label>
                       <input
@@ -2003,7 +2041,7 @@ export default function AdminPanel() {
                       />
                       <label
                         htmlFor="resource-file-upload"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors cursor-pointer"
+                        className="btn-primary inline-flex items-center gap-2 px-4 py-2 cursor-pointer"
                       >
                         {uploadingFile ? (
                           <>
@@ -2018,7 +2056,7 @@ export default function AdminPanel() {
                         )}
                       </label>
                       {formData.file_name && (
-                        <p className="text-sm text-gray-600 mt-2">
+                        <p className="text-sm text-gray-300 mt-2">
                           קובץ נבחר: {formData.file_name}
                         </p>
                       )}
@@ -2028,7 +2066,7 @@ export default function AdminPanel() {
                       placeholder="או הזן קישור לקובץ *"
                       value={formData.file_url || ''}
                       onChange={(e) => setFormData({ ...formData, file_url: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <label className="flex items-center gap-2">
@@ -2051,7 +2089,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <textarea
@@ -2060,7 +2098,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       rows={4}
                     />
                     <input
@@ -2068,11 +2106,11 @@ export default function AdminPanel() {
                       placeholder="קישור לוידאו *"
                       value={formData.video_url || ''}
                       onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-white mb-2">
                         תמונת תצוגה מקדימה
                       </label>
                       <div className="flex gap-2 mb-2">
@@ -2154,7 +2192,7 @@ export default function AdminPanel() {
                         />
                         <label
                           htmlFor="recording-thumbnail-upload"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors cursor-pointer"
+                          className="btn-primary inline-flex items-center gap-2 px-4 py-2 cursor-pointer"
                         >
                           {uploadingFile ? (
                             <>
@@ -2174,7 +2212,7 @@ export default function AdminPanel() {
                           <img 
                             src={formData.thumbnail_url} 
                             alt="תצוגה מקדימה" 
-                            className="w-full max-w-xs h-32 object-cover rounded-lg border border-gray-200"
+                            className="w-full max-w-xs h-32 object-cover rounded-lg border border-white/20"
                             onError={(e) => {
                               // Hide image if it fails to load
                               (e.target as HTMLImageElement).style.display = 'none';
@@ -2195,24 +2233,24 @@ export default function AdminPanel() {
                       placeholder="קטגוריה (למשל: Make.com, AI, Airtable)"
                       value={formData.category || ''}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <input
                       type="text"
                       placeholder="משך זמן (למשל: 1:45:00)"
                       value={formData.duration || ''}
                       onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <input
                       type="number"
                       placeholder="מספר צפיות"
                       value={formData.views || 0}
                       onChange={(e) => setFormData({ ...formData, views: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-white mb-2">
                         תאריך יצירה (אופציונלי - אם לא תזין, יישמר התאריך הנוכחי)
                       </label>
                       <DatePicker
@@ -2231,7 +2269,7 @@ export default function AdminPanel() {
                         timeFormat="HH:mm"
                         timeIntervals={15}
                         placeholderText="בחר תאריך ושעה"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         calendarClassName="rtl"
                         isClearable
                         todayButton="היום"
@@ -2266,7 +2304,7 @@ export default function AdminPanel() {
                     <select
                       value={formData.user_id || ''}
                       onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     >
                       <option value="">בחר משתמש *</option>
@@ -2279,7 +2317,7 @@ export default function AdminPanel() {
                     <select
                       value={formData.role_id || ''}
                       onChange={(e) => setFormData({ ...formData, role_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     >
                       <option value="">בחר מנוי בתשלום *</option>
@@ -2297,7 +2335,7 @@ export default function AdminPanel() {
                     <select
                       value={formData.status || 'active'}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     >
                       <option value="active">פעיל</option>
                       <option value="pending">ממתין</option>
@@ -2305,22 +2343,22 @@ export default function AdminPanel() {
                       <option value="expired">פג תוקף</option>
                     </select>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">תאריך התחלה *</label>
+                      <label className="block text-sm font-medium text-white mb-1">תאריך התחלה *</label>
                       <input
                         type="datetime-local"
                         value={formData.start_date || ''}
                         onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">תאריך סיום (אופציונלי)</label>
+                      <label className="block text-sm font-medium text-white mb-1">תאריך סיום (אופציונלי)</label>
                       <input
                         type="datetime-local"
                         value={formData.end_date || ''}
                         onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       />
                     </div>
                     <div className="flex items-center gap-2">
@@ -2331,7 +2369,7 @@ export default function AdminPanel() {
                         onChange={(e) => setFormData({ ...formData, auto_renew: e.target.checked })}
                         className="w-4 h-4"
                       />
-                      <label htmlFor="auto_renew" className="text-sm text-gray-700">
+                      <label htmlFor="auto_renew" className="text-sm text-white">
                         חידוש אוטומטי
                       </label>
                     </div>
@@ -2342,7 +2380,7 @@ export default function AdminPanel() {
                     <select
                       value={formData.subscription_id || ''}
                       onChange={(e) => setFormData({ ...formData, subscription_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     >
                       <option value="">בחר מנוי *</option>
@@ -2359,7 +2397,7 @@ export default function AdminPanel() {
                     <select
                       value={formData.user_id || ''}
                       onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     >
                       <option value="">בחר משתמש *</option>
@@ -2370,20 +2408,20 @@ export default function AdminPanel() {
                       ))}
                     </select>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">סכום (₪) *</label>
+                      <label className="block text-sm font-medium text-white mb-1">סכום (₪) *</label>
                       <input
                         type="number"
                         step="0.01"
                         value={formData.amount || ''}
                         onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         required
                       />
                     </div>
                     <select
                       value={formData.currency || 'ILS'}
                       onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     >
                       <option value="ILS">ILS (שקלים)</option>
                       <option value="USD">USD (דולרים)</option>
@@ -2392,7 +2430,7 @@ export default function AdminPanel() {
                     <select
                       value={formData.status || 'pending'}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     >
                       <option value="pending">ממתין</option>
                       <option value="completed">הושלם</option>
@@ -2400,49 +2438,49 @@ export default function AdminPanel() {
                       <option value="refunded">הוחזר</option>
                     </select>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">אמצעי תשלום (אופציונלי)</label>
+                      <label className="block text-sm font-medium text-white mb-1">אמצעי תשלום (אופציונלי)</label>
                       <input
                         type="text"
                         value={formData.payment_method || ''}
                         onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         placeholder="לדוגמה: Visa **** 4242"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">תאריך תשלום (אופציונלי)</label>
+                      <label className="block text-sm font-medium text-white mb-1">תאריך תשלום (אופציונלי)</label>
                       <input
                         type="datetime-local"
                         value={formData.payment_date || ''}
                         onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">מספר עסקה (אופציונלי)</label>
+                      <label className="block text-sm font-medium text-white mb-1">מספר עסקה (אופציונלי)</label>
                       <input
                         type="text"
                         value={formData.transaction_id || ''}
                         onChange={(e) => setFormData({ ...formData, transaction_id: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">מספר חשבונית (אופציונלי)</label>
+                      <label className="block text-sm font-medium text-white mb-1">מספר חשבונית (אופציונלי)</label>
                       <input
                         type="text"
                         value={formData.invoice_number || ''}
                         onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">קישור לחשבונית (אופציונלי)</label>
+                      <label className="block text-sm font-medium text-white mb-1">קישור לחשבונית (אופציונלי)</label>
                       <input
                         type="url"
                         value={formData.invoice_url || ''}
                         onChange={(e) => setFormData({ ...formData, invoice_url: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         placeholder="https://..."
                       />
                     </div>
@@ -2457,7 +2495,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <textarea
@@ -2466,7 +2504,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       rows={3}
                     />
                     <input
@@ -2474,21 +2512,21 @@ export default function AdminPanel() {
                       placeholder="קישור לתמונה (אופציונלי)"
                       value={formData.image_url || ''}
                       onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <input
                       type="text"
                       placeholder="קישור (אופציונלי)"
                       value={formData.link_url || ''}
                       onChange={(e) => setFormData({ ...formData, link_url: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <input
                       type="number"
                       placeholder="סדר תצוגה (0 = ראשון)"
                       value={formData.display_order || 0}
                       onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <label className="flex items-center gap-2">
                       <input
@@ -2505,15 +2543,15 @@ export default function AdminPanel() {
                 {/* Lesson Editing Modal */}
                 {editingLesson && editingLessonData && (
                   <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                      <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
-                        <h3 className="text-2xl font-bold text-gray-800">עריכת שיעור</h3>
+                    <div className="glass-card rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                      <div className="sticky top-0 glass-card border-b border-white/20 p-6 flex items-center justify-between z-10 rounded-t-3xl">
+                        <h3 className="text-2xl font-bold text-white">עריכת שיעור</h3>
                         <button
                           onClick={() => {
                             setEditingLesson(null)
                             setEditingLessonData(null)
                           }}
-                          className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                          className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/10"
                         >
                           <X className="w-5 h-5" />
                         </button>
@@ -2522,13 +2560,13 @@ export default function AdminPanel() {
                       <div className="p-6 space-y-6">
                         {/* Basic Info */}
                         <div className="space-y-4">
-                          <h4 className="text-lg font-semibold text-gray-800">פרטים בסיסיים</h4>
+                          <h4 className="text-lg font-semibold text-white">פרטים בסיסיים</h4>
                           <input
                             type="text"
                             placeholder="שם השיעור *"
                             value={editingLessonData.title}
                             onChange={(e) => setEditingLessonData({...editingLessonData, title: e.target.value})}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                             dir="rtl"
                             lang="he"
                           />
@@ -2536,7 +2574,7 @@ export default function AdminPanel() {
                             placeholder="תיאור השיעור"
                             value={editingLessonData.description}
                             onChange={(e) => setEditingLessonData({...editingLessonData, description: e.target.value})}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                             rows={3}
                             dir="rtl"
                             lang="he"
@@ -2546,7 +2584,7 @@ export default function AdminPanel() {
                             placeholder="קישור וידאו (YouTube, Vimeo, או קישור ישיר)"
                             value={editingLessonData.video_url}
                             onChange={(e) => setEditingLessonData({...editingLessonData, video_url: e.target.value})}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           />
                         </div>
                         
@@ -2554,14 +2592,14 @@ export default function AdminPanel() {
                         <QASectionEditor
                           qaSection={editingLessonData.qa_section || []}
                           onChange={(qaSection) => setEditingLessonData({ ...editingLessonData, qa_section: qaSection })}
-                          className="border-t border-gray-200 pt-6"
+                          className="border-t border-white/20 pt-6"
                         />
                         
                         {/* Key Points Section */}
                         <KeyPointsEditor
                           keyPoints={editingLessonData.key_points || []}
                           onChange={(keyPoints) => setEditingLessonData({ ...editingLessonData, key_points: keyPoints })}
-                          className="border-t border-gray-200 pt-6"
+                          className="border-t border-white/20 pt-6"
                         />
                         
                         {/* Save Button */}
@@ -2571,7 +2609,7 @@ export default function AdminPanel() {
                               setEditingLesson(null)
                               setEditingLessonData(null)
                             }}
-                            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                            className="px-6 py-2 border border-white/20 text-gray-300 rounded-full hover:bg-white/10 transition-colors"
                           >
                             ביטול
                           </button>
@@ -2632,7 +2670,7 @@ export default function AdminPanel() {
                                 alert(`שגיאה בעדכון השיעור: ${error instanceof Error ? error.message : 'שגיאה לא ידועה'}`)
                               }
                             }}
-                            className="px-6 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                            className="btn-primary px-6 py-2"
                           >
                             שמור
                           </button>
@@ -2651,7 +2689,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <input
@@ -2659,7 +2697,7 @@ export default function AdminPanel() {
                       placeholder="אייקון (emoji או טקסט) *"
                       value={formData.icon || '⭐'}
                       onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <input
@@ -2674,7 +2712,7 @@ export default function AdminPanel() {
                       placeholder="סף נקודות *"
                       value={formData.points_threshold || 0}
                       onChange={(e) => setFormData({ ...formData, points_threshold: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <textarea
@@ -2683,7 +2721,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       rows={2}
                     />
                     <input
@@ -2691,7 +2729,7 @@ export default function AdminPanel() {
                       placeholder="סדר תצוגה (0 = ראשון)"
                       value={formData.display_order || 0}
                       onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <label className="flex items-center gap-2">
                       <input
@@ -2713,7 +2751,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <textarea
@@ -2722,7 +2760,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       rows={4}
                       required
                     />
@@ -2831,7 +2869,7 @@ export default function AdminPanel() {
                         placeholder="https://example.com/image.jpg"
                         value={formData.thumbnail_url || ''}
                         onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       />
                       <p className="text-xs text-gray-500">הזן קישור לתמונה או העלה תמונה מהמחשב</p>
                       
@@ -2864,7 +2902,7 @@ export default function AdminPanel() {
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">מחיר (₪)</label>
+                          <label className="block text-sm font-medium text-white mb-2">מחיר (₪)</label>
                           <input
                             type="number"
                             placeholder="0"
@@ -2879,7 +2917,7 @@ export default function AdminPanel() {
                             }}
                             min="0"
                             step="0.01"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           />
                           <p className="text-xs text-gray-500 mt-1">השאר ריק או 0 לקורס חינם</p>
                         </div>
@@ -3105,7 +3143,7 @@ export default function AdminPanel() {
                           .trim();
                         setFormData({ ...formData, title: e.target.value, slug })
                       }}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <input
@@ -3121,7 +3159,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       rows={3}
                     />
                     <textarea
@@ -3139,14 +3177,14 @@ export default function AdminPanel() {
                       placeholder="קישור לתמונת כותרת"
                       value={formData.featured_image_url || ''}
                       onChange={(e) => setFormData({ ...formData, featured_image_url: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <input
                       type="number"
                       placeholder="זמן קריאה (דקות)"
                       value={formData.read_time_minutes || 5}
                       onChange={(e) => setFormData({ ...formData, read_time_minutes: parseInt(e.target.value) || 5 })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                     />
                     <label className="flex items-center gap-2">
                       <input
@@ -3166,7 +3204,7 @@ export default function AdminPanel() {
                       placeholder="כותרת הדיווח *"
                       value={formData.title || ''}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <div className="relative" dir="rtl">
@@ -3178,7 +3216,7 @@ export default function AdminPanel() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-white mb-2">
                         תאריך יצירה (אופציונלי - אם לא תזין, יישמר התאריך הנוכחי)
                       </label>
                       <DatePicker
@@ -3197,7 +3235,7 @@ export default function AdminPanel() {
                         timeFormat="HH:mm"
                         timeIntervals={15}
                         placeholderText="בחר תאריך ושעה"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         calendarClassName="rtl"
                         isClearable
                         todayButton="היום"
@@ -3225,7 +3263,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <textarea
@@ -3234,11 +3272,11 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       rows={3}
                     />
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">תאריך ושעה של האירוע *</label>
+                      <label className="block text-sm font-medium text-white mb-2">תאריך ושעה של האירוע *</label>
                       <DatePicker
                         selected={eventSelectedDate}
                         onChange={(date: Date | null) => {
@@ -3268,7 +3306,7 @@ export default function AdminPanel() {
                           timeFormat="HH:mm"
                           timeIntervals={15}
                           placeholderText="בחר תאריך ושעה"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           calendarClassName="rtl"
                           isClearable
                           todayButton="היום"
@@ -3278,11 +3316,11 @@ export default function AdminPanel() {
                       </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">סוג האירוע</label>
+                        <label className="block text-sm font-medium text-white mb-2">סוג האירוע</label>
                         <select
                           value={formData.event_type || 'live'}
                           onChange={(e) => setFormData({ ...formData, event_type: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         >
                           <option value="live">לייב</option>
                           <option value="webinar">וובינר</option>
@@ -3292,11 +3330,11 @@ export default function AdminPanel() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">סטטוס</label>
+                        <label className="block text-sm font-medium text-white mb-2">סטטוס</label>
                         <select
                           value={formData.status || 'upcoming'}
                           onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         >
                           <option value="upcoming">קרוב</option>
                           <option value="active">פעיל (במהלך הלייב)</option>
@@ -3306,13 +3344,13 @@ export default function AdminPanel() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">מיקום</label>
+                      <label className="block text-sm font-medium text-white mb-2">מיקום</label>
                       <input
                         type="text"
                         placeholder="מיקום (למשל: Zoom, Google Meet)"
                         value={formData.location || ''}
                         onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       />
                     </div>
                     <div className="border-t border-gray-200 pt-4">
@@ -3320,7 +3358,7 @@ export default function AdminPanel() {
                       
                       {/* Zoom Meetings Dropdown */}
                       <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-white mb-2">
                           בחר פגישת Zoom (אופציונלי)
                         </label>
                         {loadingZoomMeetings ? (
@@ -3337,7 +3375,7 @@ export default function AdminPanel() {
                                 setFormData({ ...formData, zoom_meeting_id: '', zoom_meeting_password: '' })
                               }
                             }}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           >
                             <option value="">-- בחר פגישה --</option>
                             {zoomMeetings.map((meeting: any) => {
@@ -3372,7 +3410,7 @@ export default function AdminPanel() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Zoom Meeting ID</label>
+                          <label className="block text-sm font-medium text-white mb-2">Zoom Meeting ID</label>
                           <input
                             type="text"
                             placeholder="Zoom Meeting ID"
@@ -3382,13 +3420,13 @@ export default function AdminPanel() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Zoom Meeting Password (אופציונלי)</label>
+                          <label className="block text-sm font-medium text-white mb-2">Zoom Meeting Password (אופציונלי)</label>
                           <input
                             type="text"
                             placeholder="סיסמת פגישה"
                             value={formData.zoom_meeting_password || ''}
                             onChange={(e) => setFormData({ ...formData, zoom_meeting_password: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -3396,14 +3434,14 @@ export default function AdminPanel() {
                     <div className="border-t border-gray-200 pt-4">
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">הקלטה</h3>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-white mb-2">
                           בחר הקלטה (אופציונלי - להצגה כשהלייב הסתיים)
                         </label>
                         {recordings.length > 0 ? (
                           <select
                             value={formData.recording_id || ''}
                             onChange={(e) => setFormData({ ...formData, recording_id: e.target.value || undefined })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           >
                             <option value="">-- בחר הקלטה --</option>
                             {recordings.map((recording: any) => (
@@ -3426,33 +3464,33 @@ export default function AdminPanel() {
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">מנחה</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">שם המנחה</label>
+                          <label className="block text-sm font-medium text-white mb-2">שם המנחה</label>
                           <input
                             type="text"
                             placeholder="שם המנחה"
                             value={formData.instructor_name || ''}
                             onChange={(e) => setFormData({ ...formData, instructor_name: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">תפקיד המנחה</label>
+                          <label className="block text-sm font-medium text-white mb-2">תפקיד המנחה</label>
                           <input
                             type="text"
                             placeholder="תפקיד"
                             value={formData.instructor_title || ''}
                             onChange={(e) => setFormData({ ...formData, instructor_title: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">URL תמונת המנחה</label>
+                          <label className="block text-sm font-medium text-white mb-2">URL תמונת המנחה</label>
                           <input
                             type="url"
                             placeholder="URL תמונה"
                             value={formData.instructor_avatar_url || ''}
                             onChange={(e) => setFormData({ ...formData, instructor_avatar_url: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -3460,19 +3498,19 @@ export default function AdminPanel() {
                     <div className="border-t border-gray-200 pt-4">
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">תוכן נוסף</h3>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">על האירוע</label>
+                        <label className="block text-sm font-medium text-white mb-2">על האירוע</label>
                         <textarea
                           placeholder="תיאור מפורט על האירוע"
                           value={formData.about_text || ''}
                           onChange={(e) => setFormData({ ...formData, about_text: e.target.value })}
                           dir="rtl"
                           lang="he"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           rows={4}
                         />
                       </div>
                       <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">נקודות למידה (לחיצה על Enter להוספת נקודה)</label>
+                        <label className="block text-sm font-medium text-white mb-2">נקודות למידה (לחיצה על Enter להוספת נקודה)</label>
                         <div className="space-y-2">
                           {(formData.learning_points || []).map((point: string, index: number) => (
                             <div key={index} className="flex items-center gap-2">
@@ -3530,13 +3568,13 @@ export default function AdminPanel() {
                         </label>
                         {formData.is_recurring && (
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">תבנית חזרה</label>
+                            <label className="block text-sm font-medium text-white mb-2">תבנית חזרה</label>
                             <input
                               type="text"
                               placeholder="למשל: שבועי, חודשי"
                               value={formData.recurring_pattern || ''}
                               onChange={(e) => setFormData({ ...formData, recurring_pattern: e.target.value })}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                              className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                             />
                           </div>
                         )}
@@ -3553,7 +3591,7 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       required
                     />
                     <textarea
@@ -3562,28 +3600,28 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       dir="rtl"
                       lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       rows={4}
                       required
                     />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">מפרסם (User ID) *</label>
+                        <label className="block text-sm font-medium text-white mb-2">מפרסם (User ID) *</label>
                         <input
                           type="text"
                           placeholder="User ID"
                           value={formData.user_id || ''}
                           onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">סטטוס</label>
+                        <label className="block text-sm font-medium text-white mb-2">סטטוס</label>
                         <select
                           value={formData.status || 'open'}
                           onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         >
                           <option value="open">פתוח</option>
                           <option value="in_progress">בביצוע</option>
@@ -3594,31 +3632,31 @@ export default function AdminPanel() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">תקציב מינימלי</label>
+                        <label className="block text-sm font-medium text-white mb-2">תקציב מינימלי</label>
                         <input
                           type="number"
                           placeholder="0"
                           value={formData.budget_min || ''}
                           onChange={(e) => setFormData({ ...formData, budget_min: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">תקציב מקסימלי</label>
+                        <label className="block text-sm font-medium text-white mb-2">תקציב מקסימלי</label>
                         <input
                           type="number"
                           placeholder="0"
                           value={formData.budget_max || ''}
                           onChange={(e) => setFormData({ ...formData, budget_max: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">מטבע</label>
+                        <label className="block text-sm font-medium text-white mb-2">מטבע</label>
                         <select
                           value={formData.budget_currency || 'ILS'}
                           onChange={(e) => setFormData({ ...formData, budget_currency: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         >
                           <option value="ILS">₪ ILS</option>
                           <option value="USD">$ USD</option>
@@ -3627,13 +3665,13 @@ export default function AdminPanel() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">טכנולוגיות (מופרדות בפסיקים)</label>
+                      <label className="block text-sm font-medium text-white mb-2">טכנולוגיות (מופרדות בפסיקים)</label>
                       <input
                         type="text"
                         placeholder="למשל: Make.com, Zapier, API"
                         value={formData.technologies || ''}
                         onChange={(e) => setFormData({ ...formData, technologies: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -3641,7 +3679,7 @@ export default function AdminPanel() {
                 {activeTab === 'tags' && (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">שם התגית *</label>
+                      <label className="block text-sm font-medium text-white mb-2">שם התגית *</label>
                       <input
                         type="text"
                         placeholder="למשל: Make.com, API, Automation"
@@ -3659,12 +3697,12 @@ export default function AdminPanel() {
                           }
                           setFormData({ ...formData, name, slug })
                         }}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         dir="rtl"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Slug</label>
+                      <label className="block text-sm font-medium text-white mb-2">Slug</label>
                       <input
                         type="text"
                         placeholder="make-com, api, automation"
@@ -3675,35 +3713,35 @@ export default function AdminPanel() {
                       <p className="mt-1 text-xs text-gray-500">נוצר אוטומטית משם התגית (אופציונלי)</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">תיאור</label>
+                      <label className="block text-sm font-medium text-white mb-2">תיאור</label>
                       <textarea
                         placeholder="תיאור קצר של התגית"
                         value={formData.description || ''}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         rows={3}
                         dir="rtl"
                       />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">צבע (Hex)</label>
+                        <label className="block text-sm font-medium text-white mb-2">צבע (Hex)</label>
                         <input
                           type="text"
                           placeholder="#F52F8E"
                           value={formData.color || ''}
                           onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">אייקון</label>
+                        <label className="block text-sm font-medium text-white mb-2">אייקון</label>
                         <input
                           type="text"
                           placeholder="למשל: 🚀, ⚡, 🔥"
                           value={formData.icon || ''}
                           onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -3762,7 +3800,7 @@ export default function AdminPanel() {
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={() => editing === 'new' ? handleCreate() : handleUpdate(editing)}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-hot-pink text-white rounded-full hover:bg-rose-500 transition-colors shadow-lg hover:shadow-xl"
                   >
                     <Save className="w-5 h-5" />
                     שמור
@@ -3948,7 +3986,7 @@ export default function AdminPanel() {
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
+                        <span className="px-2 py-1 bg-hot-pink text-white text-xs rounded">
                           {user.roles?.display_name || user.role?.display_name || 'לא מוגדר'}
                         </span>
                       </td>
@@ -4016,7 +4054,7 @@ export default function AdminPanel() {
                       <td className="py-3 px-4 text-sm font-mono">{role.id?.substring(0, 8)}...</td>
                       <td className="py-3 px-4 font-medium">{role.name}</td>
                       <td className="py-3 px-4">
-                        <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
+                        <span className="px-2 py-1 bg-hot-pink text-white text-xs rounded">
                           {role.display_name}
                         </span>
                       </td>
@@ -4315,7 +4353,7 @@ export default function AdminPanel() {
                                     </span>
                                   ))
                                 ) : (
-                                  <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
+                                  <span className="px-2 py-1 bg-hot-pink text-white text-xs rounded">
                                     {recording.category}
                                   </span>
                                 )}
@@ -4411,7 +4449,7 @@ export default function AdminPanel() {
                       <td className="py-3 px-4 font-medium">{resource.title || '-'}</td>
                       <td className="py-3 px-4">
                         {resource.category && (
-                          <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
+                          <span className="px-2 py-1 bg-hot-pink text-white text-xs rounded">
                             {resource.category}
                           </span>
                         )}
@@ -4453,7 +4491,7 @@ export default function AdminPanel() {
                       <td className="py-3 px-4 font-medium">{post.title || '-'}</td>
                       <td className="py-3 px-4">
                         {post.category && (
-                          <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
+                          <span className="px-2 py-1 bg-hot-pink text-white text-xs rounded">
                             {post.category}
                           </span>
                         )}
@@ -4606,7 +4644,7 @@ export default function AdminPanel() {
                       <td className="py-3 px-4 font-medium">{course.title || '-'}</td>
                       <td className="py-3 px-4">
                         {course.category && (
-                          <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
+                          <span className="px-2 py-1 bg-hot-pink text-white text-xs rounded">
                             {course.category}
                           </span>
                         )}
@@ -4720,7 +4758,7 @@ export default function AdminPanel() {
                     <tr key={event.id} className="border-b border-gray-100">
                       <td className="py-3 px-4 font-medium">{event.title || '-'}</td>
                       <td className="py-3 px-4">
-                        <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
+                        <span className="px-2 py-1 bg-hot-pink text-white text-xs rounded">
                           {event.event_type === 'live' ? 'לייב' : 
                            event.event_type === 'webinar' ? 'וובינר' :
                            event.event_type === 'workshop' ? 'סדנה' :
@@ -4974,6 +5012,240 @@ export default function AdminPanel() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Feedbacks Tab */}
+        {activeTab === 'feedbacks' && (
+          <div className="space-y-4">
+            {feedbacks.length === 0 ? (
+              <div className="text-center py-12 text-gray-300">
+                <MessageCircleMore className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                <p>אין פידבקים עדיין</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {feedbacks.map((feedback) => (
+                  <div
+                    key={feedback.id}
+                    className={`glass-card rounded-2xl p-6 border-l-4 ${
+                      feedback.status === 'new' ? 'border-hot-pink' :
+                      feedback.status === 'read' ? 'border-cyan-400' :
+                      'border-gray-500'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2 flex-wrap">
+                          <h3 className="text-lg font-bold text-white">{feedback.subject}</h3>
+                          {feedback.feedback_type && (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                              {feedback.feedback_type}
+                            </span>
+                          )}
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            feedback.status === 'new' ? 'bg-hot-pink text-white' :
+                            feedback.status === 'read' ? 'bg-cyan-500 text-white' :
+                            'bg-gray-500 text-white'
+                          }`}>
+                            {feedback.status === 'new' ? 'חדש' :
+                             feedback.status === 'read' ? 'נקרא' :
+                             'בארכיון'}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-4 h-4 ${
+                                  i < feedback.rating
+                                    ? 'text-yellow-400 fill-yellow-400'
+                                    : 'text-gray-500'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-300 mb-3">
+                          {feedback.profiles ? (
+                            <span>
+                              מ: {feedback.profiles.first_name || feedback.profiles.nickname || 'משתמש לא ידוע'}
+                              {feedback.name && ` (${feedback.name})`}
+                            </span>
+                          ) : (
+                            feedback.name && <span>מ: {feedback.name}</span>
+                          )}
+                          {feedback.email && <span className="mx-2">•</span>}
+                          {feedback.email && <span>{feedback.email}</span>}
+                          <span className="mx-2">•</span>
+                          <span>{new Date(feedback.created_at).toLocaleDateString('he-IL', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}</span>
+                        </div>
+                        <p className="text-white leading-relaxed mb-4">{feedback.message}</p>
+                        {feedback.image_url && (
+                          <div className="mt-4 mb-4">
+                            <p className="text-sm font-semibold text-gray-300 mb-2">תמונה/צילום מסך:</p>
+                            <div className="relative w-full max-w-md rounded-lg overflow-hidden border border-white/20">
+                              <img
+                                src={feedback.image_url}
+                                alt="תמונה מהפידבק"
+                                className="w-full h-auto object-contain"
+                                onClick={() => window.open(feedback.image_url, '_blank')}
+                                style={{ cursor: 'pointer' }}
+                              />
+                            </div>
+                            <a
+                              href={feedback.image_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-hot-pink hover:underline mt-2 inline-block"
+                            >
+                              פתח בתמונה מלאה
+                            </a>
+                          </div>
+                        )}
+                        {feedback.admin_notes && (
+                          <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                            <p className="text-sm font-semibold text-yellow-300 mb-1">הערות מנהל:</p>
+                            <p className="text-sm text-yellow-200">{feedback.admin_notes}</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2 ml-4">
+                        {feedback.status === 'new' && (
+                          <button
+                            onClick={async () => {
+                              const { error } = await supabase
+                                .from('feedbacks')
+                                .update({ status: 'read' })
+                                .eq('id', feedback.id)
+                              if (!error) {
+                                await loadData()
+                              }
+                            }}
+                            className="btn-secondary px-4 py-2 text-sm"
+                          >
+                            סמן כנקרא
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setEditing(feedback.id)
+                            setFormData({
+                              status: feedback.status,
+                              admin_notes: feedback.admin_notes || ''
+                            })
+                          }}
+                          className="btn-secondary px-4 py-2 text-sm"
+                        >
+                          <Edit className="w-4 h-4 inline-block ml-1" />
+                          ערוך
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm('האם אתה בטוח שברצונך למחוק את הפידבק הזה?')) {
+                              const { error } = await supabase
+                                .from('feedbacks')
+                                .delete()
+                                .eq('id', feedback.id)
+                              if (!error) {
+                                await loadData()
+                              }
+                            }
+                          }}
+                          className="btn-danger px-4 py-2 text-sm"
+                        >
+                          <Trash2 className="w-4 h-4 inline-block ml-1" />
+                          מחק
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Edit Feedback Modal */}
+        {activeTab === 'feedbacks' && editing && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="glass-card rounded-3xl p-6 max-w-2xl w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">ערוך פידבק</h3>
+                <button
+                  onClick={() => {
+                    setEditing(null)
+                    setFormData({})
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">סטטוס</label>
+                  <select
+                    value={formData.status || 'new'}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-hot-pink"
+                  >
+                    <option value="new">חדש</option>
+                    <option value="read">נקרא</option>
+                    <option value="archived">בארכיון</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">הערות מנהל</label>
+                  <textarea
+                    value={formData.admin_notes || ''}
+                    onChange={(e) => setFormData({ ...formData, admin_notes: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-hot-pink resize-none"
+                    placeholder="הערות פנימיות (לא נראה למשתמש)"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={async () => {
+                      const { error } = await supabase
+                        .from('feedbacks')
+                        .update({
+                          status: formData.status,
+                          admin_notes: formData.admin_notes || null
+                        })
+                        .eq('id', editing)
+                      if (!error) {
+                        await loadData()
+                        setEditing(null)
+                        setFormData({})
+                        alert('הפידבק עודכן בהצלחה!')
+                      } else {
+                        alert('שגיאה בעדכון הפידבק')
+                      }
+                    }}
+                    className="btn-primary flex-1"
+                  >
+                    <Save className="w-4 h-4 inline-block ml-2" />
+                    שמור
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditing(null)
+                      setFormData({})
+                    }}
+                    className="btn-secondary flex-1"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
