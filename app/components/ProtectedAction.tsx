@@ -45,7 +45,7 @@ export default function ProtectedAction({
     
     return (
       <div 
-        className="relative inline-block"
+        className="relative inline-block w-full sm:w-auto"
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
@@ -67,13 +67,16 @@ export default function ProtectedAction({
         
         {showTooltip && (
           <div 
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
+            className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-1/2 sm:translate-x-1/2 mb-2 w-full sm:w-64 sm:max-w-[280px] bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 'min(280px, 100%)'
+            }}
           >
             <div className="flex items-start gap-2">
               <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="font-medium mb-2">{message}</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium mb-2 break-words">{message}</p>
                 <Link
                   href={redirectTo}
                   className="inline-flex items-center gap-1 text-[#F52F8E] hover:underline font-medium"
@@ -84,7 +87,7 @@ export default function ProtectedAction({
                 </Link>
               </div>
             </div>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
+            <div className="absolute top-full right-4 sm:right-1/2 sm:translate-x-1/2 -mt-1 hidden sm:block">
               <div className="w-2 h-2 bg-gray-900 rotate-45"></div>
             </div>
           </div>
@@ -100,7 +103,7 @@ export default function ProtectedAction({
     
     return (
       <div 
-        className="relative inline-block"
+        className="relative inline-block w-full sm:w-auto"
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
@@ -122,13 +125,16 @@ export default function ProtectedAction({
         
         {showTooltip && (
           <div 
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
+            className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-1/2 sm:translate-x-1/2 mb-2 w-full sm:w-64 sm:max-w-[280px] bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 'min(280px, 100%)'
+            }}
           >
             <div className="flex items-start gap-2">
               <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="font-medium mb-2">{message}</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium mb-2 break-words">{message}</p>
                 <Link
                   href={redirectTo}
                   className="inline-flex items-center gap-1 text-[#F52F8E] hover:underline font-medium"
@@ -139,7 +145,7 @@ export default function ProtectedAction({
                 </Link>
               </div>
             </div>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
+            <div className="absolute top-full right-4 sm:right-1/2 sm:translate-x-1/2 -mt-1 hidden sm:block">
               <div className="w-2 h-2 bg-gray-900 rotate-45"></div>
             </div>
           </div>
@@ -176,13 +182,16 @@ export default function ProtectedAction({
         
         {showTooltip && (
           <div 
-            className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
+            className="absolute bottom-full right-0 sm:right-1/2 sm:translate-x-1/2 mb-2 w-[calc(100vw-2rem)] sm:w-64 max-w-[280px] bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 'min(280px, calc(100vw - 2rem))'
+            }}
           >
             <div className="flex items-start gap-2">
               <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="font-medium mb-2">{message}</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium mb-2 break-words">{message}</p>
                 <Link
                   href="/subscription"
                   className="inline-flex items-center gap-1 text-yellow-400 hover:underline font-medium"
@@ -192,7 +201,7 @@ export default function ProtectedAction({
                 </Link>
               </div>
             </div>
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+            <div className="absolute top-full right-4 sm:right-1/2 sm:translate-x-1/2 -mt-1">
               <div className="w-2 h-2 bg-gray-900 rotate-45"></div>
             </div>
           </div>

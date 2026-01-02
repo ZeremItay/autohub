@@ -1502,7 +1502,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       className="fixed inset-0 z-[100]" 
                       onClick={closeProfileMenu}
                     />
-                    <div 
+                      <div 
                       ref={profileMenuRef}
                       className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 z-[102] overflow-hidden animate-fade-in"
                       style={profileMenuStyle}
@@ -1702,10 +1702,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/members"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'members' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
               }`}
             >
               <Users className="w-5 h-5 flex-shrink-0" />
@@ -1713,10 +1713,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/forums"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'forums' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
               }`}
             >
               <MessageSquare className="w-5 h-5 flex-shrink-0" />
@@ -1724,10 +1724,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/recordings"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'recordings' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
               }`}
             >
               <Video className="w-5 h-5 flex-shrink-0" />
@@ -1735,10 +1735,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/projects"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'projects' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
               }`}
             >
               <Briefcase className="w-5 h-5 flex-shrink-0" />
@@ -1746,10 +1746,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/courses"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'courses' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
               }`}
             >
               <PlayCircle className="w-5 h-5 flex-shrink-0" />
@@ -1757,10 +1757,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/live-log"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'live-log' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
               }`}
             >
               <Calendar className="w-5 h-5 flex-shrink-0" />
@@ -1770,10 +1770,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {hasLiveEvent && (
               <Link
                 href="/live-room"
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   pathname === '/live-room'
-                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600'
+                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105'
+                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                 }`}
               >
                 <Radio className="w-5 h-5 flex-shrink-0" />
@@ -1783,10 +1783,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             )}
             <Link
               href="/blog"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'blog' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
               }`}
             >
               <BookOpen className="w-5 h-5 flex-shrink-0" />
@@ -1794,10 +1794,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link
               href="/feedback"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'feedback' 
-                  ? 'bg-[#F52F8E] text-white' 
-                  : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
               }`}
             >
               <MessageCircleMore className="w-5 h-5 flex-shrink-0" />
@@ -1838,13 +1838,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           >
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold gradient-text">תפריט</h2>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
                 className="p-2 text-gray-600 hover:text-pink-500 transition-colors"
-                aria-label="סגור תפריט"
-              >
-                <X className="w-6 h-6" />
-              </button>
+                  aria-label="סגור תפריט"
+                >
+                  <X className="w-6 h-6" />
+                </button>
             </div>
             <div className="p-4 space-y-2">
               <Link
@@ -1862,10 +1862,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/members"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   activeNav === 'members' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                 }`}
               >
                 <Users className="w-5 h-5 flex-shrink-0" />
@@ -1874,10 +1874,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/forums"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   activeNav === 'forums' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                 }`}
               >
                 <MessageSquare className="w-5 h-5 flex-shrink-0" />
@@ -1886,10 +1886,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/recordings"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   activeNav === 'recordings' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                 }`}
               >
                 <Video className="w-5 h-5 flex-shrink-0" />
@@ -1898,10 +1898,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/projects"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   activeNav === 'projects' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                 }`}
               >
                 <Briefcase className="w-5 h-5 flex-shrink-0" />
@@ -1910,10 +1910,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/courses"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   activeNav === 'courses' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                 }`}
               >
                 <PlayCircle className="w-5 h-5 flex-shrink-0" />
@@ -1922,10 +1922,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/live-log"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   activeNav === 'live-log' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                 }`}
               >
                 <Calendar className="w-5 h-5 flex-shrink-0" />
@@ -1936,10 +1936,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Link
                   href="/live-room"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                     pathname === '/live-room'
-                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30' 
-                      : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600'
+                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105' 
+                      : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                   }`}
                 >
                   <Radio className="w-5 h-5 flex-shrink-0" />
@@ -1950,10 +1950,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/blog"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   activeNav === 'blog' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                 }`}
               >
                 <BookOpen className="w-5 h-5 flex-shrink-0" />
@@ -1962,10 +1962,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link
                 href="/feedback"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   activeNav === 'feedback' 
-                    ? 'bg-[#F52F8E] text-white' 
-                    : 'text-gray-700 hover:bg-white hover:text-[#F52F8E]'
+                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                 }`}
               >
                 <MessageCircleMore className="w-5 h-5 flex-shrink-0" />
