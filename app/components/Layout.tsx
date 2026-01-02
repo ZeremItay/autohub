@@ -1233,11 +1233,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* Left Side - User Actions (RTL) */}
             <div className="flex items-center gap-3">
               {/* Notifications */}
-              <div className="relative" ref={notificationsRef}>
+              <div className="relative z-[70]" ref={notificationsRef}>
                 <button 
                   ref={notificationsButtonRef}
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="relative p-2.5 text-gray-600 hover:text-pink-500 cursor-pointer transition-all rounded-lg hover:bg-pink-50/50 group"
+                  className="relative p-2.5 text-gray-600 hover:text-pink-500 cursor-pointer transition-all rounded-lg hover:bg-pink-50/50 group z-[70]"
                 >
                   <Bell className="w-6 h-6 group-hover:scale-110 transition-transform" />
                   {unreadCount > 0 && (
@@ -1251,12 +1251,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {notificationsOpen && (
                   <>
                     {/* Mobile: Full Screen Overlay */}
-                    <div className="fixed inset-0 top-16 bg-black/50 z-[60] lg:hidden" onClick={() => setNotificationsOpen(false)}></div>
+                    <div className="fixed top-16 left-0 right-0 bottom-0 bg-black/50 z-[200] lg:hidden" onClick={() => setNotificationsOpen(false)}></div>
                     
                     {/* Mobile: Full Screen Modal */}
-                    <div className="fixed inset-0 top-16 bg-white z-[61] flex flex-col lg:hidden">
+                    <div className="fixed top-16 left-0 right-0 bg-white z-[201] flex flex-col lg:hidden shadow-2xl border-b border-gray-200" style={{ maxHeight: '400px' }}>
                       {/* Header */}
-                      <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
+                      <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white flex-shrink-0">
                         <h3 className="text-xl font-bold text-gray-800">התראות</h3>
                         <div className="flex items-center gap-3">
                           {unreadCount > 0 && (
@@ -1277,11 +1277,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       </div>
 
                       {/* Notifications List */}
-                      <div className="flex-1 overflow-y-auto">
+                      <div className="flex-1 overflow-y-auto min-h-0">
                         {notifications.length === 0 ? (
-                          <div className="p-6 text-center text-gray-500 mt-20">
-                            <Bell className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                            <p className="text-lg">אין התראות חדשות</p>
+                          <div className="p-6 text-center text-gray-500">
+                            <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                            <p>אין התראות חדשות</p>
                           </div>
                         ) : unreadCount === 0 && notifications.length > 0 && notifications.every(n => n.is_read) ? (
                           <div className="p-6 text-center text-gray-500">
@@ -1294,14 +1294,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             {notifications.map((notification) => {
                               const isPointsNotification = notification.title?.includes('נקודות') || notification.message?.includes('נקודות');
                               const NotificationContent = (
-                                <div className={`flex items-start gap-4 ${
+                                <div className={`flex items-start gap-3 ${
                                   !isPointsNotification ? 'cursor-pointer' : ''
                                 }`}>
-                                  <div className={`flex-shrink-0 w-3 h-3 rounded-full mt-2 ${
+                                  <div className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
                                     !notification.is_read ? 'bg-[#F52F8E]' : 'bg-gray-300'
                                   }`}></div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-base font-semibold text-gray-800 mb-2">
+                                    <p className="text-sm font-semibold text-gray-800 mb-1">
                                       {notification.title}
                                     </p>
                                     <p className="text-sm text-gray-600 mb-2">
@@ -1325,7 +1325,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                 return (
                                   <div
                                     key={notification.id}
-                                    className={`block p-5 ${
+                                    className={`block p-4 ${
                                       !notification.is_read ? 'bg-pink-50/50' : ''
                                     }`}
                                   >
@@ -1344,7 +1344,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                     }
                                     setNotificationsOpen(false);
                                   }}
-                                  className={`block p-5 hover:bg-gray-50 transition-colors ${
+                                  className={`block p-4 hover:bg-gray-50 transition-colors ${
                                     !notification.is_read ? 'bg-pink-50/50' : ''
                                   }`}
                                 >
