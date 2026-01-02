@@ -3,7 +3,9 @@ import { getCached, setCached, invalidateCache } from '../cache'
 
 export interface Project {
   id: string
-  user_id: string
+  user_id: string | null
+  guest_name?: string | null
+  guest_email?: string | null
   title: string
   description: string
   status: 'open' | 'in_progress' | 'completed' | 'closed'
@@ -49,7 +51,7 @@ export async function getAllProjects() {
 
   const { data: projects, error } = await supabase
     .from('projects')
-    .select('id, user_id, title, description, status, budget_min, budget_max, budget_currency, technologies, offers_count, views, created_at, updated_at')
+    .select('id, user_id, guest_name, guest_email, title, description, status, budget_min, budget_max, budget_currency, technologies, offers_count, views, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(50) // Limit to improve performance
 
@@ -58,19 +60,23 @@ export async function getAllProjects() {
     return { data: null, error }
   }
 
-  // Fetch user profiles for each project
+  // Fetch user profiles for each project (only for projects with user_id)
   if (projects && projects.length > 0) {
-    const userIds = [...new Set(projects.map(p => p.user_id))]
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, display_name, avatar_url')
-      .in('user_id', userIds)
-
-    const profileMap = new Map(profiles?.map((p: any) => [p.user_id, p]) || [])
+    const userIds = [...new Set(projects.map(p => p.user_id).filter((id): id is string => id !== null))]
+    let profileMap = new Map();
+    
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, avatar_url')
+        .in('user_id', userIds)
+      
+      profileMap = new Map(profiles?.map((p: any) => [p.user_id, p]) || [])
+    }
 
     const projectsWithUsers = projects.map(project => ({
       ...project,
-      user: profileMap.get(project.user_id) || null
+      user: project.user_id ? (profileMap.get(project.user_id) || null) : null
     }))
 
     setCached(cacheKey, projectsWithUsers);
@@ -84,7 +90,7 @@ export async function getAllProjects() {
 export async function getProjectById(id: string) {
   const { data: project, error } = await supabase
     .from('projects')
-    .select('id, user_id, title, description, status, budget_min, budget_max, budget_currency, technologies, offers_count, views, created_at, updated_at')
+    .select('id, user_id, guest_name, guest_email, title, description, status, budget_min, budget_max, budget_currency, technologies, offers_count, views, created_at, updated_at')
     .eq('id', id)
     .single()
 
@@ -93,8 +99,8 @@ export async function getProjectById(id: string) {
     return { data: null, error }
   }
 
-  // Fetch user profile
-  if (project) {
+  // Fetch user profile (only if user_id exists)
+  if (project && project.user_id) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('user_id, display_name, avatar_url')
@@ -104,6 +110,15 @@ export async function getProjectById(id: string) {
     return { 
       data: { ...project, user: profile || null }, 
       error: null 
+    }
+  } else if (project) {
+    // Guest project - no user profile needed
+    return {
+      data: {
+        ...project,
+        user: null
+      },
+      error: null
     }
   }
 
@@ -197,17 +212,23 @@ export async function createProjectOffer(offer: Omit<ProjectOffer, 'id' | 'creat
   }
 
   // Increment offers_count in project
-  const { data: project } = await supabase
+  const { data: projectData } = await supabase
     .from('projects')
-    .select('offers_count')
+    .select('offers_count, user_id')
     .eq('id', offer.project_id)
     .single()
 
-  if (project) {
+  if (projectData) {
     await supabase
       .from('projects')
-      .update({ offers_count: (project.offers_count || 0) + 1 })
+      .update({ offers_count: (projectData.offers_count || 0) + 1 })
       .eq('id', offer.project_id)
+    
+    // Invalidate cache to ensure fresh data
+    invalidateCache('projects:all');
+    if (projectData.user_id) {
+      invalidateCache(`projects:user:${projectData.user_id}`);
+    }
   }
 
   return { data, error: null }
@@ -368,7 +389,7 @@ export async function getUserProjects(userId: string) {
 
   const { data: projects, error } = await supabase
     .from('projects')
-    .select('id, user_id, title, description, status, budget_min, budget_max, budget_currency, technologies, offers_count, views, created_at, updated_at')
+    .select('id, user_id, guest_name, guest_email, title, description, status, budget_min, budget_max, budget_currency, technologies, offers_count, views, created_at, updated_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 

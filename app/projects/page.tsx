@@ -25,6 +25,7 @@ import { supabase } from '@/lib/supabase';
 import { clearCache } from '@/lib/cache';
 import { useRouter } from 'next/navigation';
 import ProtectedAction from '@/app/components/ProtectedAction';
+import RecentUpdates from '@/app/components/RecentUpdates';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -36,15 +37,18 @@ export default function ProjectsPage() {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [recentUpdates, setRecentUpdates] = useState<Array<{
-    type: 'forum' | 'project' | 'recording' | 'event';
+    type: 'forum' | 'project' | 'recording' | 'event' | 'blog' | 'course' | 'post';
     text: string;
     time: string;
     icon: string;
     link?: string;
     id?: string;
+    created_at?: string;
   }>>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
+  const [showGuestChoiceModal, setShowGuestChoiceModal] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState(false);
   const [newProject, setNewProject] = useState({
     title: '',
     description: '',
@@ -52,6 +56,10 @@ export default function ProjectsPage() {
     budget_max: '',
     budget_currency: 'ILS',
     technologies: ''
+  });
+  const [guestInfo, setGuestInfo] = useState({
+    name: '',
+    email: ''
   });
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -106,7 +114,7 @@ export default function ProjectsPage() {
       setLoading(false);
       
       // Load recent updates in background (non-blocking)
-      loadRecentUpdates(projectsRes.data || [], eventsRes.data || []).catch(err => {
+      loadRecentUpdates(eventsRes.data || []).catch(err => {
         console.error('Error loading recent updates:', err);
       });
     } catch (error) {
@@ -139,12 +147,27 @@ export default function ProjectsPage() {
       return;
     }
 
-    try {
+    // If guest mode, validate guest info
+    if (isGuestMode) {
+      if (!guestInfo.name || !guestInfo.email) {
+        alert('אנא מלא את שמך המלא וכתובת האימייל');
+        return;
+      }
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(guestInfo.email)) {
+        alert('אנא הכנס כתובת אימייל תקינה');
+        return;
+      }
+    } else {
+      // If not guest mode, require user
       if (!currentUser) {
         alert('לא נמצא משתמש מחובר');
         return;
       }
+    }
 
+    try {
       // Split technologies by comma, handle spaces, and filter empty strings
       const technologies = newProject.technologies
         .split(',')
@@ -152,25 +175,15 @@ export default function ProjectsPage() {
         .filter(t => t.length > 0)
         .map(t => t.replace(/\s+/g, ' ')); // Normalize multiple spaces to single space
 
-      console.log('Technologies input:', newProject.technologies);
-      console.log('Technologies array:', technologies);
-
-      if (!currentUser) {
-        alert('אנא התחבר כדי ליצור פרויקט');
-        return;
-      }
-
-      const userId = currentUser.user_id || currentUser.id;
-      if (!userId) {
-        alert('שגיאה: לא נמצא מזהה משתמש');
-        return;
-      }
+      const userId = isGuestMode ? null : (currentUser?.user_id || currentUser?.id);
 
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
+          guest_name: isGuestMode ? guestInfo.name : null,
+          guest_email: isGuestMode ? guestInfo.email : null,
           title: newProject.title,
           description: newProject.description,
           budget_min: newProject.budget_min ? parseFloat(newProject.budget_min) : null,
@@ -189,115 +202,240 @@ export default function ProjectsPage() {
           budget_currency: 'ILS',
           technologies: ''
         });
+        setGuestInfo({
+          name: '',
+          email: ''
+        });
+        setIsGuestMode(false);
         setShowNewProjectForm(false);
         // Clear cache and reload
         const { clearCache } = await import('@/lib/cache');
         clearCache('projects');
         await loadData();
+        alert('הפרויקט נוצר בהצלחה!');
       } else {
-        alert('שגיאה ביצירת הפרויקט');
+        const errorData = await response.json();
+        alert(`שגיאה ביצירת הפרויקט: ${errorData.error || 'שגיאה לא ידועה'}`);
       }
     } catch (error) {
       console.error('Error creating project:', error);
       alert('שגיאה ביצירת הפרויקט');
     }
-  }, [newProject, loadData]);
+  }, [newProject, guestInfo, isGuestMode, currentUser, loadData]);
 
-  const formatTimeAgo = useCallback((date: string) => {
-    if (!date) return '';
-    try {
-      const now = typeof window !== 'undefined' ? new Date() : new Date();
-      const projectDate = new Date(date);
-      if (isNaN(projectDate.getTime())) return '';
-      
-      const diffMs = now.getTime() - projectDate.getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-
-      if (diffMins < 60) return `לפני ${diffMins} דקות`;
-      if (diffHours < 24) return `לפני ${diffHours} שעות`;
-      if (diffDays === 1) return 'אתמול';
-      if (diffDays < 7) return `לפני ${diffDays} ימים`;
-      return projectDate.toLocaleDateString('he-IL');
-    } catch (error) {
-      return '';
-    }
-  }, []);
-
-  const loadRecentUpdates = useCallback(async (projects: Project[], events: any[]) => {
+  const loadRecentUpdates = useCallback(async (eventsData: any[] = []) => {
     try {
       const updates: Array<{
-        type: 'forum' | 'project' | 'recording' | 'event';
+        type: 'forum' | 'project' | 'recording' | 'event' | 'blog' | 'course' | 'post';
         text: string;
         time: string;
         icon: string;
         link?: string;
         id?: string;
+        created_at?: string;
       }> = [];
-
-      // Get recent projects (already loaded, no need to fetch)
-      if (projects && projects.length > 0) {
-        const recentProject = projects[0];
-        updates.push({
-          type: 'project',
-          text: `${recentProject.user?.display_name || 'משתמש'} העלה פרויקט חדש: ${recentProject.title}`,
-          time: formatTimeAgo(recentProject.created_at || ''),
-          icon: '📄',
-          link: `/projects#${recentProject.id}`,
-          id: recentProject.id
-        });
-      }
-
-      // Get recent events (already loaded)
-      if (events && events.length > 0) {
-        const recentEvent = events[0];
-        updates.push({
-          type: 'event',
-          text: `נוסף אירוע חדש: ${recentEvent.title}`,
-          time: formatTimeAgo(recentEvent.created_at || recentEvent.event_date || ''),
-          icon: '📅',
-          link: `/live/${recentEvent.id}`,
-          id: recentEvent.id
-        });
-      }
-
-      // Load forum posts and recordings in parallel (limit to 1 forum to reduce queries)
-      const [forumsRes, recordingsRes] = await Promise.all([
-        getAllForums().then(res => res.data ? res.data.slice(0, 1) : []),
-        getAllRecordings().then(res => res.data || [])
+      
+      // Get date from 30 days ago to filter only recent updates
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+      
+      // Load all categories in parallel - same as homepage
+      const [latestForumPostsResult, latestRecordingsResult, latestProjectsResult, latestBlogPostsResult, latestCoursesResult, latestAnnouncementsResult] = await Promise.all([
+        // Get recent posts from ALL active forums
+        supabase
+          .from('forum_posts')
+          .select('id, title, user_id, created_at, forum_id, forums(id, display_name, is_active)')
+          .gte('created_at', thirtyDaysAgoISO)
+          .order('created_at', { ascending: false })
+          .limit(20),
+        // Get recent recordings
+        supabase.from('recordings').select('id, title, created_at').gte('created_at', thirtyDaysAgoISO).order('created_at', { ascending: false }).limit(20),
+        // Get recent projects
+        supabase.from('projects').select('id, title, user_id, guest_name, created_at').gte('created_at', thirtyDaysAgoISO).order('created_at', { ascending: false }).limit(20),
+        // Get recent blog posts
+        supabase.from('blog_posts').select('id, title, slug, author_id, created_at').eq('is_published', true).gte('created_at', thirtyDaysAgoISO).order('created_at', { ascending: false }).limit(20),
+        // Get recent courses
+        supabase.from('courses').select('id, title, created_at').gte('created_at', thirtyDaysAgoISO).order('created_at', { ascending: false }).limit(20),
+        // Get recent announcements
+        supabase.from('posts').select('id, content, user_id, created_at').eq('is_announcement', true).gte('created_at', thirtyDaysAgoISO).order('created_at', { ascending: false }).limit(20)
       ]);
 
-      // Get recent forum post (only from first forum to reduce queries)
-      if (forumsRes && forumsRes.length > 0) {
-        const { data: forumPosts } = await getForumPosts(forumsRes[0].id);
-        if (forumPosts && forumPosts.length > 0) {
-          const recentPost = forumPosts[0];
-          updates.push({
-            type: 'forum',
-            text: `${recentPost.profile?.display_name || 'משתמש'} פרסם פוסט: ${recentPost.title}`,
-            time: formatTimeAgo(recentPost.created_at),
-            icon: '💬',
-            link: `/forums/${forumsRes[0].id}/posts/${recentPost.id}`,
-            id: recentPost.id
-          });
+      // Get user IDs from all results to fetch profiles in one query
+      const userIds = new Set<string>();
+      if (latestForumPostsResult.data) {
+        latestForumPostsResult.data.forEach((post: any) => {
+          if (post.user_id) userIds.add(post.user_id);
+        });
+      }
+      if (latestProjectsResult.data) {
+        latestProjectsResult.data.forEach((project: any) => {
+          if (project.user_id) userIds.add(project.user_id);
+        });
+      }
+      if (latestBlogPostsResult.data) {
+        latestBlogPostsResult.data.forEach((post: any) => {
+          if (post.author_id) userIds.add(post.author_id);
+        });
+      }
+      if (latestAnnouncementsResult.data) {
+        latestAnnouncementsResult.data.forEach((post: any) => {
+          if (post.user_id) userIds.add(post.user_id);
+        });
+      }
+
+      // Fetch all profiles at once
+      let profilesMap = new Map<string, any>();
+      if (userIds.size > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, display_name, first_name, nickname')
+          .in('user_id', Array.from(userIds));
+        if (profilesData) {
+          profilesMap = new Map(profilesData.map((p: any) => [p.user_id, p]));
         }
       }
 
-      // Get recent recording
-      if (recordingsRes && recordingsRes.length > 0) {
-        const recentRecording = recordingsRes[0];
-        updates.push({
-          type: 'recording',
-          text: `העלתה הדרכה חדשה: ${recentRecording.title}`,
-          time: formatTimeAgo(recentRecording.created_at || ''),
-          icon: '🎥',
-          link: `/recordings/${recentRecording.id}`,
-          id: recentRecording.id
+      // Get recent forum posts (from all forums) - filter only active forums
+      if (latestForumPostsResult.data && latestForumPostsResult.data.length > 0) {
+        latestForumPostsResult.data
+          .filter((post: any) => {
+            const forum = post.forums as any;
+            return forum?.is_active !== false;
+          })
+          .forEach((latestPostData: any) => {
+            const profile = profilesMap.get(latestPostData.user_id);
+            const displayName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+            updates.push({
+              type: 'forum',
+              text: `${displayName} פרסם פוסט: ${latestPostData.title}`,
+              time: formatTimeAgo(latestPostData.created_at),
+              icon: '💬',
+              link: `/forums/${latestPostData.forum_id}/posts/${latestPostData.id}`,
+              id: latestPostData.id,
+              created_at: latestPostData.created_at
+            });
+          });
+      }
+
+      // Get recent recordings
+      if (latestRecordingsResult.data && latestRecordingsResult.data.length > 0) {
+        latestRecordingsResult.data.forEach((recentRecording: any) => {
+          updates.push({
+            type: 'recording',
+            text: `העלתה הדרכה חדשה: ${recentRecording.title}`,
+            time: formatTimeAgo(recentRecording.created_at),
+            icon: '🎥',
+            link: `/recordings/${recentRecording.id}`,
+            id: recentRecording.id,
+            created_at: recentRecording.created_at
+          });
         });
       }
 
-      setRecentUpdates(updates.slice(0, 4));
+      // Get recent projects
+      if (latestProjectsResult.data && latestProjectsResult.data.length > 0) {
+        latestProjectsResult.data.forEach((recentProject: any) => {
+          const profile = recentProject.user_id ? profilesMap.get(recentProject.user_id) : null;
+          const userName = profile?.display_name || profile?.first_name || profile?.nickname || recentProject.guest_name || 'אורח';
+          updates.push({
+            type: 'project',
+            text: `${userName} העלה פרויקט חדש: ${recentProject.title}`,
+            time: formatTimeAgo(recentProject.created_at),
+            icon: '📄',
+            link: `/projects#${recentProject.id}`,
+            id: recentProject.id,
+            created_at: recentProject.created_at
+          });
+        });
+      }
+
+      // Get recent blog posts
+      if (latestBlogPostsResult.data && latestBlogPostsResult.data.length > 0) {
+        latestBlogPostsResult.data.forEach((blogPost: any) => {
+          const profile = profilesMap.get(blogPost.author_id);
+          const authorName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+          updates.push({
+            type: 'blog',
+            text: `${authorName} פרסם פוסט בבלוג: ${blogPost.title}`,
+            time: formatTimeAgo(blogPost.created_at),
+            icon: '📝',
+            link: `/blog/${blogPost.slug}`,
+            id: blogPost.id,
+            created_at: blogPost.created_at
+          });
+        });
+      }
+
+      // Get recent courses
+      if (latestCoursesResult.data && latestCoursesResult.data.length > 0) {
+        latestCoursesResult.data.forEach((course: any) => {
+          updates.push({
+            type: 'course',
+            text: `נוסף קורס חדש: ${course.title}`,
+            time: formatTimeAgo(course.created_at),
+            icon: '📚',
+            link: `/courses#${course.id}`,
+            id: course.id,
+            created_at: course.created_at
+          });
+        });
+      }
+
+      // Get recent announcements (posts)
+      if (latestAnnouncementsResult.data && latestAnnouncementsResult.data.length > 0) {
+        latestAnnouncementsResult.data.forEach((announcement: any) => {
+          const profile = profilesMap.get(announcement.user_id);
+          const authorName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+          const contentPreview = announcement.content?.substring(0, 50) || 'הכרזה חדשה';
+          updates.push({
+            type: 'post',
+            text: `${authorName} פרסם הכרזה: ${contentPreview}${announcement.content?.length > 50 ? '...' : ''}`,
+            time: formatTimeAgo(announcement.created_at),
+            icon: '📢',
+            link: `/#post-${announcement.id}`,
+            id: announcement.id,
+            created_at: announcement.created_at
+          });
+        });
+      }
+
+      // Get recent events (from parameter)
+      if (eventsData && eventsData.length > 0) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        eventsData
+          .filter((event: any) => {
+            if (!event.created_at) return false;
+            const eventDate = new Date(event.created_at);
+            return eventDate >= thirtyDaysAgo;
+          })
+          .slice(0, 5)
+          .forEach((recentEvent: any) => {
+            updates.push({
+              type: 'event',
+              text: `נוסף אירוע חדש: ${recentEvent.title}`,
+              time: formatTimeAgo(recentEvent.created_at),
+              icon: '📅',
+              link: `/live/${recentEvent.id}`,
+              id: recentEvent.id,
+              created_at: recentEvent.created_at
+            });
+          });
+      }
+
+      // Sort by time (most recent first)
+      updates.sort((a, b) => {
+        try {
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return dateB - dateA;
+        } catch {
+          return 0;
+        }
+      });
+      
+      setRecentUpdates(updates.slice(0, 5));
     } catch (error) {
       console.error('Error loading recent updates:', error);
     }
@@ -405,25 +543,27 @@ export default function ProjectsPage() {
         return;
       }
 
-      // Send notification to project owner
-      try {
-        const { createNotification } = await import('@/lib/queries/notifications');
-        const offererName = currentUser.display_name || currentUser.first_name || 'משתמש';
-        
-        await createNotification({
-          user_id: selectedProject.user_id,
-          type: 'project_offer',
-          title: 'הצעה חדשה לפרויקט שלך',
-          message: `${offererName} הגיש הצעה לפרויקט "${selectedProject.title}"`,
-          link: `/projects`,
-          related_id: selectedProject.id,
-          related_type: 'project',
-          is_read: false
-        }).catch((error) => {
-          console.warn('Error sending notification:', error);
-        });
-      } catch (error) {
-        console.warn('Error in notification system:', error);
+      // Send notification to project owner (only if project has user_id, not guest)
+      if (selectedProject.user_id) {
+        try {
+          const { createNotification } = await import('@/lib/queries/notifications');
+          const offererName = currentUser.display_name || currentUser.first_name || 'משתמש';
+          
+          await createNotification({
+            user_id: selectedProject.user_id,
+            type: 'project_offer',
+            title: 'הצעה חדשה לפרויקט שלך',
+            message: `${offererName} הגיש הצעה לפרויקט "${selectedProject.title}"`,
+            link: `/projects`,
+            related_id: selectedProject.id,
+            related_type: 'project',
+            is_read: false
+          }).catch((error) => {
+            console.warn('Error sending notification:', error);
+          });
+        } catch (error) {
+          console.warn('Error in notification system:', error);
+        }
       }
 
       // Award points for submitting an offer
@@ -442,6 +582,9 @@ export default function ProjectsPage() {
       setShowOfferModal(false);
       setSelectedProject(null);
       setOfferForm({ message: '', offer_amount: '' });
+      // Clear cache and reload to get updated offers_count
+      const { clearCache } = await import('@/lib/cache');
+      clearCache('projects');
       await loadData();
       alert('ההצעה נשלחה בהצלחה!');
     } catch (error) {
@@ -532,11 +675,20 @@ export default function ProjectsPage() {
                           />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xs font-semibold">
-                            {(project.user?.display_name || 'U').charAt(0)}
+                            {(() => {
+                              if (project.user?.display_name) {
+                                return project.user.display_name.charAt(0);
+                              } else if (project.guest_name) {
+                                return project.guest_name.charAt(0);
+                              }
+                              return 'א';
+                            })()}
                           </div>
                         )}
                         <div className="text-right">
-                          <p className="text-xs font-medium text-gray-800">{project.user?.display_name || 'משתמש'}</p>
+                          <p className="text-xs font-medium text-gray-800">
+                            {project.user?.display_name || project.guest_name || 'אורח'}
+                          </p>
                           <p className="text-xs text-gray-500">
                             {mounted ? formatTimeAgo(project.created_at || '') : ''}
                           </p>
@@ -615,11 +767,20 @@ export default function ProjectsPage() {
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white font-semibold">
-                            {(project.user?.display_name || 'U').charAt(0)}
+                            {(() => {
+                              if (project.user?.display_name) {
+                                return project.user.display_name.charAt(0);
+                              } else if (project.guest_name) {
+                                return project.guest_name.charAt(0);
+                              }
+                              return 'א';
+                            })()}
                           </div>
                         )}
                         <div>
-                          <p className="text-sm font-medium text-gray-800">{project.user?.display_name || 'משתמש'}</p>
+                          <p className="text-sm font-medium text-gray-800">
+                            {project.user?.display_name || project.guest_name || 'אורח'}
+                          </p>
                           <p className="text-xs text-gray-500 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {mounted ? formatTimeAgo(project.created_at || '') : ''}
@@ -730,7 +891,13 @@ export default function ProjectsPage() {
             {/* Post Project Button */}
             <div className="modern-card rounded-2xl p-5 animate-fade-in">
               <button
-                onClick={() => setShowNewProjectForm(true)}
+                onClick={() => {
+                  if (!currentUser) {
+                    setShowGuestChoiceModal(true);
+                  } else {
+                    setShowNewProjectForm(true);
+                  }
+                }}
                 className="btn-modern flex items-center gap-2 px-4 py-2.5 text-white rounded-xl text-sm font-medium w-full justify-center"
               >
                 <Plus className="w-4 h-4" />
@@ -738,12 +905,76 @@ export default function ProjectsPage() {
               </button>
             </div>
 
+            {/* Guest Choice Modal */}
+            {showGuestChoiceModal && (
+              <div 
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm"
+                onClick={() => setShowGuestChoiceModal(false)}
+              >
+                <div 
+                  className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Modal Header */}
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <h2 className="text-xl font-bold text-gray-800">פרסם פרויקט</h2>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className="p-6 space-y-4">
+                    <p className="text-gray-700">
+                      אני רואה שאתה לא מחובר. אפשר לפרסם פרויקט בלי להתחבר אבל לא תקבל על זה עדכונים. האם אתה רוצה לעשות זאת?
+                    </p>
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="px-6 py-4 border-t border-gray-200 flex flex-col gap-3">
+                    <button
+                      onClick={() => {
+                        setShowGuestChoiceModal(false);
+                        router.push('/auth/login');
+                      }}
+                      className="w-full px-6 py-3 bg-[#F52F8E] text-white rounded-xl hover:bg-[#E01E7A] transition-colors text-sm font-medium"
+                    >
+                      אני מעוניין להתחבר
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowGuestChoiceModal(false);
+                        router.push('/auth/signup');
+                      }}
+                      className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      להירשם
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowGuestChoiceModal(false);
+                        setIsGuestMode(true);
+                        setShowNewProjectForm(true);
+                      }}
+                      className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors text-sm font-medium"
+                    >
+                      המשך בלי להתחבר
+                    </button>
+                    <button
+                      onClick={() => setShowGuestChoiceModal(false)}
+                      className="w-full px-6 py-2 text-gray-500 hover:text-gray-700 transition-colors text-sm"
+                    >
+                      ביטול
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* New Project Modal */}
             {showNewProjectForm && (
               <div 
                 className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm"
                 onClick={() => {
                   setShowNewProjectForm(false);
+                  setIsGuestMode(false);
                   setNewProject({
                     title: '',
                     description: '',
@@ -751,6 +982,10 @@ export default function ProjectsPage() {
                     budget_max: '',
                     budget_currency: 'ILS',
                     technologies: ''
+                  });
+                  setGuestInfo({
+                    name: '',
+                    email: ''
                   });
                 }}
               >
@@ -762,17 +997,22 @@ export default function ProjectsPage() {
                   <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
                     <h2 className="text-2xl font-bold text-gray-800">פרסם פרויקט חדש</h2>
                     <button
-                      onClick={() => {
-                        setShowNewProjectForm(false);
-                        setNewProject({
-                          title: '',
-                          description: '',
-                          budget_min: '',
-                          budget_max: '',
-                          budget_currency: 'ILS',
-                          technologies: ''
-                        });
-                      }}
+                onClick={() => {
+                  setShowNewProjectForm(false);
+                  setIsGuestMode(false);
+                  setNewProject({
+                    title: '',
+                    description: '',
+                    budget_min: '',
+                    budget_max: '',
+                    budget_currency: 'ILS',
+                    technologies: ''
+                  });
+                  setGuestInfo({
+                    name: '',
+                    email: ''
+                  });
+                }}
                       className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                     >
                       <X className="w-5 h-5 text-gray-500" />
@@ -781,6 +1021,36 @@ export default function ProjectsPage() {
 
                   {/* Modal Body */}
                   <div className="p-6 space-y-5">
+                    {/* Guest Info Fields - Only show if guest mode */}
+                    {isGuestMode && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            שם מלא *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="הכנס את שמך המלא"
+                            value={guestInfo.name}
+                            onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            כתובת אימייל *
+                          </label>
+                          <input
+                            type="email"
+                            placeholder="הכנס את כתובת האימייל שלך"
+                            value={guestInfo.email}
+                            onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">נשלח אליך עדכונים על הפרויקט שלך</p>
+                        </div>
+                      </>
+                    )}
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         כותרת הפרויקט *
@@ -851,24 +1121,30 @@ export default function ProjectsPage() {
                   {/* Modal Footer */}
                   <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
                     <button
-                      onClick={() => {
-                        setShowNewProjectForm(false);
-                        setNewProject({
-                          title: '',
-                          description: '',
-                          budget_min: '',
-                          budget_max: '',
-                          budget_currency: 'ILS',
-                          technologies: ''
-                        });
-                      }}
+                onClick={() => {
+                  setShowNewProjectForm(false);
+                  setIsGuestMode(false);
+                  setNewProject({
+                    title: '',
+                    description: '',
+                    budget_min: '',
+                    budget_max: '',
+                    budget_currency: 'ILS',
+                    technologies: ''
+                  });
+                  setGuestInfo({
+                    name: '',
+                    email: ''
+                  });
+                }}
                       className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors text-sm font-medium"
                     >
                       ביטול
                     </button>
                     <button
                       onClick={handleCreateProject}
-                      className="px-6 py-2.5 bg-[#F52F8E] text-white rounded-xl hover:bg-[#E01E7A] transition-colors text-sm font-medium"
+                      disabled={isGuestMode && (!guestInfo.name || !guestInfo.email)}
+                      className="px-6 py-2.5 bg-[#F52F8E] text-white rounded-xl hover:bg-[#E01E7A] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       פרסם פרויקט
                     </button>
@@ -878,50 +1154,11 @@ export default function ProjectsPage() {
             )}
 
             {/* Recent Updates */}
-            <div className="modern-card rounded-2xl p-5 animate-fade-in">
-              <h3 className="text-sm font-semibold text-gray-800 mb-3">עדכונים אחרונים</h3>
-              <div className="space-y-3">
-                {recentUpdates.length === 0 ? (
-                  <p className="text-xs text-gray-500">אין עדכונים אחרונים</p>
-                ) : (
-                  recentUpdates.map((update, idx) => {
-                    const content = (
-                      <div className="flex items-start gap-2 text-xs cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
-                        <span className="text-lg">{update.icon}</span>
-                        <div className="flex-1">
-                          <p className="text-gray-700">{update.text}</p>
-                          <p className="text-gray-500 text-xs mt-0.5">{update.time}</p>
-                        </div>
-                      </div>
-                    );
-
-                    if (update.link) {
-                      // Check if it's a recording link and user is not premium
-                      if (update.type === 'recording' && !userIsPremium) {
-                        return (
-                          <div 
-                            key={update.id || idx}
-                            onClick={() => {
-                              alert('גישה להקלטות זמינה למנויי פרימיום בלבד. אנא שדרג את המנוי שלך כדי לצפות בהקלטות.');
-                            }}
-                          >
-                            {content}
-                          </div>
-                        );
-                      }
-                      
-                      return (
-                        <Link key={update.id || idx} href={update.link}>
-                          {content}
-                        </Link>
-                      );
-                    }
-
-                    return <div key={update.id || idx}>{content}</div>;
-                  })
-                )}
-              </div>
-            </div>
+            <RecentUpdates 
+              updates={recentUpdates} 
+              showAllUpdatesLink={false}
+              userIsPremium={userIsPremium}
+            />
 
             {/* Upcoming Events */}
             <div className="modern-card rounded-2xl p-5 animate-fade-in">

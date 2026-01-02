@@ -28,13 +28,32 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { user_id, title, description, budget_min, budget_max, budget_currency, technologies } = body;
+    const { user_id, guest_name, guest_email, title, description, budget_min, budget_max, budget_currency, technologies } = body;
 
-    if (!user_id || !title || !description) {
+    // Validation: either user_id OR (guest_name AND guest_email) must be provided
+    if (!title || !description) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: title and description are required' },
         { status: 400 }
       );
+    }
+
+    if (!user_id && (!guest_name || !guest_email)) {
+      return NextResponse.json(
+        { error: 'Either user_id or both guest_name and guest_email are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format if guest
+    if (!user_id && guest_email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(guest_email)) {
+        return NextResponse.json(
+          { error: 'Invalid email format' },
+          { status: 400 }
+        );
+      }
     }
 
     // Ensure technologies is an array
@@ -57,7 +76,9 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('projects')
       .insert([{
-        user_id,
+        user_id: user_id || null,
+        guest_name: guest_name || null,
+        guest_email: guest_email || null,
         title,
         description,
         budget_min: budget_min || null,
