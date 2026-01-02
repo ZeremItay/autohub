@@ -29,7 +29,8 @@ import {
   Calendar,
   Shield,
   Radio,
-  MessageCircleMore
+  MessageCircleMore,
+  GraduationCap
 } from 'lucide-react';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -1752,7 +1753,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
               }`}
             >
-              <PlayCircle className="w-5 h-5 flex-shrink-0" />
+              <GraduationCap className="w-5 h-5 flex-shrink-0" />
               <span className="font-medium">קורסים</span>
             </Link>
             <Link
@@ -1916,7 +1917,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
                 }`}
               >
-                <PlayCircle className="w-5 h-5 flex-shrink-0" />
+                <GraduationCap className="w-5 h-5 flex-shrink-0" />
                 <span className="font-medium">קורסים</span>
               </Link>
               <Link

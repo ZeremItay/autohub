@@ -1,11 +1,22 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Edit, MessageSquare, ArrowRight } from 'lucide-react';
+import { Search, Edit, MessageSquare, ArrowRight, X, Video } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { getAllForums, type Forum } from '@/lib/queries/forums';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+
+// Lazy load RichTextEditor (heavy component)
+const RichTextEditor = dynamic(
+  () => import('@/app/components/RichTextEditor'),
+  { ssr: false }
+);
 
 export default function ForumsPage() {
+  const router = useRouter();
+  const { user: currentUser } = useCurrentUser();
   const [forums, setForums] = useState<Forum[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -15,6 +26,16 @@ export default function ForumsPage() {
   const [searchDropdownStyle, setSearchDropdownStyle] = useState<React.CSSProperties>({});
   const searchRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // New post form state
+  const [showNewPostForm, setShowNewPostForm] = useState(false);
+  const [selectedForumId, setSelectedForumId] = useState<string>('');
+  const [newPostTitle, setNewPostTitle] = useState('');
+  const [newPostContent, setNewPostContent] = useState('');
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function performSearch(query: string) {
     if (!query || query.trim().length < 2) {
@@ -107,6 +128,105 @@ export default function ForumsPage() {
       console.error('Error loading forums:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCreatePost() {
+    // Check if content is empty (strip HTML tags for validation)
+    const textContent = newPostContent.replace(/<[^>]*>/g, '').trim();
+    if (!newPostTitle.trim() || !textContent) {
+      alert('אנא מלא את כל השדות');
+      return;
+    }
+
+    if (!selectedForumId) {
+      alert('אנא בחר פורום');
+      return;
+    }
+    
+    if (!currentUser) {
+      alert('לא נמצא משתמש מחובר. אנא רענן את הדף.');
+      return;
+    }
+    
+    const userId = currentUser.user_id || currentUser.id;
+    if (!userId) {
+      alert('שגיאה: לא נמצא משתמש מחובר');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/forums/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          forum_id: selectedForumId,
+          user_id: userId,
+          title: newPostTitle,
+          content: newPostContent,
+          media_url: mediaUrl || null,
+          media_type: mediaType || null
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        const errorMessage = result.error || result.message || result.details || result.hint || 'שגיאה לא ידועה';
+        alert(`שגיאה ביצירת הפוסט: ${errorMessage}`);
+        return;
+      }
+      
+      if (response.ok && result.data) {
+        setNewPostTitle('');
+        setNewPostContent('');
+        setMediaUrl('');
+        setMediaType(null);
+        setMediaPreview(null);
+        setSelectedForumId('');
+        setShowNewPostForm(false);
+        
+        // Navigate to the forum with the new post
+        router.push(`/forums/${selectedForumId}`);
+      }
+    } catch (error) {
+      console.error('Error creating post:', error);
+      alert('שגיאה ביצירת הפוסט. אנא נסה שוב.');
+    }
+  }
+
+  function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check if it's an image or video
+    if (file.type.startsWith('image/')) {
+      setMediaType('image');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMediaPreview(reader.result as string);
+        setMediaUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else if (file.type.startsWith('video/')) {
+      setMediaType('video');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMediaPreview(reader.result as string);
+        setMediaUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      alert('אנא בחר קובץ תמונה או וידאו');
+    }
+  }
+
+  function removeMedia() {
+    setMediaUrl('');
+    setMediaType(null);
+    setMediaPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   }
 
@@ -307,7 +427,16 @@ export default function ForumsPage() {
           {/* Right Sidebar - Discussion Groups */}
           <aside className="lg:w-80 flex-shrink-0">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-              <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mb-6">
+              <button 
+                onClick={() => {
+                  if (!currentUser) {
+                    alert('אנא התחבר כדי ליצור פוסט');
+                    return;
+                  }
+                  setShowNewPostForm(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mb-6"
+              >
                 <Edit className="w-5 h-5" />
                 <span>פוסט חדש</span>
               </button>
@@ -329,6 +458,158 @@ export default function ForumsPage() {
           </aside>
         </div>
       </div>
+
+      {/* Create Post Modal */}
+      {showNewPostForm && currentUser && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm"
+          onClick={() => {
+            setShowNewPostForm(false);
+            setNewPostTitle('');
+            setNewPostContent('');
+            setMediaUrl('');
+            setMediaType(null);
+            setMediaPreview(null);
+            setSelectedForumId('');
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+              <h2 className="text-2xl font-bold text-gray-800">פוסט חדש</h2>
+              <button
+                onClick={() => {
+                  setShowNewPostForm(false);
+                  setNewPostTitle('');
+                  setNewPostContent('');
+                  setMediaUrl('');
+                  setMediaType(null);
+                  setMediaPreview(null);
+                  setSelectedForumId('');
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5">
+              {/* Forum Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  בחר פורום
+                </label>
+                <select
+                  value={selectedForumId}
+                  onChange={(e) => setSelectedForumId(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-[#F52F8E] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                  dir="rtl"
+                >
+                  <option value="">בחר פורום...</option>
+                  {forums.map((forum) => (
+                    <option key={forum.id} value={forum.id}>
+                      {forum.display_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Subject Field */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  נושא ההודעה
+                </label>
+                <input
+                  type="text"
+                  placeholder="הכנס כותרת לפוסט..."
+                  value={newPostTitle}
+                  onChange={(e) => setNewPostTitle(e.target.value)}
+                  dir="rtl"
+                  lang="he"
+                  className="w-full px-4 py-3 border-2 border-[#F52F8E] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                />
+              </div>
+
+              {/* Content Field */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  תוכן
+                </label>
+                <div className="relative" dir="rtl">
+                  <RichTextEditor
+                    content={newPostContent}
+                    onChange={setNewPostContent}
+                    placeholder="תאר את הבעיה שלך או שתף ידע..."
+                    userId={currentUser?.user_id || currentUser?.id}
+                  />
+                </div>
+              </div>
+
+              {/* Video Upload */}
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="video-upload"
+                />
+                <label
+                  htmlFor="video-upload"
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <Video className="w-5 h-5" />
+                  <span>וידאו (נפרד)</span>
+                </label>
+              </div>
+
+              {/* Video Preview */}
+              {mediaPreview && mediaType === 'video' && (
+                <div className="relative">
+                  <video src={mediaPreview} controls className="w-full max-h-64 rounded-lg" />
+                  <button
+                    type="button"
+                    onClick={removeMedia}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
+              <button
+                onClick={() => {
+                  setShowNewPostForm(false);
+                  setNewPostTitle('');
+                  setNewPostContent('');
+                  setMediaUrl('');
+                  setMediaType(null);
+                  setMediaPreview(null);
+                  setSelectedForumId('');
+                }}
+                className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors text-sm font-medium"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={handleCreatePost}
+                disabled={!newPostTitle.trim() || !newPostContent.trim() || !selectedForumId}
+                className="px-6 py-2.5 bg-[#F52F8E] text-white rounded-xl hover:bg-[#E01E7A] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                פרסם
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

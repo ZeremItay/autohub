@@ -209,7 +209,8 @@ export async function getAllProfiles() {
     return { data: null, error }
   }
   
-  setCached(cacheKey, data, CACHE_TTL.MEDIUM);
+  // Use longer cache for profiles (10 minutes) since they don't change frequently
+  setCached(cacheKey, data, CACHE_TTL.LONG);
   return { data, error: null }
 }
 

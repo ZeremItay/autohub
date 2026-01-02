@@ -535,3 +535,31 @@ export async function checkUserLikedPost(postId: string, userId: string) {
   return { liked: !!data, error: error || null };
 }
 
+// Check if user liked multiple posts (batch query for performance)
+export async function checkUserLikedPosts(postIds: string[], userId: string) {
+  if (!postIds || postIds.length === 0) {
+    return { likedMap: {}, error: null };
+  }
+
+  const { data, error } = await supabase
+    .from('post_likes')
+    .select('post_id')
+    .eq('user_id', userId)
+    .in('post_id', postIds);
+  
+  if (error) {
+    // Check if table doesn't exist
+    if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+      console.warn('Table post_likes does not exist. Returning empty map.');
+      return { likedMap: {}, error: null };
+    }
+    logError(error, 'checkUserLikedPosts');
+    return { likedMap: {}, error };
+  }
+  
+  const likedSet = new Set(data?.map((l: any) => l.post_id) || []);
+  const likedMap = Object.fromEntries(postIds.map(id => [id, likedSet.has(id)]));
+  
+  return { likedMap, error: null };
+}
+

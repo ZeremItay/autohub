@@ -21,9 +21,11 @@ import {
   ChevronRight,
   Radio,
   Megaphone,
+  FileText,
+  GraduationCap,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { getPosts, createPost, deletePost, toggleLike, checkUserLikedPost, type PostWithProfile } from '@/lib/queries/posts';
+import { getPosts, createPost, deletePost, toggleLike, checkUserLikedPost, checkUserLikedPosts, type PostWithProfile } from '@/lib/queries/posts';
 import { getAllProfiles, type ProfileWithRole } from '@/lib/queries/profiles';
 import { getUpcomingEvents, type Event } from '@/lib/queries/events';
 import { getAllRecordings } from '@/lib/queries/recordings';
@@ -44,18 +46,20 @@ import { lazyLoad } from '@/lib/utils/lazyLoad';
 import Link from 'next/link';
 
 interface RecentUpdate {
-  type: 'forum' | 'project' | 'recording' | 'event';
+  type: 'forum' | 'project' | 'recording' | 'event' | 'blog' | 'course' | 'post';
   text: string;
   time: string;
   icon: string;
   link?: string;
   id?: string;
+  created_at?: string;
 }
 
 export default function Home() {
   // Use custom hooks for user data
   const { user: currentUser, isAdmin: userIsAdmin, refetch: refetchUser } = useCurrentUser();
-  const { users: onlineUsers } = useOnlineUsers();
+  const [profiles, setProfiles] = useState<ProfileWithRole[]>([]);
+  const { users: onlineUsers } = useOnlineUsers(profiles);
   
   const [announcements, setAnnouncements] = useState<PostWithProfile[]>([]);
   const [friends, setFriends] = useState<ProfileWithRole[]>([]);
@@ -132,9 +136,12 @@ export default function Home() {
     };
   }, [news]);
 
-  // Poll for new reports every 10 seconds to keep ticker updated
+  // Poll for new reports every 30 seconds to keep ticker updated (optimized from 10s)
   useEffect(() => {
-    const reportsInterval = setInterval(async () => {
+    // Only poll if reports section is likely visible (at top of page)
+    let reportsInterval: NodeJS.Timeout | null = null;
+    
+    const pollReports = async () => {
       try {
         const { getAllReports } = await import('@/lib/queries/reports');
         const reportsResult = await getAllReports(10);
@@ -148,10 +155,16 @@ export default function Home() {
       } catch (error) {
         console.error('Error polling for reports:', error);
       }
-    }, 10000); // Poll every 10 seconds
+    };
+
+    // Start polling after initial load
+    const timeoutId = setTimeout(() => {
+      reportsInterval = setInterval(pollReports, 30000); // Poll every 30 seconds
+    }, 5000); // Wait 5 seconds before starting to poll
 
     return () => {
-      clearInterval(reportsInterval);
+      if (reportsInterval) clearInterval(reportsInterval);
+      clearTimeout(timeoutId);
     };
   }, []);
 
@@ -178,25 +191,18 @@ export default function Home() {
         });
         setAnnouncements(adminPosts);
         
-        // Load liked posts for current user - do this in background after page loads
+        // Load liked posts for current user - use batch query for better performance
         if (currentUser) {
           const userId = currentUser.user_id || currentUser.id;
-          if (userId) {
+          if (userId && adminPosts.length > 0) {
             // Load in background - don't block page load
             lazyLoad(async () => {
               try {
-                const likedPostsMap: Record<string, boolean> = {};
-                await Promise.all(
-                  adminPosts.map(async (post: any) => {
-                    try {
-                      const { liked } = await checkUserLikedPost(post.id, userId);
-                      likedPostsMap[post.id] = liked;
-                    } catch (error) {
-                      // Silently fail
-                    }
-                  })
-                );
-                setLikedPosts(likedPostsMap);
+                const postIds = adminPosts.map((post: any) => post.id);
+                const { likedMap, error } = await checkUserLikedPosts(postIds, userId);
+                if (!error && likedMap) {
+                  setLikedPosts(likedMap);
+                }
               } catch (error) {
                 // Silently fail
               }
@@ -210,6 +216,7 @@ export default function Home() {
       // Process profiles
       if (profilesResult?.data && Array.isArray(profilesResult.data)) {
         setFriends(profilesResult.data);
+        setProfiles(profilesResult.data); // Store profiles for useOnlineUsers hook
         
         // Load badges lazily after initial render - completely in background
         // This will be done much later to not block anything - DISABLED FOR NOW TO IMPROVE PERFORMANCE
@@ -261,8 +268,8 @@ export default function Home() {
           setReports([]);
         }
 
-      // Load recent updates in background - don't block initial page load
-      lazyLoad(() => loadRecentUpdates(eventsResult.data || []), 500).catch(() => {
+      // Load recent updates in background - defer slightly to not block initial render
+      lazyLoad(() => loadRecentUpdates(eventsResult.data || []), 300).catch(() => {
         // Silently fail
       });
     } catch (error) {
@@ -298,90 +305,383 @@ export default function Home() {
     try {
       const updates: RecentUpdate[] = [];
       
-      // Load all data in parallel for better performance
-      const [forumsResult, recordingsResult, projectsResult] = await Promise.all([
-        getAllForums(),
-        getAllRecordings(),
-        getAllProjects()
+      // Get date from 30 days ago to filter only recent updates
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+      
+      // Optimized: Load only the most recent items instead of all data
+      // Load all categories in parallel
+      const [latestForumPostsResult, latestRecordingsResult, latestProjectsResult, latestBlogPostsResult, latestCoursesResult, latestAnnouncementsResult] = await Promise.all([
+        // Get recent posts from ALL active forums with profile join - get 20 to ensure we have enough options
+        supabase
+          .from('forum_posts')
+          .select('id, title, user_id, created_at, forum_id, forums(id, display_name, is_active)')
+          .gte('created_at', thirtyDaysAgoISO)
+          .order('created_at', { ascending: false })
+          .limit(20),
+        // Get recent recordings - get 20 to ensure we have enough (only from last 30 days)
+        supabase.from('recordings').select('id, title, created_at').gte('created_at', thirtyDaysAgoISO).order('created_at', { ascending: false }).limit(20),
+        // Get recent projects - get 20 to ensure we have enough with profile join (only from last 30 days)
+        supabase.from('projects').select('id, title, user_id, created_at').gte('created_at', thirtyDaysAgoISO).order('created_at', { ascending: false }).limit(20),
+        // Get recent blog posts - get 20 to ensure we have enough (only published, from last 30 days)
+        supabase.from('blog_posts').select('id, title, slug, author_id, created_at').eq('is_published', true).gte('created_at', thirtyDaysAgoISO).order('created_at', { ascending: false }).limit(20),
+        // Get recent courses - get 20 to ensure we have enough (only from last 30 days)
+        supabase.from('courses').select('id, title, created_at').gte('created_at', thirtyDaysAgoISO).order('created_at', { ascending: false }).limit(20),
+        // Get recent announcements (posts) - get 20 to ensure we have enough (only from last 30 days)
+        supabase.from('posts').select('id, content, user_id, created_at').eq('is_announcement', true).gte('created_at', thirtyDaysAgoISO).order('created_at', { ascending: false }).limit(20)
       ]);
 
-      // Type guard for results
-      const hasData = (result: any): result is { data: any[] } => {
-        return result && result.data && Array.isArray(result.data);
-      };
-
-      // Get recent forum posts - limit to first 2 forums and load posts in parallel
-      if (forumsResult.data && forumsResult.data.length > 0) {
-        const forumsToLoad = forumsResult.data.slice(0, 2);
-        const forumPostsPromises = forumsToLoad.map(forum => getForumPosts(forum.id));
-        const forumPostsResults = await Promise.all(forumPostsPromises);
-        
-        forumPostsResults.forEach((result, index) => {
-          if (result.data && result.data.length > 0) {
-            const recentPost = result.data[0];
-            const forum = forumsToLoad[index];
-            updates.push({
-              type: 'forum',
-              text: `${recentPost.profile?.display_name || 'משתמש'} פרסם פוסט: ${recentPost.title}`,
-              time: formatTimeAgo(recentPost.created_at),
-              icon: '💬',
-              link: `/forums/${forum.id}/posts/${recentPost.id}`,
-              id: recentPost.id
-            });
-          }
+      // Get user IDs from all results to fetch profiles in one query
+      const userIds = new Set<string>();
+      if (latestForumPostsResult.data) {
+        latestForumPostsResult.data.forEach((post: any) => {
+          if (post.user_id) userIds.add(post.user_id);
+        });
+      }
+      if (latestProjectsResult.data) {
+        latestProjectsResult.data.forEach((project: any) => {
+          if (project.user_id) userIds.add(project.user_id);
+        });
+      }
+      if (latestBlogPostsResult.data) {
+        latestBlogPostsResult.data.forEach((post: any) => {
+          if (post.author_id) userIds.add(post.author_id);
+        });
+      }
+      if (latestAnnouncementsResult.data) {
+        latestAnnouncementsResult.data.forEach((post: any) => {
+          if (post.user_id) userIds.add(post.user_id);
         });
       }
 
+      // Fetch all profiles at once
+      let profilesMap = new Map<string, any>();
+      if (userIds.size > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, display_name, first_name, nickname')
+          .in('user_id', Array.from(userIds));
+        if (profilesData) {
+          profilesMap = new Map(profilesData.map((p: any) => [p.user_id, p]));
+        }
+      }
+
+      // Get recent forum posts (from all forums) - filter only active forums
+      if (latestForumPostsResult.data && latestForumPostsResult.data.length > 0) {
+        latestForumPostsResult.data
+          .filter((post: any) => {
+            const forum = post.forums as any;
+            return forum?.is_active !== false; // Only include posts from active forums
+          })
+          .forEach((latestPostData: any) => {
+            const profile = profilesMap.get(latestPostData.user_id);
+            const displayName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+            updates.push({
+              type: 'forum',
+              text: `${displayName} פרסם פוסט: ${latestPostData.title}`,
+              time: formatTimeAgo(latestPostData.created_at),
+              icon: '💬',
+              link: `/forums/${latestPostData.forum_id}/posts/${latestPostData.id}`,
+              id: latestPostData.id,
+              created_at: latestPostData.created_at
+            });
+          });
+      }
+
       // Get recent recordings
-      if (recordingsResult.data && recordingsResult.data.length > 0) {
-        const recentRecording = recordingsResult.data[0];
-        updates.push({
-          type: 'recording',
-          text: `העלתה הדרכה חדשה: ${recentRecording.title}`,
-          time: formatTimeAgo(recentRecording.created_at),
-          icon: '🎥',
-          link: `/recordings/${recentRecording.id}`,
-          id: recentRecording.id
+      if (latestRecordingsResult.data && latestRecordingsResult.data.length > 0) {
+        latestRecordingsResult.data.forEach((recentRecording: any) => {
+          updates.push({
+            type: 'recording',
+            text: `העלתה הדרכה חדשה: ${recentRecording.title}`,
+            time: formatTimeAgo(recentRecording.created_at),
+            icon: '🎥',
+            link: `/recordings/${recentRecording.id}`,
+            id: recentRecording.id,
+            created_at: recentRecording.created_at
+          });
         });
       }
 
       // Get recent projects
-      if (projectsResult?.data && Array.isArray(projectsResult.data) && projectsResult.data.length > 0) {
-        const recentProject = projectsResult.data[0];
-        updates.push({
-          type: 'project',
-          text: `${recentProject.user?.display_name || 'משתמש'} העלה פרויקט חדש: ${recentProject.title}`,
-          time: formatTimeAgo(recentProject.created_at),
-          icon: '📄',
-          link: `/projects#${recentProject.id}`,
-          id: recentProject.id
+      if (latestProjectsResult.data && latestProjectsResult.data.length > 0) {
+        latestProjectsResult.data.forEach((recentProject: any) => {
+          const profile = profilesMap.get(recentProject.user_id);
+          const userName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+          updates.push({
+            type: 'project',
+            text: `${userName} העלה פרויקט חדש: ${recentProject.title}`,
+            time: formatTimeAgo(recentProject.created_at),
+            icon: '📄',
+            link: `/projects#${recentProject.id}`,
+            id: recentProject.id,
+            created_at: recentProject.created_at
+          });
         });
       }
 
-      // Get recent events (from parameter)
+      // Get recent blog posts
+      if (latestBlogPostsResult.data && latestBlogPostsResult.data.length > 0) {
+        latestBlogPostsResult.data.forEach((blogPost: any) => {
+          const profile = profilesMap.get(blogPost.author_id);
+          const authorName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+          updates.push({
+            type: 'blog',
+            text: `${authorName} פרסם פוסט בבלוג: ${blogPost.title}`,
+            time: formatTimeAgo(blogPost.created_at),
+            icon: '📝',
+            link: `/blog/${blogPost.slug}`,
+            id: blogPost.id,
+            created_at: blogPost.created_at
+          });
+        });
+      }
+
+      // Get recent courses
+      if (latestCoursesResult.data && latestCoursesResult.data.length > 0) {
+        latestCoursesResult.data.forEach((course: any) => {
+          updates.push({
+            type: 'course',
+            text: `נוסף קורס חדש: ${course.title}`,
+            time: formatTimeAgo(course.created_at),
+            icon: '📚',
+            link: `/courses#${course.id}`,
+            id: course.id,
+            created_at: course.created_at
+          });
+        });
+      }
+
+      // Get recent announcements (posts)
+      if (latestAnnouncementsResult.data && latestAnnouncementsResult.data.length > 0) {
+        latestAnnouncementsResult.data.forEach((announcement: any) => {
+          const profile = profilesMap.get(announcement.user_id);
+          const authorName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+          const contentPreview = announcement.content?.substring(0, 50) || 'הכרזה חדשה';
+          updates.push({
+            type: 'post',
+            text: `${authorName} פרסם הכרזה: ${contentPreview}${announcement.content?.length > 50 ? '...' : ''}`,
+            time: formatTimeAgo(announcement.created_at),
+            icon: '📢',
+            link: `/#post-${announcement.id}`,
+            id: announcement.id,
+            created_at: announcement.created_at
+          });
+        });
+      }
+
+      // Get recent events (from parameter) - get up to 5 to ensure we have enough, filter by date
       if (eventsData.length > 0) {
-        const recentEvent = eventsData[0];
-        updates.push({
-          type: 'event',
-          text: `נוסף אירוע חדש: ${recentEvent.title}`,
-          time: formatTimeAgo(recentEvent.created_at),
-          icon: '📅',
-          link: `/live/${recentEvent.id}`,
-          id: recentEvent.id
-        });
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        eventsData
+          .filter((event: any) => {
+            if (!event.created_at) return false;
+            const eventDate = new Date(event.created_at);
+            return eventDate >= thirtyDaysAgo;
+          })
+          .slice(0, 5)
+          .forEach((recentEvent: any) => {
+            updates.push({
+              type: 'event',
+              text: `נוסף אירוע חדש: ${recentEvent.title}`,
+              time: formatTimeAgo(recentEvent.created_at),
+              icon: '📅',
+              link: `/live/${recentEvent.id}`,
+              id: recentEvent.id,
+              created_at: recentEvent.created_at
+            });
+          });
       }
 
-      // Sort by time (most recent first) and take first 5
+      // Sort by time (most recent first)
       updates.sort((a, b) => {
-        // Parse dates for proper sorting - use created_at if available
+        // Parse dates for proper sorting - use created_at
         try {
-          const dateA = a.id ? new Date(a.id).getTime() : 0;
-          const dateB = b.id ? new Date(b.id).getTime() : 0;
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
           return dateB - dateA;
         } catch {
           return 0;
         }
       });
+      
+      // If we don't have 5 updates, try to load more without date filter
+      if (updates.length < 5) {
+        const [moreForumPostsResult, moreRecordingsResult, moreProjectsResult, moreBlogPostsResult, moreCoursesResult, moreAnnouncementsResult] = await Promise.all([
+          supabase
+            .from('forum_posts')
+            .select('id, title, user_id, created_at, forum_id')
+            .order('created_at', { ascending: false })
+            .limit(5),
+          supabase.from('recordings').select('id, title, created_at').order('created_at', { ascending: false }).limit(5),
+          supabase.from('projects').select('id, title, user_id, created_at').order('created_at', { ascending: false }).limit(5),
+          supabase.from('blog_posts').select('id, title, slug, author_id, created_at').eq('is_published', true).order('created_at', { ascending: false }).limit(5),
+          supabase.from('courses').select('id, title, created_at').order('created_at', { ascending: false }).limit(5),
+          supabase.from('posts').select('id, content, user_id, created_at').eq('is_announcement', true).order('created_at', { ascending: false }).limit(5)
+        ]);
+
+        // Get user IDs from fallback results
+        const fallbackUserIds = new Set<string>();
+        if (moreForumPostsResult.data) {
+          moreForumPostsResult.data.forEach((post: any) => {
+            if (post.user_id) fallbackUserIds.add(post.user_id);
+          });
+        }
+        if (moreProjectsResult.data) {
+          moreProjectsResult.data.forEach((project: any) => {
+            if (project.user_id) fallbackUserIds.add(project.user_id);
+          });
+        }
+        if (moreBlogPostsResult.data) {
+          moreBlogPostsResult.data.forEach((post: any) => {
+            if (post.author_id) fallbackUserIds.add(post.author_id);
+          });
+        }
+        if (moreAnnouncementsResult.data) {
+          moreAnnouncementsResult.data.forEach((post: any) => {
+            if (post.user_id) fallbackUserIds.add(post.user_id);
+          });
+        }
+
+        // Fetch fallback profiles
+        let fallbackProfilesMap = new Map<string, any>();
+        if (fallbackUserIds.size > 0) {
+          const { data: fallbackProfilesData } = await supabase
+            .from('profiles')
+            .select('user_id, display_name, first_name, nickname')
+            .in('user_id', Array.from(fallbackUserIds));
+          if (fallbackProfilesData) {
+            fallbackProfilesMap = new Map(fallbackProfilesData.map((p: any) => [p.user_id, p]));
+          }
+        }
+
+        // Add more updates if we don't have enough
+        const existingIds = new Set(updates.map(u => u.id));
+        
+        if (moreForumPostsResult.data) {
+          moreForumPostsResult.data.forEach((post: any) => {
+            if (!existingIds.has(post.id)) {
+              const profile = fallbackProfilesMap.get(post.user_id);
+              const displayName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+              updates.push({
+                type: 'forum',
+                text: `${displayName} פרסם פוסט: ${post.title}`,
+                time: formatTimeAgo(post.created_at),
+                icon: '💬',
+                link: `/forums/${post.forum_id}/posts/${post.id}`,
+                id: post.id,
+                created_at: post.created_at
+              });
+              existingIds.add(post.id);
+            }
+          });
+        }
+
+        if (moreRecordingsResult.data) {
+          moreRecordingsResult.data.forEach((recording: any) => {
+            if (!existingIds.has(recording.id)) {
+              updates.push({
+                type: 'recording',
+                text: `העלתה הדרכה חדשה: ${recording.title}`,
+                time: formatTimeAgo(recording.created_at),
+                icon: '🎥',
+                link: `/recordings/${recording.id}`,
+                id: recording.id,
+                created_at: recording.created_at
+              });
+              existingIds.add(recording.id);
+            }
+          });
+        }
+
+        if (moreProjectsResult.data) {
+          moreProjectsResult.data.forEach((project: any) => {
+            if (!existingIds.has(project.id)) {
+              const profile = fallbackProfilesMap.get(project.user_id);
+              const userName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+              updates.push({
+                type: 'project',
+                text: `${userName} העלה פרויקט חדש: ${project.title}`,
+                time: formatTimeAgo(project.created_at),
+                icon: '📄',
+                link: `/projects#${project.id}`,
+                id: project.id,
+                created_at: project.created_at
+              });
+              existingIds.add(project.id);
+            }
+          });
+        }
+
+        if (moreBlogPostsResult.data) {
+          moreBlogPostsResult.data.forEach((blogPost: any) => {
+            if (!existingIds.has(blogPost.id)) {
+              const profile = fallbackProfilesMap.get(blogPost.author_id);
+              const authorName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+              updates.push({
+                type: 'blog',
+                text: `${authorName} פרסם פוסט בבלוג: ${blogPost.title}`,
+                time: formatTimeAgo(blogPost.created_at),
+                icon: '📝',
+                link: `/blog/${blogPost.slug}`,
+                id: blogPost.id,
+                created_at: blogPost.created_at
+              });
+              existingIds.add(blogPost.id);
+            }
+          });
+        }
+
+        if (moreCoursesResult.data) {
+          moreCoursesResult.data.forEach((course: any) => {
+            if (!existingIds.has(course.id)) {
+              updates.push({
+                type: 'course',
+                text: `נוסף קורס חדש: ${course.title}`,
+                time: formatTimeAgo(course.created_at),
+                icon: '📚',
+                link: `/courses#${course.id}`,
+                id: course.id,
+                created_at: course.created_at
+              });
+              existingIds.add(course.id);
+            }
+          });
+        }
+
+        if (moreAnnouncementsResult.data) {
+          moreAnnouncementsResult.data.forEach((announcement: any) => {
+            if (!existingIds.has(announcement.id)) {
+              const profile = fallbackProfilesMap.get(announcement.user_id);
+              const authorName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+              const contentPreview = announcement.content?.substring(0, 50) || 'הכרזה חדשה';
+              updates.push({
+                type: 'post',
+                text: `${authorName} פרסם הכרזה: ${contentPreview}${announcement.content?.length > 50 ? '...' : ''}`,
+                time: formatTimeAgo(announcement.created_at),
+                icon: '📢',
+                link: `/#post-${announcement.id}`,
+                id: announcement.id,
+                created_at: announcement.created_at
+              });
+              existingIds.add(announcement.id);
+            }
+          });
+        }
+
+        // Re-sort after adding more
+        updates.sort((a, b) => {
+          try {
+            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return dateB - dateA;
+          } catch {
+            return 0;
+          }
+        });
+      }
       
       setRecentUpdates(updates.slice(0, 5));
     } catch (error) {
@@ -828,7 +1128,18 @@ export default function Home() {
 
           {/* Recent Updates */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">עדכונים אחרונים</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">עדכונים אחרונים</h2>
+              {recentUpdates.length > 0 && (
+                <Link
+                  href="/recent-updates"
+                  className="text-sm text-[#F52F8E] hover:text-[#E01E7A] hover:underline flex items-center gap-1 transition-colors"
+                >
+                  כל העדכונים
+                  <ChevronLeft className="w-4 h-4" />
+                </Link>
+              )}
+            </div>
             {recentUpdates.length === 0 ? (
               <div className="p-4 bg-[#F3F4F6] rounded-lg border border-pink-200">
                 <p className="text-sm text-gray-500">מצטערים, לא נמצאה פעילות.</p>
@@ -842,6 +1153,9 @@ export default function Home() {
                       {update.type === 'project' && <Briefcase className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />}
                       {update.type === 'recording' && <Video className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />}
                       {update.type === 'event' && <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
+                      {update.type === 'blog' && <FileText className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />}
+                      {update.type === 'course' && <GraduationCap className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />}
+                      {update.type === 'post' && <Megaphone className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />}
                       <div className="flex-1">
                         <p className="text-sm text-gray-700">{update.text}</p>
                         <p className="text-xs text-gray-500 mt-1">{update.time}</p>
@@ -1258,7 +1572,18 @@ export default function Home() {
 
             {/* Recent Updates */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">עדכונים אחרונים</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">עדכונים אחרונים</h2>
+                {recentUpdates.length > 0 && (
+                  <Link
+                    href="/recent-updates"
+                    className="text-sm text-[#F52F8E] hover:text-[#E01E7A] hover:underline flex items-center gap-1 transition-colors"
+                  >
+                    כל העדכונים
+                    <ChevronLeft className="w-4 h-4" />
+                  </Link>
+                )}
+              </div>
               {recentUpdates.length === 0 ? (
                 <div className="p-4 bg-[#F3F4F6] rounded-lg border border-pink-200">
                   <p className="text-sm text-gray-500">מצטערים, לא נמצאה פעילות.</p>
@@ -1272,6 +1597,9 @@ export default function Home() {
                         {update.type === 'project' && <Briefcase className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />}
                         {update.type === 'recording' && <Video className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />}
                         {update.type === 'event' && <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
+                        {update.type === 'blog' && <FileText className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'course' && <GraduationCap className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'post' && <Megaphone className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />}
                         <div className="flex-1">
                           <p className="text-sm text-gray-700">{update.text}</p>
                           <p className="text-xs text-gray-500 mt-1">{update.time}</p>
