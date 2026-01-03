@@ -30,7 +30,8 @@ import {
   Calendar,
   Download,
   BookOpen,
-  Tag as TagIcon
+  Tag as TagIcon,
+  MessageCircleMore
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -74,7 +75,7 @@ import { he } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks'>('users')
   const [users, setUsers] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [roles, setRoles] = useState<any[]>([])
@@ -94,6 +95,7 @@ export default function AdminPanel() {
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [tags, setTags] = useState<Tag[]>([])
   const [unapprovedTags, setUnapprovedTags] = useState<Tag[]>([])
+  const [feedbacks, setFeedbacks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<string | null>(null)
   const [formData, setFormData] = useState<any>({})
@@ -101,6 +103,11 @@ export default function AdminPanel() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [zoomMeetings, setZoomMeetings] = useState<any[]>([])
   const [loadingZoomMeetings, setLoadingZoomMeetings] = useState(false)
+  const [selectedUserForCourses, setSelectedUserForCourses] = useState<string | null>(null)
+  const [userEnrollments, setUserEnrollments] = useState<any[]>([])
+  const [loadingEnrollments, setLoadingEnrollments] = useState(false)
+  const [selectedFeedback, setSelectedFeedback] = useState<any | null>(null)
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   
   // Calculate selected date for events DatePicker
   const eventSelectedDate = useMemo(() => {
@@ -383,12 +390,132 @@ export default function AdminPanel() {
         if (!unapprovedError && unapprovedData && Array.isArray(unapprovedData)) {
           setUnapprovedTags(unapprovedData)
         }
+      } else if (activeTab === 'feedbacks') {
+        const response = await fetch('/api/admin/feedbacks', {
+          credentials: 'include'
+        })
+        if (response.ok) {
+          const result = await response.json()
+          console.log('Feedbacks loaded:', result)
+          setFeedbacks(result.data || [])
+        } else {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          console.error('Failed to load feedbacks:', response.status, errorData)
+          setFeedbacks([])
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  async function loadUserEnrollments(userId: string) {
+    setLoadingEnrollments(true)
+    try {
+      if (!userId) {
+        console.error('No userId provided')
+        setUserEnrollments([])
+        return
+      }
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:406',message:'loadUserEnrollments called',data:{userId,hasCredentials:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      // #region agent log
+      const clientSession = await supabase.auth.getSession();
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:410',message:'Client session check',data:{hasSession:!!clientSession?.data?.session,hasUser:!!clientSession?.data?.session?.user,userId:clientSession?.data?.session?.user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      
+      const response = await fetch(`/api/admin/users/${userId}/courses`, {
+        credentials: 'include'
+      })
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:415',message:'Fetch response received',data:{status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      if (response.ok) {
+        const result = await response.json()
+        setUserEnrollments(result.data || [])
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Failed to load enrollments:', response.status, errorData)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:422',message:'Fetch error response',data:{status:response.status,errorData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        setUserEnrollments([])
+      }
+    } catch (error) {
+      console.error('Error loading enrollments:', error)
+      setUserEnrollments([])
+    } finally {
+      setLoadingEnrollments(false)
+    }
+  }
+
+  async function handleAssignCourse(userId: string, courseId: string) {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/courses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ courseId })
+      })
+      
+      if (response.ok) {
+        const { data } = await response.json()
+        // Reload enrollments
+        await loadUserEnrollments(userId)
+        // Reload courses list to update counts if needed
+        if (activeTab === 'courses') {
+          const { data: coursesData, error } = await getAllCourses()
+          if (!error) setCourses(coursesData || [])
+        }
+        return { success: true, data }
+      } else {
+        const { error } = await response.json()
+        return { success: false, error: error || 'Failed to assign course' }
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Error assigning course' }
+    }
+  }
+
+  async function handleRemoveCourse(userId: string, courseId: string) {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/courses?courseId=${courseId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        // Reload enrollments
+        await loadUserEnrollments(userId)
+        return { success: true }
+      } else {
+        const { error } = await response.json()
+        return { success: false, error: error || 'Failed to remove course' }
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Error removing course' }
+    }
+  }
+
+  async function openCourseAssignmentModal(userId: string) {
+    setSelectedUserForCourses(userId)
+    // Load courses if not already loaded
+    if (courses.length === 0) {
+      const { data, error } = await getAllCourses()
+      if (!error) setCourses(data || [])
+    }
+    loadUserEnrollments(userId)
+  }
+
+  function closeCourseAssignmentModal() {
+    setSelectedUserForCourses(null)
+    setUserEnrollments([])
   }
 
   async function handleCreate() {
@@ -1487,6 +1614,138 @@ export default function AdminPanel() {
     }
   }
 
+  async function handleDeleteSelected() {
+    if (selectedItems.size === 0) return
+    
+    try {
+      const idsToDelete = Array.from(selectedItems)
+      let successCount = 0
+      let errorCount = 0
+      
+      for (const id of idsToDelete) {
+        try {
+          if (activeTab === 'users') {
+            const { error } = await supabase
+              .from('profiles')
+              .delete()
+              .eq('id', id)
+            if (!error) successCount++
+            else errorCount++
+          } else if (activeTab === 'posts') {
+            const { error } = await supabase
+              .from('posts')
+              .delete()
+              .eq('id', id)
+            if (!error) successCount++
+            else errorCount++
+          } else if (activeTab === 'news') {
+            const { deleteNews } = await import('@/lib/queries/news')
+            const { success } = await deleteNews(id)
+            if (success) successCount++
+            else errorCount++
+          } else if (activeTab === 'recordings') {
+            const { error } = await deleteRecording(id)
+            if (!error) successCount++
+            else errorCount++
+          } else if (activeTab === 'resources') {
+            const { deleteResource } = await import('@/lib/queries/resources')
+            const { error } = await deleteResource(id)
+            if (!error) successCount++
+            else errorCount++
+          } else if (activeTab === 'blog') {
+            const { deleteBlogPost } = await import('@/lib/queries/blog')
+            const { error } = await deleteBlogPost(id)
+            if (!error) successCount++
+            else errorCount++
+          } else if (activeTab === 'badges') {
+            const { deleteBadge } = await import('@/lib/queries/badges')
+            const { success } = await deleteBadge(id)
+            if (success) successCount++
+            else errorCount++
+          } else if (activeTab === 'courses') {
+            const { deleteCourse } = await import('@/lib/queries/courses')
+            const { error } = await deleteCourse(id)
+            if (!error) successCount++
+            else errorCount++
+          } else if (activeTab === 'events') {
+            const { error } = await deleteEvent(id)
+            if (!error) successCount++
+            else errorCount++
+          } else if (activeTab === 'reports') {
+            const { deleteReport } = await import('@/lib/queries/reports')
+            const { error } = await deleteReport(id)
+            if (!error) successCount++
+            else errorCount++
+          } else if (activeTab === 'payments') {
+            const response = await fetch(`/api/admin/payments?id=${id}`, {
+              method: 'DELETE'
+            })
+            if (response.ok) successCount++
+            else errorCount++
+          } else if (activeTab === 'projects') {
+            const { error } = await deleteProject(id)
+            if (!error) successCount++
+            else errorCount++
+          } else if (activeTab === 'tags') {
+            const { deleteTag } = await import('@/lib/queries/tags')
+            const { error } = await deleteTag(id)
+            if (!error) successCount++
+            else errorCount++
+          } else if (activeTab === 'feedbacks') {
+            const response = await fetch(`/api/admin/feedbacks/${id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            })
+            if (response.ok) successCount++
+            else errorCount++
+          } else if (activeTab === 'subscriptions') {
+            const response = await fetch(`/api/admin/subscriptions?id=${id}`, {
+              method: 'DELETE'
+            })
+            if (response.ok) successCount++
+            else errorCount++
+          }
+        } catch (err) {
+          console.error(`Error deleting ${id}:`, err)
+          errorCount++
+        }
+      }
+      
+      setSelectedItems(new Set())
+      await loadData()
+      
+      if (errorCount > 0) {
+        alert(`נמחקו ${successCount} פריטים, ${errorCount} נכשלו`)
+      } else {
+        alert(`נמחקו ${successCount} פריטים בהצלחה!`)
+      }
+    } catch (error) {
+      console.error('Error deleting selected items:', error)
+      alert('שגיאה במחיקת הפריטים')
+    }
+  }
+
+  function getCurrentItems() {
+    switch (activeTab) {
+      case 'users': return users
+      case 'posts': return posts
+      case 'news': return news
+      case 'recordings': return recordings
+      case 'resources': return resources
+      case 'blog': return blogPosts
+      case 'badges': return badges
+      case 'courses': return courses
+      case 'events': return events
+      case 'reports': return reports
+      case 'payments': return payments
+      case 'projects': return projects
+      case 'tags': return tags
+      case 'feedbacks': return feedbacks
+      case 'subscriptions': return subscriptions
+      default: return []
+    }
+  }
+
   // Handle accept/reject offer
   async function handleAcceptOffer(offerId: string) {
     try {
@@ -1728,6 +1987,17 @@ export default function AdminPanel() {
             <TagIcon className="w-5 h-5 inline-block ml-2" />
             תגיות
           </button>
+          <button
+            onClick={() => setActiveTab('feedbacks')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'feedbacks'
+                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
+                : 'text-gray-600 hover:text-[#F52F8E]'
+            }`}
+          >
+            <MessageCircleMore className="w-5 h-5 inline-block ml-2" />
+            פידבקים
+          </button>
         </div>
 
         {/* Content */}
@@ -1748,7 +2018,21 @@ export default function AdminPanel() {
                 {activeTab === 'events' && 'לייבים'}
                 {activeTab === 'projects' && 'פרויקטים'}
                 {activeTab === 'tags' && 'תגיות'}
+                {activeTab === 'feedbacks' && 'פידבקים'}
               </h2>
+              {selectedItems.size > 0 && (
+                <button
+                  onClick={async () => {
+                    if (confirm(`האם אתה בטוח שברצונך למחוק ${selectedItems.size} פריטים?`)) {
+                      await handleDeleteSelected()
+                    }
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  מחק נבחרים ({selectedItems.size})
+                </button>
+              )}
               {activeTab === 'subscriptions' && (
                 <div className="flex gap-2">
                   <button
@@ -3787,6 +4071,21 @@ export default function AdminPanel() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
+                    <th className="text-right py-3 px-4 w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.size > 0 && selectedItems.size === getCurrentItems().length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const allIds = getCurrentItems().map(item => item.id || item.user_id)
+                            setSelectedItems(new Set(allIds))
+                          } else {
+                            setSelectedItems(new Set())
+                          }
+                        }}
+                        className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                      />
+                    </th>
                     {activeTab === 'users' && (
                       <>
                         <th className="text-right py-3 px-4">ID</th>
@@ -3811,6 +4110,7 @@ export default function AdminPanel() {
                     )}
                     {activeTab === 'roles' && (
                       <>
+                        <th className="text-right py-3 px-4"></th>
                         <th className="text-right py-3 px-4">ID</th>
                         <th className="text-right py-3 px-4">שם</th>
                         <th className="text-right py-3 px-4">שם תצוגה</th>
@@ -3932,11 +4232,36 @@ export default function AdminPanel() {
                         <th className="text-right py-3 px-4">פעולות</th>
                       </>
                     )}
+                    {activeTab === 'feedbacks' && (
+                      <>
+                        <th className="text-right py-3 px-4">נושא</th>
+                        <th className="text-right py-3 px-4">סוג</th>
+                        <th className="text-right py-3 px-4">תאריך</th>
+                        <th className="text-right py-3 px-4">פעולות</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {activeTab === 'users' && users.map((user) => (
                     <tr key={user.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(user.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(user.id)
+                            } else {
+                              newSelected.delete(user.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
                       <td className="py-3 px-4 text-sm font-mono">{user.id.substring(0, 8)}...</td>
                       <td className="py-3 px-4 font-mono text-xs">{user.user_id?.substring(0, 8)}...</td>
                       <td className="py-3 px-4">{user.display_name || '-'}</td>
@@ -3959,6 +4284,13 @@ export default function AdminPanel() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => openCourseAssignmentModal(user.user_id || user.id)}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded"
+                            title="נהל קורסים"
+                          >
+                            <BookOpen className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => {
                               setEditing(user.id)
@@ -3984,6 +4316,23 @@ export default function AdminPanel() {
                   ))}
                   {activeTab === 'posts' && posts.map((post) => (
                     <tr key={post.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(post.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(post.id)
+                            } else {
+                              newSelected.delete(post.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
                       <td className="py-3 px-4 text-sm">{post.id.substring(0, 8)}...</td>
                       <td className="py-3 px-4 max-w-md truncate">{post.content || '-'}</td>
                       <td className="py-3 px-4">{post.profiles?.full_name || post.user_id}</td>
@@ -4077,9 +4426,26 @@ export default function AdminPanel() {
                     const needsWarningFlag = needsWarning(subscription.end_date);
                     const needsDowngradeFlag = needsDowngrade(subscription.end_date);
                     const expired = isExpired(subscription.end_date);
-                    
+
                     return (
                       <tr key={subscription.id} className={`border-b border-gray-100 hover:bg-gray-50 ${needsWarningFlag ? 'bg-yellow-50' : needsDowngradeFlag ? 'bg-red-50' : expired ? 'bg-gray-50' : ''}`}>
+                        <td className="py-3 px-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedItems.has(subscription.id)}
+                            onChange={(e) => {
+                              const newSelected = new Set(selectedItems)
+                              if (e.target.checked) {
+                                newSelected.add(subscription.id)
+                              } else {
+                                newSelected.delete(subscription.id)
+                              }
+                              setSelectedItems(newSelected)
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                          />
+                        </td>
                         <td className="py-3 px-4">
                           <div>
                             <div className="font-medium">{user.display_name || user.first_name || 'ללא שם'}</div>
@@ -4195,6 +4561,23 @@ export default function AdminPanel() {
                     return (
                       <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedItems.has(payment.id)}
+                            onChange={(e) => {
+                              const newSelected = new Set(selectedItems)
+                              if (e.target.checked) {
+                                newSelected.add(payment.id)
+                              } else {
+                                newSelected.delete(payment.id)
+                              }
+                              setSelectedItems(newSelected)
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                          />
+                        </td>
+                        <td className="py-3 px-4">
                           <div>
                             <div className="font-medium">{user.display_name || user.first_name || 'ללא שם'}</div>
                             <div className="text-xs text-gray-500">{user.email || '-'}</div>
@@ -4295,6 +4678,23 @@ export default function AdminPanel() {
                       
                       return (
                         <tr key={recording.id} className="border-b border-gray-100">
+                          <td className="py-3 px-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedItems.has(recording.id)}
+                              onChange={(e) => {
+                                const newSelected = new Set(selectedItems)
+                                if (e.target.checked) {
+                                  newSelected.add(recording.id)
+                                } else {
+                                  newSelected.delete(recording.id)
+                                }
+                                setSelectedItems(newSelected)
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                            />
+                          </td>
                           <td className="py-3 px-4 font-medium">
                             <div className="flex items-center gap-2">
                               <span>{recording.title || '-'}</span>
@@ -4408,6 +4808,23 @@ export default function AdminPanel() {
                   })()}
                   {activeTab === 'resources' && resources.map((resource) => (
                     <tr key={resource.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(resource.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(resource.id)
+                            } else {
+                              newSelected.delete(resource.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-medium">{resource.title || '-'}</td>
                       <td className="py-3 px-4">
                         {resource.category && (
@@ -4450,6 +4867,23 @@ export default function AdminPanel() {
                   ))}
                   {activeTab === 'blog' && blogPosts.map((post) => (
                     <tr key={post.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(post.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(post.id)
+                            } else {
+                              newSelected.delete(post.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-medium">{post.title || '-'}</td>
                       <td className="py-3 px-4">
                         {post.category && (
@@ -4486,6 +4920,23 @@ export default function AdminPanel() {
                   ))}
                   {activeTab === 'news' && news.map((item) => (
                     <tr key={item.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(item.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(item.id)
+                            } else {
+                              newSelected.delete(item.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-medium">{item.title || '-'}</td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 text-xs rounded ${
@@ -4523,6 +4974,23 @@ export default function AdminPanel() {
                   ))}
                   {activeTab === 'reports' && reports.map((report) => (
                     <tr key={report.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(report.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(report.id)
+                            } else {
+                              newSelected.delete(report.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-medium">{report.title || '-'}</td>
                       <td className="py-3 px-4">{report.views || 0}</td>
                       <td className="py-3 px-4">
@@ -4718,6 +5186,23 @@ export default function AdminPanel() {
                   ))}
                   {activeTab === 'events' && events.map((event) => (
                     <tr key={event.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(event.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(event.id)
+                            } else {
+                              newSelected.delete(event.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-medium">{event.title || '-'}</td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
@@ -4817,6 +5302,23 @@ export default function AdminPanel() {
                   ))}
                   {activeTab === 'projects' && projects.map((project) => (
                     <tr key={project.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(project.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(project.id)
+                            } else {
+                              newSelected.delete(project.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-medium">{project.title || '-'}</td>
                       <td className="py-3 px-4">{project.user?.display_name || '-'}</td>
                       <td className="py-3 px-4">
@@ -4934,6 +5436,23 @@ export default function AdminPanel() {
                   )}
                   {activeTab === 'tags' && tags.map((tag) => (
                     <tr key={tag.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(tag.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(tag.id)
+                            } else {
+                              newSelected.delete(tag.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-medium">{tag.name || '-'}</td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded font-mono">
@@ -4972,12 +5491,324 @@ export default function AdminPanel() {
                       </td>
                     </tr>
                   ))}
+                  {activeTab === 'feedbacks' && feedbacks.map((feedback) => (
+                    <tr 
+                      key={feedback.id} 
+                      className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                      onClick={() => setSelectedFeedback(feedback)}
+                    >
+                      <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(feedback.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(feedback.id)
+                            } else {
+                              newSelected.delete(feedback.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
+                      <td className="py-3 px-4 font-medium">{feedback.subject || '-'}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                          {feedback.feedback_type || '-'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-500">
+                        {feedback.created_at
+                          ? new Date(feedback.created_at).toLocaleDateString('he-IL', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : '-'}
+                      </td>
+                      <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={async () => {
+                            if (confirm('האם אתה בטוח שברצונך למחוק את הפידבק הזה?')) {
+                              try {
+                                const response = await fetch(`/api/admin/feedbacks/${feedback.id}`, {
+                                  method: 'DELETE',
+                                  credentials: 'include'
+                                })
+                                if (response.ok) {
+                                  await loadData()
+                                } else {
+                                  const error = await response.json()
+                                  alert(`שגיאה במחיקת הפידבק: ${error.error || 'שגיאה לא ידועה'}`)
+                                }
+                              } catch (error: any) {
+                                alert(`שגיאה במחיקת הפידבק: ${error.message || 'שגיאה לא ידועה'}`)
+                              }
+                            }
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded"
+                          title="מחק פידבק"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
         )}
       </div>
+
+      {/* Feedback Details Modal */}
+      {selectedFeedback && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setSelectedFeedback(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-[#F52F8E]">
+                פרטי פידבק
+              </h2>
+              <button
+                onClick={() => setSelectedFeedback(null)}
+                className="p-2 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">שם</label>
+                  <p className="text-gray-900">{selectedFeedback.name || '-'}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">אימייל</label>
+                  <p className="text-gray-900">{selectedFeedback.email || '-'}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">נושא</label>
+                  <p className="text-gray-900 font-medium">{selectedFeedback.subject || '-'}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">הודעה</label>
+                  <p className="text-gray-900 whitespace-pre-wrap">{selectedFeedback.message || '-'}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">דירוג</label>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`w-5 h-5 ${
+                          star <= (selectedFeedback.rating || 0)
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                    <span className="mr-2 text-sm text-gray-500">({selectedFeedback.rating || 0}/5)</span>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">סוג</label>
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded">
+                    {selectedFeedback.feedback_type || '-'}
+                  </span>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">תמונה</label>
+                  {selectedFeedback.image_url ? (
+                    <div className="mt-2">
+                      <a
+                        href={selectedFeedback.image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block"
+                      >
+                        <img
+                          src={selectedFeedback.image_url}
+                          alt="Feedback image"
+                          className="max-w-full max-h-96 h-auto rounded-lg border-2 border-gray-300 cursor-pointer hover:opacity-90 shadow-md"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                            e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                          }}
+                        />
+                      </a>
+                      <p className="text-xs text-gray-500 mt-1">לחץ על התמונה להגדלה</p>
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 text-sm">אין תמונה מצורפת</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">תאריך</label>
+                  <p className="text-gray-900">
+                    {selectedFeedback.created_at
+                      ? new Date(selectedFeedback.created_at).toLocaleDateString('he-IL', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : '-'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setSelectedFeedback(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Course Assignment Modal */}
+      {selectedUserForCourses && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-[#F52F8E]">
+                ניהול קורסים למשתמש
+              </h2>
+              <button
+                onClick={closeCourseAssignmentModal}
+                className="p-2 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              {loadingEnrollments ? (
+                <div className="text-center py-8">טוען...</div>
+              ) : (
+                <>
+                  {/* Current Enrollments */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-800">
+                      קורסים משויכים ({userEnrollments.length})
+                    </h3>
+                    {userEnrollments.length === 0 ? (
+                      <p className="text-gray-500 text-sm">אין קורסים משויכים למשתמש זה</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {userEnrollments.map((enrollment: any) => {
+                          const course = enrollment.courses || {}
+                          return (
+                            <div
+                              key={enrollment.id}
+                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                            >
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-800">{course.title || 'ללא כותרת'}</h4>
+                                <p className="text-sm text-gray-500">{course.category || ''}</p>
+                                <span className={`text-xs px-2 py-1 rounded mt-1 inline-block ${
+                                  enrollment.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                  enrollment.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                  'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {enrollment.status === 'completed' ? 'הושלם' :
+                                   enrollment.status === 'cancelled' ? 'בוטל' :
+                                   'רשום'}
+                                </span>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  if (confirm('האם אתה בטוח שברצונך להסיר את הקורס הזה מהמשתמש?')) {
+                                    const result = await handleRemoveCourse(selectedUserForCourses, enrollment.course_id)
+                                    if (result.success) {
+                                      alert('הקורס הוסר בהצלחה')
+                                    } else {
+                                      alert('שגיאה: ' + result.error)
+                                    }
+                                  }
+                                }}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Available Courses to Assign */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 text-gray-800">
+                      הוסף קורס חדש
+                    </h3>
+                    {courses.length === 0 ? (
+                      <p className="text-gray-500 text-sm">אין קורסים זמינים</p>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {courses
+                          .filter((course) => 
+                            !userEnrollments.some((e: any) => e.course_id === course.id)
+                          )
+                          .map((course) => (
+                            <div
+                              key={course.id}
+                              className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-[#F52F8E] transition-colors"
+                            >
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-800">{course.title}</h4>
+                                <p className="text-sm text-gray-500">{course.category || ''}</p>
+                                <span className={`text-xs px-2 py-1 rounded mt-1 inline-block ${
+                                  course.difficulty === 'מתחילים' ? 'bg-green-100 text-green-700' :
+                                  course.difficulty === 'בינוני' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                  {course.difficulty}
+                                </span>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  const result = await handleAssignCourse(selectedUserForCourses, course.id)
+                                  if (result.success) {
+                                    alert('הקורס נוסף בהצלחה')
+                                  } else {
+                                    alert('שגיאה: ' + result.error)
+                                  }
+                                }}
+                                className="px-4 py-2 bg-[#F52F8E] text-white rounded hover:bg-[#E01E7A] transition-colors"
+                              >
+                                הוסף
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

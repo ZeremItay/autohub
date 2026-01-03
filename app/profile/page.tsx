@@ -905,7 +905,7 @@ export default function ProfilePage() {
         {/* Profile Header */}
         <div className="bg-white border-b border-gray-200 pb-4 sm:pb-6 mb-4 sm:mb-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 w-full sm:w-auto flex-1">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{fullName}</h1>
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm sm:text-base">
@@ -1065,6 +1065,26 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+          {/* Send Message Button - Show when viewing other user's profile */}
+          {currentLoggedInUserId && profile && (currentLoggedInUserId !== (profile.user_id || profile.id)) && (
+            <div className="mt-4">
+              <button
+                onClick={() => {
+                  const partnerId = profile.user_id || profile.id;
+                  const partnerName = displayName;
+                  if (partnerId && typeof window !== 'undefined') {
+                    localStorage.setItem('messagePartnerId', partnerId);
+                    localStorage.setItem('messagePartnerName', partnerName);
+                    router.push('/messages');
+                  }
+                }}
+                className="w-full lg:w-auto flex items-center justify-center gap-2 px-4 py-3 bg-[#F52F8E] text-white rounded-xl font-semibold hover:bg-[#E01E7A] transition-colors"
+              >
+                <MessageCircle className="w-5 h-5" />
+                שלח הודעה
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">

@@ -1,36 +1,41 @@
+import { createServerClient as createSSRServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
 
 // For server-side operations (if you need service role key)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 export const createServerClient = (cookieStore?: ReadonlyRequestCookies) => {
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  
-  // If cookies are provided, use them to read session
+  // If cookies are provided, use @supabase/ssr for proper cookie handling
   if (cookieStore) {
-    return createClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+    const allCookies = cookieStore.getAll()
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/supabase-server.ts:13',message:'createServerClient with cookies',data:{cookieCount:allCookies.length,cookieNames:allCookies.map(c=>c.name),hasSupabaseCookies:allCookies.some(c=>c.name.includes('supabase')||c.name.includes('sb-'))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    return createSSRServerClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch (error) {
+              // The `setAll` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+            }
+          },
         },
-        set(name: string, value: string, options: any) {
-          try {
-            cookieStore.set(name, value, options);
-          } catch (error) {
-            // Ignore errors - cookies may be read-only
-          }
-        },
-        remove(name: string, options: any) {
-          try {
-            cookieStore.set(name, '', { ...options, maxAge: 0 });
-          } catch (error) {
-            // Ignore errors
-          }
-        },
-      },
-    } as any);
+      }
+    )
   }
   
   // Fallback to service role key if available and no cookies

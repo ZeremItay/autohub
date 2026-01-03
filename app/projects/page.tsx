@@ -68,6 +68,8 @@ export default function ProjectsPage() {
     offer_amount: ''
   });
   const [submittingOffer, setSubmittingOffer] = useState(false);
+  const [showProjectDetailsModal, setShowProjectDetailsModal] = useState(false);
+  const [selectedProjectForDetails, setSelectedProjectForDetails] = useState<Project | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -610,9 +612,30 @@ export default function ProjectsPage() {
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
           {/* Main Content - First on Mobile */}
           <main className="flex-1 min-w-0 order-1 lg:order-2">
+            {/* Header with Title */}
+            <div className="mb-4">
+              <h1 className="text-3xl font-bold text-gray-800 mb-4">לוח פרויקטים</h1>
+              {/* Post Project Button - Mobile Only - At Top */}
+              <div className="lg:hidden">
+                <div className="modern-card rounded-2xl p-5 animate-fade-in">
+                  <button
+                    onClick={() => {
+                      if (!currentUser) {
+                        setShowGuestChoiceModal(true);
+                      } else {
+                        setShowNewProjectForm(true);
+                      }
+                    }}
+                    className="btn-modern flex items-center gap-2 px-4 py-2.5 text-white rounded-xl text-sm font-medium w-full justify-center"
+                  >
+                    <Plus className="w-4 h-4" />
+                    פרסם פרויקט
+                  </button>
+                </div>
+              </div>
+            </div>
             {/* Header with Search and View Toggle */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-              <h1 className="text-3xl font-bold text-gray-800">לוח פרויקטים</h1>
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 {/* Search Bar */}
                 <div className="flex-1 sm:flex-none relative">
@@ -661,7 +684,14 @@ export default function ProjectsPage() {
             ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredProjects.map((project) => (
-                  <div key={project.id} className="modern-card rounded-2xl p-5 animate-fade-in flex flex-col">
+                  <div 
+                    key={project.id} 
+                    className="modern-card rounded-2xl p-5 animate-fade-in flex flex-col cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => {
+                      setSelectedProjectForDetails(project);
+                      setShowProjectDetailsModal(true);
+                    }}
+                  >
                     <div className="flex items-start justify-between mb-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(project.status)}`}>
                         {getStatusText(project.status)}
@@ -756,7 +786,14 @@ export default function ProjectsPage() {
             ) : (
               <div className="space-y-4">
                 {filteredProjects.map((project) => (
-                  <div key={project.id} className="modern-card rounded-2xl p-5 sm:p-6 animate-fade-in">
+                  <div 
+                    key={project.id} 
+                    className="modern-card rounded-2xl p-5 sm:p-6 animate-fade-in cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => {
+                      setSelectedProjectForDetails(project);
+                      setShowProjectDetailsModal(true);
+                    }}
+                  >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         {project.user?.avatar_url ? (
@@ -888,8 +925,8 @@ export default function ProjectsPage() {
               )}
             </div>
 
-            {/* Post Project Button */}
-            <div className="modern-card rounded-2xl p-5 animate-fade-in">
+            {/* Post Project Button - Desktop Only */}
+            <div className="hidden lg:block modern-card rounded-2xl p-5 animate-fade-in">
               <button
                 onClick={() => {
                   if (!currentUser) {
@@ -1332,6 +1369,141 @@ export default function ProjectsPage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project Details Modal */}
+      {showProjectDetailsModal && selectedProjectForDetails && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowProjectDetailsModal(false);
+            setSelectedProjectForDetails(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+              <h2 className="text-2xl font-bold text-gray-800">{selectedProjectForDetails.title}</h2>
+              <button
+                onClick={() => {
+                  setShowProjectDetailsModal(false);
+                  setSelectedProjectForDetails(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Project Owner Info */}
+              <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+                {selectedProjectForDetails.user?.avatar_url ? (
+                  <img 
+                    src={selectedProjectForDetails.user.avatar_url} 
+                    alt={selectedProjectForDetails.user.display_name || 'User'} 
+                    className="w-12 h-12 rounded-full"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white font-semibold text-lg">
+                    {(selectedProjectForDetails.user?.display_name || selectedProjectForDetails.guest_name || 'U').charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <p className="font-semibold text-gray-800">
+                    {selectedProjectForDetails.user?.display_name || selectedProjectForDetails.guest_name || 'אורח'}
+                  </p>
+                  <p className="text-sm text-gray-500 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {mounted ? formatTimeAgo(selectedProjectForDetails.created_at || '') : ''}
+                  </p>
+                </div>
+                <div className="mr-auto">
+                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${getStatusColor(selectedProjectForDetails.status)}`}>
+                    {getStatusText(selectedProjectForDetails.status)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Project Description */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">תיאור הפרויקט</h3>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedProjectForDetails.description}</p>
+              </div>
+
+              {/* Technologies */}
+              {selectedProjectForDetails.technologies && selectedProjectForDetails.technologies.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">טכנולוגיות נדרשות</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProjectForDetails.technologies.map((tech, idx) => (
+                      <span key={idx} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Budget */}
+              {(selectedProjectForDetails.budget_min || selectedProjectForDetails.budget_max) && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">תקציב</h3>
+                  <p className="text-gray-700">
+                    {selectedProjectForDetails.budget_min && selectedProjectForDetails.budget_max ? (
+                      <>₪ {Number(selectedProjectForDetails.budget_min).toLocaleString('he-IL')} - {Number(selectedProjectForDetails.budget_max).toLocaleString('he-IL')}</>
+                    ) : selectedProjectForDetails.budget_min ? (
+                      <>מינימום: ₪ {Number(selectedProjectForDetails.budget_min).toLocaleString('he-IL')}</>
+                    ) : (
+                      <>מקסימום: ₪ {Number(selectedProjectForDetails.budget_max).toLocaleString('he-IL')}</>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* Offers Count */}
+              <div className="flex items-center gap-2 text-gray-700">
+                <UserIcon className="w-5 h-5" />
+                <span className="font-medium">{selectedProjectForDetails.offers_count || 0} הצעות</span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            {selectedProjectForDetails.status !== 'closed' && (
+              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
+                <button
+                  onClick={() => {
+                    setShowProjectDetailsModal(false);
+                    setSelectedProjectForDetails(null);
+                  }}
+                  className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-colors font-medium text-sm"
+                >
+                  סגור
+                </button>
+                <ProtectedAction
+                  requireAuth={true}
+                  disabledMessage="התחבר כדי להגיש הצעה"
+                >
+                  <button 
+                    onClick={() => {
+                      setShowProjectDetailsModal(false);
+                      setSelectedProjectForDetails(null);
+                      handleSubmitOffer(selectedProjectForDetails.id);
+                    }}
+                    className="btn-modern px-6 py-2.5 text-white rounded-xl text-sm font-medium flex items-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    הגש הצעה
+                  </button>
+                </ProtectedAction>
+              </div>
+            )}
           </div>
         </div>
       )}

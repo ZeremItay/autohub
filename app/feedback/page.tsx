@@ -34,16 +34,30 @@ export default function FeedbackPage() {
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `feedback/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
+        // Try to upload to feedback-images bucket first
+        let uploadError = null;
+        let bucketName = 'feedback-images';
+        
+        const { error: uploadError1 } = await supabase.storage
           .from('feedback-images')
           .upload(filePath, imageFile);
 
-        if (uploadError) {
-          throw new Error('שגיאה בהעלאת התמונה');
+        if (uploadError1) {
+          // Fallback to avatars bucket if feedback-images doesn't exist
+          const { error: uploadError2 } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, imageFile);
+
+          if (uploadError2) {
+            console.error('Upload error:', uploadError2);
+            throw new Error(`שגיאה בהעלאת התמונה: ${uploadError2.message || 'שגיאה לא ידועה'}`);
+          } else {
+            bucketName = 'avatars';
+          }
         }
 
         const { data: { publicUrl } } = supabase.storage
-          .from('feedback-images')
+          .from(bucketName)
           .getPublicUrl(filePath);
 
         imageUrl = publicUrl;
