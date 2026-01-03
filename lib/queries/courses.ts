@@ -57,6 +57,15 @@ export interface KeyPoint {
   url?: string;
 }
 
+export interface CourseSection {
+  id: string;
+  course_id: string;
+  title: string;
+  section_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CourseLesson {
   id: string;
   course_id: string;
@@ -67,6 +76,7 @@ export interface CourseLesson {
   duration_minutes?: number;
   lesson_order: number;
   is_preview: boolean;
+  section_id?: string;
   qa_section?: QAItem[];
   key_points?: KeyPoint[];
   created_at: string;
@@ -429,6 +439,113 @@ export async function updateCourse(id: string, updates: Partial<Course>) {
   }
   
   return { data, error: null };
+}
+
+// Get sections for a course
+export async function getCourseSections(courseId: string) {
+  let supabaseClient;
+  
+  try {
+    if (typeof window !== 'undefined') {
+      supabaseClient = supabase;
+      console.log('Using client-side supabase for getCourseSections');
+    } else {
+      supabaseClient = createServerClient();
+      console.log('Using server-side supabase for getCourseSections');
+    }
+  } catch (e) {
+    console.error('Error initializing supabase client for getCourseSections:', e);
+    supabaseClient = createServerClient();
+  }
+  
+  console.log('Fetching sections for course:', courseId);
+  
+  try {
+    const { data, error } = await supabaseClient
+      .from('course_sections')
+      .select('*')
+      .eq('course_id', courseId)
+      .order('section_order', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching sections:', error);
+      // If table doesn't exist, return empty array (backward compatibility)
+      if (error.message?.includes('does not exist')) {
+        console.warn('course_sections table does not exist, returning empty array');
+        return { data: [], error: null };
+      }
+      return { data: null, error };
+    }
+    
+    console.log(`Found ${data?.length || 0} sections for course ${courseId}`);
+    if (data && data.length > 0) {
+      console.log('Sections data:', data);
+    }
+    
+    return { data: data || [], error: null };
+  } catch (e: any) {
+    console.error('Exception in getCourseSections:', e);
+    // If table doesn't exist, return empty array (backward compatibility)
+    return { data: [], error: null };
+  }
+}
+
+// Create a course section
+export async function createCourseSection(section: Omit<CourseSection, 'id' | 'created_at' | 'updated_at'>) {
+  let supabaseClient;
+  
+  try {
+    // Check if we're in a browser environment
+    if (typeof window !== 'undefined') {
+      // Try to use client-side supabase
+      try {
+        const { supabase: clientSupabase } = await import('@/lib/supabase');
+        supabaseClient = clientSupabase;
+      } catch (e) {
+        console.warn('Failed to import client supabase, using server client');
+        supabaseClient = createServerClient();
+      }
+    } else {
+      supabaseClient = createServerClient();
+    }
+  } catch (e) {
+    // Fallback to server client
+    supabaseClient = createServerClient();
+  }
+  
+  if (!supabaseClient) {
+    console.error('Failed to initialize supabase client');
+    return { data: null, error: { message: 'Failed to initialize supabase client' } as any };
+  }
+  
+  console.log('Creating section:', section);
+  
+  const sectionData: any = {
+    course_id: section.course_id,
+    title: section.title,
+    section_order: section.section_order
+  };
+  
+  try {
+    const { data, error } = await supabaseClient
+      .from('course_sections')
+      .insert([sectionData])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating section:', error);
+      console.error('Section data:', sectionData);
+      return { data: null, error };
+    }
+    
+    console.log('Section created successfully:', data?.id);
+    
+    return { data, error: null };
+  } catch (e: any) {
+    console.error('Exception creating section:', e);
+    return { data: null, error: { message: e?.message || 'Unknown error' } as any };
+  }
 }
 
 // Get lessons for a course

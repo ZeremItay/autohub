@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Play, Clock, CheckCircle, Lock, ArrowRight, ArrowLeft, HelpCircle, Star, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
-import { getCourseById, getCourseLessons, checkEnrollment, enrollInCourse, markLessonComplete, markLessonIncomplete, getCompletedLessons, isLessonCompleted, canAccessLesson, getNextAvailableLesson, type Course, type CourseLesson } from '@/lib/queries/courses';
+import { getCourseById, getCourseLessons, getCourseSections, checkEnrollment, enrollInCourse, markLessonComplete, markLessonIncomplete, getCompletedLessons, isLessonCompleted, canAccessLesson, getNextAvailableLesson, type Course, type CourseLesson, type CourseSection } from '@/lib/queries/courses';
 import { getAllProfiles } from '@/lib/queries/profiles';
 import { isAdmin, isPremiumUser } from '@/lib/utils/user';
 import { awardPoints } from '@/lib/queries/gamification';
@@ -15,6 +15,7 @@ export default function CourseDetailPage() {
   const courseId = params.id as string;
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<CourseLesson[]>([]);
+  const [sections, setSections] = useState<CourseSection[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedLesson, setSelectedLesson] = useState<CourseLesson | null>(null);
@@ -27,6 +28,7 @@ export default function CourseDetailPage() {
   const [markingComplete, setMarkingComplete] = useState(false);
   const [nextAvailableLesson, setNextAvailableLesson] = useState<CourseLesson | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadData();
@@ -117,6 +119,28 @@ export default function CourseDetailPage() {
 
       // Only load lessons if enrolled or admin (use local variable, not state)
       if (userIsEnrolled || (userObj && isAdmin(userObj))) {
+        // Load sections first
+        console.log('Loading sections for course:', courseId);
+        const { data: sectionsData, error: sectionsError } = await getCourseSections(courseId);
+        console.log('Sections loaded:', sectionsData);
+        console.log('Sections error:', sectionsError);
+        
+        if (sectionsError) {
+          console.error('Error loading sections:', sectionsError);
+        }
+        
+        if (sectionsData && sectionsData.length > 0) {
+          console.log(`Found ${sectionsData.length} sections for course ${courseId}`);
+          setSections(sectionsData);
+          // Open first section by default
+          if (sectionsData.length > 0) {
+            setOpenSections(new Set([sectionsData[0].id]));
+          }
+        } else {
+          console.log('No sections found for course:', courseId);
+          setSections([]);
+        }
+        
         // Load lessons
         console.log('Loading lessons for course:', courseId);
         const { data: lessonsData, error: lessonsError } = await getCourseLessons(courseId);
@@ -140,8 +164,29 @@ export default function CourseDetailPage() {
           console.log(`Loaded ${lessonsData.length} lessons for course ${courseId}`);
           if (lessonsData.length > 0) {
             console.log('Lessons:', lessonsData);
+            // Check which lessons have section_id
+            const lessonsWithSections = lessonsData.filter((l: any) => l.section_id);
+            const lessonsWithoutSections = lessonsData.filter((l: any) => !l.section_id);
+            console.log(`Lessons with sections: ${lessonsWithSections.length}, without sections: ${lessonsWithoutSections.length}`);
           }
           setLessons(lessonsData);
+          
+          // If sections weren't loaded but lessons have section_id, try to load sections again
+          if ((!sectionsData || sectionsData.length === 0) && lessonsData && lessonsData.length > 0) {
+            const lessonsWithSections = lessonsData.filter((l: any) => l.section_id);
+            if (lessonsWithSections.length > 0) {
+              console.warn('Lessons have section_id but sections were not loaded, retrying...');
+              const { data: retrySectionsData, error: retryError } = await getCourseSections(courseId);
+              if (retrySectionsData && retrySectionsData.length > 0) {
+                console.log(`Retry successful: Found ${retrySectionsData.length} sections`);
+                setSections(retrySectionsData);
+                setOpenSections(new Set([retrySectionsData[0].id]));
+              } else if (retryError) {
+                console.error('Retry failed:', retryError);
+              }
+            }
+          }
+          
           if (lessonsData.length > 0) {
             // Load completed lessons first to determine next lesson
             if (userId) {
@@ -770,79 +815,269 @@ export default function CourseDetailPage() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:sticky lg:top-4">
               <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">תוכן הקורס</h2>
+              {(() => {
+                console.log('Rendering course content - sections:', sections.length, 'lessons:', lessons.length);
+                return null;
+              })()}
               {lessons.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p className="text-sm">אין שיעורים זמינים בקורס זה</p>
                   <p className="text-xs mt-2">השיעורים יופיעו כאן כאשר הם יועלו</p>
                 </div>
-              ) : (
-              <div className="space-y-2">
-                {lessons.map((lesson, index) => {
-                  const isCompleted = completedLessons.includes(lesson.id);
-                  const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
-                  const isLocked = course.is_sequential && !canAccess;
-                  
-                  return (
-                    <button
-                      key={lesson.id}
-                      onClick={() => {
-                        if (!isLocked) {
-                          setSelectedLesson(lesson);
-                        }
-                      }}
-                      disabled={isLocked}
-                      className={`w-full text-right p-3 sm:p-4 rounded-lg border transition-all ${
-                        selectedLesson?.id === lesson.id
-                          ? 'border-[#F52F8E] bg-pink-50'
-                          : isLocked
-                          ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
-                      title={isLocked ? 'עליך לסיים את השיעור הקודם' : ''}
-                    >
-                      <div className="flex items-start justify-between gap-2 sm:gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
-                            <span className="text-xs sm:text-sm font-semibold text-gray-500">
-                              שיעור {index + 1}
-                            </span>
-                            {isCompleted && (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            )}
-                            {isLocked && (
-                              <Lock className="w-4 h-4 text-gray-400" />
-                            )}
-                            {lesson.is_preview && (
-                              <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                                תצוגה מקדימה
-                              </span>
+              ) : sections && sections.length > 0 ? (
+                // Display with sections (accordion)
+                <div className="space-y-2">
+                  {sections.map((section) => {
+                    const sectionLessons = lessons.filter(lesson => lesson.section_id === section.id);
+                    const isOpen = openSections.has(section.id);
+                    console.log(`Section "${section.title}" (${section.id}): ${sectionLessons.length} lessons, isOpen: ${isOpen}`);
+                    
+                    return (
+                      <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => {
+                            const newOpenSections = new Set(openSections);
+                            if (isOpen) {
+                              newOpenSections.delete(section.id);
+                            } else {
+                              newOpenSections.add(section.id);
+                            }
+                            setOpenSections(newOpenSections);
+                          }}
+                          className="w-full flex items-center justify-between p-3 sm:p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                          <span className="font-semibold text-gray-800 text-sm sm:text-base">{section.title}</span>
+                          {isOpen ? (
+                            <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                          )}
+                        </button>
+                        
+                        {isOpen && (
+                          <div className="p-2 space-y-2">
+                            {sectionLessons.length === 0 ? (
+                              <p className="text-xs text-gray-500 text-center py-2">אין שיעורים בחלק זה</p>
+                            ) : (
+                              sectionLessons.map((lesson) => {
+                                const isCompleted = completedLessons.includes(lesson.id);
+                                const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
+                                const isLocked = course.is_sequential && !canAccess;
+                                const lessonIndex = lessons.findIndex(l => l.id === lesson.id);
+                                
+                                return (
+                                  <button
+                                    key={lesson.id}
+                                    onClick={() => {
+                                      if (!isLocked) {
+                                        setSelectedLesson(lesson);
+                                      }
+                                    }}
+                                    disabled={isLocked}
+                                    className={`w-full text-right p-3 sm:p-4 rounded-lg border transition-all ${
+                                      selectedLesson?.id === lesson.id
+                                        ? 'border-[#F52F8E] bg-pink-50'
+                                        : isLocked
+                                        ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                    title={isLocked ? 'עליך לסיים את השיעור הקודם' : ''}
+                                  >
+                                    <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                                          <span className="text-xs sm:text-sm font-semibold text-gray-500">
+                                            שיעור {lessonIndex + 1}
+                                          </span>
+                                          {isCompleted && (
+                                            <CheckCircle className="w-4 h-4 text-green-500" />
+                                          )}
+                                          {isLocked && (
+                                            <Lock className="w-4 h-4 text-gray-400" />
+                                          )}
+                                          {lesson.is_preview && (
+                                            <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                              תצוגה מקדימה
+                                            </span>
+                                          )}
+                                        </div>
+                                        <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
+                                        {lesson.description && (
+                                          <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                                        )}
+                                        {lesson.duration_minutes && (
+                                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
+                                            <Clock className="w-3 h-3" />
+                                            <span>{formatDuration(lesson.duration_minutes)}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="flex-shrink-0">
+                                        {selectedLesson?.id === lesson.id ? (
+                                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                                        ) : isLocked ? (
+                                          <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                                        ) : (
+                                          <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                                        )}
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })
                             )}
                           </div>
-                          <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
-                          {lesson.description && (
-                            <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
-                          )}
-                          {lesson.duration_minutes && (
-                            <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
-                              <Clock className="w-3 h-3" />
-                              <span>{formatDuration(lesson.duration_minutes)}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-shrink-0">
-                          {selectedLesson?.id === lesson.id ? (
-                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
-                          ) : isLocked ? (
-                            <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                          ) : (
-                            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                          )}
-                        </div>
+                        )}
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                  
+                  {/* Show lessons without section at the end */}
+                  {lessons.filter(lesson => !lesson.section_id).length > 0 && (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="p-3 sm:p-4 bg-gray-50">
+                        <span className="font-semibold text-gray-800 text-sm sm:text-base">שיעורים נוספים</span>
+                      </div>
+                      <div className="p-2 space-y-2">
+                        {lessons.filter(lesson => !lesson.section_id).map((lesson) => {
+                          const isCompleted = completedLessons.includes(lesson.id);
+                          const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
+                          const isLocked = course.is_sequential && !canAccess;
+                          const lessonIndex = lessons.findIndex(l => l.id === lesson.id);
+                          
+                          return (
+                            <button
+                              key={lesson.id}
+                              onClick={() => {
+                                if (!isLocked) {
+                                  setSelectedLesson(lesson);
+                                }
+                              }}
+                              disabled={isLocked}
+                              className={`w-full text-right p-3 sm:p-4 rounded-lg border transition-all ${
+                                selectedLesson?.id === lesson.id
+                                  ? 'border-[#F52F8E] bg-pink-50'
+                                  : isLocked
+                                  ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                              title={isLocked ? 'עליך לסיים את השיעור הקודם' : ''}
+                            >
+                              <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                                    <span className="text-xs sm:text-sm font-semibold text-gray-500">
+                                      שיעור {lessonIndex + 1}
+                                    </span>
+                                    {isCompleted && (
+                                      <CheckCircle className="w-4 h-4 text-green-500" />
+                                    )}
+                                    {isLocked && (
+                                      <Lock className="w-4 h-4 text-gray-400" />
+                                    )}
+                                    {lesson.is_preview && (
+                                      <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                        תצוגה מקדימה
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
+                                  {lesson.description && (
+                                    <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                                  )}
+                                  {lesson.duration_minutes && (
+                                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
+                                      <Clock className="w-3 h-3" />
+                                      <span>{formatDuration(lesson.duration_minutes)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-shrink-0">
+                                  {selectedLesson?.id === lesson.id ? (
+                                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                                  ) : isLocked ? (
+                                    <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                                  ) : (
+                                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Display without sections (backward compatibility)
+                <div className="space-y-2">
+                  {lessons.map((lesson, index) => {
+                    const isCompleted = completedLessons.includes(lesson.id);
+                    const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
+                    const isLocked = course.is_sequential && !canAccess;
+                    
+                    return (
+                      <button
+                        key={lesson.id}
+                        onClick={() => {
+                          if (!isLocked) {
+                            setSelectedLesson(lesson);
+                          }
+                        }}
+                        disabled={isLocked}
+                        className={`w-full text-right p-3 sm:p-4 rounded-lg border transition-all ${
+                          selectedLesson?.id === lesson.id
+                            ? 'border-[#F52F8E] bg-pink-50'
+                            : isLocked
+                            ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                        title={isLocked ? 'עליך לסיים את השיעור הקודם' : ''}
+                      >
+                        <div className="flex items-start justify-between gap-2 sm:gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                              <span className="text-xs sm:text-sm font-semibold text-gray-500">
+                                שיעור {index + 1}
+                              </span>
+                              {isCompleted && (
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                              )}
+                              {isLocked && (
+                                <Lock className="w-4 h-4 text-gray-400" />
+                              )}
+                              {lesson.is_preview && (
+                                <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                  תצוגה מקדימה
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
+                            {lesson.description && (
+                              <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                            )}
+                            {lesson.duration_minutes && (
+                              <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
+                                <Clock className="w-3 h-3" />
+                                <span>{formatDuration(lesson.duration_minutes)}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-shrink-0">
+                            {selectedLesson?.id === lesson.id ? (
+                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                            ) : isLocked ? (
+                              <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                            ) : (
+                              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>

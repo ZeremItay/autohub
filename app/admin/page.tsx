@@ -1301,19 +1301,46 @@ export default function AdminPanel() {
         if (!error && data) {
           // Save sections and lessons
           try {
-            const { createLesson } = await import('@/lib/queries/courses')
+            const { createLesson, createCourseSection } = await import('@/lib/queries/courses')
             let lessonOrder = 1
             let lessonsCreated = 0
             let lessonsFailed = 0
+            const sectionMap = new Map<string, string>() // Map from section id to database section id
             
             console.log('Creating lessons for course:', data.id)
             console.log('Course sections:', courseSections)
             
+            // First, create all sections
+            for (let i = 0; i < courseSections.length; i++) {
+              const section = courseSections[i]
+              if (section.title.trim()) {
+                try {
+                  const { data: createdSection, error: sectionError } = await createCourseSection({
+                    course_id: data.id,
+                    title: section.title,
+                    section_order: i + 1
+                  })
+                  
+                  if (sectionError) {
+                    console.error('Error creating section:', sectionError)
+                  } else if (createdSection) {
+                    sectionMap.set(section.id, createdSection.id)
+                    console.log('Section created successfully:', createdSection.id)
+                  }
+                } catch (sectionErr) {
+                  console.error('Exception creating section:', sectionErr)
+                }
+              }
+            }
+            
+            // Then, create lessons and link them to sections
             for (const section of courseSections) {
+              const sectionDbId = sectionMap.get(section.id)
+              
               for (const lesson of section.lessons) {
                 if (lesson.title.trim()) {
                   try {
-                    const lessonData = {
+                    const lessonData: any = {
                       course_id: data.id,
                       title: lesson.title,
                       description: lesson.description || undefined,
@@ -1323,6 +1350,11 @@ export default function AdminPanel() {
                       is_preview: false,
                       qa_section: lesson.qa_section || [],
                       key_points: lesson.key_points || []
+                    }
+                    
+                    // Link lesson to section if section was created
+                    if (sectionDbId) {
+                      lessonData.section_id = sectionDbId
                     }
                     
                     console.log('Creating lesson:', lessonData)
@@ -1704,19 +1736,70 @@ export default function AdminPanel() {
               console.log(`Deleted ${deletedCount} lessons, ${failedCount} failed`)
             }
             
-            // Create new lessons from sections
-            const { createLesson } = await import('@/lib/queries/courses')
+            // Delete existing sections
+            const { getCourseSections } = await import('@/lib/queries/courses')
+            const { data: existingSections } = await getCourseSections(id)
+            
+            if (existingSections && existingSections.length > 0) {
+              // Delete sections (lessons will be deleted via CASCADE or we delete them separately)
+              for (const section of existingSections) {
+                try {
+                  const { error: deleteError } = await supabase
+                    .from('course_sections')
+                    .delete()
+                    .eq('id', section.id)
+                    
+                  if (deleteError) {
+                    console.error('Error deleting section:', section.id, deleteError)
+                  } else {
+                    console.log('Deleted section:', section.id)
+                  }
+                } catch (deleteErr) {
+                  console.error('Exception deleting section:', deleteErr)
+                }
+              }
+            }
+            
+            // Create new sections and lessons
+            const { createLesson, createCourseSection } = await import('@/lib/queries/courses')
             let lessonOrder = 1
             let lessonsCreated = 0
             let lessonsFailed = 0
+            const sectionMap = new Map<string, string>() // Map from section id to database section id
             
             console.log('Creating new lessons from sections:', courseSections)
             
+            // First, create all sections
+            for (let i = 0; i < courseSections.length; i++) {
+              const section = courseSections[i]
+              if (section.title.trim()) {
+                try {
+                  const { data: createdSection, error: sectionError } = await createCourseSection({
+                    course_id: id,
+                    title: section.title,
+                    section_order: i + 1
+                  })
+                  
+                  if (sectionError) {
+                    console.error('Error creating section:', sectionError)
+                  } else if (createdSection) {
+                    sectionMap.set(section.id, createdSection.id)
+                    console.log('Section created successfully:', createdSection.id)
+                  }
+                } catch (sectionErr) {
+                  console.error('Exception creating section:', sectionErr)
+                }
+              }
+            }
+            
+            // Then, create lessons and link them to sections
             for (const section of courseSections) {
+              const sectionDbId = sectionMap.get(section.id)
+              
               for (const lesson of section.lessons) {
                 if (lesson.title.trim()) {
                   try {
-                    const lessonData = {
+                    const lessonData: any = {
                       course_id: id,
                       title: lesson.title,
                       description: lesson.description || undefined,
@@ -1726,6 +1809,11 @@ export default function AdminPanel() {
                       is_preview: false,
                       qa_section: lesson.qa_section || [],
                       key_points: lesson.key_points || []
+                    }
+                    
+                    // Link lesson to section if section was created
+                    if (sectionDbId) {
+                      lessonData.section_id = sectionDbId
                     }
                     
                     console.log('Creating lesson:', lessonData)
@@ -5642,30 +5730,72 @@ export default function AdminPanel() {
                                 console.log('Loaded lessons:', lessons)
                                 console.log('Lessons count:', lessons?.length || 0)
                                 
+                                // Load sections first
+                                const { getCourseSections } = await import('@/lib/queries/courses')
+                                const { data: sectionsData } = await getCourseSections(course.id)
+                                
                                 if (lessons && lessons.length > 0) {
-                                  // Group lessons into sections (for now, all in one section)
-                                  // In the future, we can add a section_id field to lessons
-                                  const mappedLessons = lessons.map((lesson: any) => ({
-                                    id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                    title: lesson.title || '',
-                                    description: lesson.description || '',
-                                    video_url: lesson.video_url || '',
-                                    duration_minutes: lesson.duration_minutes || 0,
-                                    qa_section: lesson.qa_section || [],
-                                    key_points: lesson.key_points || []
-                                  }))
-                                  
-                                  console.log('Mapped lessons to sections:', mappedLessons)
-                                  console.log('Setting courseSections with', mappedLessons.length, 'lessons')
-                                  
-                                  setCourseSections([{
-                                    id: 'section-1',
-                                    title: 'חלק א\'',
-                                    lessons: mappedLessons
-                                  }])
-                                  
-                                  // Show success message
-                                  console.log('✅ Successfully loaded', mappedLessons.length, 'lessons for editing')
+                                  if (sectionsData && sectionsData.length > 0) {
+                                    // Group lessons by sections
+                                    const sectionsWithLessons = sectionsData.map((section: any) => ({
+                                      id: section.id,
+                                      title: section.title,
+                                      lessons: lessons
+                                        .filter((lesson: any) => lesson.section_id === section.id)
+                                        .map((lesson: any) => ({
+                                          id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                          title: lesson.title || '',
+                                          description: lesson.description || '',
+                                          video_url: lesson.video_url || '',
+                                          duration_minutes: lesson.duration_minutes || 0,
+                                          qa_section: lesson.qa_section || [],
+                                          key_points: lesson.key_points || []
+                                        }))
+                                    }))
+                                    
+                                    // Add lessons without section
+                                    const lessonsWithoutSection = lessons
+                                      .filter((lesson: any) => !lesson.section_id)
+                                      .map((lesson: any) => ({
+                                        id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                        title: lesson.title || '',
+                                        description: lesson.description || '',
+                                        video_url: lesson.video_url || '',
+                                        duration_minutes: lesson.duration_minutes || 0,
+                                        qa_section: lesson.qa_section || [],
+                                        key_points: lesson.key_points || []
+                                      }))
+                                    
+                                    if (lessonsWithoutSection.length > 0) {
+                                      sectionsWithLessons.push({
+                                        id: 'no-section',
+                                        title: 'שיעורים נוספים',
+                                        lessons: lessonsWithoutSection
+                                      })
+                                    }
+                                    
+                                    setCourseSections(sectionsWithLessons)
+                                    console.log('✅ Successfully loaded', sectionsWithLessons.length, 'sections with', lessons.length, 'lessons')
+                                  } else {
+                                    // No sections - group all lessons into one section (backward compatibility)
+                                    const mappedLessons = lessons.map((lesson: any) => ({
+                                      id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                      title: lesson.title || '',
+                                      description: lesson.description || '',
+                                      video_url: lesson.video_url || '',
+                                      duration_minutes: lesson.duration_minutes || 0,
+                                      qa_section: lesson.qa_section || [],
+                                      key_points: lesson.key_points || []
+                                    }))
+                                    
+                                    setCourseSections([{
+                                      id: 'section-1',
+                                      title: 'חלק א\'',
+                                      lessons: mappedLessons
+                                    }])
+                                    
+                                    console.log('✅ Successfully loaded', mappedLessons.length, 'lessons for editing (no sections)')
+                                  }
                                 } else {
                                   console.log('⚠️ No lessons found for course, initializing empty sections')
                                   console.log('Course ID:', course.id)
