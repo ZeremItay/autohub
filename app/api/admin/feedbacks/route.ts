@@ -55,18 +55,10 @@ export async function GET(request: NextRequest) {
       }
     )
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/admin/feedbacks/route.ts:45',message:'Feedbacks GET - attempting query',data:{hasServiceKey:!!process.env.SUPABASE_SERVICE_ROLE_KEY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-    
     const { data: feedbacks, error } = await supabaseAdmin
       .from('feedbacks')
       .select('*')
       .order('created_at', { ascending: false })
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/admin/feedbacks/route.ts:55',message:'Feedbacks GET - query result',data:{hasData:!!feedbacks,dataCount:feedbacks?.length || 0,hasError:!!error,errorMessage:error?.message,errorCode:error?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     
     if (error) {
       console.error('Error fetching feedbacks:', error)

@@ -10,10 +10,6 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 export const createServerClient = (cookieStore?: ReadonlyRequestCookies) => {
   // If cookies are provided, use @supabase/ssr for proper cookie handling
   if (cookieStore) {
-    const allCookies = cookieStore.getAll()
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/supabase-server.ts:13',message:'createServerClient with cookies',data:{cookieCount:allCookies.length,cookieNames:allCookies.map(c=>c.name),hasSupabaseCookies:allCookies.some(c=>c.name.includes('supabase')||c.name.includes('sb-'))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     return createSSRServerClient(
       supabaseUrl,
       supabaseAnonKey,

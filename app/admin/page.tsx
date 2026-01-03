@@ -605,8 +605,6 @@ export default function AdminPanel() {
         const { data } = await getAllProfiles()
         // Data already includes roles from the query
         const usersData = Array.isArray(data) ? data : []
-        console.log('Loaded users:', usersData.length, 'users')
-        console.log('First user role:', usersData[0]?.role, usersData[0]?.roles)
         setUsers(usersData)
         // Load available roles for dropdown
         const { data: rolesData } = await getAllRoles()
@@ -677,15 +675,13 @@ export default function AdminPanel() {
         const { data, error } = await getAllReportsForAdmin()
         if (!error) setReports(Array.isArray(data) ? data : [])
       } else if (activeTab === 'events') {
-        console.log('Loading events data...')
         const { data, error } = await getAllEvents()
-        console.log('getAllEvents result:', { data: data?.length || 0, error, hasError: !!error })
         if (!error && data && Array.isArray(data)) {
-          console.log('Setting events:', data.length, 'events')
           setEvents(data)
-          console.log('Events state updated')
         } else {
-          console.error('Error loading events:', error)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error loading events:', error)
+          }
         }
         // Load Zoom meetings when events tab is active
         loadZoomMeetings()
@@ -723,11 +719,12 @@ export default function AdminPanel() {
         })
         if (response.ok) {
           const result = await response.json()
-          console.log('Feedbacks loaded:', result)
           setFeedbacks(result.data || [])
         } else {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-          console.error('Failed to load feedbacks:', response.status, errorData)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Failed to load feedbacks:', response.status, errorData)
+          }
           setFeedbacks([])
         }
       }
@@ -747,31 +744,18 @@ export default function AdminPanel() {
         return
       }
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:406',message:'loadUserEnrollments called',data:{userId,hasCredentials:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
-      // #region agent log
-      const clientSession = await supabase.auth.getSession();
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:410',message:'Client session check',data:{hasSession:!!clientSession?.data?.session,hasUser:!!clientSession?.data?.session?.user,userId:clientSession?.data?.session?.user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      
       const response = await fetch(`/api/admin/users/${userId}/courses`, {
         credentials: 'include'
       })
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:415',message:'Fetch response received',data:{status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       
       if (response.ok) {
         const result = await response.json()
         setUserEnrollments(result.data || [])
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error('Failed to load enrollments:', response.status, errorData)
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:422',message:'Fetch error response',data:{status:response.status,errorData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to load enrollments:', response.status, errorData)
+        }
         setUserEnrollments([])
       }
     } catch (error) {
@@ -870,12 +854,6 @@ export default function AdminPanel() {
         
         const userIdToUse = selectedUser?.user_id || formData.user_id;
 
-        console.log('Creating post with:', {
-          user_id: userIdToUse,
-          content: formData.content,
-          image_url: formData.image_url
-        });
-
         const { data, error } = await createPost({
           user_id: userIdToUse,
           content: formData.content.trim(),
@@ -883,7 +861,9 @@ export default function AdminPanel() {
         })
         
         if (error) {
-          console.error('Error creating post:', error);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error creating post:', error);
+          }
           alert(`שגיאה ביצירת הפוסט: ${error.message || JSON.stringify(error)}`);
           return;
         }
@@ -1160,17 +1140,12 @@ export default function AdminPanel() {
           is_sequential: formData.is_sequential || false
         }
         
-        console.log('Course data before sending:', courseData)
-
-        console.log('Creating course with data:', courseData)
-
         const { data, error } = await createCourse(courseData)
         
         if (error) {
-          console.error('=== ERROR IN ADMIN PAGE ===')
-          console.error('Error creating course - full error:', error)
-          console.error('Error type:', typeof error)
-          console.error('Error stringified:', JSON.stringify(error, null, 2))
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error creating course:', error)
+          }
           
           // Try to extract error message
           let errorMessage = 'שגיאה לא ידועה ביצירת הקורס'

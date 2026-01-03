@@ -8,11 +8,6 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // #region agent log
-  const middlewareCookies = request.cookies.getAll()
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:11',message:'Middleware cookies check',data:{cookieCount:middlewareCookies.length,cookieNames:middlewareCookies.map(c=>c.name),hasSupabaseCookies:middlewareCookies.some(c=>c.name.includes('supabase')||c.name.includes('sb-')),pathname:request.nextUrl.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -34,10 +29,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:35',message:'Middleware user check',data:{hasUser:!!user,userId:user?.id,pathname:request.nextUrl.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
 
   // If user is signed in and the current path is /login redirect the user to /
   if (user && request.nextUrl.pathname === '/auth/login') {

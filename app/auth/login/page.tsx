@@ -24,9 +24,6 @@ function LoginContent() {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash;
       if (hash && hash.includes('access_token')) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/login/page.tsx:27',message:'Found access_token in hash fragment',data:{hashLength:hash.length,hasAccessToken:hash.includes('access_token'),hasRefreshToken:hash.includes('refresh_token'),fullUrl:window.location.href},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
         // Parse hash fragment and extract tokens
         const hashParams = new URLSearchParams(hash.substring(1));
         const accessToken = hashParams.get('access_token');
@@ -47,9 +44,6 @@ function LoginContent() {
           
           // Set session using the tokens from hash
           supabase.auth.setSession(sessionData).then(({ data, error }) => {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/login/page.tsx:50',message:'setSession from hash result',data:{hasSession:!!data?.session,hasUser:!!data?.user,hasError:!!error,errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
             if (error) {
               console.error('Error setting session from hash:', error);
               setError('שגיאה בהתחברות עם Google');
@@ -168,14 +162,13 @@ function LoginContent() {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const redirectUrl = `${origin}/auth/callback`;
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/login/page.tsx:98',message:'Initiating Google OAuth',data:{origin,redirectUrl,fullUrl:typeof window !== 'undefined' ? window.location.href : 'N/A'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      console.log('Initiating Google OAuth:', {
-        origin,
-        redirectUrl,
-        fullUrl: typeof window !== 'undefined' ? window.location.href : 'N/A'
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Initiating Google OAuth:', {
+          origin,
+          redirectUrl,
+          fullUrl: typeof window !== 'undefined' ? window.location.href : 'N/A'
+        });
+      }
 
       // Remove queryParams that might interfere with PKCE flow
       // PKCE flow is handled automatically by Supabase
@@ -192,13 +185,12 @@ function LoginContent() {
         setError(oauthError.message || 'שגיאה בהתחברות עם Google');
         setGoogleLoading(false);
       } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/login/page.tsx:119',message:'OAuth initiated successfully',data:{hasUrl:!!data?.url,urlLength:data?.url?.length,provider:data?.provider,urlStart:data?.url?.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
-        console.log('OAuth initiated successfully:', {
-          url: data?.url,
-          provider: data?.provider
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('OAuth initiated successfully:', {
+            url: data?.url,
+            provider: data?.provider
+          });
+        }
         // Note: If successful, user will be redirected to Google, so we don't need to handle success here
         // The redirect happens automatically via data.url
       }

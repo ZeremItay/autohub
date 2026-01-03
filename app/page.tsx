@@ -846,20 +846,23 @@ export default function Home() {
 
   async function handleToggleLike(postId: string) {
     if (!currentUser) {
-      console.warn('Cannot toggle like: no current user');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Cannot toggle like: no current user');
+      }
       return;
     }
     
     const userId = currentUser.user_id || currentUser.id;
     if (!userId) {
-      console.warn('Cannot toggle like: no user ID');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Cannot toggle like: no user ID');
+      }
       return;
     }
     
     try {
       // Optimistically update UI
       const wasLiked = likedPosts[postId] || false;
-      console.log('Toggling like:', { postId, userId, wasLiked });
       
       setLikedPosts(prev => ({ ...prev, [postId]: !wasLiked }));
       
@@ -877,13 +880,11 @@ export default function Home() {
       
       // Toggle like in database
       const result = await toggleLike(postId, userId);
-      console.log('Toggle like result:', result);
       
       const { data, error } = result;
       
       // If we have data, the operation succeeded - update state
       if (data) {
-        console.log('Like operation succeeded:', data);
         setLikedPosts(prev => ({ ...prev, [postId]: data.liked }));
       } else if (error) {
         // Check if error is meaningful
@@ -894,7 +895,9 @@ export default function Home() {
         
         if (!isEmptyError && hasErrorDetails) {
           // Real error - revert optimistic update
-          console.error('Error toggling like:', error);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error toggling like:', error);
+          }
           setLikedPosts(prev => ({ ...prev, [postId]: wasLiked }));
           setAnnouncements(prev => prev.map(post => 
             post.id === postId 
@@ -906,16 +909,12 @@ export default function Home() {
                 }
               : post
           ));
-        } else {
-          // Empty error - operation likely succeeded, keep optimistic update
-          console.log('Empty error object, keeping optimistic update');
         }
-      } else {
-        // No data and no error - this shouldn't happen, but keep optimistic update
-        console.warn('Toggle like returned no data and no error');
       }
     } catch (error) {
-      console.error('Exception in handleToggleLike:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Exception in handleToggleLike:', error);
+      }
       // Revert on exception
       const wasLiked = likedPosts[postId] || false;
       setLikedPosts(prev => ({ ...prev, [postId]: wasLiked }));
