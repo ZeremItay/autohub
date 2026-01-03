@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Play, Clock, CheckCircle, Lock, ArrowRight, ArrowLeft, HelpCircle, Star, ChevronDown, ChevronUp, ExternalLink, X, BookOpen } from 'lucide-react';
 import { getCourseById, getCourseLessons, getCourseSections, checkEnrollment, enrollInCourse, markLessonComplete, markLessonIncomplete, getCompletedLessons, isLessonCompleted, canAccessLesson, getNextAvailableLesson, type Course, type CourseLesson, type CourseSection } from '@/lib/queries/courses';
-import { getAllProfiles } from '@/lib/queries/profiles';
+import { getCurrentUserProfile } from '@/lib/queries/profiles';
 import { isAdmin, isPremiumUser } from '@/lib/utils/user';
 import { awardPoints } from '@/lib/queries/gamification';
 import ProtectedAction from '@/app/components/ProtectedAction';
@@ -73,174 +73,138 @@ export default function CourseDetailPage() {
     setLoading(true);
     setCheckingEnrollment(true);
     try {
-      // Load current user
-      const { data: profiles } = await getAllProfiles();
+      // Load current user (optimized - only current user, not all profiles)
+      const { data: currentUserProfile } = await getCurrentUserProfile();
       let userId: string | undefined;
       let userIsEnrolled = false;
       let userObj: any = null;
       
-      if (Array.isArray(profiles) && profiles.length > 0) {
-        const firstUser = profiles[0];
-        userId = firstUser.user_id || firstUser.id;
+      if (currentUserProfile) {
+        userId = currentUserProfile.user_id || currentUserProfile.id;
         userObj = { 
           id: userId, 
-          ...firstUser 
+          ...currentUserProfile 
         };
         setCurrentUser(userObj);
-
-        // Check if user is admin (admin can access all courses)
-        if (isAdmin(userObj)) {
-          userIsEnrolled = true;
-          setIsEnrolled(true);
-          setCheckingEnrollment(false);
-        } else if (userId) {
-          // Check enrollment
-          const { data: enrollment } = await checkEnrollment(courseId, userId);
-          userIsEnrolled = !!enrollment;
-          setIsEnrolled(userIsEnrolled);
-          setCheckingEnrollment(false);
-        } else {
-          setIsEnrolled(false);
-          setCheckingEnrollment(false);
-        }
-      } else {
-        setIsEnrolled(false);
-        setCheckingEnrollment(false);
       }
 
-      // Load course
-      const { data: courseData, error: courseError } = await getCourseById(
-        courseId,
-        userId
-      );
+      // Check if user is admin (admin can access all courses)
+      const isUserAdmin = userObj && isAdmin(userObj);
+      
+      // Run parallel requests for course, enrollment check, sections, and lessons
+      const [courseResult, enrollmentResult, sectionsResult, lessonsResult] = await Promise.all([
+        getCourseById(courseId, userId),
+        userId && !isUserAdmin ? checkEnrollment(courseId, userId) : Promise.resolve({ data: isUserAdmin ? { id: 'admin' } : null, error: null }),
+        getCourseSections(courseId).catch(() => ({ data: null, error: null })), // Don't fail if sections don't exist
+        getCourseLessons(courseId).catch(() => ({ data: null, error: null })) // Don't fail if lessons don't exist
+      ]);
+
+      const { data: courseData, error: courseError } = courseResult;
+      const { data: enrollment } = enrollmentResult;
+      
+      userIsEnrolled = isUserAdmin || !!enrollment;
+      setIsEnrolled(userIsEnrolled);
+      setCheckingEnrollment(false);
       
       if (!courseError && courseData) {
         setCourse(courseData);
       }
 
-      // Only load lessons if enrolled or admin (use local variable, not state)
-      if (userIsEnrolled || (userObj && isAdmin(userObj))) {
-        // Load sections first
-        console.log('Loading sections for course:', courseId);
-        const { data: sectionsData, error: sectionsError } = await getCourseSections(courseId);
-        console.log('Sections loaded:', sectionsData);
-        console.log('Sections error:', sectionsError);
+      // Only load lessons if enrolled or admin
+      if (userIsEnrolled) {
+        const { data: sectionsData, error: sectionsError } = sectionsResult;
+        const { data: lessonsData, error: lessonsError } = lessonsResult;
         
-        if (sectionsError) {
+        if (sectionsError && process.env.NODE_ENV === 'development') {
           console.error('Error loading sections:', sectionsError);
         }
         
         if (sectionsData && sectionsData.length > 0) {
-          console.log(`Found ${sectionsData.length} sections for course ${courseId}`);
           setSections(sectionsData);
           // Open first section by default
-          if (sectionsData.length > 0) {
-            setOpenSections(new Set([sectionsData[0].id]));
-          }
+          setOpenSections(new Set([sectionsData[0].id]));
         } else {
-          console.log('No sections found for course:', courseId);
           setSections([]);
         }
         
-        // Load lessons
-        console.log('Loading lessons for course:', courseId);
-        const { data: lessonsData, error: lessonsError } = await getCourseLessons(courseId);
-        
-        if (lessonsError) {
-          console.error('=== ERROR IN COURSE DETAIL PAGE ===');
+        if (lessonsError && process.env.NODE_ENV === 'development') {
           console.error('Error loading lessons:', lessonsError);
-          console.error('Error type:', typeof lessonsError);
-          console.error('Error keys:', Object.keys(lessonsError || {}));
-          console.error('Error details:', {
-            message: (lessonsError as any)?.message || 'No message',
-            code: (lessonsError as any)?.code || 'No code',
-            details: (lessonsError as any)?.details || 'No details',
-            hint: (lessonsError as any)?.hint || 'No hint'
-          });
-          console.error('Full error:', JSON.stringify(lessonsError, Object.getOwnPropertyNames(lessonsError)));
-          console.error('Course ID:', courseId);
-          console.error('=== END ERROR ===');
           setLessons([]);
-        } else if (lessonsData) {
-          console.log(`Loaded ${lessonsData.length} lessons for course ${courseId}`);
-          if (lessonsData.length > 0) {
-            console.log('Lessons:', lessonsData);
-            // Check which lessons have section_id
-            const lessonsWithSections = lessonsData.filter((l: any) => l.section_id);
-            const lessonsWithoutSections = lessonsData.filter((l: any) => !l.section_id);
-            console.log(`Lessons with sections: ${lessonsWithSections.length}, without sections: ${lessonsWithoutSections.length}`);
-          }
+        } else if (lessonsData && lessonsData.length > 0) {
           setLessons(lessonsData);
           
           // If sections weren't loaded but lessons have section_id, try to load sections again
-          if ((!sectionsData || sectionsData.length === 0) && lessonsData && lessonsData.length > 0) {
+          if ((!sectionsData || sectionsData.length === 0) && lessonsData.length > 0) {
             const lessonsWithSections = lessonsData.filter((l: any) => l.section_id);
             if (lessonsWithSections.length > 0) {
-              console.warn('Lessons have section_id but sections were not loaded, retrying...');
-              const { data: retrySectionsData, error: retryError } = await getCourseSections(courseId);
+              const { data: retrySectionsData } = await getCourseSections(courseId).catch(() => ({ data: null, error: null }));
               if (retrySectionsData && retrySectionsData.length > 0) {
-                console.log(`Retry successful: Found ${retrySectionsData.length} sections`);
                 setSections(retrySectionsData);
                 setOpenSections(new Set([retrySectionsData[0].id]));
-              } else if (retryError) {
-                console.error('Retry failed:', retryError);
               }
             }
           }
           
-          if (lessonsData.length > 0) {
-            // Load completed lessons first to determine next lesson
-            if (userId) {
-              await loadCompletedLessons(courseId, userId);
-              await checkLessonAccess(courseId, userId, lessonsData);
-              
-              // Get completed lessons data directly
-              const { data: completedLessonIds } = await getCompletedLessons(courseId, userId);
-              const completedIds = Array.isArray(completedLessonIds) ? completedLessonIds : [];
-              
-              // Find the next lesson to watch (first incomplete lesson that's accessible)
-              let nextLesson: CourseLesson | null = null;
-              
-              if (courseData?.is_sequential) {
-                // For sequential courses, find first accessible incomplete lesson
-                for (const lesson of lessonsData) {
-                  const canAccess = await canAccessLesson(lesson.id, courseId, userId);
-                  const isCompleted = completedIds.includes(lesson.id);
-                  
-                  if (canAccess && !isCompleted) {
-                    nextLesson = lesson;
-                    break;
-                  }
+          // Load completed lessons and determine next lesson (optimized)
+          if (userId) {
+            // Load completed lessons in parallel with lesson access check
+            const [completedLessonsResult] = await Promise.all([
+              getCompletedLessons(courseId, userId)
+            ]);
+            
+            const { data: completedLessonIds } = completedLessonsResult;
+            const completedIds = Array.isArray(completedLessonIds) ? completedLessonIds : [];
+            
+            await loadCompletedLessons(courseId, userId);
+            await checkLessonAccess(courseId, userId, lessonsData);
+            
+            // Find the next lesson to watch (optimized - no loop with API calls)
+            let nextLesson: CourseLesson | null = null;
+            
+            if (courseData?.is_sequential) {
+              // For sequential courses, check accessibility without API calls
+              // First lesson is always accessible
+              for (let i = 0; i < lessonsData.length; i++) {
+                const lesson = lessonsData[i];
+                const isCompleted = completedIds.includes(lesson.id);
+                
+                // Check if accessible: first lesson OR previous lesson is completed
+                const isAccessible = i === 0 || completedIds.includes(lessonsData[i - 1].id);
+                
+                if (isAccessible && !isCompleted) {
+                  nextLesson = lesson;
+                  break;
                 }
-              } else {
-                // For non-sequential courses, find first incomplete lesson
-                for (const lesson of lessonsData) {
-                  const isCompleted = completedIds.includes(lesson.id);
-                  if (!isCompleted) {
-                    nextLesson = lesson;
-                    break;
-                  }
-                }
-              }
-              
-              if (nextLesson) {
-                setSelectedLesson(nextLesson);
-              } else {
-                // If all lessons completed, show the last one
-                setSelectedLesson(lessonsData[lessonsData.length - 1]);
               }
             } else {
-              // No user, just show first lesson
-              setSelectedLesson(lessonsData[0]);
+              // For non-sequential courses, find first incomplete lesson
+              for (const lesson of lessonsData) {
+                const isCompleted = completedIds.includes(lesson.id);
+                if (!isCompleted) {
+                  nextLesson = lesson;
+                  break;
+                }
+              }
             }
+            
+            if (nextLesson) {
+              setSelectedLesson(nextLesson);
+            } else {
+              // If all lessons completed, show the last one
+              setSelectedLesson(lessonsData[lessonsData.length - 1]);
+            }
+          } else {
+            // No user, just show first lesson
+            setSelectedLesson(lessonsData[0]);
           }
         } else {
-          console.log('No lessons data returned for course:', courseId);
           setLessons([]);
         }
       }
     } catch (error) {
-      console.error('Error loading course:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error loading course:', error);
+      }
     } finally {
       setLoading(false);
     }
