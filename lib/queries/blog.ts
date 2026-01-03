@@ -271,15 +271,6 @@ export async function createBlogPost(post: Omit<BlogPost, 'id' | 'created_at' | 
     likes_count: 0
   };
 
-  // Log the data we're trying to insert
-  console.log('Creating blog post with data:', {
-    title: postData.title,
-    slug: postData.slug,
-    category: postData.category,
-    author_id: postData.author_id,
-    is_published: postData.is_published
-  });
-
   const { data, error } = await supabase
     .from('blog_posts')
     .insert([postData])
@@ -287,11 +278,15 @@ export async function createBlogPost(post: Omit<BlogPost, 'id' | 'created_at' | 
     .single();
 
   if (error) {
-    // Enhanced error logging with all details - similar to createCourse
-    console.error('=== SUPABASE ERROR ===');
-    console.error('Error:', error);
-    console.error('Error type:', typeof error);
-    console.error('Error keys:', error ? Object.keys(error) : 'no keys');
+    // Enhanced error logging - only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error creating blog post:', {
+        message: error.message || (error as any)?.message,
+        code: error.code || (error as any)?.code,
+        details: error.details || (error as any)?.details,
+        hint: error.hint || (error as any)?.hint
+      });
+    }
     
     // Try to extract message
     const errorMessage = error.message || 
@@ -303,37 +298,11 @@ export async function createBlogPost(post: Omit<BlogPost, 'id' | 'created_at' | 
                      (error as any)?.code || 
                      'UNKNOWN';
     
-    const errorDetails = error.details || 
-                        (error as any)?.details || 
-                        null;
-    
-    const errorHint = error.hint || 
-                     (error as any)?.hint || 
-                     null;
-    
-    console.error('Error message:', errorMessage);
-    console.error('Error code:', errorCode);
-    console.error('Error details:', errorDetails);
-    console.error('Error hint:', errorHint);
-    console.error('Full error stringified:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-    console.error('=== END ERROR ===');
-    
-    // Check for specific error types
-    if (errorCode === 'PGRST205' || errorMessage?.includes('Could not find the table')) {
-      console.warn('⚠️ Blog posts table does not exist in schema cache');
-    } else if (errorCode === '42501' || errorMessage?.includes('permission') || errorMessage?.includes('row-level security')) {
-      console.warn('⚠️ RLS policy violation - user may not have permission to create blog post');
-    } else if (errorCode === '23503' || errorMessage?.includes('foreign key')) {
-      console.warn('⚠️ Foreign key violation - author_id may not exist in profiles table');
-    }
-    
     return { 
       data: null, 
       error: { 
         message: errorMessage, 
-        code: errorCode,
-        details: errorDetails,
-        hint: errorHint
+        code: errorCode
       } 
     };
   }
@@ -357,11 +326,14 @@ export async function updateBlogPost(id: string, updates: Partial<BlogPost>) {
     .single();
 
   if (error) {
-    // Enhanced error logging with all details
-    console.error('=== SUPABASE ERROR (updateBlogPost) ===');
-    console.error('Error:', error);
-    console.error('Error type:', typeof error);
-    console.error('Error keys:', error ? Object.keys(error) : 'no keys');
+    // Enhanced error logging - only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error updating blog post:', {
+        message: error.message || (error as any)?.message,
+        code: error.code || (error as any)?.code,
+        details: error.details || (error as any)?.details
+      });
+    }
     
     const errorMessage = error.message || 
                         (error as any)?.message || 
@@ -371,11 +343,6 @@ export async function updateBlogPost(id: string, updates: Partial<BlogPost>) {
     const errorCode = error.code || 
                      (error as any)?.code || 
                      'UNKNOWN';
-    
-    console.error('Error message:', errorMessage);
-    console.error('Error code:', errorCode);
-    console.error('Full error stringified:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-    console.error('=== END ERROR ===');
     
     return { 
       data: null, 

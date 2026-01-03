@@ -970,3 +970,117 @@ export async function checkUserLikedPost(postId: string, userId: string) {
   return { data: !!data, error };
 }
 
+// Get all forums for admin (including inactive)
+export async function getAllForumsForAdmin() {
+  const { data, error } = await supabase
+    .from('forums')
+    .select('id, name, display_name, description, header_color, logo_text, is_active, created_at, updated_at')
+    .order('display_name', { ascending: true });
+  
+  if (error || !data) return { data, error };
+  
+  // Batch count posts for all forums in parallel
+  const forumIds = data.map(f => f.id);
+  const { data: countsData } = await supabase
+    .from('forum_posts')
+    .select('forum_id')
+    .in('forum_id', forumIds);
+  
+  // Count posts per forum
+  const countsMap = new Map<string, number>();
+  if (countsData) {
+    countsData.forEach((post: any) => {
+      const current = countsMap.get(post.forum_id) || 0;
+      countsMap.set(post.forum_id, current + 1);
+    });
+  }
+  
+  // Map counts to forums
+  const forumsWithCounts = data.map((forum) => ({
+    ...forum,
+    posts_count: countsMap.get(forum.id) || 0
+  }));
+  
+  return { data: Array.isArray(forumsWithCounts) ? forumsWithCounts : [], error: null };
+}
+
+// Create a new forum
+export async function createForum(
+  name: string,
+  display_name: string,
+  description?: string,
+  header_color: string = 'bg-blue-900',
+  logo_text?: string
+) {
+  const { data, error } = await supabase
+    .from('forums')
+    .insert([{
+      name,
+      display_name,
+      description: description || null,
+      header_color,
+      logo_text: logo_text || null,
+      is_active: true,
+      posts_count: 0
+    }])
+    .select()
+    .single();
+  
+  if (error) return { data: null, error };
+  
+  return { data, error: null };
+}
+
+// Update a forum
+export async function updateForum(
+  id: string,
+  updates: {
+    name?: string;
+    display_name?: string;
+    description?: string;
+    header_color?: string;
+    logo_text?: string;
+    is_active?: boolean;
+  }
+) {
+  const updateData: any = {
+    ...updates,
+    updated_at: new Date().toISOString()
+  };
+  
+  // Remove undefined values
+  Object.keys(updateData).forEach(key => {
+    if (updateData[key] === undefined) {
+      delete updateData[key];
+    }
+  });
+  
+  const { data, error } = await supabase
+    .from('forums')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) return { data: null, error };
+  
+  return { data, error: null };
+}
+
+// Delete a forum (soft delete - set is_active to false)
+export async function deleteForum(id: string) {
+  const { data, error } = await supabase
+    .from('forums')
+    .update({ 
+      is_active: false,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) return { data: null, error };
+  
+  return { data, error: null };
+}
+

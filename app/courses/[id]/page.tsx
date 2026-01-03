@@ -1336,6 +1336,17 @@ export default function CourseDetailPage() {
             
             {/* Content - Scrollable */}
             <div className="flex-1 overflow-y-auto px-4 py-4">
+              {(() => {
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[Mobile Sheet] Rendering content:', {
+                    lessonsCount: lessons.length,
+                    sectionsCount: sections?.length || 0,
+                    sections: sections,
+                    lessonsWithSectionId: lessons.filter(l => l.section_id).length
+                  });
+                }
+                return null;
+              })()}
               {lessons.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p className="text-sm">אין שיעורים זמינים בקורס זה</p>
@@ -1346,6 +1357,11 @@ export default function CourseDetailPage() {
                   {sections.map((section) => {
                     const sectionLessons = lessons.filter(lesson => lesson.section_id === section.id);
                     const isOpen = openSections.has(section.id);
+                    
+                    // Debug logging
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log(`[Mobile Sheet] Section "${section.title}" (${section.id}): ${sectionLessons.length} lessons, isOpen: ${isOpen}`);
+                    }
                     
                     return (
                       <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1529,6 +1545,14 @@ export default function CourseDetailPage() {
               ) : (
                 // Display without sections (backward compatibility)
                 <div className="space-y-2">
+                  {(() => {
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log(`[Mobile Sheet] No sections found. Displaying ${lessons.length} lessons without sections.`);
+                      console.log(`[Mobile Sheet] Sections state:`, sections);
+                      console.log(`[Mobile Sheet] Lessons with section_id:`, lessons.filter(l => l.section_id).length);
+                    }
+                    return null;
+                  })()}
                   {lessons.map((lesson, index) => {
                     const isCompleted = completedLessons.includes(lesson.id);
                     const canAccess = lessonAccessStatus.get(lesson.id) ?? true;

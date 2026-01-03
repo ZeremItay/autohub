@@ -381,9 +381,17 @@ export default function ForumsPage() {
                                 <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
                                 <div className="w-4 h-4 bg-purple-500 rounded-sm"></div>
                               </div>
+                            ) : forum.name === 'n8n' ? (
+                              <div className="w-8 h-8 bg-white/20 rounded flex items-center justify-center backdrop-blur-sm">
+                                <span className="text-white font-bold text-sm">N8N</span>
+                              </div>
+                            ) : forum.name === 'crm' ? (
+                              <div className="w-8 h-8 bg-white/20 rounded flex items-center justify-center backdrop-blur-sm">
+                                <span className="text-white font-bold text-sm">CRM</span>
+                              </div>
                             ) : (
-                              <div className="w-8 h-8 bg-purple-600 rounded flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">M</span>
+                              <div className="w-8 h-8 bg-white/20 rounded flex items-center justify-center backdrop-blur-sm">
+                                <span className="text-white font-bold text-sm">{forum.logo_text || 'M'}</span>
                               </div>
                             )}
                             <h3 className="text-white font-bold text-lg">{forum.logo_text || forum.display_name}</h3>

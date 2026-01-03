@@ -475,24 +475,53 @@ export async function getProjectOffersByUser(userId: string) {
 
 // Delete project
 export async function deleteProject(id: string) {
-  const { data, error } = await supabase
-    .from('projects')
-    .delete()
-    .eq('id', id)
-    .select()
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single()
 
-  if (error) {
-    console.error('Error deleting project:', error)
-    return { data: null, error }
+    if (error) {
+      // Enhanced error logging
+      const errorDetails = {
+        message: error.message || 'Unknown error',
+        code: error.code || 'UNKNOWN',
+        details: error.details || null,
+        hint: error.hint || null,
+        fullError: error
+      };
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error deleting project:', errorDetails);
+      }
+      
+      return { data: null, error: errorDetails as any }
+    }
+
+    // Invalidate cache
+    if (data) {
+      invalidateCache('projects:all');
+      if (data.user_id) {
+        invalidateCache(`projects:user:${data.user_id}`);
+      }
+    }
+
+    return { data, error: null }
+  } catch (e: any) {
+    const errorDetails = {
+      message: e?.message || 'Unexpected error deleting project',
+      code: 'EXCEPTION',
+      details: e?.stack || null,
+      fullError: e
+    };
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Exception deleting project:', errorDetails);
+    }
+    
+    return { data: null, error: errorDetails as any }
   }
-
-  // Invalidate cache
-  if (data) {
-    invalidateCache('projects:all');
-    invalidateCache(`projects:user:${data.user_id}`);
-  }
-
-  return { data, error: null }
 }
 

@@ -518,7 +518,7 @@ function ApiDocumentation() {
 }
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks' | 'api-docs'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks' | 'forums' | 'api-docs'>('users')
   const [users, setUsers] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [roles, setRoles] = useState<any[]>([])
@@ -540,6 +540,7 @@ export default function AdminPanel() {
   const [unapprovedTags, setUnapprovedTags] = useState<Tag[]>([])
   const [approvedTags, setApprovedTags] = useState<Tag[]>([])
   const [feedbacks, setFeedbacks] = useState<any[]>([])
+  const [forums, setForums] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<string | null>(null)
   const [formData, setFormData] = useState<any>({})
@@ -850,6 +851,26 @@ export default function AdminPanel() {
           }
           setFeedbacks([])
         }
+      } else if (activeTab === 'forums') {
+        try {
+          const response = await fetch('/api/admin/forums', {
+            credentials: 'include'
+          })
+          if (response.ok) {
+            const result = await response.json()
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Forums loaded successfully:', result.data?.length || 0, 'forums')
+            }
+            setForums(result.data || [])
+          } else {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+            console.error('Failed to load forums:', response.status, errorData)
+            setForums([])
+          }
+        } catch (error) {
+          console.error('Exception loading forums:', error)
+          setForums([])
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -1158,21 +1179,20 @@ export default function AdminPanel() {
           setFormData({})
           alert(`הפוסט "${formData.title || 'חדש'}" נוצר בהצלחה! ${formData.is_published !== false ? 'הפוסט פורסם ויופיע בבלוג.' : 'שים לב: הפוסט לא פורסם ולכן לא יופיע בבלוג עד שתסמן את התיבה "פורסם".'}`)
         } else {
-          // Enhanced error display with all error details
+          // Enhanced error display
           const errorMessage = error?.message || 'שגיאה לא ידועה'
           const errorCode = error?.code ? ` (קוד: ${error.code})` : ''
-          const errorDetails = (error as any)?.details ? `\nפרטים: ${(error as any).details}` : ''
-          const errorHint = (error as any)?.hint ? `\nרמז: ${(error as any).hint}` : ''
           
-          console.error('Error creating blog post:', {
-            message: error?.message,
-            code: error?.code,
-            details: (error as any)?.details,
-            hint: (error as any)?.hint,
-            fullError: error
-          })
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error creating blog post:', {
+              message: error?.message,
+              code: error?.code,
+              details: (error as any)?.details,
+              hint: (error as any)?.hint
+            })
+          }
           
-          alert(`שגיאה ביצירת הפוסט: ${errorMessage}${errorCode}${errorDetails}${errorHint}`)
+          alert(`שגיאה ביצירת הפוסט: ${errorMessage}${errorCode}`)
         }
       } else if (activeTab === 'badges') {
         const { createBadge } = await import('@/lib/queries/badges')
@@ -1526,6 +1546,39 @@ export default function AdminPanel() {
           setFormData({})
           alert('התגית נוצרה בהצלחה!')
         }
+      } else if (activeTab === 'forums') {
+        if (!formData.name || formData.name.trim() === '') {
+          alert('אנא הזן שם פורום (name)')
+          return
+        }
+        if (!formData.display_name || formData.display_name.trim() === '') {
+          alert('אנא הזן שם תצוגה (display_name)')
+          return
+        }
+
+        const response = await fetch('/api/admin/forums', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            display_name: formData.display_name.trim(),
+            description: formData.description?.trim() || undefined,
+            header_color: formData.header_color?.trim() || 'bg-blue-900',
+            logo_text: formData.logo_text?.trim() || undefined
+          })
+        })
+
+        const result = await response.json()
+        if (!response.ok || result.error) {
+          alert(`שגיאה ביצירת הפורום: ${result.error || 'שגיאה לא ידועה'}`)
+          return
+        }
+
+        await loadData()
+        setEditing(null)
+        setFormData({})
+        alert('הפורום נוצר בהצלחה!')
       }
     } catch (error) {
       console.error('Error creating:', error)
@@ -1643,7 +1696,9 @@ export default function AdminPanel() {
           setFormData({})
           alert('הפוסט עודכן בהצלחה!')
         } else {
-          console.error('Error updating blog post:', error)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error updating blog post:', error)
+          }
           alert(`שגיאה בעדכון הפוסט: ${error?.message || 'שגיאה לא ידועה'}`)
         }
       } else if (activeTab === 'badges') {
@@ -1985,6 +2040,36 @@ export default function AdminPanel() {
           setFormData({})
           alert('התגית עודכנה בהצלחה!')
         }
+      } else if (activeTab === 'forums') {
+        if (!formData.display_name || formData.display_name.trim() === '') {
+          alert('אנא הזן שם תצוגה (display_name)')
+          return
+        }
+
+        const response = await fetch(`/api/admin/forums/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: formData.name?.trim() || undefined,
+            display_name: formData.display_name.trim(),
+            description: formData.description?.trim() || undefined,
+            header_color: formData.header_color?.trim() || undefined,
+            logo_text: formData.logo_text?.trim() || undefined,
+            is_active: formData.is_active !== undefined ? formData.is_active : undefined
+          })
+        })
+
+        const result = await response.json()
+        if (!response.ok || result.error) {
+          alert(`שגיאה בעדכון הפורום: ${result.error || 'שגיאה לא ידועה'}`)
+          return
+        }
+
+        await loadData()
+        setEditing(null)
+        setFormData({})
+        alert('הפורום עודכן בהצלחה!')
       } else if (activeTab === 'payments') {
         const response = await fetch('/api/admin/payments', {
           method: 'PUT',
@@ -2164,6 +2249,18 @@ export default function AdminPanel() {
           console.error('Exception deleting project:', err)
           alert(`שגיאה במחיקת הפרויקט: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`)
         }
+      } else if (activeTab === 'forums') {
+        const response = await fetch(`/api/admin/forums/${id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        })
+        const result = await response.json()
+        if (response.ok && !result.error) {
+          await loadData()
+          alert('הפורום נמחק בהצלחה!')
+        } else {
+          alert(`שגיאה במחיקת הפורום: ${result.error || 'שגיאה לא ידועה'}`)
+        }
       }
     } catch (error) {
       console.error('Error deleting:', error)
@@ -2259,6 +2356,13 @@ export default function AdminPanel() {
             })
             if (response.ok) successCount++
             else errorCount++
+          } else if (activeTab === 'forums') {
+            const response = await fetch(`/api/admin/forums/${id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            })
+            if (response.ok) successCount++
+            else errorCount++
           } else if (activeTab === 'subscriptions') {
             const response = await fetch(`/api/admin/subscriptions?id=${id}`, {
               method: 'DELETE'
@@ -2302,6 +2406,7 @@ export default function AdminPanel() {
       case 'projects': return projects
       case 'tags': return tags
       case 'feedbacks': return feedbacks
+      case 'forums': return forums
       case 'subscriptions': return subscriptions
       default: return []
     }
@@ -2560,6 +2665,17 @@ export default function AdminPanel() {
             פידבקים
           </button>
           <button
+            onClick={() => setActiveTab('forums')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'forums'
+                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
+                : 'text-gray-600 hover:text-[#F52F8E]'
+            }`}
+          >
+            <MessageCircleMore className="w-5 h-5 inline-block ml-2" />
+            פורומים
+          </button>
+          <button
             onClick={() => setActiveTab('api-docs')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'api-docs'
@@ -2591,6 +2707,7 @@ export default function AdminPanel() {
                 {activeTab === 'projects' && 'פרויקטים'}
                 {activeTab === 'tags' && 'תגיות'}
                 {activeTab === 'feedbacks' && 'פידבקים'}
+                {activeTab === 'forums' && 'פורומים'}
                 {activeTab === 'api-docs' && 'דוקומנטציה API'}
               </h2>
               {selectedItems.size > 0 && (
@@ -3990,16 +4107,19 @@ export default function AdminPanel() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       rows={3}
                     />
-                    <textarea
-                      placeholder="תוכן הפוסט (HTML) *"
-                      value={formData.content || ''}
-                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      dir="rtl"
-                      lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-sm"
-                      rows={10}
-                      required
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        תוכן הפוסט *
+                      </label>
+                      <div className="relative" dir="rtl">
+                        <RichTextEditor
+                          content={formData.content || ''}
+                          onChange={(content) => setFormData({ ...formData, content })}
+                          placeholder="כתוב את תוכן הפוסט כאן..."
+                          userId={currentUser?.user_id || currentUser?.id}
+                        />
+                      </div>
+                    </div>
                     <input
                       type="url"
                       placeholder="קישור לתמונת כותרת"
@@ -4587,6 +4707,166 @@ export default function AdminPanel() {
                     {unapprovedTags.length > 0 && (
                       <div className="border-t border-gray-200 pt-4">
                         <h4 className="font-semibold text-gray-800 mb-3">תגיות ממתינות לאישור ({unapprovedTags.length})</h4>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {activeTab === 'forums' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">שם פורום (name) *</label>
+                      <input
+                        type="text"
+                        placeholder="למשל: n8n, crm, make-com"
+                        value={formData.name || ''}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        dir="ltr"
+                        disabled={editing !== 'new'}
+                      />
+                      <p className="mt-1 text-xs text-gray-500">מזהה ייחודי לפורום (לא ניתן לשנות לאחר יצירה)</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">שם תצוגה (display_name) *</label>
+                      <input
+                        type="text"
+                        placeholder="למשל: N8N, עבודה עם CRM"
+                        value={formData.display_name || ''}
+                        onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        dir="rtl"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">תיאור</label>
+                      <textarea
+                        placeholder="תיאור קצר של הפורום"
+                        value={formData.description || ''}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        rows={3}
+                        dir="rtl"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">צבע רקע (header_color)</label>
+                      <input
+                        type="text"
+                        placeholder="bg-blue-900 או bg-gradient-to-r from-green-600 to-blue-600"
+                        value={formData.header_color || ''}
+                        onChange={(e) => setFormData({ ...formData, header_color: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        dir="ltr"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Tailwind CSS classes - ניתן להשתמש בגרדיאנטים</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">טקסט לוגו (logo_text)</label>
+                      <input
+                        type="text"
+                        placeholder="למשל: N8N, CRM"
+                        value={formData.logo_text || ''}
+                        onChange={(e) => setFormData({ ...formData, logo_text: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_active !== false}
+                          onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                        <span>פעיל (פורום פעיל יוצג למשתמשים)</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+                {activeTab === 'tags' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">שם התגית *</label>
+                      <input
+                        type="text"
+                        placeholder="למשל: Make.com, API, Automation"
+                        value={formData.name || ''}
+                        onChange={(e) => {
+                          const name = e.target.value
+                          // Auto-generate slug from name if slug is empty or if name changed
+                          let slug = formData.slug || ''
+                          if (!slug || slug === generateSlug(formData.name || '')) {
+                            slug = name.toLowerCase()
+                              .replace(/[^a-z0-9\s-]/g, '')
+                              .replace(/\s+/g, '-')
+                              .replace(/-+/g, '-')
+                              .trim()
+                          }
+                          setFormData({ ...formData, name, slug })
+                        }}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        dir="rtl"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Slug</label>
+                      <input
+                        type="text"
+                        placeholder="make-com, api, automation"
+                        value={formData.slug || ''}
+                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">נוצר אוטומטית משם התגית (אופציונלי)</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">תיאור</label>
+                      <textarea
+                        placeholder="תיאור קצר של התגית"
+                        value={formData.description || ''}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        rows={3}
+                        dir="rtl"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">צבע (Hex)</label>
+                        <input
+                          type="text"
+                          placeholder="#F52F8E"
+                          value={formData.color || ''}
+                          onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">אייקון</label>
+                        <input
+                          type="text"
+                          placeholder="למשל: 🚀, ⚡, 🔥"
+                          value={formData.icon || ''}
+                          onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_approved !== false}
+                          onChange={(e) => setFormData({ ...formData, is_approved: e.target.checked })}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                        <span>מאושר (תגית מאושרת תוצג לכל המשתמשים)</span>
+                      </label>
+                    </div>
+                    {unapprovedTags.length > 0 && (
+                      <div className="border-t border-gray-200 pt-4">
+                        <h4 className="font-semibold text-gray-800 mb-3">תגיות ממתינות לאישור ({unapprovedTags.length})</h4>
                         <div className="space-y-2">
                           {unapprovedTags.map((tag) => (
                             <div key={tag.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
@@ -4819,6 +5099,16 @@ export default function AdminPanel() {
                         <th className="text-right py-3 px-4">נושא</th>
                         <th className="text-right py-3 px-4">סוג</th>
                         <th className="text-right py-3 px-4">תאריך</th>
+                        <th className="text-right py-3 px-4">פעולות</th>
+                      </>
+                    )}
+                    {activeTab === 'forums' && (
+                      <>
+                        <th className="text-right py-3 px-4">שם</th>
+                        <th className="text-right py-3 px-4">שם תצוגה</th>
+                        <th className="text-right py-3 px-4">תיאור</th>
+                        <th className="text-right py-3 px-4">פוסטים</th>
+                        <th className="text-right py-3 px-4">סטטוס</th>
                         <th className="text-right py-3 px-4">פעולות</th>
                       </>
                     )}
@@ -6205,6 +6495,70 @@ export default function AdminPanel() {
                         >
                           <X className="w-4 h-4" />
                         </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {activeTab === 'forums' && forums.map((forum) => (
+                    <tr key={forum.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(forum.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(forum.id)
+                            } else {
+                              newSelected.delete(forum.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
+                      <td className="py-3 px-4 font-mono text-sm">{forum.name || '-'}</td>
+                      <td className="py-3 px-4 font-medium">{forum.display_name || '-'}</td>
+                      <td className="py-3 px-4 text-sm text-gray-600">{forum.description || '-'}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                          {forum.posts_count || 0}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 text-xs rounded ${
+                          forum.is_active
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {forum.is_active ? 'פעיל' : 'לא פעיל'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setEditing(forum.id)
+                              setFormData({
+                                name: forum.name,
+                                display_name: forum.display_name,
+                                description: forum.description || '',
+                                header_color: forum.header_color || 'bg-blue-900',
+                                logo_text: forum.logo_text || '',
+                                is_active: forum.is_active !== false
+                              })
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(forum.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
