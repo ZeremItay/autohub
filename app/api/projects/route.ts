@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { user_id, guest_name, guest_email, title, description, budget_min, budget_max, budget_currency, technologies } = body;
+    const { user_id, guest_name, guest_email, title, description, budget_min, budget_max, budget_currency, technologies, tagIds } = body;
 
     // Validation: either user_id OR (guest_name AND guest_email) must be provided
     if (!title || !description) {

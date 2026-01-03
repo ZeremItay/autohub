@@ -74,6 +74,122 @@ const KeyPointsEditor = dynamic(
 import { he } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
 
+// Tag Selector Component
+function TagSelector({ 
+  selectedTagIds, 
+  onSelectionChange, 
+  availableTags 
+}: { 
+  selectedTagIds: string[], 
+  onSelectionChange: (tagIds: string[]) => void,
+  availableTags: Tag[]
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredTags = useMemo(() => {
+    if (!searchQuery) return availableTags
+    const query = searchQuery.toLowerCase()
+    return availableTags.filter(tag => 
+      tag.name.toLowerCase().includes(query) ||
+      tag.description?.toLowerCase().includes(query)
+    )
+  }, [availableTags, searchQuery])
+
+  const selectedTags = useMemo(() => {
+    return availableTags.filter(tag => selectedTagIds.includes(tag.id))
+  }, [availableTags, selectedTagIds])
+
+  function toggleTag(tagId: string) {
+    const newSelection = selectedTagIds.includes(tagId)
+      ? selectedTagIds.filter(id => id !== tagId)
+      : [...selectedTagIds, tagId]
+    onSelectionChange(newSelection)
+  }
+
+  return (
+    <div className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-2">תגיות</label>
+      <div 
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer min-h-[42px] flex items-center flex-wrap gap-2"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {selectedTags.length > 0 ? (
+          selectedTags.map(tag => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-[#F52F8E] text-white text-xs rounded"
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleTag(tag.id)
+              }}
+            >
+              {tag.name}
+              <X className="w-3 h-3" />
+            </span>
+          ))
+        ) : (
+          <span className="text-gray-400">בחר תגיות...</span>
+        )}
+      </div>
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+            <div className="p-2 border-b border-gray-200">
+              <input
+                type="text"
+                placeholder="חפש תגיות..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                dir="rtl"
+              />
+            </div>
+            <div className="overflow-y-auto max-h-48">
+              {filteredTags.length > 0 ? (
+                filteredTags.map(tag => (
+                  <div
+                    key={tag.id}
+                    className={`px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
+                      selectedTagIds.includes(tag.id) ? 'bg-[#F52F8E]/10' : ''
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleTag(tag.id)
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      {tag.icon && <span>{tag.icon}</span>}
+                      <span className={selectedTagIds.includes(tag.id) ? 'font-semibold' : ''}>
+                        {tag.name}
+                      </span>
+                      {tag.description && (
+                        <span className="text-xs text-gray-500">- {tag.description}</span>
+                      )}
+                    </div>
+                    {selectedTagIds.includes(tag.id) && (
+                      <span className="text-[#F52F8E]">✓</span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-2 text-gray-500 text-sm text-center">
+                  לא נמצאו תגיות
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // API Documentation Component
 function ApiDocumentation() {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://autohub.com'
@@ -422,6 +538,7 @@ export default function AdminPanel() {
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [tags, setTags] = useState<Tag[]>([])
   const [unapprovedTags, setUnapprovedTags] = useState<Tag[]>([])
+  const [approvedTags, setApprovedTags] = useState<Tag[]>([])
   const [feedbacks, setFeedbacks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<string | null>(null)
@@ -713,6 +830,12 @@ export default function AdminPanel() {
         if (!unapprovedError && unapprovedData && Array.isArray(unapprovedData)) {
           setUnapprovedTags(unapprovedData)
         }
+      }
+      
+      // Always load approved tags for tag selector
+      const { data: approvedTagsData, error: approvedTagsError } = await getAllTags(false) // Only approved
+      if (!approvedTagsError && approvedTagsData && Array.isArray(approvedTagsData)) {
+        setApprovedTags(approvedTagsData)
       } else if (activeTab === 'feedbacks') {
         const response = await fetch('/api/admin/feedbacks', {
           credentials: 'include'
@@ -1024,6 +1147,12 @@ export default function AdminPanel() {
         })
         
         if (!error && data) {
+          // Assign tags if selected
+          if (formData.selectedTagIds && formData.selectedTagIds.length > 0) {
+            const { assignTagsToContent } = await import('@/lib/queries/tags')
+            await assignTagsToContent('blog_post', data.id, formData.selectedTagIds)
+          }
+          
           await loadData()
           setEditing(null)
           setFormData({})
@@ -1220,6 +1349,12 @@ export default function AdminPanel() {
               alert(`הקורס נוצר בהצלחה, אבל ${lessonsFailed} שיעורים נכשלו ביצירה. בדוק את הקונסול לפרטים.`)
             }
             
+            // Assign tags if selected
+            if (formData.selectedTagIds && formData.selectedTagIds.length > 0) {
+              const { assignTagsToContent } = await import('@/lib/queries/tags')
+              await assignTagsToContent('course', data.id, formData.selectedTagIds)
+            }
+            
             await loadData()
             setEditing(null)
             setFormData({})
@@ -1323,6 +1458,12 @@ export default function AdminPanel() {
           console.error('Error creating project:', error)
           alert(`שגיאה ביצירת הפרויקט: ${(error as any)?.message || 'שגיאה לא ידועה'}`)
         } else {
+          // Assign tags if selected
+          if (formData.selectedTagIds && formData.selectedTagIds.length > 0 && data?.id) {
+            const { assignTagsToContent } = await import('@/lib/queries/tags')
+            await assignTagsToContent('project', data.id, formData.selectedTagIds)
+          }
+          
           await loadData()
           setEditing(null)
           setFormData({})
@@ -1459,6 +1600,12 @@ export default function AdminPanel() {
         const { updateBlogPost } = await import('@/lib/queries/blog')
         const { data, error } = await updateBlogPost(id, formData)
         if (!error && data) {
+          // Update tags if selected
+          if (formData.selectedTagIds !== undefined) {
+            const { assignTagsToContent } = await import('@/lib/queries/tags')
+            await assignTagsToContent('blog_post', id, formData.selectedTagIds || [])
+          }
+          
           await loadData()
           setEditing(null)
           setFormData({})
@@ -1601,6 +1748,12 @@ export default function AdminPanel() {
             
             console.log(`Lessons update summary: ${lessonsCreated} created, ${lessonsFailed} failed`)
             
+            // Update tags if selected
+            if (formData.selectedTagIds !== undefined) {
+              const { assignTagsToContent } = await import('@/lib/queries/tags')
+              await assignTagsToContent('course', id, formData.selectedTagIds || [])
+            }
+            
             if (lessonsFailed > 0) {
               alert(`הקורס עודכן בהצלחה, אבל ${lessonsFailed} שיעורים נכשלו ביצירה. בדוק את הקונסול לפרטים.`)
             }
@@ -1700,6 +1853,12 @@ export default function AdminPanel() {
           console.error('Error updating project:', error)
           alert(`שגיאה בעדכון הפרויקט: ${(error as any)?.message || 'שגיאה לא ידועה'}`)
         } else {
+          // Update tags if selected
+          if (formData.selectedTagIds !== undefined) {
+            const { assignTagsToContent } = await import('@/lib/queries/tags')
+            await assignTagsToContent('project', id, formData.selectedTagIds || [])
+          }
+          
           // Update state immediately for better UX
           if (data) {
             setProjects(prevProjects => 
@@ -3568,6 +3727,15 @@ export default function AdminPanel() {
                       </div>
                     </div>
                     
+                    {/* Tags */}
+                    <div className="space-y-4 border-t border-gray-200 pt-4">
+                      <TagSelector
+                        selectedTagIds={formData.selectedTagIds || []}
+                        onSelectionChange={(tagIds) => setFormData({ ...formData, selectedTagIds: tagIds })}
+                        availableTags={approvedTags}
+                      />
+                    </div>
+                    
                     {/* Course Sections */}
                     <div className="space-y-4 border-t border-gray-200 pt-4">
                       <div className="flex items-center justify-between">
@@ -3767,6 +3935,11 @@ export default function AdminPanel() {
                       />
                       <span>פורסם (חובה כדי שהפוסט יופיע בבלוג)</span>
                     </label>
+                    <TagSelector
+                      selectedTagIds={formData.selectedTagIds || []}
+                      onSelectionChange={(tagIds) => setFormData({ ...formData, selectedTagIds: tagIds })}
+                      availableTags={approvedTags}
+                    />
                   </div>
                 )}
                 {activeTab === 'reports' && (
@@ -4236,16 +4409,11 @@ export default function AdminPanel() {
                         </select>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">טכנולוגיות (מופרדות בפסיקים)</label>
-                      <input
-                        type="text"
-                        placeholder="למשל: Make.com, Zapier, API"
-                        value={formData.technologies || ''}
-                        onChange={(e) => setFormData({ ...formData, technologies: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      />
-                    </div>
+                    <TagSelector
+                      selectedTagIds={formData.selectedTagIds || []}
+                      onSelectionChange={(tagIds) => setFormData({ ...formData, selectedTagIds: tagIds })}
+                      availableTags={approvedTags}
+                    />
                   </div>
                 )}
                 {activeTab === 'tags' && (
@@ -5226,9 +5394,17 @@ export default function AdminPanel() {
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               setEditing(post.id)
-                              setFormData(post)
+                              
+                              // Load existing tags
+                              const { getTagsByContent } = await import('@/lib/queries/tags')
+                              const { data: existingTags } = await getTagsByContent('blog_post', post.id)
+                              const tagIds = existingTags && Array.isArray(existingTags) 
+                                ? existingTags.map((ta: any) => ta.tag_id || ta.tag?.id).filter(Boolean)
+                                : []
+                              
+                              setFormData({ ...post, selectedTagIds: tagIds })
                             }}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded"
                           >
@@ -5442,6 +5618,14 @@ export default function AdminPanel() {
                               try {
                                 setEditing(course.id)
                                 setFormData(course)
+                                
+                                // Load existing tags
+                                const { getTagsByContent } = await import('@/lib/queries/tags')
+                                const { data: existingTags } = await getTagsByContent('course', course.id)
+                                if (existingTags && Array.isArray(existingTags)) {
+                                  const tagIds = existingTags.map((ta: any) => ta.tag_id || ta.tag?.id).filter(Boolean)
+                                  setFormData({ ...course, selectedTagIds: tagIds })
+                                }
                                 
                                 // Load course lessons
                                 console.log('Loading lessons for course:', course.id)
@@ -5676,10 +5860,19 @@ export default function AdminPanel() {
                             <FileText className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               setEditing(project.id)
+                              
+                              // Load existing tags
+                              const { getTagsByContent } = await import('@/lib/queries/tags')
+                              const { data: existingTags } = await getTagsByContent('project', project.id)
+                              const tagIds = existingTags && Array.isArray(existingTags) 
+                                ? existingTags.map((ta: any) => ta.tag_id || ta.tag?.id).filter(Boolean)
+                                : []
+                              
                               setFormData({
                                 ...project,
+                                selectedTagIds: tagIds,
                                 technologies: Array.isArray(project.technologies) 
                                   ? project.technologies.join(', ') 
                                   : project.technologies || '',

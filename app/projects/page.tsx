@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Search,
   Plus,
@@ -16,6 +16,7 @@ import { getAllProjects, Project } from '@/lib/queries/projects';
 import { getAllEvents } from '@/lib/queries/events';
 import { getAllForums, getForumPosts } from '@/lib/queries/forums';
 import { getAllRecordings } from '@/lib/queries/recordings';
+import { getAllTags, suggestTag, assignTagsToContent, type Tag } from '@/lib/queries/tags';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useOnlineUsers } from '@/lib/hooks/useOnlineUsers';
 import { isPremiumUser } from '@/lib/utils/user';
@@ -26,6 +27,167 @@ import { clearCache } from '@/lib/cache';
 import { useRouter } from 'next/navigation';
 import ProtectedAction from '@/app/components/ProtectedAction';
 import RecentUpdates from '@/app/components/RecentUpdates';
+
+// Enhanced Tag Selector with create capability
+function TagSelectorWithCreate({ 
+  selectedTagIds, 
+  onSelectionChange, 
+  availableTags,
+  onNewTagCreate
+}: { 
+  selectedTagIds: string[], 
+  onSelectionChange: (tagIds: string[]) => void,
+  availableTags: Tag[],
+  onNewTagCreate: (tagName: string) => Promise<void>
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredTags = useMemo(() => {
+    if (!searchQuery) return availableTags;
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return availableTags;
+    return availableTags.filter(tag => 
+      tag.name.toLowerCase().includes(query) ||
+      tag.description?.toLowerCase().includes(query)
+    );
+  }, [availableTags, searchQuery]);
+
+  const selectedTags = useMemo(() => {
+    return availableTags.filter(tag => selectedTagIds.includes(tag.id));
+  }, [availableTags, selectedTagIds]);
+
+  // Check if search query doesn't match any existing tag
+  const shouldShowCreateOption = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) return false;
+    const query = searchQuery.toLowerCase().trim();
+    const exists = availableTags.some(tag => 
+      tag.name.toLowerCase() === query ||
+      tag.name.toLowerCase().includes(query)
+    );
+    return !exists && query.length > 0;
+  }, [searchQuery, availableTags]);
+
+  function toggleTag(tagId: string) {
+    const newSelection = selectedTagIds.includes(tagId)
+      ? selectedTagIds.filter(id => id !== tagId)
+      : [...selectedTagIds, tagId];
+    onSelectionChange(newSelection);
+  }
+
+  async function handleCreateNewTag() {
+    if (!searchQuery.trim()) return;
+    await onNewTagCreate(searchQuery.trim());
+    setSearchQuery('');
+  }
+
+  return (
+    <div className="relative">
+      <div 
+        className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white cursor-pointer min-h-[46px] flex items-center flex-wrap gap-2"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {selectedTags.length > 0 ? (
+          selectedTags.map(tag => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-[#F52F8E] text-white text-xs rounded"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleTag(tag.id);
+              }}
+            >
+              {tag.name}
+              <X className="w-3 h-3" />
+            </span>
+          ))
+        ) : (
+          <span className="text-gray-400 text-sm">בחר תגיות או חפש להוסיף חדשות...</span>
+        )}
+      </div>
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-[9998]" 
+            onClick={() => {
+              setIsOpen(false);
+              setSearchQuery('');
+            }}
+          />
+          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-2xl overflow-hidden" style={{ maxHeight: 'min(300px, calc(100vh - 200px))', maxWidth: 'calc(100vw - 2rem)' }}>
+            <div className="p-2 border-b border-gray-200">
+              <input
+                type="text"
+                placeholder="חפש תגיות..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && shouldShowCreateOption) {
+                    e.preventDefault();
+                    handleCreateNewTag();
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                dir="rtl"
+                autoFocus
+              />
+            </div>
+            <div className="overflow-y-auto max-h-[240px]">
+              {shouldShowCreateOption && (
+                <div
+                  className="px-4 py-3 cursor-pointer hover:bg-blue-50 border-b border-gray-200 bg-blue-50/50 flex items-center justify-between"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    await handleCreateNewTag();
+                  }}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Plus className="w-4 h-4 text-[#F52F8E] flex-shrink-0" />
+                    <span className="font-semibold text-[#F52F8E] truncate text-sm">
+                      הוסף תגית חדשה: "{searchQuery}"
+                    </span>
+                  </div>
+                </div>
+              )}
+              {filteredTags.length > 0 ? (
+                filteredTags.map(tag => (
+                  <div
+                    key={tag.id}
+                    className={`px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
+                      selectedTagIds.includes(tag.id) ? 'bg-[#F52F8E]/10' : ''
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleTag(tag.id);
+                    }}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {tag.icon && <span className="flex-shrink-0">{tag.icon}</span>}
+                      <span className={`flex-shrink-0 text-sm sm:text-base ${selectedTagIds.includes(tag.id) ? 'font-semibold' : ''}`}>
+                        {tag.name}
+                      </span>
+                      {tag.description && (
+                        <span className="text-xs text-gray-500 truncate hidden sm:inline">- {tag.description}</span>
+                      )}
+                    </div>
+                    {selectedTagIds.includes(tag.id) && (
+                      <span className="text-[#F52F8E] flex-shrink-0">✓</span>
+                    )}
+                  </div>
+                ))
+              ) : !shouldShowCreateOption && (
+                <div className="px-4 py-2 text-gray-500 text-sm text-center">
+                  {searchQuery ? 'לא נמצאו תגיות' : 'התחל להקליד כדי לחפש תגיות'}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -55,8 +217,9 @@ export default function ProjectsPage() {
     budget_min: '',
     budget_max: '',
     budget_currency: 'ILS',
-    technologies: ''
+    selectedTagIds: [] as string[]
   });
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [guestInfo, setGuestInfo] = useState({
     name: '',
     email: ''
@@ -75,10 +238,15 @@ export default function ProjectsPage() {
     setLoading(true);
     try {
       // Load only essential data first
-      const [projectsRes, eventsRes] = await Promise.all([
+      const [projectsRes, eventsRes, tagsRes] = await Promise.all([
         getAllProjects(),
-        getAllEvents()
+        getAllEvents(),
+        getAllTags(false) // Only approved tags
       ]);
+      
+      if (tagsRes.data && Array.isArray(tagsRes.data)) {
+        setAvailableTags(tagsRes.data);
+      }
 
       if (projectsRes.data) {
         // Sort projects: closed projects go to the end
@@ -170,14 +338,10 @@ export default function ProjectsPage() {
     }
 
     try {
-      // Split technologies by comma, handle spaces, and filter empty strings
-      const technologies = newProject.technologies
-        .split(',')
-        .map(t => t.trim())
-        .filter(t => t.length > 0)
-        .map(t => t.replace(/\s+/g, ' ')); // Normalize multiple spaces to single space
-
       const userId = isGuestMode ? null : (currentUser?.user_id || currentUser?.id);
+      
+      // All selected tags (already created via onNewTagCreate in TagSelectorWithCreate)
+      const allTagIds = newProject.selectedTagIds;
 
       const response = await fetch('/api/projects', {
         method: 'POST',
@@ -191,18 +355,25 @@ export default function ProjectsPage() {
           budget_min: newProject.budget_min ? parseFloat(newProject.budget_min) : null,
           budget_max: newProject.budget_max ? parseFloat(newProject.budget_max) : null,
           budget_currency: 'ILS',
-          technologies: technologies
+          tagIds: allTagIds // Send tag IDs instead of technologies
         })
       });
 
       if (response.ok) {
+        const projectData = await response.json();
+        
+        // Assign tags to the project
+        if (allTagIds.length > 0 && projectData.id) {
+          await assignTagsToContent('project', projectData.id, allTagIds);
+        }
+        
         setNewProject({
           title: '',
           description: '',
           budget_min: '',
           budget_max: '',
           budget_currency: 'ILS',
-          technologies: ''
+          selectedTagIds: []
         });
         setGuestInfo({
           name: '',
@@ -1018,7 +1189,7 @@ export default function ProjectsPage() {
                     budget_min: '',
                     budget_max: '',
                     budget_currency: 'ILS',
-                    technologies: ''
+                    selectedTagIds: []
                   });
                   setGuestInfo({
                     name: '',
@@ -1027,12 +1198,12 @@ export default function ProjectsPage() {
                 }}
               >
                 <div 
-                  className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                  className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Modal Header */}
-                  <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-                    <h2 className="text-2xl font-bold text-gray-800">פרסם פרויקט חדש</h2>
+                  <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between rounded-t-2xl">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800">פרסם פרויקט חדש</h2>
                     <button
                 onClick={() => {
                   setShowNewProjectForm(false);
@@ -1043,7 +1214,7 @@ export default function ProjectsPage() {
                     budget_min: '',
                     budget_max: '',
                     budget_currency: 'ILS',
-                    technologies: ''
+                    selectedTagIds: []
                   });
                   setGuestInfo({
                     name: '',
@@ -1057,7 +1228,7 @@ export default function ProjectsPage() {
                   </div>
 
                   {/* Modal Body */}
-                  <div className="p-6 space-y-5">
+                  <div className="p-4 sm:p-6 space-y-5">
                     {/* Guest Info Fields - Only show if guest mode */}
                     {isGuestMode && (
                       <>
@@ -1142,16 +1313,29 @@ export default function ProjectsPage() {
 
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        יש מערכות ספציפיות שהיית רוצה שישתמשו בהן?
+                        תגיות / מערכות
                       </label>
-                      <input
-                        type="text"
-                        placeholder="לדוגמה: Make, Airtable, Zapier, API, Node.js (מופרדות בפסיקים)"
-                        value={newProject.technologies}
-                        onChange={(e) => setNewProject({ ...newProject, technologies: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent text-sm"
+                      
+                      {/* Tag Selector */}
+                      <TagSelectorWithCreate
+                        selectedTagIds={newProject.selectedTagIds}
+                        onSelectionChange={(tagIds) => setNewProject({ ...newProject, selectedTagIds: tagIds })}
+                        availableTags={availableTags}
+                        onNewTagCreate={async (tagName: string) => {
+                          const { data: newTag, error: tagError } = await suggestTag(tagName);
+                          if (newTag && !tagError) {
+                            // Add to available tags for immediate use
+                            setAvailableTags(prev => [...prev, newTag]);
+                            // Add to selected tags
+                            setNewProject({ 
+                              ...newProject, 
+                              selectedTagIds: [...newProject.selectedTagIds, newTag.id] 
+                            });
+                          }
+                        }}
                       />
-                      <p className="text-xs text-gray-500 mt-1">הזן את הטכנולוגיות או המערכות, מופרדות בפסיקים</p>
+                      
+                      <p className="text-xs text-gray-500 mt-1">בחר תגיות קיימות או חפש תגית חדשה להוספה</p>
                     </div>
                   </div>
 
@@ -1167,7 +1351,7 @@ export default function ProjectsPage() {
                     budget_min: '',
                     budget_max: '',
                     budget_currency: 'ILS',
-                    technologies: ''
+                    selectedTagIds: []
                   });
                   setGuestInfo({
                     name: '',

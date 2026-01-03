@@ -30,7 +30,8 @@ import {
   Shield,
   Radio,
   MessageCircleMore,
-  GraduationCap
+  GraduationCap,
+  Facebook
 } from 'lucide-react';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -727,9 +728,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Club Name - Right side (RTL) */}
             <div className="hidden sm:flex items-center">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-800 whitespace-nowrap">
-                מועדון האוטומטורים
-              </h1>
+              <Link href="/">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-800 whitespace-nowrap hover:text-[#F52F8E] transition-colors cursor-pointer">
+                  מועדון האוטומטורים
+                </h1>
+              </Link>
             </div>
 
             {/* Search Bar - Mobile: Icon only, Desktop: Full search */}
@@ -2006,6 +2009,59 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       } lg:mt-0 mt-0`}>
         {children}
       </main>
+
+      {/* Footer */}
+      <footer className={`border-t border-gray-200 bg-white/50 backdrop-blur-sm transition-all duration-300 ease-in-out ${
+        pathname === '/live-room'
+          ? 'lg:mr-0 mr-0'
+          : sidebarOpen 
+            ? 'lg:mr-64 mr-0' 
+            : 'lg:mr-16 mr-0'
+      }`}>
+        <div className="px-4 sm:px-6 lg:px-8 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+              <div className="text-center sm:text-right">
+                <Link href="/">
+                  <p className="font-semibold text-gray-800 hover:text-[#F52F8E] transition-colors cursor-pointer">
+                    מועדון האוטומטורים
+                  </p>
+                </Link>
+              </div>
+              <div className="flex items-center gap-4 flex-wrap justify-center">
+                <div className="flex items-center gap-3">
+                  <Link 
+                    href="/privacy"
+                    className="text-gray-600 hover:text-[#F52F8E] transition-colors text-xs sm:text-sm"
+                  >
+                    תקנון פרטיות
+                  </Link>
+                  <span className="text-gray-400">•</span>
+                  <Link 
+                    href="/terms"
+                    className="text-gray-600 hover:text-[#F52F8E] transition-colors text-xs sm:text-sm"
+                  >
+                    תנאי שימוש
+                  </Link>
+                </div>
+                <a
+                  href="https://www.facebook.com/groups/talkingautomation"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-gray-600 hover:text-[#1877F2] transition-colors"
+                  aria-label="קהילת פייסבוק"
+                >
+                  <Facebook className="w-5 h-5" />
+                  <span className="hidden sm:inline">קהילת פייסבוק</span>
+                </a>
+                <div className="text-center sm:text-left">
+                  <p className="text-xs sm:text-sm">© {new Date().getFullYear()} כל הזכויות שמורות</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -103,11 +103,33 @@ export default function CoursesPage() {
   }
 
   function filteredCourses() {
-    if (!searchQuery) return courses;
-    return courses.filter(course =>
-      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    let filtered = courses;
+    
+    // Apply search filter if exists
+    if (searchQuery) {
+      filtered = courses.filter(course =>
+        course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        course.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    // Sort: enrolled courses first, then others
+    if (currentUser && !isAdmin(currentUser)) {
+      return filtered.sort((a, b) => {
+        const aEnrolled = enrollments.get(a.id) || false;
+        const bEnrolled = enrollments.get(b.id) || false;
+        
+        // Enrolled courses first
+        if (aEnrolled && !bEnrolled) return -1;
+        if (!aEnrolled && bEnrolled) return 1;
+        
+        // If both enrolled or both not enrolled, maintain original order
+        return 0;
+      });
+    }
+    
+    // For admin or no user, return as is
+    return filtered;
   }
 
   return (
@@ -225,56 +247,60 @@ export default function CoursesPage() {
               <div className="text-center py-12">טוען...</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredCourses().map((course) => (
-                  <Link
-                    key={course.id}
-                    href={`/courses/${course.id}`}
-                    className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
-                  >
-                    <div className="relative">
-                      {course.thumbnail_url ? (
-                        <img
-                          src={course.thumbnail_url}
-                          alt={course.title}
-                          className="w-full h-48 object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-48 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                          <span className="text-white text-2xl font-bold">{course.title.charAt(0)}</span>
+                {filteredCourses().map((course) => {
+                  const isEnrolled = currentUser && (enrollments.get(course.id) || isAdmin(currentUser));
+                  
+                  return (
+                    <Link
+                      key={course.id}
+                      href={`/courses/${course.id}`}
+                      className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
+                    >
+                      <div className="relative">
+                        {course.thumbnail_url ? (
+                          <img
+                            src={course.thumbnail_url}
+                            alt={course.title}
+                            className="w-full h-48 object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-48 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+                            <span className="text-white text-2xl font-bold">{course.title.charAt(0)}</span>
+                          </div>
+                        )}
+                        {course.is_new && (
+                          <span className="absolute top-3 right-3 px-3 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
+                            חדש
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-6">
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description}</p>
+                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-4 flex-wrap">
+                          <span>{course.duration_hours} שעות</span>
+                          <span>•</span>
+                          <span>{course.lessons_count} שיעורים</span>
+                          {course.is_free || !course.price || course.price === 0 ? (
+                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">חינם</span>
+                          ) : (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">{course.price} ₪</span>
+                          )}
                         </div>
-                      )}
-                      {course.is_new && (
-                        <span className="absolute top-3 right-3 px-3 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
-                          חדש
-                        </span>
-                      )}
-                    </div>
-                    <div className="p-6">
-                      <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
-                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-4 flex-wrap">
-                        <span>{course.duration_hours} שעות</span>
-                        <span>•</span>
-                        <span>{course.lessons_count} שיעורים</span>
-                        {course.is_free || !course.price || course.price === 0 ? (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">חינם</span>
-                        ) : (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">{course.price} ₪</span>
-                        )}
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${getDifficultyColor(course.difficulty)}`}>
+                            {course.difficulty}
+                          </span>
+                          {isEnrolled ? (
+                            <span className="text-[#F52F8E] text-sm font-semibold">המשך ללמוד →</span>
+                          ) : (
+                            <span className="text-gray-500 text-sm">הירשם →</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${getDifficultyColor(course.difficulty)}`}>
-                          {course.difficulty}
-                        </span>
-                        {currentUser && (enrollments.get(course.id) || isAdmin(currentUser)) ? (
-                          <span className="text-[#F52F8E] text-sm font-semibold">המשך ללמוד →</span>
-                        ) : (
-                          <span className="text-gray-500 text-sm">הירשם →</span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
