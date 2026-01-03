@@ -45,6 +45,7 @@ import { getInitials } from '@/lib/utils/display';
 import { lazyLoad } from '@/lib/utils/lazyLoad';
 import Link from 'next/link';
 import RecentUpdates, { type RecentUpdate } from '@/app/components/RecentUpdates';
+import { ReportsTicker } from '@/app/components/home/ReportsTicker';
 
 export default function Home() {
   // Use custom hooks for user data
@@ -979,84 +980,8 @@ export default function Home() {
 
   return (
     <div className="px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6">
-      {/* Reports News Ticker - Bulletproof Infinite Scrolling Marquee */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee {
-          animation: marquee 40s linear infinite;
-          display: flex;
-        }
-        .paused {
-          animation-play-state: paused;
-        }
-      `}} />
-      <div className="max-w-7xl mx-auto mb-6">
-        <div className="w-full bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden h-12 flex items-center relative">
-          {/* Badge - Absolutely positioned on the right with gradient fade */}
-          <div className="absolute right-0 z-10 h-full flex items-center pr-4">
-            <div className="bg-gradient-to-l from-white via-white to-transparent w-24 h-full absolute right-0"></div>
-            <div className="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full relative z-10">
-              דיווחים
-            </div>
-          </div>
-          
-      {/* Content - Scrolling marquee with two sets for seamless loop */}
-      <div className="flex-1 overflow-hidden relative group pr-32">
-        {reports.length > 0 ? (
-          <div className="flex flex-row overflow-hidden relative">
-            {/* Wrapper that contains BOTH sets - animation on this wrapper */}
-            <div className="flex shrink-0 items-center gap-4 animate-marquee group-hover:paused whitespace-nowrap">
-              {/* Set 1 */}
-              {reports.map((report, index) => (
-                <span key={`report-1-${index}-${report.id}`} className="inline-flex items-center">
-                  {index > 0 && <span className="text-gray-800 mx-2">•</span>}
-                  <Link
-                    href={`/reports/${report.id}`}
-                    dir="rtl"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-gray-800 hover:text-red-600 transition-colors whitespace-nowrap px-4"
-                  >
-                    <span className="text-red-600 font-medium text-xs">
-                      {report.created_at ? formatTimeFromDate(report.created_at) : ''}
-                    </span>
-                    <span className="text-gray-800">
-                      {report.title}
-                    </span>
-                  </Link>
-                  <span className="text-red-400 mx-4">|</span>
-                </span>
-              ))}
-              {/* Set 2 - Duplicate for seamless loop */}
-              {reports.map((report, index) => (
-                <span key={`report-2-${index}-${report.id}`} className="inline-flex items-center">
-                  {index > 0 && <span className="text-gray-800 mx-2">•</span>}
-                  <Link
-                    href={`/reports/${report.id}`}
-                    dir="rtl"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-gray-800 hover:text-red-600 transition-colors whitespace-nowrap px-4"
-                  >
-                    <span className="text-red-600 font-medium text-xs">
-                      {report.created_at ? formatTimeFromDate(report.created_at) : ''}
-                    </span>
-                    <span className="text-gray-800">
-                      {report.title}
-                    </span>
-                  </Link>
-                  <span className="text-red-400 mx-4">|</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center">
-            <span className="text-sm font-medium text-gray-800">אין דיווחים חדשים</span>
-          </div>
-        )}
-      </div>
-        </div>
-      </div>
+      {/* Reports News Ticker */}
+      <ReportsTicker reports={reports} />
 
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-4 sm:gap-6">
         {/* Left Sidebar - Desktop */}
