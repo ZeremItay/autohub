@@ -150,6 +150,17 @@ p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a {
   }
 }
 
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
 }
@@ -160,6 +171,10 @@ p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a {
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
 }
 
 

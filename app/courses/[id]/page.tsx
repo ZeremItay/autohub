@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { Play, Clock, CheckCircle, Lock, ArrowRight, ArrowLeft, HelpCircle, Star, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Play, Clock, CheckCircle, Lock, ArrowRight, ArrowLeft, HelpCircle, Star, ChevronDown, ChevronUp, ExternalLink, X, BookOpen } from 'lucide-react';
 import { getCourseById, getCourseLessons, getCourseSections, checkEnrollment, enrollInCourse, markLessonComplete, markLessonIncomplete, getCompletedLessons, isLessonCompleted, canAccessLesson, getNextAvailableLesson, type Course, type CourseLesson, type CourseSection } from '@/lib/queries/courses';
 import { getAllProfiles } from '@/lib/queries/profiles';
 import { isAdmin, isPremiumUser } from '@/lib/utils/user';
@@ -29,6 +29,7 @@ export default function CourseDetailPage() {
   const [nextAvailableLesson, setNextAvailableLesson] = useState<CourseLesson | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -811,8 +812,8 @@ export default function CourseDetailPage() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {/* Lessons List */}
-          <div className="lg:col-span-1">
+          {/* Lessons List - Desktop Only */}
+          <div className="hidden lg:block lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:sticky lg:top-4">
               <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">תוכן הקורס</h2>
               {(() => {
@@ -1011,73 +1012,73 @@ export default function CourseDetailPage() {
                 </div>
               ) : (
                 // Display without sections (backward compatibility)
-                <div className="space-y-2">
-                  {lessons.map((lesson, index) => {
-                    const isCompleted = completedLessons.includes(lesson.id);
-                    const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
-                    const isLocked = course.is_sequential && !canAccess;
-                    
-                    return (
-                      <button
-                        key={lesson.id}
-                        onClick={() => {
-                          if (!isLocked) {
-                            setSelectedLesson(lesson);
-                          }
-                        }}
-                        disabled={isLocked}
-                        className={`w-full text-right p-3 sm:p-4 rounded-lg border transition-all ${
-                          selectedLesson?.id === lesson.id
-                            ? 'border-[#F52F8E] bg-pink-50'
-                            : isLocked
-                            ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                        title={isLocked ? 'עליך לסיים את השיעור הקודם' : ''}
-                      >
-                        <div className="flex items-start justify-between gap-2 sm:gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
-                              <span className="text-xs sm:text-sm font-semibold text-gray-500">
-                                שיעור {index + 1}
+              <div className="space-y-2">
+                {lessons.map((lesson, index) => {
+                  const isCompleted = completedLessons.includes(lesson.id);
+                  const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
+                  const isLocked = course.is_sequential && !canAccess;
+                  
+                  return (
+                    <button
+                      key={lesson.id}
+                      onClick={() => {
+                        if (!isLocked) {
+                          setSelectedLesson(lesson);
+                        }
+                      }}
+                      disabled={isLocked}
+                      className={`w-full text-right p-3 sm:p-4 rounded-lg border transition-all ${
+                        selectedLesson?.id === lesson.id
+                          ? 'border-[#F52F8E] bg-pink-50'
+                          : isLocked
+                          ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                      title={isLocked ? 'עליך לסיים את השיעור הקודם' : ''}
+                    >
+                      <div className="flex items-start justify-between gap-2 sm:gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                            <span className="text-xs sm:text-sm font-semibold text-gray-500">
+                              שיעור {index + 1}
+                            </span>
+                            {isCompleted && (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            )}
+                            {isLocked && (
+                              <Lock className="w-4 h-4 text-gray-400" />
+                            )}
+                            {lesson.is_preview && (
+                              <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                תצוגה מקדימה
                               </span>
-                              {isCompleted && (
-                                <CheckCircle className="w-4 h-4 text-green-500" />
-                              )}
-                              {isLocked && (
-                                <Lock className="w-4 h-4 text-gray-400" />
-                              )}
-                              {lesson.is_preview && (
-                                <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                                  תצוגה מקדימה
-                                </span>
-                              )}
+                            )}
+                          </div>
+                          <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
+                          {lesson.description && (
+                            <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                          )}
+                          {lesson.duration_minutes && (
+                            <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
+                              <Clock className="w-3 h-3" />
+                              <span>{formatDuration(lesson.duration_minutes)}</span>
                             </div>
-                            <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
-                            {lesson.description && (
-                              <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
-                            )}
-                            {lesson.duration_minutes && (
-                              <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
-                                <Clock className="w-3 h-3" />
-                                <span>{formatDuration(lesson.duration_minutes)}</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-shrink-0">
-                            {selectedLesson?.id === lesson.id ? (
-                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
-                            ) : isLocked ? (
-                              <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                            ) : (
-                              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                            )}
-                          </div>
+                          )}
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <div className="flex-shrink-0">
+                          {selectedLesson?.id === lesson.id ? (
+                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                          ) : isLocked ? (
+                            <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                          ) : (
+                            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
               )}
             </div>
           </div>
@@ -1342,6 +1343,309 @@ export default function CourseDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Bottom Sheet for Course Content */}
+      {mobileSheetOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setMobileSheetOpen(false)}
+          />
+          {/* Bottom Sheet */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white rounded-t-2xl shadow-2xl max-h-[85vh] flex flex-col animate-slide-up">
+            {/* Handle bar */}
+            <div className="flex items-center justify-center pt-3 pb-2">
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+    </div>
+            
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pb-4 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-800">תוכן הקורס</h2>
+              <button
+                onClick={() => setMobileSheetOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {lessons.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">אין שיעורים זמינים בקורס זה</p>
+                </div>
+              ) : sections && sections.length > 0 ? (
+                // Display with sections (accordion)
+                <div className="space-y-2">
+                  {sections.map((section) => {
+                    const sectionLessons = lessons.filter(lesson => lesson.section_id === section.id);
+                    const isOpen = openSections.has(section.id);
+                    
+                    return (
+                      <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => {
+                            const newOpenSections = new Set(openSections);
+                            if (isOpen) {
+                              newOpenSections.delete(section.id);
+                            } else {
+                              newOpenSections.add(section.id);
+                            }
+                            setOpenSections(newOpenSections);
+                          }}
+                          className="w-full flex items-center justify-between p-3 sm:p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                          <span className="font-semibold text-gray-800 text-sm sm:text-base">{section.title}</span>
+                          {isOpen ? (
+                            <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                          )}
+                        </button>
+                        
+                        {isOpen && (
+                          <div className="p-2 space-y-2">
+                            {sectionLessons.length === 0 ? (
+                              <p className="text-xs text-gray-500 text-center py-2">אין שיעורים בחלק זה</p>
+                            ) : (
+                              sectionLessons.map((lesson) => {
+                                const isCompleted = completedLessons.includes(lesson.id);
+                                const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
+                                const isLocked = course.is_sequential && !canAccess;
+                                const lessonIndex = lessons.findIndex(l => l.id === lesson.id);
+                                
+                                return (
+                                  <button
+                                    key={lesson.id}
+                                    onClick={() => {
+                                      if (!isLocked) {
+                                        setSelectedLesson(lesson);
+                                        setMobileSheetOpen(false);
+                                      }
+                                    }}
+                                    disabled={isLocked}
+                                    className={`w-full text-right p-3 sm:p-4 rounded-lg border transition-all ${
+                                      selectedLesson?.id === lesson.id
+                                        ? 'border-[#F52F8E] bg-pink-50'
+                                        : isLocked
+                                        ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                    title={isLocked ? 'עליך לסיים את השיעור הקודם' : ''}
+                                  >
+                                    <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                                          <span className="text-xs sm:text-sm font-semibold text-gray-500">
+                                            שיעור {lessonIndex + 1}
+                                          </span>
+                                          {isCompleted && (
+                                            <CheckCircle className="w-4 h-4 text-green-500" />
+                                          )}
+                                          {isLocked && (
+                                            <Lock className="w-4 h-4 text-gray-400" />
+                                          )}
+                                          {lesson.is_preview && (
+                                            <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                              תצוגה מקדימה
+                                            </span>
+                                          )}
+                                        </div>
+                                        <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
+                                        {lesson.description && (
+                                          <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                                        )}
+                                        {lesson.duration_minutes && (
+                                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
+                                            <Clock className="w-3 h-3" />
+                                            <span>{formatDuration(lesson.duration_minutes)}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="flex-shrink-0">
+                                        {selectedLesson?.id === lesson.id ? (
+                                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                                        ) : isLocked ? (
+                                          <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                                        ) : (
+                                          <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                                        )}
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Show lessons without section at the end */}
+                  {lessons.filter(lesson => !lesson.section_id).length > 0 && (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="p-3 sm:p-4 bg-gray-50">
+                        <span className="font-semibold text-gray-800 text-sm sm:text-base">שיעורים נוספים</span>
+                      </div>
+                      <div className="p-2 space-y-2">
+                        {lessons.filter(lesson => !lesson.section_id).map((lesson) => {
+                          const isCompleted = completedLessons.includes(lesson.id);
+                          const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
+                          const isLocked = course.is_sequential && !canAccess;
+                          const lessonIndex = lessons.findIndex(l => l.id === lesson.id);
+                          
+                          return (
+                            <button
+                              key={lesson.id}
+                              onClick={() => {
+                                if (!isLocked) {
+                                  setSelectedLesson(lesson);
+                                  setMobileSheetOpen(false);
+                                }
+                              }}
+                              disabled={isLocked}
+                              className={`w-full text-right p-3 sm:p-4 rounded-lg border transition-all ${
+                                selectedLesson?.id === lesson.id
+                                  ? 'border-[#F52F8E] bg-pink-50'
+                                  : isLocked
+                                  ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                              title={isLocked ? 'עליך לסיים את השיעור הקודם' : ''}
+                            >
+                              <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                                    <span className="text-xs sm:text-sm font-semibold text-gray-500">
+                                      שיעור {lessonIndex + 1}
+                                    </span>
+                                    {isCompleted && (
+                                      <CheckCircle className="w-4 h-4 text-green-500" />
+                                    )}
+                                    {isLocked && (
+                                      <Lock className="w-4 h-4 text-gray-400" />
+                                    )}
+                                    {lesson.is_preview && (
+                                      <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                        תצוגה מקדימה
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
+                                  {lesson.description && (
+                                    <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                                  )}
+                                  {lesson.duration_minutes && (
+                                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
+                                      <Clock className="w-3 h-3" />
+                                      <span>{formatDuration(lesson.duration_minutes)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-shrink-0">
+                                  {selectedLesson?.id === lesson.id ? (
+                                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                                  ) : isLocked ? (
+                                    <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                                  ) : (
+                                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Display without sections (backward compatibility)
+                <div className="space-y-2">
+                  {lessons.map((lesson, index) => {
+                    const isCompleted = completedLessons.includes(lesson.id);
+                    const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
+                    const isLocked = course.is_sequential && !canAccess;
+                    
+                    return (
+                      <button
+                        key={lesson.id}
+                        onClick={() => {
+                          if (!isLocked) {
+                            setSelectedLesson(lesson);
+                            setMobileSheetOpen(false);
+                          }
+                        }}
+                        disabled={isLocked}
+                        className={`w-full text-right p-3 sm:p-4 rounded-lg border transition-all ${
+                          selectedLesson?.id === lesson.id
+                            ? 'border-[#F52F8E] bg-pink-50'
+                            : isLocked
+                            ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                        title={isLocked ? 'עליך לסיים את השיעור הקודם' : ''}
+                      >
+                        <div className="flex items-start justify-between gap-2 sm:gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                              <span className="text-xs sm:text-sm font-semibold text-gray-500">
+                                שיעור {index + 1}
+                              </span>
+                              {isCompleted && (
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                              )}
+                              {isLocked && (
+                                <Lock className="w-4 h-4 text-gray-400" />
+                              )}
+                              {lesson.is_preview && (
+                                <span className="text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                  תצוגה מקדימה
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
+                            {lesson.description && (
+                              <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                            )}
+                            {lesson.duration_minutes && (
+                              <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
+                                <Clock className="w-3 h-3" />
+                                <span>{formatDuration(lesson.duration_minutes)}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-shrink-0">
+                            {selectedLesson?.id === lesson.id ? (
+                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#F52F8E]" />
+                            ) : isLocked ? (
+                              <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                            ) : (
+                              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Mobile Floating Button */}
+      <button
+        onClick={() => setMobileSheetOpen(true)}
+        className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-30 lg:hidden bg-[#F52F8E] text-white px-6 py-3 rounded-full shadow-lg hover:bg-[#E01E7A] transition-colors flex items-center gap-2"
+      >
+        <BookOpen className="w-5 h-5" />
+        <span className="font-semibold">תוכן הקורס</span>
+      </button>
     </div>
   );
 }
