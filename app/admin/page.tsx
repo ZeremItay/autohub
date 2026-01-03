@@ -74,8 +74,335 @@ const KeyPointsEditor = dynamic(
 import { he } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
 
+// API Documentation Component
+function ApiDocumentation() {
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://autohub.com'
+  
+  const apiEndpoints = [
+    // Admin APIs
+    {
+      category: 'Admin APIs',
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/api/admin/create-user',
+          description: 'יצירת משתמש חדש',
+          auth: 'API Key או Admin Session',
+          params: {
+            body: {
+              email: 'string (required)',
+              password: 'string (required, min 6 chars)',
+              display_name: 'string (optional)',
+              first_name: 'string (optional)',
+              last_name: 'string (optional)',
+              auto_enroll_free_course: 'boolean (optional, default: true)'
+            }
+          }
+        },
+        {
+          method: 'POST',
+          path: '/api/admin/assign-course',
+          description: 'שיוך קורס למשתמש',
+          auth: 'API Key או Admin Session',
+          params: {
+            body: {
+              user_id: 'string (required)',
+              course_id: 'string (required)'
+            }
+          }
+        },
+        {
+          method: 'POST',
+          path: '/api/admin/create-report',
+          description: 'יצירת דיווח חדש',
+          auth: 'API Key או Admin Session',
+          params: {
+            body: {
+              title: 'string (required)',
+              content: 'string (required)',
+              user_id: 'string (required)',
+              is_published: 'boolean (optional, default: true)',
+              created_at: 'string (optional, ISO date)'
+            }
+          }
+        },
+        {
+          method: 'GET',
+          path: '/api/admin/users',
+          description: 'קבלת רשימת משתמשים',
+          auth: 'API Key או Admin Session',
+          params: {
+            query: {
+              search: 'string (optional)',
+              email: 'string (optional)',
+              limit: 'number (optional)'
+            }
+          }
+        },
+        {
+          method: 'GET',
+          path: '/api/admin/users/[userId]',
+          description: 'קבלת משתמש לפי ID',
+          auth: 'API Key או Admin Session',
+          params: {
+            path: {
+              userId: 'string (required)'
+            },
+            query: {
+              by: 'string (optional: "email" | "user_id")'
+            }
+          }
+        },
+        {
+          method: 'PUT',
+          path: '/api/admin/users',
+          description: 'עדכון משתמש',
+          auth: 'API Key או Admin Session',
+          params: {
+            body: {
+              id: 'string (required)',
+              display_name: 'string (optional)',
+              role_id: 'string (optional)',
+              points: 'number (optional)'
+            }
+          }
+        },
+        {
+          method: 'DELETE',
+          path: '/api/admin/users',
+          description: 'מחיקת משתמש',
+          auth: 'API Key או Admin Session',
+          params: {
+            query: {
+              id: 'string (required)'
+            }
+          }
+        },
+        {
+          method: 'GET',
+          path: '/api/admin/users/[userId]/courses',
+          description: 'קבלת קורסים של משתמש',
+          auth: 'API Key או Admin Session',
+          params: {
+            path: {
+              userId: 'string (required)'
+            }
+          }
+        },
+        {
+          method: 'POST',
+          path: '/api/admin/users/[userId]/courses',
+          description: 'הוספת קורס למשתמש',
+          auth: 'API Key או Admin Session',
+          params: {
+            path: {
+              userId: 'string (required)'
+            },
+            body: {
+              course_id: 'string (required)'
+            }
+          }
+        },
+        {
+          method: 'DELETE',
+          path: '/api/admin/users/[userId]/courses',
+          description: 'הסרת קורס ממשתמש',
+          auth: 'API Key או Admin Session',
+          params: {
+            path: {
+              userId: 'string (required)'
+            },
+            query: {
+              course_id: 'string (required)'
+            }
+          }
+        },
+        {
+          method: 'GET',
+          path: '/api/admin/feedbacks',
+          description: 'קבלת כל הפידבקים',
+          auth: 'Admin Session',
+          params: {}
+        },
+        {
+          method: 'DELETE',
+          path: '/api/admin/feedbacks/[id]',
+          description: 'מחיקת פידבק',
+          auth: 'Admin Session',
+          params: {
+            path: {
+              id: 'string (required)'
+            }
+          }
+        }
+      ]
+    },
+    // User APIs
+    {
+      category: 'User APIs',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/api/user/subscription',
+          description: 'קבלת מנוי של משתמש',
+          auth: 'User Session',
+          params: {}
+        },
+        {
+          method: 'GET',
+          path: '/api/user/payments',
+          description: 'קבלת תשלומים של משתמש',
+          auth: 'User Session',
+          params: {}
+        }
+      ]
+    },
+    // Public APIs
+    {
+      category: 'Public APIs',
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/api/feedback',
+          description: 'שליחת פידבק',
+          auth: 'User Session (optional)',
+          params: {
+            body: {
+              name: 'string (required)',
+              email: 'string (required)',
+              subject: 'string (required)',
+              message: 'string (required)',
+              feedback_type: 'string (optional)',
+              rating: 'number (optional, 1-5)',
+              image_url: 'string (optional)'
+            }
+          }
+        },
+        {
+          method: 'GET',
+          path: '/api/projects',
+          description: 'קבלת רשימת פרויקטים',
+          auth: 'None',
+          params: {}
+        },
+        {
+          method: 'GET',
+          path: '/api/reports',
+          description: 'קבלת רשימת דיווחים',
+          auth: 'None',
+          params: {}
+        },
+        {
+          method: 'GET',
+          path: '/api/reports/[id]',
+          description: 'קבלת דיווח לפי ID',
+          auth: 'None',
+          params: {
+            path: {
+              id: 'string (required)'
+            }
+          }
+        }
+      ]
+    },
+    // Webhooks
+    {
+      category: 'Webhooks',
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/api/payments/webhook',
+          description: 'Webhook לתשלומים',
+          auth: 'Webhook Secret',
+          params: {
+            body: {
+              event: 'string (required)',
+              data: 'object (required)'
+            }
+          }
+        }
+      ]
+    }
+  ]
+
+  return (
+    <div className="space-y-8">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h3 className="font-semibold text-blue-900 mb-2">אימות (Authentication)</h3>
+        <p className="text-sm text-blue-800 mb-2">
+          רוב ה-Admin APIs דורשים אימות באמצעות:
+        </p>
+        <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
+          <li><strong>API Key:</strong> שלח ב-header <code className="bg-blue-100 px-1 rounded">X-API-Key</code> או <code className="bg-blue-100 px-1 rounded">Authorization: Bearer YOUR_KEY</code></li>
+          <li><strong>Admin Session:</strong> התחבר כאדמין דרך הדפדפן</li>
+        </ul>
+        <p className="text-sm text-blue-800 mt-2">
+          <strong>Base URL:</strong> <code className="bg-blue-100 px-1 rounded">{baseUrl}</code>
+        </p>
+      </div>
+
+      {apiEndpoints.map((category, categoryIndex) => (
+        <div key={categoryIndex} className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-[#F52F8E] text-white px-6 py-3">
+            <h3 className="text-lg font-semibold">{category.category}</h3>
+          </div>
+          <div className="divide-y divide-gray-200">
+            {category.endpoints.map((endpoint, endpointIndex) => (
+              <div key={endpointIndex} className="p-6 hover:bg-gray-50">
+                <div className="flex items-start gap-4 mb-3">
+                  <span className={`px-3 py-1 rounded text-sm font-semibold ${
+                    endpoint.method === 'GET' ? 'bg-green-100 text-green-700' :
+                    endpoint.method === 'POST' ? 'bg-blue-100 text-blue-700' :
+                    endpoint.method === 'PUT' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {endpoint.method}
+                  </span>
+                  <code className="flex-1 text-lg font-mono text-gray-800">{endpoint.path}</code>
+                </div>
+                <p className="text-gray-600 mb-3">{endpoint.description}</p>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-sm font-semibold text-gray-700">אימות: </span>
+                    <span className="text-sm text-gray-600">{endpoint.auth}</span>
+                  </div>
+                  {Object.keys(endpoint.params).length > 0 && (
+                    <div>
+                      <span className="text-sm font-semibold text-gray-700">פרמטרים: </span>
+                      <div className="mt-2 space-y-2">
+                        {'path' in endpoint.params && endpoint.params.path && (
+                          <div className="bg-gray-50 p-3 rounded">
+                            <span className="text-sm font-medium text-gray-700">Path Parameters:</span>
+                            <pre className="text-xs mt-1 text-gray-600">{JSON.stringify(endpoint.params.path, null, 2)}</pre>
+                          </div>
+                        )}
+                        {'query' in endpoint.params && endpoint.params.query && (
+                          <div className="bg-gray-50 p-3 rounded">
+                            <span className="text-sm font-medium text-gray-700">Query Parameters:</span>
+                            <pre className="text-xs mt-1 text-gray-600">{JSON.stringify(endpoint.params.query, null, 2)}</pre>
+                          </div>
+                        )}
+                        {'body' in endpoint.params && endpoint.params.body && (
+                          <div className="bg-gray-50 p-3 rounded">
+                            <span className="text-sm font-medium text-gray-700">Body Parameters:</span>
+                            <pre className="text-xs mt-1 text-gray-600">{JSON.stringify(endpoint.params.body, null, 2)}</pre>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks' | 'api-docs'>('users')
   const [users, setUsers] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [roles, setRoles] = useState<any[]>([])
@@ -1497,11 +1824,18 @@ export default function AdminPanel() {
     
     try {
       if (activeTab === 'users') {
-        const { error } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('id', id)
-        if (!error) await loadData()
+        // Use API endpoint to delete user (which deletes from both Auth and profiles)
+        const response = await fetch(`/api/admin/users?id=${id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        })
+        const result = await response.json()
+        if (response.ok && result.success) {
+          await loadData()
+          alert('המשתמש נמחק בהצלחה!')
+        } else {
+          alert(`שגיאה במחיקת המשתמש: ${result.error || 'שגיאה לא ידועה'}`)
+        }
       } else if (activeTab === 'posts') {
         const { error } = await supabase
           .from('posts')
@@ -1625,12 +1959,17 @@ export default function AdminPanel() {
       for (const id of idsToDelete) {
         try {
           if (activeTab === 'users') {
-            const { error } = await supabase
-              .from('profiles')
-              .delete()
-              .eq('id', id)
-            if (!error) successCount++
-            else errorCount++
+            // Use API endpoint to delete user (which deletes from both Auth and profiles)
+            const response = await fetch(`/api/admin/users?id=${id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            })
+            const result = await response.json()
+            if (response.ok && result.success) {
+              successCount++
+            } else {
+              errorCount++
+            }
           } else if (activeTab === 'posts') {
             const { error } = await supabase
               .from('posts')
@@ -1998,6 +2337,17 @@ export default function AdminPanel() {
             <MessageCircleMore className="w-5 h-5 inline-block ml-2" />
             פידבקים
           </button>
+          <button
+            onClick={() => setActiveTab('api-docs')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'api-docs'
+                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
+                : 'text-gray-600 hover:text-[#F52F8E]'
+            }`}
+          >
+            <HelpCircle className="w-5 h-5 inline-block ml-2" />
+            דוקומנטציה API
+          </button>
         </div>
 
         {/* Content */}
@@ -2019,6 +2369,7 @@ export default function AdminPanel() {
                 {activeTab === 'projects' && 'פרויקטים'}
                 {activeTab === 'tags' && 'תגיות'}
                 {activeTab === 'feedbacks' && 'פידבקים'}
+                {activeTab === 'api-docs' && 'דוקומנטציה API'}
               </h2>
               {selectedItems.size > 0 && (
                 <button
@@ -5559,9 +5910,21 @@ export default function AdminPanel() {
                       </td>
                     </tr>
                   ))}
+                  {activeTab === 'api-docs' && (
+                    <tr>
+                      <td colSpan={100} className="py-8 px-4">
+                        <ApiDocumentation />
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
+            {activeTab === 'api-docs' && (
+              <div className="mt-6">
+                <ApiDocumentation />
+              </div>
+            )}
           </div>
         )}
       </div>
