@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowRight, Eye, Calendar } from 'lucide-react';
+import { ArrowRight, Eye, Calendar, Share2, Copy, Check, Facebook, Twitter, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { getReportById, type Report } from '@/lib/queries/reports';
 import { formatTimeAgo } from '@/lib/utils/date';
@@ -14,6 +14,8 @@ export default function ReportDetailPage() {
   
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (reportId) {
@@ -72,6 +74,33 @@ export default function ReportDetailPage() {
     );
   }
 
+  function handleShare(type: 'link' | 'whatsapp' | 'facebook' | 'twitter') {
+    if (!report) return;
+
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    const title = report.title;
+    const text = `${title} - מועדון האוטומטורים`;
+
+    switch (type) {
+      case 'link':
+        navigator.clipboard.writeText(url).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+        break;
+      case 'whatsapp':
+        window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, '_blank');
+        break;
+      case 'facebook':
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+        break;
+      case 'twitter':
+        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+        break;
+    }
+    setShowShareMenu(false);
+  }
+
   // Helper function to clean placeholder images from HTML content
   function cleanPlaceholderImages(content: string): string {
     if (!content || typeof content !== 'string') {
@@ -108,7 +137,61 @@ export default function ReportDetailPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
             {/* Header */}
             <div className="mb-6 pb-6 border-b border-gray-200">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">{report.title}</h1>
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex-1">{report.title}</h1>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowShareMenu(!showShareMenu)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 hover:text-[#F52F8E]"
+                    title="שתף"
+                  >
+                    <Share2 className="w-5 h-5" />
+                  </button>
+                  
+                  {showShareMenu && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setShowShareMenu(false)}
+                      />
+                      <div className="absolute left-0 top-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 min-w-[180px]">
+                        <button
+                          onClick={() => handleShare('link')}
+                          className="w-full px-4 py-2 text-right hover:bg-gray-50 flex items-center justify-between gap-2 text-sm text-gray-700"
+                        >
+                          <span>{copied ? 'הועתק!' : 'העתק קישור'}</span>
+                          {copied ? (
+                            <Check className="w-4 h-4 text-green-500" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleShare('whatsapp')}
+                          className="w-full px-4 py-2 text-right hover:bg-gray-50 flex items-center justify-between gap-2 text-sm text-gray-700"
+                        >
+                          <span>WhatsApp</span>
+                          <MessageCircle className="w-4 h-4 text-green-500" />
+                        </button>
+                        <button
+                          onClick={() => handleShare('facebook')}
+                          className="w-full px-4 py-2 text-right hover:bg-gray-50 flex items-center justify-between gap-2 text-sm text-gray-700"
+                        >
+                          <span>Facebook</span>
+                          <Facebook className="w-4 h-4 text-blue-600" />
+                        </button>
+                        <button
+                          onClick={() => handleShare('twitter')}
+                          className="w-full px-4 py-2 text-right hover:bg-gray-50 flex items-center justify-between gap-2 text-sm text-gray-700"
+                        >
+                          <span>Twitter</span>
+                          <Twitter className="w-4 h-4 text-blue-400" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
               
               <div className="flex items-center gap-4 text-sm text-gray-500">
                 <div className="flex items-center gap-1">

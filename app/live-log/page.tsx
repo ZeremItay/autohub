@@ -254,19 +254,16 @@ export default function LiveLogPage() {
                         <div className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${isToday ? 'text-[#F52F8E]' : 'text-gray-700'}`}>
                           {date.getDate()}
                         </div>
-                        <div className="space-y-0.5 sm:space-y-1">
+                        <div className="space-y-0.5 sm:space-y-1 min-h-0 flex flex-col">
                           {dateEvents.slice(0, 1).map((event) => (
                             <Link
                               key={event.id}
                               href={`/live/${event.id}`}
-                              className="block bg-[#F52F8E] text-white text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 rounded truncate hover:bg-[#E01E7A] transition-colors"
+                              className="block bg-[#F52F8E] text-white text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded hover:bg-[#E01E7A] transition-colors break-words leading-tight flex-1 min-h-0 overflow-hidden"
                               title={`${event.title} - ${formatTime(event.event_time)}`}
                             >
-                              <span className="hidden sm:inline">
-                                {event.title.length > 15 ? `${event.title.substring(0, 15)}...` : event.title} - {formatTime(event.event_time)}
-                              </span>
-                              <span className="sm:hidden">
-                                {formatTime(event.event_time)}
+                              <span className="block">
+                                {event.title} - {formatTime(event.event_time)}
                               </span>
                             </Link>
                           ))}

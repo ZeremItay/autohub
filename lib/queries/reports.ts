@@ -108,8 +108,15 @@ export async function getAllReports(limit?: number) {
 // Get a single report by ID
 export async function getReportById(id: string) {
   try {
-    // First increment views
-    await incrementReportViews(id);
+    // Try to increment views (don't block if it fails)
+    try {
+      await incrementReportViews(id);
+    } catch (error) {
+      // Silently fail - views increment is not critical
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Failed to increment report views:', error);
+      }
+    }
 
     // Then fetch the report with updated views
     const { data: report, error } = await supabase
@@ -204,11 +211,18 @@ export async function incrementReportViews(id: string) {
 
     // If RPC doesn't exist, use update instead
     if (error && error.message?.includes('function') && error.message?.includes('does not exist')) {
-      const { data: currentReport } = await supabase
+      const { data: currentReport, error: fetchError } = await supabase
         .from('reports')
         .select('views')
         .eq('id', id)
         .single();
+
+      if (fetchError) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Error fetching report for view increment:', fetchError);
+        }
+        return { error: fetchError };
+      }
 
       if (currentReport) {
         const { error: updateError } = await supabase
@@ -217,18 +231,27 @@ export async function incrementReportViews(id: string) {
           .eq('id', id);
 
         if (updateError) {
-          console.error('Error incrementing report views:', updateError);
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Error incrementing report views:', updateError);
+          }
           return { error: updateError };
         }
+      } else {
+        // Report not found - return error but don't throw
+        return { error: new Error('Report not found') };
       }
     } else if (error) {
-      console.error('Error incrementing report views:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Error in RPC increment_report_views:', error);
+      }
       return { error };
     }
 
     return { error: null };
   } catch (error: any) {
-    console.error('Error in incrementReportViews:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error in incrementReportViews:', error);
+    }
     return { error };
   }
 }
