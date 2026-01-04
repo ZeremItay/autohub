@@ -135,7 +135,11 @@ export default function CommentItem({
             </button>
           )}
         </div>
-        <p className={`text-gray-700 ${textSize} mb-2 whitespace-pre-line`}>{comment.content}</p>
+        <div 
+          className={`text-gray-700 ${textSize} mb-2 prose prose-sm max-w-none`}
+          dangerouslySetInnerHTML={{ __html: comment.content }}
+          dir="rtl"
+        />
         
         {/* Reply Button */}
         {currentUser && onReply && onToggleReply && !isReply && (

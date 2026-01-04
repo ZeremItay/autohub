@@ -46,6 +46,15 @@ import { lazyLoad } from '@/lib/utils/lazyLoad';
 import Link from 'next/link';
 import RecentUpdates, { type RecentUpdate } from '@/app/components/RecentUpdates';
 import { ReportsTicker } from '@/app/components/home/ReportsTicker';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(
+  () => import('@/app/components/RichTextEditor'),
+  { 
+    ssr: false,
+    loading: () => <div className="w-full h-32 bg-gray-100 rounded animate-pulse" />
+  }
+);
 
 export default function Home() {
   // Use custom hooks for user data
@@ -450,10 +459,10 @@ export default function Home() {
         latestAnnouncementsResult.data.forEach((announcement: any) => {
           const profile = profilesMap.get(announcement.user_id);
           const authorName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
-          const contentPreview = announcement.content?.substring(0, 50) || 'הכרזה חדשה';
+          // Only show "פרסם הכרזה" without HTML content
           updates.push({
             type: 'post',
-            text: `${authorName} פרסם הכרזה: ${contentPreview}${announcement.content?.length > 50 ? '...' : ''}`,
+            text: `${authorName} פרסם הכרזה`,
             time: formatTimeAgo(announcement.created_at),
             icon: '📢',
             link: `/#post-${announcement.id}`,
@@ -648,10 +657,10 @@ export default function Home() {
             if (!existingIds.has(announcement.id)) {
               const profile = fallbackProfilesMap.get(announcement.user_id);
               const authorName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
-              const contentPreview = announcement.content?.substring(0, 50) || 'הכרזה חדשה';
+              // Only show "פרסם הכרזה" without HTML content
               updates.push({
                 type: 'post',
-                text: `${authorName} פרסם הכרזה: ${contentPreview}${announcement.content?.length > 50 ? '...' : ''}`,
+                text: `${authorName} פרסם הכרזה`,
                 time: formatTimeAgo(announcement.created_at),
                 icon: '📢',
                 link: `/#post-${announcement.id}`,
@@ -1205,15 +1214,14 @@ export default function Home() {
                       <X className="w-5 h-5" />
                     </button>
                   </div>
-                  <textarea
-                    value={newPostContent}
-                    onChange={(e) => setNewPostContent(e.target.value)}
-                    placeholder="מה אתה רוצה לשתף?"
-                    dir="rtl"
-                    lang="he"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] resize-none"
-                    rows={4}
-                  />
+                  <div className="relative" dir="rtl">
+                    <RichTextEditor
+                      content={newPostContent}
+                      onChange={setNewPostContent}
+                      placeholder="מה אתה רוצה לשתף?"
+                      userId={currentUser?.user_id || currentUser?.id}
+                    />
+                  </div>
                   <input
                     type="text"
                     value={newPostImageUrl}
@@ -1233,8 +1241,8 @@ export default function Home() {
                       ביטול
                     </button>
                     <button
-                      onClick={handleCreatePost}
-                      disabled={!newPostContent.trim()}
+                    onClick={handleCreatePost}
+                    disabled={!newPostContent.replace(/<[^>]*>/g, '').trim()}
                       className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       <Send className="w-4 h-4" />
@@ -1311,9 +1319,11 @@ export default function Home() {
                           </button>
                         )}
                       </div>
-                      <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 leading-relaxed whitespace-pre-line">
-                        {post.content}
-                      </p>
+                      <div 
+                        className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 leading-relaxed prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: post.content }}
+                        dir="rtl"
+                      />
                       {(post.image_url || post.media_url) && (
                         <div className="mb-3 sm:mb-4">
                           <img 

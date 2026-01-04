@@ -442,19 +442,32 @@ export async function awardPoints(userId: string, actionName: string, options?: 
         });
         
         if (notificationError) {
-          console.error('❌ Notification error details:', {
-            code: notificationError.code,
-            message: notificationError.message,
-            details: notificationError.details,
-            hint: notificationError.hint
-          });
+          // Only log in development or if error has meaningful content
+          if (process.env.NODE_ENV === 'development') {
+            const errorInfo: any = {};
+            if (notificationError.code) errorInfo.code = notificationError.code;
+            if (notificationError.message) errorInfo.message = notificationError.message;
+            if (notificationError.details) errorInfo.details = notificationError.details;
+            if (notificationError.hint) errorInfo.hint = notificationError.hint;
+            
+            // Only log if we have meaningful error info
+            if (Object.keys(errorInfo).length > 0) {
+              console.error('❌ Notification error details:', errorInfo);
+            } else {
+              console.warn('⚠️ Notification creation failed (no error details available)');
+            }
+          }
           
           // Check if it's a table not found error
           if (notificationError.code === 'PGRST205' || notificationError.message?.includes('Could not find the table')) {
-            console.warn('⚠️ Notifications table does not exist. Skipping notification creation.');
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('⚠️ Notifications table does not exist. Skipping notification creation.');
+            }
           } else if (notificationError.message?.includes('type') || notificationError.message?.includes('CHECK') || notificationError.code === '23514') {
             // If 'points' type is not supported, use 'like' as fallback
-            console.log('⚠️ Points notification type not supported, using "like" as fallback');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('⚠️ Points notification type not supported, using "like" as fallback');
+            }
             const { error: likeError } = await createNotification({
               user_id: userId,
               type: 'like',
@@ -465,23 +478,31 @@ export async function awardPoints(userId: string, actionName: string, options?: 
             });
             
             if (likeError) {
-              if (likeError.code === 'PGRST205' || likeError.message?.includes('Could not find the table')) {
-                console.warn('⚠️ Notifications table does not exist. Skipping notification creation.');
-              } else {
-                console.warn('⚠️ Could not create notification with "like" type either:', likeError);
+              if (process.env.NODE_ENV === 'development') {
+                if (likeError.code === 'PGRST205' || likeError.message?.includes('Could not find the table')) {
+                  console.warn('⚠️ Notifications table does not exist. Skipping notification creation.');
+                } else {
+                  console.warn('⚠️ Could not create notification with "like" type either:', likeError);
+                }
               }
             } else {
-              console.log('✅ Notification created with "like" type');
+              if (process.env.NODE_ENV === 'development') {
+                console.log('✅ Notification created with "like" type');
+              }
               // Trigger event to refresh notifications in UI
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new Event('notificationCreated'));
               }
             }
           } else {
-            console.warn('⚠️ Error creating notification:', notificationError);
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('⚠️ Error creating notification:', notificationError);
+            }
           }
         } else {
-          console.log('✅ Notification created successfully');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Notification created successfully');
+          }
           // Trigger event to refresh notifications in UI
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('notificationCreated'));

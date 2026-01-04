@@ -26,13 +26,29 @@ export async function middleware(request: NextRequest) {
   )
 
   // Refresh session if expired - required for Server Components
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Handle refresh token errors gracefully
+  try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-  // If user is signed in and the current path is /login redirect the user to /
-  if (user && request.nextUrl.pathname === '/auth/login') {
-    return NextResponse.redirect(new URL('/', request.url))
+    // If there's a refresh token error, clear the session silently
+    if (authError && (authError.message?.includes('Refresh Token') || authError.message?.includes('JWT'))) {
+      // Clear invalid session cookies
+      response.cookies.delete('sb-access-token')
+      response.cookies.delete('sb-refresh-token')
+      // Continue without user - they'll need to log in again
+    } else if (user && request.nextUrl.pathname === '/auth/login') {
+      // If user is signed in and the current path is /login redirect the user to /
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+  } catch (error) {
+    // Silently handle any auth errors in middleware
+    // Don't block the request
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Middleware auth error (non-blocking):', error)
+    }
   }
 
   return response

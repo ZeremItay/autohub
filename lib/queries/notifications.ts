@@ -142,21 +142,35 @@ export async function createNotification(notification: Omit<Notification, 'id' |
     .single();
   
   if (error) {
-    console.error('❌ Error creating notification:', {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      fullError: error
-    });
+    // Only log in development or if error has meaningful content
+    if (process.env.NODE_ENV === 'development') {
+      const errorInfo: any = {};
+      if (error.code) errorInfo.code = error.code;
+      if (error.message) errorInfo.message = error.message;
+      if (error.details) errorInfo.details = error.details;
+      if (error.hint) errorInfo.hint = error.hint;
+      
+      // Only log if we have meaningful error info
+      if (Object.keys(errorInfo).length > 0) {
+        console.error('❌ Error creating notification:', errorInfo);
+      } else {
+        console.warn('⚠️ Notification creation failed (no error details available)');
+      }
+    }
     
     // Check for specific error types
     if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
-      console.warn('⚠️ Notifications table does not exist in schema cache');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Notifications table does not exist in schema cache');
+      }
     } else if (error.code === '23514' || error.message?.includes('CHECK constraint') || error.message?.includes('violates check constraint')) {
-      console.warn('⚠️ Notification type not allowed in CHECK constraint. Available types may not include:', notification.type);
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Notification type not allowed in CHECK constraint. Available types may not include:', notification.type);
+      }
     } else if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('row-level security')) {
-      console.warn('⚠️ RLS policy violation - user may not have permission to create notification');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ RLS policy violation - user may not have permission to create notification');
+      }
     }
     
     return { data: null, error };

@@ -2,6 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(
+  () => import('@/app/components/RichTextEditor'),
+  { 
+    ssr: false,
+    loading: () => <div className="w-full h-24 bg-gray-100 rounded animate-pulse" />
+  }
+);
 
 interface CommentFormProps {
   onSubmit: (text: string) => Promise<void>;
@@ -37,7 +46,6 @@ export default function CommentForm({
   // Use lazy initialization to prevent useState from resetting on every render
   const [text, setText] = useState(() => initialText);
   const [loading, setLoading] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prevInitialTextRef = useRef<string | undefined>(initialText);
   
   // Update text ONLY when initialText actually changes (e.g., when @mention is added)
@@ -52,21 +60,19 @@ export default function CommentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim() || loading) return;
+    // Check if text has meaningful content (not just empty HTML tags)
+    const textContent = text.replace(/<[^>]*>/g, '').trim();
+    if (!textContent || loading) return;
 
     setLoading(true);
     try {
-      await onSubmit(text.trim());
+      await onSubmit(text);
       setText('');
     } catch (error) {
       console.error('Error submitting comment:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
   };
 
   const avatarSize = size === 'sm' ? 'w-6 h-6' : 'w-8 h-8';
@@ -102,17 +108,14 @@ export default function CommentForm({
         </div>
       )}
       <form onSubmit={handleSubmit} className="flex-1">
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={handleTextChange}
-          placeholder={placeholder}
-          dir="rtl"
-          lang="he"
-          className={`w-full ${paddingSize} border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] resize-none ${textSize}`}
-          rows={size === 'sm' ? 2 : 2}
-          disabled={loading}
-        />
+        <div className="relative" dir="rtl">
+          <RichTextEditor
+            content={text}
+            onChange={setText}
+            placeholder={placeholder}
+            userId={currentUser?.user_id || currentUser?.id}
+          />
+        </div>
         <div className={`flex items-center justify-end gap-2 ${size === 'sm' ? 'mt-1' : 'mt-2'}`}>
           {isReplying && onCancel && (
             <button
@@ -126,7 +129,7 @@ export default function CommentForm({
           )}
           <button
             type="submit"
-            disabled={!text.trim() || loading}
+            disabled={!text.replace(/<[^>]*>/g, '').trim() || loading}
             className={`flex items-center gap-1 ${paddingSize} ${textSize} bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <Send className={size === 'sm' ? 'w-3 h-3' : 'w-3 h-3'} />

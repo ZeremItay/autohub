@@ -541,6 +541,8 @@ export default function AdminPanel() {
   const [approvedTags, setApprovedTags] = useState<Tag[]>([])
   const [feedbacks, setFeedbacks] = useState<any[]>([])
   const [forums, setForums] = useState<any[]>([])
+  const [registrationLimit, setRegistrationLimit] = useState<number>(50)
+  const [currentUserCount, setCurrentUserCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<string | null>(null)
   const [formData, setFormData] = useState<any>({})
@@ -724,9 +726,25 @@ export default function AdminPanel() {
         // Data already includes roles from the query
         const usersData = Array.isArray(data) ? data : []
         setUsers(usersData)
+        setCurrentUserCount(usersData.length)
         // Load available roles for dropdown
         const { data: rolesData } = await getAllRoles()
         setAvailableRoles(rolesData || [])
+        // Load registration limit
+        try {
+          const limitResponse = await fetch('/api/admin/registration-limit', {
+            credentials: 'include'
+          })
+          if (limitResponse.ok) {
+            const limitData = await limitResponse.json()
+            setRegistrationLimit(limitData.limit || 50)
+            setCurrentUserCount(limitData.currentCount || usersData.length)
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error loading registration limit:', error)
+          }
+        }
       } else if (activeTab === 'posts') {
         const { data } = await getPosts()
         setPosts(data || [])
@@ -2696,7 +2714,17 @@ export default function AdminPanel() {
             {/* Create Button */}
             <div className="mb-6 flex justify-between items-center">
               <h2 className="text-xl font-semibold">
-                {activeTab === 'users' && 'משתמשים'}
+                {activeTab === 'users' && (
+                  <div className="flex items-center gap-4">
+                    <span>משתמשים</span>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                        {currentUserCount} / {registrationLimit}
+                      </span>
+                      <span className="text-xs">רשומים</span>
+                    </div>
+                  </div>
+                )}
                 {activeTab === 'posts' && 'הודעות ראשיות'}
                 {activeTab === 'roles' && 'תפקידים'}
                 {activeTab === 'subscriptions' && 'מנויים'}
@@ -2785,6 +2813,68 @@ export default function AdminPanel() {
                 </button>
               </div>
             </div>
+
+            {/* Registration Limit Management - Users Tab */}
+            {activeTab === 'users' && !editing && (
+              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+                <h3 className="font-semibold mb-4 text-lg">הגבלת רישום משתמשים</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      משתמשים רשומים כרגע
+                    </label>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {currentUserCount}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      מקסימום רישום
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={registrationLimit}
+                      onChange={(e) => setRegistrationLimit(parseInt(e.target.value) || 50)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/admin/registration-limit', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ limit: registrationLimit })
+                          })
+                          if (response.ok) {
+                            const result = await response.json()
+                            setRegistrationLimit(result.limit)
+                            setCurrentUserCount(result.currentCount)
+                            alert(`המגבלה עודכנה בהצלחה! ${result.currentCount} / ${result.limit} משתמשים רשומים`)
+                          } else {
+                            const error = await response.json()
+                            alert(`שגיאה בעדכון המגבלה: ${error.error || 'שגיאה לא ידועה'}`)
+                          }
+                        } catch (error: any) {
+                          alert(`שגיאה בעדכון המגבלה: ${error.message || 'שגיאה לא ידועה'}`)
+                        }
+                      }}
+                      className="w-full px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                    >
+                      שמור מגבלה
+                    </button>
+                  </div>
+                </div>
+                {currentUserCount >= registrationLimit && (
+                  <div className="mt-4 p-3 bg-yellow-100 border border-yellow-400 rounded-lg text-yellow-800 text-sm">
+                    ⚠️ הרישום מוגבל - הגעת למקסימום המשתמשים המותר
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Create/Edit Form */}
             {editing && (

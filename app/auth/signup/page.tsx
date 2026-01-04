@@ -40,6 +40,24 @@ export default function SignupPage() {
         return;
       }
 
+      // Check registration limit BEFORE creating user
+      try {
+        const limitResponse = await fetch('/api/admin/registration-limit');
+        if (limitResponse.ok) {
+          const limitData = await limitResponse.json();
+          if (!limitData.available) {
+            setError(`כרגע הרישום מוגבל ל-${limitData.limit} חברים בלבד. נודיע לך כאשר יהיה רישום לעוד חברים.`);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (limitError) {
+        // If limit check fails, allow registration (fail open)
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Failed to check registration limit, allowing registration:', limitError);
+        }
+      }
+
       // Create user in Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -118,6 +136,24 @@ export default function SignupPage() {
     setError(null);
 
     try {
+      // Check registration limit BEFORE initiating OAuth
+      try {
+        const limitResponse = await fetch('/api/admin/registration-limit');
+        if (limitResponse.ok) {
+          const limitData = await limitResponse.json();
+          if (!limitData.available) {
+            setError(`כרגע הרישום מוגבל ל-${limitData.limit} חברים בלבד. נודיע לך כאשר יהיה רישום לעוד חברים.`);
+            setGoogleLoading(false);
+            return;
+          }
+        }
+      } catch (limitError) {
+        // If limit check fails, allow registration (fail open)
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Failed to check registration limit, allowing registration:', limitError);
+        }
+      }
+
       // Get the current origin for redirect URL
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const redirectUrl = `${origin}/auth/callback`;
