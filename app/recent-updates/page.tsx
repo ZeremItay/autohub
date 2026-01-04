@@ -193,10 +193,9 @@ export default function RecentUpdatesPage() {
         latestAnnouncementsResult.data.forEach((announcement: any) => {
           const profile = profilesMap.get(announcement.user_id);
           const authorName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
-          const contentPreview = announcement.content?.substring(0, 50) || 'הכרזה חדשה';
           allUpdates.push({
             type: 'post',
-            text: `${authorName} פרסם הכרזה: ${contentPreview}${announcement.content?.length > 50 ? '...' : ''}`,
+            text: `${authorName} פרסם הכרזה`,
             time: formatTimeAgo(announcement.created_at),
             icon: '📢',
             link: `/#post-${announcement.id}`,
