@@ -9,6 +9,7 @@ import { isPremiumUser } from '@/lib/utils/user';
 import { formatDate } from '@/lib/utils/date';
 import { CommentsList } from '@/app/components/comments';
 import AuthGuard from '@/app/components/AuthGuard';
+import { getTagsByContent, type Tag } from '@/lib/queries/tags';
 import { ArrowRight, Share2, Eye, Clock, Calendar, Tag, Send, Trash2, MessageCircle, HelpCircle, Star, Play, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 export default function RecordingDetailPage() {
@@ -24,6 +25,7 @@ function RecordingDetailPageContent() {
   const router = useRouter();
   const { user: currentUser, isPremium: userIsPremium, refetch: refetchUser } = useCurrentUser();
   const [recording, setRecording] = useState<any>(null);
+  const [recordingTags, setRecordingTags] = useState<Tag[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -93,9 +95,20 @@ function RecordingDetailPageContent() {
     setLoading(true);
     setDetailsLoading(true);
     try {
-      const { data, error } = await getRecordingById(id);
+      const [recordingResult, tagsResult] = await Promise.all([
+        getRecordingById(id),
+        getTagsByContent('recording', id)
+      ]);
+      
+      const { data, error } = recordingResult;
       if (!error && data) {
         setRecording(data);
+        
+        // Load tags
+        const { data: tagsData } = tagsResult;
+        const tags = (Array.isArray(tagsData) ? tagsData.map((t: any) => t.tag).filter(Boolean) : []) || []
+        setRecordingTags(tags);
+        
         // Increment views in background (non-blocking)
         incrementRecordingViews(id).catch(() => {});
       } else if (error) {
@@ -352,21 +365,14 @@ function RecordingDetailPageContent() {
                 חדש
               </span>
             )}
-            {recording.category && (
+            {recordingTags.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {Array.isArray(recording.category) ? (
-                  recording.category.map((cat: string, idx: number) => (
-                    <span key={idx} className="px-3 py-1 bg-[#F52F8E] text-white text-sm font-semibold rounded flex items-center gap-1">
-                      <Tag className="w-3 h-3" />
-                      {cat}
-                    </span>
-                  ))
-                ) : (
-                  <span className="px-3 py-1 bg-[#F52F8E] text-white text-sm font-semibold rounded flex items-center gap-1">
+                {recordingTags.map((tag: Tag) => (
+                  <span key={tag.id} className="px-3 py-1 bg-[#F52F8E] text-white text-sm font-semibold rounded flex items-center gap-1">
                     <Tag className="w-3 h-3" />
-                    {recording.category}
+                    {tag.name}
                   </span>
-                )}
+                ))}
               </div>
             )}
           </div>

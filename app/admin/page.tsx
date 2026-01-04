@@ -10,7 +10,7 @@ import { getAllRecordings, getRecordingById, createRecording, updateRecording, d
 import { getAllCourses, createCourse, type Course } from '@/lib/queries/courses'
 import { getAllEvents, createEvent, updateEvent, deleteEvent, type Event } from '@/lib/queries/events'
 import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, getAllProjectOffers, getProjectOffers, updateProjectOffer, deleteProjectOffer, type Project, type ProjectOffer } from '@/lib/queries/projects'
-import { getAllTags, getTagById, createTag, updateTag, deleteTag, getUnapprovedTags, type Tag } from '@/lib/queries/tags'
+import { getAllTags, getTagById, createTag, updateTag, deleteTag, getUnapprovedTags, suggestTag, type Tag } from '@/lib/queries/tags'
 import { 
   Users, 
   FileText, 
@@ -180,6 +180,167 @@ function TagSelector({
               ) : (
                 <div className="px-4 py-2 text-gray-500 text-sm text-center">
                   לא נמצאו תגיות
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Tag Selector with Create capability
+function TagSelectorWithCreate({ 
+  selectedTagIds, 
+  onSelectionChange, 
+  availableTags,
+  onNewTagCreate
+}: { 
+  selectedTagIds: string[], 
+  onSelectionChange: (tagIds: string[]) => void,
+  availableTags: Tag[],
+  onNewTagCreate: (tagName: string) => Promise<void>
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredTags = useMemo(() => {
+    if (!searchQuery) return availableTags
+    const query = searchQuery.toLowerCase().trim()
+    if (!query) return availableTags
+    return availableTags.filter(tag => 
+      tag.name.toLowerCase().includes(query) ||
+      tag.description?.toLowerCase().includes(query)
+    )
+  }, [availableTags, searchQuery])
+
+  const selectedTags = useMemo(() => {
+    return availableTags.filter(tag => selectedTagIds.includes(tag.id))
+  }, [availableTags, selectedTagIds])
+
+  // Check if search query doesn't match any existing tag
+  const shouldShowCreateOption = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) return false
+    const query = searchQuery.toLowerCase().trim()
+    const exists = availableTags.some(tag => 
+      tag.name.toLowerCase() === query ||
+      tag.name.toLowerCase().includes(query)
+    )
+    return !exists && query.length > 0
+  }, [searchQuery, availableTags])
+
+  function toggleTag(tagId: string) {
+    const newSelection = selectedTagIds.includes(tagId)
+      ? selectedTagIds.filter(id => id !== tagId)
+      : [...selectedTagIds, tagId]
+    onSelectionChange(newSelection)
+  }
+
+  async function handleCreateNewTag() {
+    if (!searchQuery.trim()) return
+    await onNewTagCreate(searchQuery.trim())
+    setSearchQuery('')
+  }
+
+  return (
+    <div className="relative">
+      <div 
+        className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white cursor-pointer min-h-[46px] flex items-center flex-wrap gap-2"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {selectedTags.length > 0 ? (
+          selectedTags.map(tag => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-[#F52F8E] text-white text-xs rounded"
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleTag(tag.id)
+              }}
+            >
+              {tag.name}
+              <X className="w-3 h-3" />
+            </span>
+          ))
+        ) : (
+          <span className="text-gray-400 text-sm">בחר תגיות או חפש להוסיף חדשות...</span>
+        )}
+      </div>
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-[9998]" 
+            onClick={() => {
+              setIsOpen(false)
+              setSearchQuery('')
+            }}
+          />
+          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-2xl overflow-hidden" style={{ maxHeight: 'min(300px, calc(100vh - 200px))', maxWidth: 'calc(100vw - 2rem)' }}>
+            <div className="p-2 border-b border-gray-200">
+              <input
+                type="text"
+                placeholder="חפש תגיות..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && shouldShowCreateOption) {
+                    e.preventDefault()
+                    handleCreateNewTag()
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                dir="rtl"
+                autoFocus
+              />
+            </div>
+            <div className="overflow-y-auto max-h-[240px]">
+              {shouldShowCreateOption && (
+                <div
+                  className="px-4 py-3 cursor-pointer hover:bg-blue-50 border-b border-gray-200 bg-blue-50/50 flex items-center justify-between"
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    await handleCreateNewTag()
+                  }}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Plus className="w-4 h-4 text-[#F52F8E] flex-shrink-0" />
+                    <span className="font-semibold text-[#F52F8E] truncate text-sm">
+                      הוסף תגית חדשה: "{searchQuery}"
+                    </span>
+                  </div>
+                </div>
+              )}
+              {filteredTags.length > 0 ? (
+                filteredTags.map(tag => (
+                  <div
+                    key={tag.id}
+                    className={`px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
+                      selectedTagIds.includes(tag.id) ? 'bg-[#F52F8E]/10' : ''
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleTag(tag.id)
+                    }}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {tag.icon && <span className="flex-shrink-0">{tag.icon}</span>}
+                      <span className={`flex-shrink-0 text-sm sm:text-base ${selectedTagIds.includes(tag.id) ? 'font-semibold' : ''}`}>
+                        {tag.name}
+                      </span>
+                      {tag.description && (
+                        <span className="text-xs text-gray-500 truncate hidden sm:inline">- {tag.description}</span>
+                      )}
+                    </div>
+                    {selectedTagIds.includes(tag.id) && (
+                      <span className="text-[#F52F8E] flex-shrink-0">✓</span>
+                    )}
+                  </div>
+                ))
+              ) : !shouldShowCreateOption && (
+                <div className="px-4 py-2 text-gray-500 text-sm text-center">
+                  {searchQuery ? 'לא נמצאו תגיות' : 'התחל להקליד כדי לחפש תגיות'}
                 </div>
               )}
             </div>
@@ -523,6 +684,7 @@ export default function AdminPanel() {
   const [posts, setPosts] = useState<any[]>([])
   const [roles, setRoles] = useState<any[]>([])
   const [recordings, setRecordings] = useState<any[]>([])
+  const [recordingTagsMap, setRecordingTagsMap] = useState<Record<string, Tag[]>>({})
   const [resources, setResources] = useState<any[]>([])
   const [blogPosts, setBlogPosts] = useState<any[]>([])
   const [availableRoles, setAvailableRoles] = useState<any[]>([])
@@ -755,8 +917,8 @@ export default function AdminPanel() {
         const { data, error } = await getAllRecordings()
         if (!error && data && Array.isArray(data)) setRecordings(data)
       } else if (activeTab === 'resources') {
-        const { getAllResources } = await import('@/lib/queries/resources')
-        const { data, error } = await getAllResources()
+        const { getResourcesWithDetails } = await import('@/lib/queries/resources')
+        const { data, error } = await getResourcesWithDetails()
         if (!error) setResources(data || [])
       } else if (activeTab === 'blog') {
         const { getAllBlogPosts } = await import('@/lib/queries/blog')
@@ -816,7 +978,7 @@ export default function AdminPanel() {
           setEvents(data)
         } else {
           if (process.env.NODE_ENV === 'development') {
-            console.error('Error loading events:', error)
+          console.error('Error loading events:', error)
           }
         }
         // Load Zoom meetings when events tab is active
@@ -851,10 +1013,14 @@ export default function AdminPanel() {
         }
       }
       
-      // Always load approved tags for tag selector
+      // Always load approved tags for tag selector (needed for recordings, resources, projects, etc.)
       const { data: approvedTagsData, error: approvedTagsError } = await getAllTags(false) // Only approved
       if (!approvedTagsError && approvedTagsData && Array.isArray(approvedTagsData)) {
         setApprovedTags(approvedTagsData)
+        // Also set tags if not already set (for recordings, resources, etc.)
+        if (activeTab !== 'tags') {
+          setTags(approvedTagsData)
+        }
       } else if (activeTab === 'feedbacks') {
         const response = await fetch('/api/admin/feedbacks', {
           credentials: 'include'
@@ -888,6 +1054,26 @@ export default function AdminPanel() {
         } catch (error) {
           console.error('Exception loading forums:', error)
           setForums([])
+        }
+      } else if (activeTab === 'recordings') {
+        const { data: recordingsData, error: recordingsError } = await getAllRecordings()
+        if (!recordingsError && recordingsData && Array.isArray(recordingsData)) {
+          setRecordings(recordingsData)
+          // Load tags for all recordings
+          if (recordingsData.length > 0) {
+            const { getTagsByContent } = await import('@/lib/queries/tags')
+            const tagsPromises = recordingsData.map(async (recording: any) => {
+              const { data: tagsData } = await getTagsByContent('recording', recording.id)
+              const tags = (Array.isArray(tagsData) ? tagsData.map((t: any) => t.tag).filter(Boolean) : []) || []
+              return { recordingId: recording.id, tags }
+            })
+            const tagsResults = await Promise.all(tagsPromises)
+            const tagsMap: Record<string, Tag[]> = {}
+            tagsResults.forEach(({ recordingId, tags }) => {
+              tagsMap[recordingId] = tags
+            })
+            setRecordingTagsMap(tagsMap)
+          }
         }
       }
     } catch (error) {
@@ -1024,7 +1210,7 @@ export default function AdminPanel() {
         
         if (error) {
           if (process.env.NODE_ENV === 'development') {
-            console.error('Error creating post:', error);
+          console.error('Error creating post:', error);
           }
           alert(`שגיאה ביצירת הפוסט: ${error.message || JSON.stringify(error)}`);
           return;
@@ -1036,23 +1222,16 @@ export default function AdminPanel() {
           setFormData({})
         }
       } else if (activeTab === 'recordings') {
-        // Parse categories from comma-separated string to array
-        let categories: string[] = [];
-        if (formData.category && typeof formData.category === 'string') {
-          categories = formData.category
-            .split(',')
-            .map((c: string) => c.trim())
-            .filter((c: string) => c.length > 0);
-        } else if (Array.isArray(formData.category)) {
-          categories = formData.category;
-        }
-
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1203',message:'handleCreate recordings entry',data:{selectedTagIds:formData.selectedTagIds?.length||0,tagsCount:tags.length,approvedTagsCount:approvedTags.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        // Don't use category anymore - we use tags only
         const { data, error } = await createRecording({
           title: formData.title || '',
           description: formData.description || '',
           video_url: formData.video_url || '',
           thumbnail_url: formData.thumbnail_url || undefined,
-          category: categories.length > 0 ? categories : undefined,
+          category: undefined, // Remove category - use tags only
           duration: formData.duration,
           views: formData.views || 0,
           // is_new will be set automatically based on creation date
@@ -1060,24 +1239,54 @@ export default function AdminPanel() {
           key_points: formData.key_points || [],
           created_at: formData.created_at || undefined
         })
-        if (!error) {
+        if (!error && data) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1225',message:'before assignTagsToContent',data:{recordingId:data.id,selectedTagIds:formData.selectedTagIds?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          // Assign tags if provided
+          if (formData.selectedTagIds && formData.selectedTagIds.length > 0) {
+            try {
+              const { assignTagsToContent } = await import('@/lib/queries/tags')
+              await assignTagsToContent('recording', data.id, formData.selectedTagIds)
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1230',message:'assignTagsToContent success',data:{recordingId:data.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
+            } catch (tagError) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1232',message:'assignTagsToContent error',data:{errorMessage:tagError?.message,errorStack:tagError?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
+              console.warn('Error assigning tags:', tagError)
+            }
+          }
           await loadData()
           setEditing(null)
           setFormData({})
         }
       } else if (activeTab === 'resources') {
         const { createResource } = await import('@/lib/queries/resources')
+        const { assignTagsToContent } = await import('@/lib/queries/tags')
         const { data, error } = await createResource({
           title: formData.title || '',
           description: formData.description || '',
-          file_url: formData.file_url || '',
-          file_name: formData.file_name || '',
+          file_url: formData.file_url || formData.external_url || '',
+          file_name: formData.file_name || formData.title || '',
           file_size: formData.file_size || 0,
           file_type: formData.file_type || '',
           category: formData.category || '',
+          type: formData.type || 'document',
+          thumbnail_url: formData.thumbnail_url || '',
+          external_url: formData.external_url || '',
           is_premium: formData.is_premium !== false
         })
-        if (!error) {
+        if (!error && data) {
+          // Assign tags if provided
+          if (formData.selectedTagIds && formData.selectedTagIds.length > 0) {
+            try {
+              await assignTagsToContent('resource', data.id, formData.selectedTagIds)
+            } catch (tagError) {
+              console.warn('Error assigning tags:', tagError)
+            }
+          }
           await loadData()
           setEditing(null)
           setFormData({})
@@ -1202,12 +1411,12 @@ export default function AdminPanel() {
           const errorCode = error?.code ? ` (קוד: ${error.code})` : ''
           
           if (process.env.NODE_ENV === 'development') {
-            console.error('Error creating blog post:', {
-              message: error?.message,
-              code: error?.code,
-              details: (error as any)?.details,
+          console.error('Error creating blog post:', {
+            message: error?.message,
+            code: error?.code,
+            details: (error as any)?.details,
               hint: (error as any)?.hint
-            })
+          })
           }
           
           alert(`שגיאה ביצירת הפוסט: ${errorMessage}${errorCode}`)
@@ -1306,7 +1515,7 @@ export default function AdminPanel() {
           is_free_for_premium: formData.is_free_for_premium || false,
           is_sequential: formData.is_sequential || false
         }
-        
+
         const { data, error } = await createCourse(courseData)
         
         if (error) {
@@ -1664,37 +1873,85 @@ export default function AdminPanel() {
           alert('המשתמש עודכן בהצלחה!')
         }
       } else if (activeTab === 'recordings') {
-        // Parse categories from comma-separated string to array
-        let categories: string[] = [];
-        if (formData.category && typeof formData.category === 'string') {
-          categories = formData.category
-            .split(',')
-            .map((c: string) => c.trim())
-            .filter((c: string) => c.length > 0);
-        } else if (Array.isArray(formData.category)) {
-          categories = formData.category;
-        }
-
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1849',message:'handleUpdate recordings entry',data:{selectedTagIds:formData.selectedTagIds?.length||0,tagsCount:tags.length,approvedTagsCount:approvedTags.length,oldCategory:formData.category},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,E'})}).catch(()=>{});
+        // #endregion
+        // Don't use category anymore - we use tags only
         const updateData: any = { ...formData };
         // Remove is_new from update - it's set automatically
         delete updateData.is_new;
-        
-        if (categories.length > 0) {
-          updateData.category = categories;
-        } else {
-          updateData.category = undefined;
-        }
+        delete updateData.selectedTagIds; // Remove from update data - handled separately
+        delete updateData.category; // Remove old category - we use tags only now
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1858',message:'updateData prepared',data:{hasCategory:!!updateData.category},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
 
         const { error } = await updateRecording(id, updateData)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1868',message:'updateRecording result',data:{hasError:!!error,errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         if (!error) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1871',message:'before assignTagsToContent update',data:{recordingId:id,selectedTagIds:formData.selectedTagIds?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          // Update tags if provided
+          if (formData.selectedTagIds !== undefined) {
+            try {
+              const { assignTagsToContent } = await import('@/lib/queries/tags')
+              await assignTagsToContent('recording', id, formData.selectedTagIds || [])
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1877',message:'assignTagsToContent update success',data:{recordingId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
+            } catch (tagError) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1879',message:'assignTagsToContent update error',data:{errorMessage:tagError?.message,errorStack:tagError?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
+              console.warn('Error assigning tags:', tagError)
+            }
+          }
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1884',message:'before loadData',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           await loadData()
+          // Reload tags for this specific recording after update
+          try {
+            const { getTagsByContent } = await import('@/lib/queries/tags')
+            const { data: tagsData } = await getTagsByContent('recording', id)
+            const tags = (Array.isArray(tagsData) ? tagsData.map((t: any) => t.tag).filter(Boolean) : []) || []
+            setRecordingTagsMap(prev => ({ ...prev, [id]: tags }))
+          } catch (tagError) {
+            console.warn('Error reloading tags after update:', tagError)
+          }
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1886',message:'after loadData, before setEditing',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           setEditing(null)
           setFormData({})
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1889',message:'handleUpdate recordings complete',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+        } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1892',message:'updateRecording error',data:{errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
         }
       } else if (activeTab === 'resources') {
         const { updateResource } = await import('@/lib/queries/resources')
-        const { error } = await updateResource(id, formData)
+        const { assignTagsToContent } = await import('@/lib/queries/tags')
+        const { error } = await updateResource(id, {
+          ...formData,
+          file_url: formData.file_url || formData.external_url || '',
+          external_url: formData.external_url || ''
+        })
         if (!error) {
+          // Update tags if provided
+          if (formData.selectedTagIds !== undefined) {
+            try {
+              await assignTagsToContent('resource', id, formData.selectedTagIds || [])
+            } catch (tagError) {
+              console.warn('Error assigning tags:', tagError)
+            }
+          }
           await loadData()
           setEditing(null)
           setFormData({})
@@ -1715,7 +1972,7 @@ export default function AdminPanel() {
           alert('הפוסט עודכן בהצלחה!')
         } else {
           if (process.env.NODE_ENV === 'development') {
-            console.error('Error updating blog post:', error)
+          console.error('Error updating blog post:', error)
           }
           alert(`שגיאה בעדכון הפוסט: ${error?.message || 'שגיאה לא ידועה'}`)
         }
@@ -2982,6 +3239,23 @@ export default function AdminPanel() {
                 )}
                 {activeTab === 'resources' && (
                   <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        סוג משאב *
+                      </label>
+                      <select
+                        value={formData.type || 'document'}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        dir="rtl"
+                      >
+                        <option value="document">מסמך</option>
+                        <option value="video">וידאו</option>
+                        <option value="image">תמונה</option>
+                        <option value="link">קישור</option>
+                        <option value="audio">אודיו</option>
+                      </select>
+                    </div>
                     <input
                       type="text"
                       placeholder="כותרת המשאב *"
@@ -2992,15 +3266,16 @@ export default function AdminPanel() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       required
                     />
-                    <textarea
-                      placeholder="תיאור המשאב"
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      dir="rtl"
-                      lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      rows={3}
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        תיאור המשאב
+                      </label>
+                      <RichTextEditor
+                        content={formData.description || ''}
+                        onChange={(content) => setFormData({ ...formData, description: content })}
+                        placeholder="תאר את המשאב..."
+                      />
+                    </div>
                     <input
                       type="text"
                       placeholder="קטגוריה (אופציונלי)"
@@ -3087,6 +3362,16 @@ export default function AdminPanel() {
                         </p>
                       )}
                     </div>
+                    {formData.type === 'link' ? (
+                      <input
+                        type="url"
+                        placeholder="קישור חיצוני *"
+                        value={formData.external_url || ''}
+                        onChange={(e) => setFormData({ ...formData, external_url: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        required
+                      />
+                    ) : (
                     <input
                       type="url"
                       placeholder="או הזן קישור לקובץ *"
@@ -3095,6 +3380,91 @@ export default function AdminPanel() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       required
                     />
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        תמונת תצוגה מקדימה (אופציונלי)
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          
+                          setUploadingFile(true);
+                          try {
+                            const userId = users[0]?.id || 'admin';
+                            const fileExt = file.name.split('.').pop();
+                            const fileName = `thumb_${userId}-${Date.now()}.${fileExt}`;
+                            const filePath = `resources/thumbnails/${fileName}`;
+
+                            const { error: uploadError } = await supabase.storage
+                              .from('resources')
+                              .upload(filePath, file, {
+                                cacheControl: '3600',
+                                upsert: true
+                              });
+
+                            if (uploadError) {
+                              console.error('Upload error:', uploadError);
+                              alert('שגיאה בהעלאת התמונה');
+                              setUploadingFile(false);
+                              return;
+                            }
+
+                            const { data: { publicUrl } } = supabase.storage
+                              .from('resources')
+                              .getPublicUrl(filePath);
+
+                            setFormData({
+                              ...formData,
+                              thumbnail_url: publicUrl
+                            });
+                          } catch (error) {
+                            console.error('Error uploading thumbnail:', error);
+                            alert('שגיאה בהעלאת התמונה');
+                          } finally {
+                            setUploadingFile(false);
+                          }
+                        }}
+                        className="hidden"
+                        id="resource-thumbnail-upload"
+                      />
+                      <label
+                        htmlFor="resource-thumbnail-upload"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors cursor-pointer"
+                      >
+                        {uploadingFile ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
+                            <span>מעלה...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            <span>בחר תמונה</span>
+                          </>
+                        )}
+                      </label>
+                      {formData.thumbnail_url && (
+                        <p className="text-sm text-gray-600 mt-2">
+                          תמונה נבחרה
+                        </p>
+                      )}
+                    </div>
+                    {activeTab === 'resources' && tags.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          תגיות
+                        </label>
+                        <TagSelector
+                          selectedTagIds={formData.selectedTagIds || []}
+                          onSelectionChange={(tagIds) => setFormData({ ...formData, selectedTagIds: tagIds })}
+                          availableTags={tags}
+                        />
+                      </div>
+                    )}
                     <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -3118,15 +3488,16 @@ export default function AdminPanel() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       required
                     />
-                    <textarea
-                      placeholder="תיאור ההקלטה"
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      dir="rtl"
-                      lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      rows={4}
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        תיאור ההקלטה
+                      </label>
+                      <RichTextEditor
+                        content={formData.description || ''}
+                        onChange={(content) => setFormData({ ...formData, description: content })}
+                        placeholder="תאר את ההקלטה..."
+                      />
+                    </div>
                     <input
                       type="url"
                       placeholder="קישור לוידאו *"
@@ -3254,13 +3625,66 @@ export default function AdminPanel() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg mt-2"
                       />
                     </div>
-                    <input
-                      type="text"
-                      placeholder="קטגוריה (למשל: Make.com, AI, Airtable)"
-                      value={formData.category || ''}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    />
+                    {activeTab === 'recordings' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          תגיות
+                        </label>
+                        {approvedTags.length > 0 ? (
+                          <>
+                            <TagSelectorWithCreate
+                              selectedTagIds={formData.selectedTagIds || []}
+                              onSelectionChange={(tagIds) => setFormData({ ...formData, selectedTagIds: tagIds })}
+                              availableTags={approvedTags}
+                              onNewTagCreate={async (tagName: string) => {
+                                // #region agent log
+                                fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3585',message:'onNewTagCreate entry',data:{tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                                // #endregion
+                                try {
+                                  const { data: newTag, error: tagError } = await suggestTag(tagName)
+                                  // #region agent log
+                                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3588',message:'suggestTag result',data:{newTag:newTag?.id,error:tagError?.message,hasNewTag:!!newTag,hasError:!!tagError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                                  // #endregion
+                                  if (newTag && !tagError) {
+                                    // #region agent log
+                                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3589',message:'before setApprovedTags',data:{approvedTagsCount:approvedTags.length,isApproved:newTag.is_approved},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                                    // #endregion
+                                    // Only add to approvedTags if the tag is approved (admin-created tags are auto-approved)
+                                    if (newTag.is_approved) {
+                                      setApprovedTags(prev => [...prev, newTag])
+                                    }
+                                    setTags(prev => [...prev, newTag])
+                                    // #region agent log
+                                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3591',message:'after setTags, before setFormData',data:{newTagId:newTag.id,currentSelectedTagIds:formData.selectedTagIds?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                                    // #endregion
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      selectedTagIds: [...(prev.selectedTagIds || []), newTag.id]
+                                    }))
+                                    // #region agent log
+                                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3595',message:'onNewTagCreate success',data:{newTagId:newTag.id,isApproved:newTag.is_approved},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                                    // #endregion
+                                  } else {
+                                    // #region agent log
+                                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3597',message:'onNewTagCreate failed',data:{hasNewTag:!!newTag,hasError:!!tagError,errorMessage:tagError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                                    // #endregion
+                                  }
+                                } catch (error: any) {
+                                  // #region agent log
+                                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3600',message:'onNewTagCreate exception',data:{errorMessage:error?.message,errorStack:error?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                                  // #endregion
+                                }
+                              }}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">בחר תגיות קיימות או חפש תגית חדשה להוספה</p>
+                          </>
+                        ) : (
+                          <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 text-sm">
+                            טוען תגיות...
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <input
                       type="text"
                       placeholder="משך זמן (למשל: 1:45:00)"
@@ -3268,6 +3692,10 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        מספר צפיות
+                      </label>
                     <input
                       type="number"
                       placeholder="מספר צפיות"
@@ -3275,6 +3703,8 @@ export default function AdminPanel() {
                       onChange={(e) => setFormData({ ...formData, views: parseInt(e.target.value) || 0 })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     />
+                      <p className="text-xs text-gray-500 mt-1">מספר הצפיות של ההקלטה (מתעדכן אוטומטית כשמישהו צופה)</p>
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         תאריך יצירה (אופציונלי - אם לא תזין, יישמר התאריך הנוכחי)
@@ -3596,15 +4026,16 @@ export default function AdminPanel() {
                             dir="rtl"
                             lang="he"
                           />
-                          <textarea
-                            placeholder="תיאור השיעור"
-                            value={editingLessonData.description}
-                            onChange={(e) => setEditingLessonData({...editingLessonData, description: e.target.value})}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                            rows={3}
-                            dir="rtl"
-                            lang="he"
-                          />
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              תיאור השיעור
+                            </label>
+                            <RichTextEditor
+                              content={editingLessonData.description || ''}
+                              onChange={(content) => setEditingLessonData({...editingLessonData, description: content})}
+                              placeholder="תאר את השיעור..."
+                            />
+                          </div>
                           <input
                             type="text"
                             placeholder="קישור וידאו (YouTube, Vimeo, או קישור ישיר)"
@@ -3741,15 +4172,16 @@ export default function AdminPanel() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       required
                     />
-                    <textarea
-                      placeholder="תיאור (אופציונלי)"
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      dir="rtl"
-                      lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      rows={2}
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        תיאור (אופציונלי)
+                      </label>
+                      <RichTextEditor
+                        content={formData.description || ''}
+                        onChange={(content) => setFormData({ ...formData, description: content })}
+                        placeholder="תאר את הסקשן..."
+                      />
+                    </div>
                     <input
                       type="number"
                       placeholder="סדר תצוגה (0 = ראשון)"
@@ -3780,16 +4212,16 @@ export default function AdminPanel() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       required
                     />
-                    <textarea
-                      placeholder="תיאור הקורס *"
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      dir="rtl"
-                      lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      rows={4}
-                      required
-                    />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          תיאור הקורס *
+                        </label>
+                        <RichTextEditor
+                          content={formData.description || ''}
+                          onChange={(content) => setFormData({ ...formData, description: content })}
+                          placeholder="תאר את הקורס..."
+                        />
+                      </div>
                     
                     {/* Course Image */}
                     <div className="space-y-2">
@@ -4309,15 +4741,16 @@ export default function AdminPanel() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       required
                     />
-                    <textarea
-                      placeholder="תיאור האירוע"
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      dir="rtl"
-                      lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      rows={3}
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        תיאור האירוע
+                      </label>
+                      <RichTextEditor
+                        content={formData.description || ''}
+                        onChange={(content) => setFormData({ ...formData, description: content })}
+                        placeholder="תאר את האירוע..."
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">תאריך ושעה של האירוע *</label>
                       <DatePicker
@@ -4542,15 +4975,16 @@ export default function AdminPanel() {
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">תוכן נוסף</h3>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">על האירוע</label>
-                        <textarea
-                          placeholder="תיאור מפורט על האירוע"
-                          value={formData.about_text || ''}
-                          onChange={(e) => setFormData({ ...formData, about_text: e.target.value })}
-                          dir="rtl"
-                          lang="he"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                          rows={4}
-                        />
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            תיאור מפורט על האירוע
+                          </label>
+                          <RichTextEditor
+                            content={formData.about_text || ''}
+                            onChange={(content) => setFormData({ ...formData, about_text: content })}
+                            placeholder="תאר את האירוע בפירוט..."
+                          />
+                        </div>
                       </div>
                       <div className="mt-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">נקודות למידה (לחיצה על Enter להוספת נקודה)</label>
@@ -4637,16 +5071,16 @@ export default function AdminPanel() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       required
                     />
-                    <textarea
-                      placeholder="תיאור הפרויקט *"
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      dir="rtl"
-                      lang="he"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      rows={4}
-                      required
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        תיאור הפרויקט *
+                      </label>
+                      <RichTextEditor
+                        content={formData.description || ''}
+                        onChange={(content) => setFormData({ ...formData, description: content })}
+                        placeholder="תאר את הפרויקט..."
+                      />
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">מפרסם (User ID) *</label>
@@ -5096,7 +5530,6 @@ export default function AdminPanel() {
                     {activeTab === 'recordings' && (
                       <>
                         <th className="text-right py-3 px-4">כותרת</th>
-                        <th className="text-right py-3 px-4">קטגוריה</th>
                         <th className="text-right py-3 px-4">משך זמן</th>
                         <th className="text-right py-3 px-4">צפיות</th>
                         <th className="text-right py-3 px-4">תאריך</th>
@@ -5105,8 +5538,11 @@ export default function AdminPanel() {
                     )}
                     {activeTab === 'resources' && (
                       <>
+                        <th className="text-right py-3 px-4">סוג</th>
                         <th className="text-right py-3 px-4">כותרת</th>
                         <th className="text-right py-3 px-4">קטגוריה</th>
+                        <th className="text-right py-3 px-4">מחבר</th>
+                        <th className="text-right py-3 px-4">לייקים</th>
                         <th className="text-right py-3 px-4">קובץ</th>
                         <th className="text-right py-3 px-4">הורדות</th>
                         <th className="text-right py-3 px-4">פעולות</th>
@@ -5388,7 +5824,7 @@ export default function AdminPanel() {
                     const needsWarningFlag = needsWarning(subscription.end_date);
                     const needsDowngradeFlag = needsDowngrade(subscription.end_date);
                     const expired = isExpired(subscription.end_date);
-
+                    
                     return (
                       <tr key={subscription.id} className={`border-b border-gray-100 hover:bg-gray-50 ${needsWarningFlag ? 'bg-yellow-50' : needsDowngradeFlag ? 'bg-red-50' : expired ? 'bg-gray-50' : ''}`}>
                         <td className="py-3 px-4">
@@ -5667,23 +6103,6 @@ export default function AdminPanel() {
                               )}
                             </div>
                           </td>
-                          <td className="py-3 px-4">
-                            {recording.category && (
-                              <div className="flex flex-wrap gap-1">
-                                {Array.isArray(recording.category) ? (
-                                  recording.category.map((cat: string, idx: number) => (
-                                    <span key={idx} className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
-                                      {cat}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
-                                    {recording.category}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </td>
                           <td className="py-3 px-4">{recording.duration || '-'}</td>
                           <td className="py-3 px-4">{recording.views || 0}</td>
                           <td className="py-3 px-4 text-sm text-gray-500">
@@ -5700,21 +6119,27 @@ export default function AdminPanel() {
                                     if (error || !fullRecording) {
                                       console.error('Error loading full recording:', error);
                                       // Fallback to basic recording data
-                                      const editData = { ...recording };
-                                      if (Array.isArray(recording.category)) {
-                                        editData.category = recording.category.join(', ');
-                                      }
+                                      const editData: any = { ...recording };
+                                      // Load tags for this recording
+                                      const { getTagsByContent } = await import('@/lib/queries/tags')
+                                      const { data: recordingTags } = await getTagsByContent('recording', recording.id)
+                                      editData.selectedTagIds = (Array.isArray(recordingTags) ? recordingTags.map((t: any) => t.tag?.id).filter(Boolean) : []) || []
                                       editData.key_points = [];
                                       editData.qa_section = [];
                                       setFormData(editData);
                                       return;
                                     }
                                     
-                                    // Convert category array to comma-separated string for editing
-                                    const editData = { ...fullRecording };
+                                    // Load tags for this recording
+                                    const { getTagsByContent } = await import('@/lib/queries/tags')
+                                    const { data: recordingTags } = await getTagsByContent('recording', fullRecording.id)
+                                    
+                                    // Convert category array to comma-separated string for editing (for backward compatibility)
+                                    const editData: any = { ...fullRecording };
                                     if (Array.isArray(fullRecording.category)) {
                                       editData.category = fullRecording.category.join(', ');
                                     }
+                                    editData.selectedTagIds = (Array.isArray(recordingTags) ? recordingTags.map((t: any) => t.tag?.id).filter(Boolean) : []) || []
                                     // Ensure key_points and qa_section are properly loaded
                                     // Parse if they are JSON strings, or use as-is if already arrays
                                     if (fullRecording.key_points) {
@@ -5787,6 +6212,23 @@ export default function AdminPanel() {
                           className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
                         />
                       </td>
+                      <td className="py-3 px-4">
+                        {resource.type && (
+                          <span className={`px-2 py-1 text-white text-xs rounded ${
+                            resource.type === 'document' ? 'bg-blue-500' :
+                            resource.type === 'video' ? 'bg-pink-500' :
+                            resource.type === 'image' ? 'bg-green-500' :
+                            resource.type === 'link' ? 'bg-purple-500' :
+                            resource.type === 'audio' ? 'bg-orange-500' : 'bg-gray-500'
+                          }`}>
+                            {resource.type === 'document' ? 'מסמך' :
+                             resource.type === 'video' ? 'וידאו' :
+                             resource.type === 'image' ? 'תמונה' :
+                             resource.type === 'link' ? 'קישור' :
+                             resource.type === 'audio' ? 'אודיו' : resource.type}
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3 px-4 font-medium">{resource.title || '-'}</td>
                       <td className="py-3 px-4">
                         {resource.category && (
@@ -5796,8 +6238,12 @@ export default function AdminPanel() {
                         )}
                       </td>
                       <td className="py-3 px-4">
+                        {resource.author?.display_name || resource.author?.first_name || '-'}
+                      </td>
+                      <td className="py-3 px-4">{resource.likes_count || 0}</td>
+                      <td className="py-3 px-4">
                         <a 
-                          href={resource.file_url} 
+                          href={resource.file_url || resource.external_url} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-blue-500 hover:underline text-sm"
@@ -5809,9 +6255,15 @@ export default function AdminPanel() {
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               setEditing(resource.id)
-                              setFormData(resource)
+                              // Load tags for this resource
+                              const { getTagsByContent } = await import('@/lib/queries/tags')
+                              const { data: resourceTags } = await getTagsByContent('resource', resource.id)
+                              setFormData({
+                                ...resource,
+                                selectedTagIds: (Array.isArray(resourceTags) ? resourceTags.map((t: any) => t.tag?.id).filter(Boolean) : []) || []
+                              })
                             }}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded"
                           >
@@ -6123,13 +6575,13 @@ export default function AdminPanel() {
                                       lessons: lessons
                                         .filter((lesson: any) => lesson.section_id === section.id)
                                         .map((lesson: any) => ({
-                                          id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                          title: lesson.title || '',
-                                          description: lesson.description || '',
-                                          video_url: lesson.video_url || '',
-                                          duration_minutes: lesson.duration_minutes || 0,
-                                          qa_section: lesson.qa_section || [],
-                                          key_points: lesson.key_points || []
+                                    id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                    title: lesson.title || '',
+                                    description: lesson.description || '',
+                                    video_url: lesson.video_url || '',
+                                    duration_minutes: lesson.duration_minutes || 0,
+                                    qa_section: lesson.qa_section || [],
+                                    key_points: lesson.key_points || []
                                         }))
                                     }))
                                     
@@ -6167,13 +6619,13 @@ export default function AdminPanel() {
                                       qa_section: lesson.qa_section || [],
                                       key_points: lesson.key_points || []
                                     }))
-                                    
-                                    setCourseSections([{
-                                      id: 'section-1',
-                                      title: 'חלק א\'',
-                                      lessons: mappedLessons
-                                    }])
-                                    
+                                  
+                                  setCourseSections([{
+                                    id: 'section-1',
+                                    title: 'חלק א\'',
+                                    lessons: mappedLessons
+                                  }])
+                                  
                                     console.log('✅ Successfully loaded', mappedLessons.length, 'lessons for editing (no sections)')
                                   }
                                 } else {
@@ -6665,9 +7117,9 @@ export default function AdminPanel() {
             {activeTab === 'api-docs' && (
               <div className="mt-6">
                 <ApiDocumentation />
-              </div>
-            )}
           </div>
+        )}
+      </div>
         )}
       </div>
 

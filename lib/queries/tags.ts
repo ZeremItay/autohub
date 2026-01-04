@@ -1,5 +1,6 @@
 import { supabase } from '../supabase'
 import { getCached, setCached, invalidateCache } from '../cache'
+import { getCurrentUser, isAdmin } from '../utils/user'
 
 export interface Tag {
   id: string
@@ -344,13 +345,22 @@ export async function suggestTag(name: string, description?: string) {
   const { data: { session } } = await supabase.auth.getSession()
   const userId = session?.user?.id
 
+  // Check if user is admin - auto-approve tags created by admin
+  let isApproved = false
+  if (userId) {
+    const currentUser = await getCurrentUser()
+    if (isAdmin(currentUser)) {
+      isApproved = true
+    }
+  }
+
   const { data, error } = await supabase
     .from('tags')
     .insert([{
       name,
       slug,
       description,
-      is_approved: false,
+      is_approved: isApproved,
       created_by: userId
     }])
     .select()
@@ -362,6 +372,7 @@ export async function suggestTag(name: string, description?: string) {
   }
 
   invalidateCache('tags:all:with-unapproved');
+  invalidateCache('tags:all'); // Invalidate approved tags cache too
   return { data, error: null }
 }
 

@@ -684,6 +684,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (pathname?.startsWith('/forums')) return 'forums';
     if (pathname?.startsWith('/blog')) return 'blog';
     if (pathname?.startsWith('/recordings')) return 'recordings';
+    if (pathname?.startsWith('/resources')) return 'resources';
     if (pathname === '/projects') return 'projects';
     if (pathname?.startsWith('/courses')) return 'courses';
     if (pathname?.startsWith('/live-log') || pathname?.startsWith('/live/')) return 'live-log';
@@ -696,6 +697,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Determine active top menu item
   const getActiveTopMenu = () => {
     if (pathname === '/recordings') return 'recordings';
+    if (pathname === '/resources') return 'resources';
     if (pathname === '/projects') return 'projects';
     if (pathname === '/courses') return 'courses';
     if (pathname === '/live-log') return 'live-log';
@@ -1738,6 +1740,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <span className="font-medium">הקלטות</span>
             </Link>
             <Link
+              href="/resources"
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                activeNav === 'resources' 
+                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
+              }`}
+            >
+              <FileText className="w-5 h-5 flex-shrink-0" />
+              <span className="font-medium">משאבים</span>
+            </Link>
+            <Link
               href="/projects"
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 activeNav === 'projects' 
@@ -1898,6 +1911,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               >
                 <Video className="w-5 h-5 flex-shrink-0" />
                 <span className="font-medium">הקלטות</span>
+              </Link>
+              <Link
+                href="/resources"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  activeNav === 'resources' 
+                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
+                }`}
+              >
+                <FileText className="w-5 h-5 flex-shrink-0" />
+                <span className="font-medium">משאבים</span>
               </Link>
               <Link
                 href="/projects"
