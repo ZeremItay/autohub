@@ -1251,7 +1251,7 @@ export default function AdminPanel() {
               // #region agent log
               fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1230',message:'assignTagsToContent success',data:{recordingId:data.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
               // #endregion
-            } catch (tagError) {
+            } catch (tagError: any) {
               // #region agent log
               fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1232',message:'assignTagsToContent error',data:{errorMessage:tagError?.message,errorStack:tagError?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
               // #endregion
@@ -1902,7 +1902,7 @@ export default function AdminPanel() {
               // #region agent log
               fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1877',message:'assignTagsToContent update success',data:{recordingId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
               // #endregion
-            } catch (tagError) {
+            } catch (tagError: any) {
               // #region agent log
               fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1879',message:'assignTagsToContent update error',data:{errorMessage:tagError?.message,errorStack:tagError?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
               // #endregion
@@ -3657,7 +3657,7 @@ export default function AdminPanel() {
                                     // #region agent log
                                     fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3591',message:'after setTags, before setFormData',data:{newTagId:newTag.id,currentSelectedTagIds:formData.selectedTagIds?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
                                     // #endregion
-                                    setFormData(prev => ({
+                                    setFormData((prev: any) => ({
                                       ...prev,
                                       selectedTagIds: [...(prev.selectedTagIds || []), newTag.id]
                                     }))

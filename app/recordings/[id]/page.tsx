@@ -9,7 +9,7 @@ import { isPremiumUser } from '@/lib/utils/user';
 import { formatDate } from '@/lib/utils/date';
 import { CommentsList } from '@/app/components/comments';
 import AuthGuard from '@/app/components/AuthGuard';
-import { getTagsByContent, type Tag } from '@/lib/queries/tags';
+import { getTagsByContent, type Tag as TagType } from '@/lib/queries/tags';
 import { ArrowRight, Share2, Eye, Clock, Calendar, Tag, Send, Trash2, MessageCircle, HelpCircle, Star, Play, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 export default function RecordingDetailPage() {
@@ -25,7 +25,7 @@ function RecordingDetailPageContent() {
   const router = useRouter();
   const { user: currentUser, isPremium: userIsPremium, refetch: refetchUser } = useCurrentUser();
   const [recording, setRecording] = useState<any>(null);
-  const [recordingTags, setRecordingTags] = useState<Tag[]>([]);
+  const [recordingTags, setRecordingTags] = useState<TagType[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -367,7 +367,7 @@ function RecordingDetailPageContent() {
             )}
             {recordingTags.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {recordingTags.map((tag: Tag) => (
+                {recordingTags.map((tag: TagType) => (
                   <span key={tag.id} className="px-3 py-1 bg-[#F52F8E] text-white text-sm font-semibold rounded flex items-center gap-1">
                     <Tag className="w-3 h-3" />
                     {tag.name}
