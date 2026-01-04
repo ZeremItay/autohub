@@ -58,7 +58,7 @@ export async function getAllResources() {
 }
 
 // Get resources with details (likes, author)
-export async function getResourcesWithDetails(userId?: string) {
+export async function getResourcesWithDetails(userId?: string, cookieStore?: any) {
   try {
     // Use server client if running on server, client otherwise
     let supabaseClient;
@@ -66,31 +66,82 @@ export async function getResourcesWithDetails(userId?: string) {
       if (typeof window !== 'undefined') {
         supabaseClient = supabase;
       } else {
-        supabaseClient = createServerClient();
+        // If cookieStore is provided, use it; otherwise try to create one
+        if (cookieStore) {
+          supabaseClient = createServerClient(cookieStore);
+        } else {
+          // Try to import cookies dynamically
+          try {
+            const { cookies } = await import('next/headers');
+            const cookieStoreInstance = await cookies();
+            supabaseClient = createServerClient(cookieStoreInstance);
+          } catch (e) {
+            // Fallback to createServerClient without cookies (uses service role if available)
+            supabaseClient = createServerClient();
+          }
+        }
       }
     } catch (e) {
-      supabaseClient = createServerClient();
+      console.error('Error creating Supabase client:', e);
+      // Final fallback
+      if (cookieStore) {
+        supabaseClient = createServerClient(cookieStore);
+      } else {
+        supabaseClient = createServerClient();
+      }
     }
 
     // Get resources with author info
-    const { data: resources, error: resourcesError } = await supabaseClient
+    // Fetch resources and authors separately to avoid foreign key issues
+    const { data: resourcesData, error: resourcesOnlyError } = await supabaseClient
       .from('resources')
-      .select(`
-        *,
-        author:profiles!resources_created_by_fkey(
-          user_id,
-          display_name,
-          avatar_url,
-          first_name,
-          nickname
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
     
-    if (resourcesError) {
-      console.error('Error fetching resources:', resourcesError);
-      return { data: null, error: resourcesError };
+    if (resourcesOnlyError) {
+      console.error('Error fetching resources:', resourcesOnlyError);
+      console.error('Error details:', {
+        message: resourcesOnlyError.message,
+        code: resourcesOnlyError.code,
+        details: resourcesOnlyError.details,
+        hint: resourcesOnlyError.hint
+      });
+      return { data: null, error: resourcesOnlyError };
     }
+    
+    if (!resourcesData || resourcesData.length === 0) {
+      return { data: [], error: null };
+    }
+    
+    // Get unique user IDs from created_by
+    const userIds = [...new Set(resourcesData.filter(r => r.created_by).map(r => r.created_by))];
+    
+    // Fetch profiles for authors
+    let profilesMap = new Map();
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabaseClient
+        .from('profiles')
+        .select('user_id, display_name, avatar_url, first_name, nickname')
+        .in('user_id', userIds);
+      
+      if (profilesError && process.env.NODE_ENV === 'development') {
+        console.warn('Error fetching profiles for resources:', profilesError);
+      }
+      
+      if (profiles) {
+        profiles.forEach(profile => {
+          profilesMap.set(profile.user_id, profile);
+        });
+      }
+    }
+    
+    // Combine resources with authors
+    const resources = resourcesData.map(resource => ({
+      ...resource,
+      author: resource.created_by ? profilesMap.get(resource.created_by) : null
+    }));
+    
+    // Error already handled above, continue with processing
 
     if (!resources || resources.length === 0) {
       return { data: [], error: null };

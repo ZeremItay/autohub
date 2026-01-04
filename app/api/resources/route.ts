@@ -24,12 +24,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Get resources with details
-    let { data: resources, error } = await getResourcesWithDetails(userId);
+    const cookieStore = await cookies();
+    let { data: resources, error } = await getResourcesWithDetails(userId, cookieStore);
 
     if (error) {
       console.error('Error fetching resources:', error);
+      const errorObj = error as any;
+      console.error('Error details:', {
+        message: errorObj.message || error.message,
+        code: errorObj.code,
+        details: errorObj.details,
+        hint: errorObj.hint,
+        fullError: JSON.stringify(errorObj, null, 2)
+      });
+      // Return more detailed error information in development
+      const errorMessage = process.env.NODE_ENV === 'development' 
+        ? (errorObj.message || error.message || errorObj.code || JSON.stringify(errorObj))
+        : 'Failed to fetch resources';
       return NextResponse.json(
-        { error: 'Failed to fetch resources' },
+        { error: errorMessage, details: process.env.NODE_ENV === 'development' ? errorObj : undefined },
         { status: 500 }
       );
     }

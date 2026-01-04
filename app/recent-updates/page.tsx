@@ -9,12 +9,14 @@ import {
   FileText,
   GraduationCap,
   Megaphone,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { getUpcomingEvents, type Event } from '@/lib/queries/events';
 import { formatTimeAgo } from '@/lib/utils/date';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 interface RecentUpdate {
   type: 'forum' | 'project' | 'recording' | 'event' | 'blog' | 'course' | 'post';
@@ -29,10 +31,19 @@ interface RecentUpdate {
 export default function RecentUpdatesPage() {
   const [updates, setUpdates] = useState<RecentUpdate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const { isAdmin, loading: userLoading, user } = useCurrentUser();
 
   useEffect(() => {
     loadAllRecentUpdates();
   }, []);
+
+  // Debug: Log admin status
+  useEffect(() => {
+    if (!userLoading) {
+      console.log('Admin status:', { isAdmin, userLoading, user: user ? 'loaded' : 'null' });
+    }
+  }, [isAdmin, userLoading, user]);
 
   async function loadAllRecentUpdates() {
     try {
@@ -245,6 +256,43 @@ export default function RecentUpdatesPage() {
     }
   }
 
+  async function handleDeleteUpdate(update: RecentUpdate) {
+    if (!update.id || !update.type) {
+      alert('לא ניתן למחוק עדכון זה');
+      return;
+    }
+
+    if (!confirm('האם אתה בטוח שברצונך למחוק עדכון זה?')) {
+      return;
+    }
+
+    setDeletingIds(prev => new Set(prev).add(update.id!));
+    
+    try {
+      const response = await fetch(`/api/admin/recent-updates/${update.type}/${update.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'שגיאה במחיקת העדכון');
+      }
+
+      // Remove the update from the list
+      setUpdates(prev => prev.filter(u => u.id !== update.id));
+    } catch (error: any) {
+      console.error('Error deleting update:', error);
+      alert(error.message || 'שגיאה במחיקת העדכון');
+    } finally {
+      setDeletingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(update.id!);
+        return newSet;
+      });
+    }
+  }
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <div className="max-w-4xl mx-auto">
@@ -274,29 +322,59 @@ export default function RecentUpdatesPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="space-y-4">
               {updates.map((update, index) => {
+                const isDeleting = update.id ? deletingIds.has(update.id) : false;
                 const content = (
-                  <div className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors">
-                    {update.type === 'forum' && <MessageSquare className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
-                    {update.type === 'project' && <Briefcase className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />}
-                    {update.type === 'recording' && <Video className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />}
-                    {update.type === 'event' && <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
-                    {update.type === 'blog' && <FileText className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />}
-                    {update.type === 'course' && <GraduationCap className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />}
-                    {update.type === 'post' && <Megaphone className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />}
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-700">{update.text}</p>
-                      <p className="text-xs text-gray-500 mt-1">{update.time}</p>
-                    </div>
+                  <div className="flex items-start gap-3 p-3 rounded-lg transition-colors group hover:bg-gray-50">
+                    {update.link ? (
+                      <Link href={update.link} className="flex items-start gap-3 flex-1 cursor-pointer">
+                        {update.type === 'forum' && <MessageSquare className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
+                        {update.type === 'project' && <Briefcase className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'recording' && <Video className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'event' && <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
+                        {update.type === 'blog' && <FileText className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'course' && <GraduationCap className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'post' && <Megaphone className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />}
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700">{update.text}</p>
+                          <p className="text-xs text-gray-500 mt-1">{update.time}</p>
+                        </div>
+                      </Link>
+                    ) : (
+                      <div className="flex items-start gap-3 flex-1">
+                        {update.type === 'forum' && <MessageSquare className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
+                        {update.type === 'project' && <Briefcase className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'recording' && <Video className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'event' && <Calendar className="w-5 h-5 text-[#F52F8E] flex-shrink-0 mt-0.5" />}
+                        {update.type === 'blog' && <FileText className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'course' && <GraduationCap className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />}
+                        {update.type === 'post' && <Megaphone className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />}
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700">{update.text}</p>
+                          <p className="text-xs text-gray-500 mt-1">{update.time}</p>
+                        </div>
+                      </div>
+                    )}
+                    {!userLoading && isAdmin && update.id && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDeleteUpdate(update);
+                        }}
+                        disabled={isDeleting}
+                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg disabled:opacity-50 flex-shrink-0 transition-colors"
+                        title="מחק עדכון"
+                      >
+                        {isDeleting ? (
+                          <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <X className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 );
-
-                if (update.link) {
-                  return (
-                    <Link key={update.id || index} href={update.link}>
-                      {content}
-                    </Link>
-                  );
-                }
 
                 return <div key={update.id || index}>{content}</div>;
               })}

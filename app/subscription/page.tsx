@@ -15,6 +15,9 @@ export default function SubscriptionPage() {
   const [editingRole, setEditingRole] = useState<string | null>(null);
   const [roleEditData, setRoleEditData] = useState<{ [key: string]: { price: number; display_name: string; description?: string } }>({});
   const [userSubscription, setUserSubscription] = useState<any>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [sessionUser, setSessionUser] = useState<any>(null);
 
   useEffect(() => {
     loadUser();
@@ -30,6 +33,9 @@ export default function SubscriptionPage() {
         setLoading(false);
         return;
       }
+
+      // Store session user for webhook
+      setSessionUser(session.user);
 
       const { data: profiles } = await getAllProfiles();
       if (profiles && Array.isArray(profiles) && profiles.length > 0) {
@@ -169,6 +175,21 @@ export default function SubscriptionPage() {
     return role || 'free';
   }
 
+  // Get subscription type display name from role
+  function getSubscriptionType(): string {
+    if (!currentUser) return 'חינמי';
+    const role = currentUser.roles || currentUser.role;
+    if (typeof role === 'object' && role?.display_name) {
+      return role.display_name;
+    }
+    // Fallback based on role name
+    const roleName = typeof role === 'object' ? role?.name : role;
+    if (roleName === 'admin') return 'מנהל';
+    if (roleName === 'premium') return 'מנוי פרימיום';
+    if (roleName === 'free') return 'חינמי';
+    return 'חינמי';
+  }
+
   const roleName = getUserRoleName();
   const isPremium = isPremiumUser();
 
@@ -181,6 +202,16 @@ export default function SubscriptionPage() {
     }
     // Fallback to default prices
     return isPremium ? 97 : 0;
+  }
+
+  // Get role price from current user's role (for subscription display)
+  function getRolePriceFromUser(): number {
+    if (!currentUser) return 0;
+    const role = currentUser.roles || currentUser.role;
+    if (typeof role === 'object' && role?.price !== undefined) {
+      return role.price;
+    }
+    return 0;
   }
 
   // Check if subscription needs warning (end_date passed + 2 days, no payment)
@@ -202,10 +233,12 @@ export default function SubscriptionPage() {
   // Subscription data based on user subscription or role
   // If user has subscription (paid) → show subscription details
   // If no subscription → show free plan (based on role_id)
+  const subscriptionType = getSubscriptionType();
+  const rolePrice = getRolePriceFromUser();
   const subscriptionData = userSubscription ? {
     status: userSubscription.status || 'active',
-    type: userSubscription.roles?.display_name || 'Pro',
-    price: userSubscription.roles?.price || 0,
+    type: userSubscription.roles?.display_name || subscriptionType,
+    price: userSubscription.roles?.price || rolePrice,
     currency: 'ILS',
     billingCycle: 'monthly',
     nextRenewal: userSubscription.end_date || null,
@@ -224,8 +257,8 @@ export default function SubscriptionPage() {
   } : {
     // No subscription = free plan (based on role_id)
     status: roleName === 'free' ? 'active' : 'inactive',
-    type: roleName === 'free' ? 'חינמי' : (isPremium ? 'Pro' : 'Free'),
-    price: 0,
+    type: subscriptionType,
+    price: rolePrice,
     currency: 'ILS',
     billingCycle: 'monthly',
     nextRenewal: null,
@@ -265,9 +298,88 @@ export default function SubscriptionPage() {
   }
 
   function handleCancelSubscription() {
-    if (confirm('האם אתה בטוח שברצונך לבטל את המנוי?')) {
-      // TODO: Implement cancel subscription
-      alert('ביטול המנוי יטופל בקרוב');
+    setShowCancelModal(true);
+  }
+
+  async function confirmCancelSubscription() {
+    setCancelling(true);
+    
+    try {
+      // Reload user data if not available
+      let user = currentUser;
+      let session = sessionUser;
+
+      // Get session if not already loaded
+      if (!session) {
+        const { data: { session: newSession }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !newSession) {
+          alert('שגיאה: לא ניתן לזהות את המשתמש. אנא התחבר מחדש.');
+          setCancelling(false);
+          return;
+        }
+        session = newSession;
+        setSessionUser(session);
+      }
+
+      // Reload user profile if not available
+      if (!user) {
+        const { data: profiles } = await getAllProfiles();
+        if (profiles && Array.isArray(profiles) && profiles.length > 0) {
+          user = profiles.find((p: any) => p.user_id === session!.user.id);
+          if (user) {
+            setCurrentUser(user);
+          }
+        }
+      }
+
+      if (!user) {
+        alert('שגיאה: לא ניתן לזהות את המשתמש. אנא רענן את הדף ונסה שוב.');
+        setCancelling(false);
+        return;
+      }
+
+      // Get user data for webhook
+      // Use profile.id (UUID) - Make.com should handle it
+      // If Make.com needs numeric ID, we'll need to add a mapping table
+      const userId = user.id;
+      const email = session!.email || user.email || '';
+      const name = user.display_name || user.first_name || user.nickname || 'משתמש';
+
+      if (!userId || !email) {
+        console.error('Missing user data:', { userId, email, user, session });
+        alert('שגיאה: חסרים נתונים של המשתמש. אנא רענן את הדף ונסה שוב.');
+        setCancelling(false);
+        return;
+      }
+
+      // Send webhook to Make.com
+      const webhookUrl = 'https://hook.eu1.make.com/wqcr84rueeewt4dazk67lc6ls6tt7jx6';
+      const webhookData = [{
+        user_id: userId,
+        email: email,
+        name: name,
+        action: 'cancel_subscription'
+      }];
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookData)
+      });
+
+      if (response.ok) {
+        alert('בקשת ביטול המנוי נשלחה בהצלחה. נציג יצור איתך קשר בקרוב.');
+        setShowCancelModal(false);
+      } else {
+        throw new Error('Webhook failed');
+      }
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      alert('שגיאה בשליחת בקשת ביטול המנוי. אנא נסה שוב או צור קשר עם התמיכה.');
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -357,7 +469,7 @@ export default function SubscriptionPage() {
           )}
           
           {/* Free Plan Notice */}
-          {!subscriptionData.isPaidSubscription && (
+          {roleName === 'free' && !subscriptionData.isPaidSubscription && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
                 💡 זהו מנוי חינמי. כדי לשדרג למנוי פרימיום, לחץ על "שדרוג מנוי" (כשיהיה זמין).
@@ -371,7 +483,7 @@ export default function SubscriptionPage() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Crown className="w-6 h-6 sm:w-7 sm:h-7 text-[#F52F8E]" />
-                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">מנוי {subscriptionData.type}</h2>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">{subscriptionData.type}</h2>
                 </div>
                 <p className="text-gray-600 text-sm sm:text-base">מנוי חודשי</p>
               </div>
@@ -713,6 +825,59 @@ export default function SubscriptionPage() {
               </div>
             </div>
           </>
+        )}
+
+        {/* Cancel Subscription Modal */}
+        {showCancelModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 sm:p-8">
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">בטל מנוי</h3>
+              
+              <div className="mb-6 space-y-3">
+                <p className="text-gray-700">
+                  האם אתה בטוח שברצונך לבטל את המנוי?
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-sm text-red-800 font-semibold mb-2">שימו לב:</p>
+                  <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                    <li>הגישה להקלטות תרד</li>
+                    <li>לא תהיה אפשרות להגיש פרויקטים</li>
+                    <li>גישה מוגבלת לקורסים</li>
+                    <li>אובדן גישה לתכונות פרימיום אחרות</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(false)}
+                  disabled={cancelling}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium disabled:opacity-50"
+                >
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmCancelSubscription}
+                  disabled={cancelling}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {cancelling ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      שולח...
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4" />
+                      כן, בטל מנוי
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

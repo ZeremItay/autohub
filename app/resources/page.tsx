@@ -223,6 +223,8 @@ export default function ResourcesPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to fetch resources' }));
         console.error('Error loading resources:', errorData.error || 'Unknown error');
+        console.error('Error details:', errorData.details || 'No additional details');
+        console.error('Response status:', response.status);
         setResources([]);
         return;
       }
@@ -627,7 +629,8 @@ export default function ResourcesPage() {
               return (
               <div
                 key={resource.id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 hover:shadow-md transition-all"
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 hover:shadow-md transition-all cursor-pointer"
+                  onClick={() => router.push(`/resources/${resource.id}`)}
                 >
                   {/* Thumbnail or Icon */}
                   {resource.thumbnail_url ? (
@@ -704,7 +707,10 @@ export default function ResourcesPage() {
                   {/* Stats */}
                   <div className="flex items-center justify-between mb-4 text-sm text-gray-600">
                     <button
-                      onClick={() => handleLike(resource.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLike(resource.id);
+                      }}
                       className={`flex items-center gap-1 transition-colors ${
                         resource.is_liked ? 'text-[#F52F8E]' : 'text-gray-600 hover:text-[#F52F8E]'
                       }`}
@@ -719,8 +725,11 @@ export default function ResourcesPage() {
                 </div>
 
                   {/* Download Button */}
-                  <button
-                    onClick={() => handleDownload(resource)}
+                    <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(resource);
+                    }}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-medium text-sm"
                   >
                     {resource.type === 'link' ? (
