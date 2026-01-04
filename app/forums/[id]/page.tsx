@@ -9,6 +9,7 @@ import { getAllProfiles } from '@/lib/queries/profiles';
 import AuthGuard from '@/app/components/AuthGuard';
 import dynamic from 'next/dynamic';
 import CommentsList from '@/app/components/comments/CommentsList';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 // Lazy load RichTextEditor (heavy component)
 const RichTextEditor = dynamic(
@@ -49,6 +50,8 @@ function ForumDetailPageContent() {
   const [selectedPost, setSelectedPost] = useState<any>(null);
   const [postReplies, setPostReplies] = useState<any[]>([]);
   const [loadingPost, setLoadingPost] = useState(false);
+  const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(new Set());
+  const { isAdmin, loading: userLoading } = useCurrentUser();
 
 
   useEffect(() => {
@@ -388,6 +391,59 @@ function ForumDetailPageContent() {
     } catch (error) {
       console.error('Error deleting reply:', error);
       alert('שגיאה במחיקת התגובה. אנא נסה שוב.');
+    }
+  }
+
+  async function handleDeletePost(postId: string) {
+    if (!confirm('האם אתה בטוח שברצונך למחוק את הפוסט? פעולה זו לא ניתנת לביטול.')) {
+      return;
+    }
+
+    setDeletingPostIds(prev => new Set(prev).add(postId));
+
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Attempting to delete post:', postId);
+        console.log('Current user:', currentUser);
+        console.log('Is admin:', isAdmin);
+      }
+
+      const response = await fetch(`/api/forums/posts/${postId}/delete`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Delete post error:', error);
+        }
+        throw new Error(error.error || error.details || 'שגיאה במחיקת הפוסט');
+      }
+
+      // Remove post from list
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      
+      // If the deleted post was selected, clear selection
+      if (selectedPost && selectedPost.id === postId) {
+        setSelectedPost(null);
+        setPostReplies([]);
+      }
+
+      // Reload forum to update posts count
+      await loadForum();
+    } catch (error: any) {
+      console.error('Error deleting post:', error);
+      alert(error.message || 'שגיאה במחיקת הפוסט. אנא נסה שוב.');
+    } finally {
+      setDeletingPostIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
     }
   }
 
@@ -787,7 +843,26 @@ function ForumDetailPageContent() {
                   ) : (
                     <>
                       {/* Post Content */}
-                      <div className="mb-6 pb-6 border-b border-gray-200">
+                      <div className="mb-6 pb-6 border-b border-gray-200 relative">
+                        {!userLoading && isAdmin && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeletePost(selectedPost.id);
+                            }}
+                            disabled={deletingPostIds.has(selectedPost.id)}
+                            className="absolute top-0 left-0 p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg disabled:opacity-50 flex-shrink-0 transition-colors"
+                            title="מחק פוסט"
+                          >
+                            {deletingPostIds.has(selectedPost.id) ? (
+                              <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <X className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
                         <div className="flex items-start gap-4 mb-4">
                           {selectedPost.profile?.avatar_url ? (
                             <img
@@ -872,60 +947,86 @@ function ForumDetailPageContent() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {posts.map((post) => (
-                        <button
-                          key={post.id}
-                          onClick={() => handlePostClick(post)}
-                          className="w-full text-right block p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] hover:shadow-md transition-all"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                {post.is_pinned && (
-                                  <Pin className="w-4 h-4 text-[#F52F8E]" />
-                                )}
-                                {post.is_locked && (
-                                  <Lock className="w-4 h-4 text-gray-400" />
-                                )}
-                                <h3 className="text-lg font-semibold text-gray-800">{post.title}</h3>
-                              </div>
-                              <div 
-                                className="text-gray-600 text-sm mb-3"
-                                dir="rtl"
-                              >
-                                {getPlainTextPreview(post.content || '', 25)}
-                              </div>
-                              <div className="flex items-center gap-3 text-sm text-gray-500">
-                                {post.profile?.avatar_url ? (
-                                  <img
-                                    src={post.profile.avatar_url}
-                                    alt={post.profile.display_name || 'משתמש'}
-                                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                                    key={`post-${post.id}`}
-                                  />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                                    {(post.profile?.display_name || 'מ').charAt(0)}
+                      {posts.map((post) => {
+                        const isDeleting = deletingPostIds.has(post.id);
+                        return (
+                          <div
+                            key={post.id}
+                            className="relative w-full text-right p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] hover:shadow-md transition-all group"
+                          >
+                            <button
+                              onClick={() => handlePostClick(post)}
+                              className="w-full text-right"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {post.is_pinned && (
+                                      <Pin className="w-4 h-4 text-[#F52F8E]" />
+                                    )}
+                                    {post.is_locked && (
+                                      <Lock className="w-4 h-4 text-gray-400" />
+                                    )}
+                                    <h3 className="text-lg font-semibold text-gray-800">{post.title}</h3>
                                   </div>
+                                  <div 
+                                    className="text-gray-600 text-sm mb-3"
+                                    dir="rtl"
+                                  >
+                                    {getPlainTextPreview(post.content || '', 25)}
+                                  </div>
+                                  <div className="flex items-center gap-3 text-sm text-gray-500">
+                                    {post.profile?.avatar_url ? (
+                                      <img
+                                        src={post.profile.avatar_url}
+                                        alt={post.profile.display_name || 'משתמש'}
+                                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                        key={`post-${post.id}`}
+                                      />
+                                    ) : (
+                                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                                        {(post.profile?.display_name || 'מ').charAt(0)}
+                                      </div>
+                                    )}
+                                    <span>{post.profile?.display_name || 'משתמש'}</span>
+                                    <span>•</span>
+                                    <span>{new Date(post.created_at).toLocaleDateString('he-IL')}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                  <div className="flex items-center gap-1">
+                                    <MessageCircle className="w-4 h-4" />
+                                    <span>{post.replies_count}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Eye className="w-4 h-4" />
+                                    <span>{post.views}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                            {!userLoading && isAdmin && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDeletePost(post.id);
+                                }}
+                                disabled={isDeleting}
+                                className="absolute top-2 left-2 p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg disabled:opacity-50 flex-shrink-0 transition-colors"
+                                title="מחק פוסט"
+                              >
+                                {isDeleting ? (
+                                  <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                  <X className="w-4 h-4" />
                                 )}
-                                <span>{post.profile?.display_name || 'משתמש'}</span>
-                                <span>•</span>
-                                <span>{new Date(post.created_at).toLocaleDateString('he-IL')}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-gray-500">
-                              <div className="flex items-center gap-1">
-                                <MessageCircle className="w-4 h-4" />
-                                <span>{post.replies_count}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Eye className="w-4 h-4" />
-                                <span>{post.views}</span>
-                              </div>
-                            </div>
+                              </button>
+                            )}
                           </div>
-                        </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
