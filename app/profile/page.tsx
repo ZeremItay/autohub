@@ -1603,7 +1603,11 @@ export default function ProfilePage() {
                                 <h3 className="text-lg font-semibold text-gray-800 mb-2">
                                   {post.title}
                                 </h3>
-                                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{post.content}</p>
+                                <div 
+                                  className="text-gray-600 text-sm mb-3 overflow-hidden prose prose-sm max-w-none"
+                                  style={{ maxHeight: '4rem' }}
+                                  dangerouslySetInnerHTML={{ __html: post.content || '' }}
+                                />
                                 <div className="flex items-center gap-4 text-sm text-gray-500">
                                   <span>בפורום: {post.forums?.display_name || post.forums?.name || 'לא ידוע'}</span>
                                   <span>•</span>
@@ -1649,7 +1653,11 @@ export default function ProfilePage() {
                                 <h3 className="text-lg font-semibold text-gray-800 mb-2">
                                   {reply.forum_posts?.title || 'פוסט'}
                                 </h3>
-                                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{reply.content}</p>
+                                <div 
+                                  className="text-gray-600 text-sm mb-3 overflow-hidden prose prose-sm max-w-none"
+                                  style={{ maxHeight: '4rem' }}
+                                  dangerouslySetInnerHTML={{ __html: reply.content || '' }}
+                                />
                                 <div className="flex items-center gap-4 text-sm text-gray-500">
                                   <span>בפורום: {reply.forum_posts?.forums?.display_name || reply.forum_posts?.forums?.name || 'לא ידוע'}</span>
                                   <span>•</span>
