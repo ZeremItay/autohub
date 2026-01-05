@@ -268,7 +268,7 @@ export async function createProjectOffer(offer: Omit<ProjectOffer, 'id' | 'creat
             offerCurrency: offer.offer_currency || 'USD',
             offerMessage: offer.message || '',
             projectId: offer.project_id,
-            offerId: data?.id || offer.id
+            offerId: data?.id
           }),
         }).then(async (response) => {
           const emailResponse = await response.json();

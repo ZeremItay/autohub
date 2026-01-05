@@ -5,7 +5,7 @@ import { Search, Edit, MessageSquare, ArrowRight, X, Video } from 'lucide-react'
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { getAllForums, type Forum } from '@/lib/queries/forums';
+import { getAllForums, getForumPosts, type Forum } from '@/lib/queries/forums';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 // Lazy load RichTextEditor (heavy component)
@@ -18,6 +18,8 @@ export default function ForumsPage() {
   const router = useRouter();
   const { user: currentUser } = useCurrentUser();
   const [forums, setForums] = useState<Forum[]>([]);
+  const [allPosts, setAllPosts] = useState<any[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any>(null);
@@ -68,6 +70,42 @@ export default function ForumsPage() {
   useEffect(() => {
     loadForums();
   }, []);
+
+  useEffect(() => {
+    if (forums.length > 0) {
+      loadAllPosts();
+    }
+  }, [forums]);
+
+  async function loadAllPosts() {
+    setLoadingPosts(true);
+    try {
+      // Load posts from all forums
+      const postsPromises = forums.map(async (forum) => {
+        const { data } = await getForumPosts(forum.id);
+        return (data || []).map((post: any) => ({
+          ...post,
+          forum_name: forum.display_name || forum.name,
+          forum_id: forum.id
+        }));
+      });
+      
+      const allPostsArrays = await Promise.all(postsPromises);
+      const flattenedPosts = allPostsArrays.flat();
+      
+      // Sort by created_at (newest first)
+      flattenedPosts.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      
+      setAllPosts(flattenedPosts);
+    } catch (error) {
+      console.error('Error loading all posts:', error);
+      setAllPosts([]);
+    } finally {
+      setLoadingPosts(false);
+    }
+  }
 
   useEffect(() => {
     if (searchTimeoutRef.current) {
@@ -424,9 +462,69 @@ export default function ForumsPage() {
                 {/* All Posts Section */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                   <h2 className="text-2xl font-bold text-gray-800 mb-6">כל הפוסטים</h2>
-                  <div className="min-h-[200px] flex items-center justify-center">
-                    <p className="text-gray-500 text-lg">לא נמצאו פוסטים</p>
-                  </div>
+                  {loadingPosts ? (
+                    <div className="min-h-[200px] flex items-center justify-center">
+                      <p className="text-gray-500 text-lg">טוען פוסטים...</p>
+                    </div>
+                  ) : allPosts.length === 0 ? (
+                    <div className="min-h-[200px] flex items-center justify-center">
+                      <p className="text-gray-500 text-lg">לא נמצאו פוסטים</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {allPosts.map((post) => (
+                        <Link
+                          key={post.id}
+                          href={`/forums/${post.forum_id}/posts/${post.id}`}
+                          className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                                  {post.forum_name}
+                                </span>
+                                {post.is_pinned && (
+                                  <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded">
+                                    📌 מוצמד
+                                  </span>
+                                )}
+                              </div>
+                              <h3 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">
+                                {post.title}
+                              </h3>
+                              {post.content && (
+                                <p className="text-sm text-gray-600 mb-3 line-clamp-2" dangerouslySetInnerHTML={{ __html: post.content.substring(0, 150) + '...' }} />
+                              )}
+                              <div className="flex items-center gap-3 text-xs text-gray-500">
+                                {post.profile?.avatar_url ? (
+                                  <img
+                                    src={post.profile.avatar_url}
+                                    alt={post.profile.display_name || 'משתמש'}
+                                    className="w-6 h-6 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xs font-semibold">
+                                    {(post.profile?.display_name || 'מ').charAt(0)}
+                                  </div>
+                                )}
+                                <span>{post.profile?.display_name || 'משתמש'}</span>
+                                <span>•</span>
+                                <span>{new Date(post.created_at).toLocaleDateString('he-IL')}</span>
+                                {(post.replies_count || 0) > 0 && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{post.replies_count || 0} תגובות</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0 mt-1" />
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getProfileWithRole } from '@/lib/queries/profiles'
@@ -50,7 +50,7 @@ import { BookOpen } from 'lucide-react'
 import { formatTimeAgo as formatTimeAgoUtil } from '@/lib/utils/date'
 import { isAdmin } from '@/lib/utils/user'
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [profile, setProfile] = useState<any>(null)
@@ -2186,50 +2186,68 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {mySubmissions.map((submission: any) => (
-                        <div key={submission.id} className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-gray-800 mb-1">
-                                {submission.project?.title || 'פרויקט לא זמין'}
-                              </h3>
-                              {submission.project?.description && (
-                                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{submission.project.description}</p>
-                              )}
-                              <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
-                                {submission.offer_amount && (
-                                  <span className="text-[#F52F8E] font-semibold">
-                                    {submission.offer_amount} {submission.offer_currency || 'ILS'}
-                                  </span>
+                      {mySubmissions.map((submission: any) => {
+                        const isProjectDeleted = !submission.project || !submission.project.id;
+                        return (
+                          <div key={submission.id} className={`border rounded-lg p-4 ${isProjectDeleted ? 'border-gray-300 bg-gray-50' : 'border-gray-200'}`}>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold text-gray-800">
+                                    {submission.project?.title || 'פרויקט לא זמין'}
+                                  </h3>
+                                  {isProjectDeleted && (
+                                    <span className="px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">
+                                      נסגר
+                                    </span>
+                                  )}
+                                </div>
+                                {submission.project?.description && !isProjectDeleted && (
+                                  <p className="text-sm text-gray-600 mb-2 line-clamp-2">{submission.project.description}</p>
                                 )}
-                                <span className={`px-2 py-1 rounded ${
-                                  submission.status === 'accepted' ? 'bg-green-100 text-green-700' :
-                                  submission.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                  'bg-yellow-100 text-yellow-700'
-                                }`}>
-                                  {submission.status === 'accepted' ? 'אושר' :
-                                   submission.status === 'rejected' ? 'נדחה' :
-                                   'ממתין'}
-                                </span>
-                                {submission.created_at && (
-                                  <span>{new Date(submission.created_at).toLocaleDateString('he-IL')}</span>
+                                <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                                  {submission.offer_amount && (
+                                    <span className="text-[#F52F8E] font-semibold">
+                                      {submission.offer_amount} {submission.offer_currency || 'ILS'}
+                                    </span>
+                                  )}
+                                  <span className={`px-2 py-1 rounded ${
+                                    submission.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                                    submission.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                    'bg-yellow-100 text-yellow-700'
+                                  }`}>
+                                    {submission.status === 'accepted' ? 'אושר' :
+                                     submission.status === 'rejected' ? 'נדחה' :
+                                     'ממתין'}
+                                  </span>
+                                  {submission.created_at && (
+                                    <span>{new Date(submission.created_at).toLocaleDateString('he-IL')}</span>
+                                  )}
+                                </div>
+                                {submission.message && (
+                                  <p className="text-sm text-gray-600 mb-2">{submission.message}</p>
                                 )}
                               </div>
-                              {submission.message && (
-                                <p className="text-sm text-gray-600 mb-2">{submission.message}</p>
-                              )}
+                              {isProjectDeleted ? (
+                                <button
+                                  disabled
+                                  className="px-3 py-1 text-sm bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed"
+                                  title="הפרויקט נסגר"
+                                >
+                                  נסגר
+                                </button>
+                              ) : submission.project?.id ? (
+                                <Link
+                                  href={`/projects`}
+                                  className="px-3 py-1 text-sm bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                                >
+                                  צפה בפרויקט
+                                </Link>
+                              ) : null}
                             </div>
-                            {submission.project?.id && (
-                              <Link
-                                href={`/projects`}
-                                className="px-3 py-1 text-sm bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
-                              >
-                                צפה בפרויקט
-                              </Link>
-                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2536,6 +2554,14 @@ export default function ProfilePage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">טוען...</div>}>
+      <ProfilePageContent />
+    </Suspense>
   )
 }
 
