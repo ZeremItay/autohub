@@ -758,39 +758,6 @@ function ForumDetailPageContent() {
                         </div>
                       </div>
 
-                    {/* Video Upload (images are now inline in the editor) */}
-                    <div className="flex gap-2">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="video/*"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        id="video-upload"
-                      />
-                      <label
-                        htmlFor="video-upload"
-                        className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                      >
-                        <Video className="w-5 h-5" />
-                        <span>וידאו (נפרד)</span>
-                      </label>
-                    </div>
-
-                    {/* Video Preview */}
-                    {mediaPreview && mediaType === 'video' && (
-                      <div className="relative">
-                        <video src={mediaPreview} controls className="w-full max-h-64 rounded-lg" />
-                        <button
-                          type="button"
-                          onClick={removeMedia}
-                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-
                     </div>
 
                     {/* Modal Footer */}

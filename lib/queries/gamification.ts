@@ -442,19 +442,25 @@ export async function awardPoints(userId: string, actionName: string, options?: 
         });
         
         if (notificationError) {
-          // Only log in development or if error has meaningful content
-          if (process.env.NODE_ENV === 'development') {
-            const errorInfo: any = {};
-            if (notificationError.code) errorInfo.code = notificationError.code;
-            if (notificationError.message) errorInfo.message = notificationError.message;
-            if (notificationError.details) errorInfo.details = notificationError.details;
-            if (notificationError.hint) errorInfo.hint = notificationError.hint;
-            
-            // Only log if we have meaningful error info
-            if (Object.keys(errorInfo).length > 0) {
+          // Log the full error object for debugging
+          const errorInfo: any = {
+            code: notificationError.code || null,
+            message: notificationError.message || null,
+            details: notificationError.details || null,
+            hint: notificationError.hint || null,
+            fullError: notificationError
+          };
+          
+          // Always log in development, log important errors in production
+          if (process.env.NODE_ENV === 'development' || notificationError.code || notificationError.message) {
+            if (Object.keys(errorInfo).filter(k => errorInfo[k] !== null).length > 0) {
               console.error('❌ Notification error details:', errorInfo);
             } else {
-              console.warn('⚠️ Notification creation failed (no error details available)');
+              console.warn('⚠️ Notification creation failed (no error details available)', {
+                userId,
+                actionName,
+                rawError: notificationError
+              });
             }
           }
           

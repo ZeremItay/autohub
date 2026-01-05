@@ -70,6 +70,14 @@ const KeyPointsEditor = dynamic(
   }
 )
 
+const ImageGalleryModal = dynamic(
+  () => import('@/components/ImageGalleryModal'),
+  { 
+    ssr: false,
+    loading: () => null
+  }
+)
+
 // Import date-fns locale separately (lightweight)
 import { he } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -717,6 +725,8 @@ export default function AdminPanel() {
   const [loadingEnrollments, setLoadingEnrollments] = useState(false)
   const [selectedFeedback, setSelectedFeedback] = useState<any | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const [showImageGallery, setShowImageGallery] = useState(false)
+  const [imageGalleryField, setImageGalleryField] = useState<string | null>(null)
   
   // Calculate selected date for events DatePicker
   const eventSelectedDate = useMemo(() => {
@@ -3191,13 +3201,27 @@ export default function AdminPanel() {
                         </option>
                       ))}
                     </select>
-                    <input
-                      type="text"
-                      placeholder="URL תמונה"
-                      value={formData.avatar_url || ''}
-                      onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="URL תמונה"
+                        value={formData.avatar_url || ''}
+                        onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                      {isAuthorized && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageGalleryField('avatar_url');
+                            setShowImageGallery(true);
+                          }}
+                          className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors whitespace-nowrap"
+                        >
+                          בחר מהגלריה
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
                 {activeTab === 'posts' && (
@@ -3228,13 +3252,27 @@ export default function AdminPanel() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       rows={4}
                     />
-                    <input
-                      type="text"
-                      placeholder="URL תמונה (אופציונלי)"
-                      value={formData.image_url || ''}
-                      onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="URL תמונה (אופציונלי)"
+                        value={formData.image_url || ''}
+                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                      {isAuthorized && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageGalleryField('image_url');
+                            setShowImageGallery(true);
+                          }}
+                          className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors whitespace-nowrap"
+                        >
+                          בחר מהגלריה
+                        </button>
+                      )}
+                    </div>
                     </div>
                 )}
                 {activeTab === 'resources' && (
@@ -3617,13 +3655,27 @@ export default function AdminPanel() {
                           />
                         </div>
                       )}
-                      <input
-                        type="url"
-                        placeholder="או הזן קישור לתמונת תצוגה מקדימה"
-                        value={formData.thumbnail_url || ''}
-                        onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg mt-2"
-                      />
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          type="url"
+                          placeholder="או הזן קישור לתמונת תצוגה מקדימה"
+                          value={formData.thumbnail_url || ''}
+                          onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                        {isAuthorized && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImageGalleryField('thumbnail_url');
+                              setShowImageGallery(true);
+                            }}
+                            className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors whitespace-nowrap"
+                          >
+                            בחר מהגלריה
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {activeTab === 'recordings' && (
                       <div>
@@ -3963,13 +4015,27 @@ export default function AdminPanel() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       rows={3}
                     />
-                    <input
-                      type="text"
-                      placeholder="קישור לתמונה (אופציונלי)"
-                      value={formData.image_url || ''}
-                      onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="קישור לתמונה (אופציונלי)"
+                        value={formData.image_url || ''}
+                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                      {isAuthorized && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageGalleryField('image_url');
+                            setShowImageGallery(true);
+                          }}
+                          className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors whitespace-nowrap"
+                        >
+                          בחר מהגלריה
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="text"
                       placeholder="קישור (אופציונלי)"
@@ -4322,14 +4388,28 @@ export default function AdminPanel() {
                         </div>
                       </div>
 
-                      <input
-                        type="url"
-                        placeholder="https://example.com/image.jpg"
-                        value={formData.thumbnail_url || ''}
-                        onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      />
-                      <p className="text-xs text-gray-500">הזן קישור לתמונה או העלה תמונה מהמחשב</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="url"
+                          placeholder="https://example.com/image.jpg"
+                          value={formData.thumbnail_url || ''}
+                          onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                        {isAuthorized && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImageGalleryField('thumbnail_url');
+                              setShowImageGallery(true);
+                            }}
+                            className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors whitespace-nowrap"
+                          >
+                            בחר מהגלריה
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">הזן קישור לתמונה או העלה תמונה מהמחשב{isAuthorized && ' או בחר מהגלריה'}</p>
                       
                       {/* Preview */}
                       {formData.thumbnail_url && (
@@ -4961,13 +5041,27 @@ export default function AdminPanel() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">URL תמונת המנחה</label>
-                          <input
-                            type="url"
-                            placeholder="URL תמונה"
-                            value={formData.instructor_avatar_url || ''}
-                            onChange={(e) => setFormData({ ...formData, instructor_avatar_url: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                          />
+                          <div className="flex gap-2">
+                            <input
+                              type="url"
+                              placeholder="URL תמונה"
+                              value={formData.instructor_avatar_url || ''}
+                              onChange={(e) => setFormData({ ...formData, instructor_avatar_url: e.target.value })}
+                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                            {isAuthorized && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setImageGalleryField('instructor_avatar_url');
+                                  setShowImageGallery(true);
+                                }}
+                                className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors whitespace-nowrap"
+                              >
+                                בחר מהגלריה
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -7365,6 +7459,25 @@ export default function AdminPanel() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Image Gallery Modal */}
+      {isAuthorized && (
+        <ImageGalleryModal
+          isOpen={showImageGallery}
+          onClose={() => {
+            setShowImageGallery(false);
+            setImageGalleryField(null);
+          }}
+          onSelect={(imageUrl) => {
+            if (imageGalleryField) {
+              setFormData({ ...formData, [imageGalleryField]: imageUrl });
+            }
+            setShowImageGallery(false);
+            setImageGalleryField(null);
+          }}
+          isAdmin={isAuthorized}
+        />
       )}
     </div>
   )

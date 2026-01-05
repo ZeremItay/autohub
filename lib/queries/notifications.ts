@@ -125,8 +125,6 @@ export async function markAllNotificationsAsRead(userId: string) {
 
 // Create a notification
 export async function createNotification(notification: Omit<Notification, 'id' | 'created_at' | 'updated_at'>) {
-  const supabase = createServerClient();
-  
   // Log notification creation attempt
   console.log('📬 Creating notification:', {
     user_id: notification.user_id,
@@ -134,55 +132,99 @@ export async function createNotification(notification: Omit<Notification, 'id' |
     title: notification.title,
     message: notification.message?.substring(0, 50) + '...'
   });
-  
-  const { data, error } = await supabase
-    .from('notifications')
-    .insert([notification])
-    .select()
-    .single();
-  
-  if (error) {
-    // Only log in development or if error has meaningful content
-    if (process.env.NODE_ENV === 'development') {
-      const errorInfo: any = {};
-      if (error.code) errorInfo.code = error.code;
-      if (error.message) errorInfo.message = error.message;
-      if (error.details) errorInfo.details = error.details;
-      if (error.hint) errorInfo.hint = error.hint;
+
+  // Try to use API route if available (server-side), fallback to direct supabase call
+  if (typeof window === 'undefined') {
+    // Server-side: use direct supabase call
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert([notification])
+      .select()
+      .single();
+    
+    if (error) {
+      // Log the full error object for debugging
+      const errorInfo: any = {
+        code: error.code || null,
+        message: error.message || null,
+        details: error.details || null,
+        hint: error.hint || null,
+        fullError: error
+      };
       
-      // Only log if we have meaningful error info
-      if (Object.keys(errorInfo).length > 0) {
-        console.error('❌ Error creating notification:', errorInfo);
-      } else {
-        console.warn('⚠️ Notification creation failed (no error details available)');
+      // Always log in development, log important errors in production
+      if (process.env.NODE_ENV === 'development' || error.code || error.message) {
+        if (Object.keys(errorInfo).filter(k => errorInfo[k] !== null).length > 0) {
+          console.error('❌ Error creating notification:', errorInfo);
+        } else {
+          console.warn('⚠️ Notification creation failed (no error details available)', {
+            notification: {
+              user_id: notification.user_id,
+              type: notification.type,
+              title: notification.title
+            },
+            rawError: error
+          });
+        }
       }
+      
+      // Check for specific error types
+      if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ Notifications table does not exist in schema cache');
+        }
+      } else if (error.code === '23514' || error.message?.includes('CHECK constraint') || error.message?.includes('violates check constraint')) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ Notification type not allowed in CHECK constraint. Available types may not include:', notification.type);
+        }
+      } else if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('row-level security')) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ RLS policy violation - user may not have permission to create notification');
+        }
+      }
+      
+      return { data: null, error };
     }
     
-    // Check for specific error types
-    if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ Notifications table does not exist in schema cache');
-      }
-    } else if (error.code === '23514' || error.message?.includes('CHECK constraint') || error.message?.includes('violates check constraint')) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ Notification type not allowed in CHECK constraint. Available types may not include:', notification.type);
-      }
-    } else if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('row-level security')) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ RLS policy violation - user may not have permission to create notification');
-      }
-    }
+    console.log('✅ Notification created successfully:', {
+      id: data?.id,
+      type: data?.type,
+      user_id: data?.user_id
+    });
     
-    return { data: null, error };
+    return { data, error: null };
+  } else {
+    // Client-side: use API route
+    try {
+      const siteUrl = window.location.origin;
+      const response = await fetch(`${siteUrl}/api/notifications/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(notification),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Error creating notification via API:', result);
+        return { data: null, error: result };
+      }
+
+      console.log('✅ Notification created successfully via API:', {
+        id: result.data?.id,
+        type: result.data?.type,
+        user_id: result.data?.user_id
+      });
+
+      return { data: result.data, error: null };
+    } catch (fetchError: any) {
+      console.error('❌ Error calling notification API:', fetchError);
+      return { data: null, error: fetchError };
+    }
   }
-  
-  console.log('✅ Notification created successfully:', {
-    id: data?.id,
-    type: data?.type,
-    user_id: data?.user_id
-  });
-  
-  return { data, error: null };
 }
 
 // Delete a notification

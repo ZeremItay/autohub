@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getProfileWithRole } from '@/lib/queries/profiles'
 import { 
@@ -52,6 +52,7 @@ import { isAdmin } from '@/lib/utils/user'
 
 export default function ProfilePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'profile' | 'timeline' | 'messages' | 'forums' | 'points' | 'courses' | 'notifications' | 'projects'>('profile')
@@ -88,6 +89,10 @@ export default function ProfilePage() {
   const [notificationsTotalPages, setNotificationsTotalPages] = useState(1)
   const [notificationsTotal, setNotificationsTotal] = useState(0)
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
+  const [selectedOffer, setSelectedOffer] = useState<any | null>(null)
+  const [selectedOfferProject, setSelectedOfferProject] = useState<any | null>(null)
+  const [selectedOfferUser, setSelectedOfferUser] = useState<any | null>(null)
+  const [loadingOfferUser, setLoadingOfferUser] = useState(false)
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -104,6 +109,23 @@ export default function ProfilePage() {
 
   useEffect(() => {
     loadCurrentLoggedInUser()
+    
+    // Handle URL parameters for userId and tab
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const userId = params.get('userId')
+      const tab = params.get('tab')
+      
+      // If userId is in URL, save it to localStorage and reload profile
+      if (userId) {
+        localStorage.setItem('selectedUserId', userId)
+      }
+      
+      if (tab && ['profile', 'timeline', 'messages', 'forums', 'points', 'courses', 'notifications', 'projects'].includes(tab)) {
+        setActiveTab(tab as any)
+      }
+    }
+    
     loadProfile()
   }, [])
 
@@ -166,6 +188,53 @@ export default function ProfilePage() {
     }
   }, [profile, activeTab])
 
+  // Handle URL parameters for opening specific offer from email
+  useEffect(() => {
+    if (typeof window !== 'undefined' && profile && activeTab === 'projects' && myProjects.length > 0 && Object.keys(projectOffers).length > 0) {
+      const params = new URLSearchParams(window.location.search)
+      const projectId = params.get('projectId')
+      const offerId = params.get('offerId')
+      
+      if (projectId && offerId) {
+        // Find the project and offer
+        const project = myProjects.find((p: any) => p.id === projectId)
+        const offers = projectOffers[projectId] || []
+        const offer = offers.find((o: any) => o.id === offerId)
+        
+        if (project && offer) {
+          // Expand the project
+          setExpandedProjects(prev => new Set(prev).add(projectId))
+          
+          // Open the offer modal
+          handleOpenOfferModal(offer, project).catch(console.error)
+          
+          // Clean up URL
+          const newUrl = window.location.pathname + (window.location.search.replace(/[?&]projectId=[^&]*&offerId=[^&]*|[?&]offerId=[^&]*&projectId=[^&]*|[?&]projectId=[^&]*|[?&]offerId=[^&]*/g, '') || '')
+          window.history.replaceState({}, '', newUrl)
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, activeTab, myProjects, projectOffers])
+
+  async function handleOpenOfferModal(offer: any, project: any) {
+    setSelectedOffer(offer)
+    setSelectedOfferProject(project)
+    setLoadingOfferUser(true)
+    
+    try {
+      // Load full user profile
+      const { getProfile } = await import('@/lib/queries/profiles')
+      const { data: userProfile } = await getProfile(offer.user_id)
+      setSelectedOfferUser(userProfile)
+    } catch (error) {
+      console.error('Error loading offer user:', error)
+      setSelectedOfferUser(offer.user || null)
+    } finally {
+      setLoadingOfferUser(false)
+    }
+  }
+
   // Helper function to check if current user is owner or admin
   function isOwnerOrAdmin(): boolean {
     if (!profile || !currentLoggedInUserId) return false;
@@ -177,8 +246,12 @@ export default function ProfilePage() {
   async function loadProfile() {
     setLoading(true)
     try {
-      // Get selected user from localStorage, or use first user as default
-      const savedUserId = typeof window !== 'undefined' ? localStorage.getItem('selectedUserId') : null;
+      // Get selected user from URL params first, then localStorage, or use first user as default
+      let savedUserId: string | null = null;
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search)
+        savedUserId = params.get('userId') || localStorage.getItem('selectedUserId')
+      }
       
       let profile;
       if (savedUserId) {
@@ -2049,7 +2122,11 @@ export default function ProfilePage() {
                               <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
                                 <h4 className="font-medium text-gray-700 mb-2">הגשות:</h4>
                                 {offers.map((offer: any) => (
-                                  <div key={offer.id} className="bg-gray-50 p-3 rounded-lg">
+                                  <div 
+                                    key={offer.id} 
+                                    className="bg-gray-50 p-3 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                                    onClick={() => handleOpenOfferModal(offer, project)}
+                                  >
                                     <div className="flex items-start justify-between">
                                       <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
@@ -2070,7 +2147,7 @@ export default function ProfilePage() {
                                           </span>
                                         </div>
                                         {offer.message && (
-                                          <p className="text-sm text-gray-600 mb-1">{offer.message}</p>
+                                          <p className="text-sm text-gray-600 mb-1 line-clamp-2">{offer.message}</p>
                                         )}
                                         <span className="text-xs text-gray-400">
                                           {offer.created_at ? new Date(offer.created_at).toLocaleDateString('he-IL') : '-'}
@@ -2301,6 +2378,160 @@ export default function ProfilePage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Offer Details Modal */}
+      {selectedOffer && selectedOfferProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setSelectedOffer(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
+              <h2 className="text-2xl font-bold text-gray-800">פרטי ההצעה</h2>
+              <button
+                onClick={() => {
+                  setSelectedOffer(null)
+                  setSelectedOfferProject(null)
+                  setSelectedOfferUser(null)
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="סגור"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Project Info */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">פרויקט</h3>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="font-medium text-gray-800">{selectedOfferProject.title}</p>
+                  <p className="text-sm text-gray-600 mt-1 line-clamp-3">{selectedOfferProject.description}</p>
+                </div>
+              </div>
+
+              {/* Offer Details */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">פרטי ההצעה</h3>
+                <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                  {selectedOffer.offer_amount && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">הצעת מחיר:</span>
+                      <span className="text-[#F52F8E] font-bold text-lg">
+                        {selectedOffer.offer_amount} {selectedOffer.offer_currency || 'ILS'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">סטטוס:</span>
+                    <span className={`px-3 py-1 text-sm rounded ${
+                      selectedOffer.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                      selectedOffer.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {selectedOffer.status === 'accepted' ? 'אושר' :
+                       selectedOffer.status === 'rejected' ? 'נדחה' :
+                       'ממתין'}
+                    </span>
+                  </div>
+                  {selectedOffer.created_at && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">תאריך הגשה:</span>
+                      <span className="text-gray-800">
+                        {new Date(selectedOffer.created_at).toLocaleDateString('he-IL', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  {selectedOffer.message && (
+                    <div>
+                      <span className="text-gray-600 block mb-2">הודעה:</span>
+                      <p className="text-gray-800 whitespace-pre-wrap bg-white p-3 rounded border border-gray-200">
+                        {selectedOffer.message}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* User Info */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">מגיש ההצעה</h3>
+                {loadingOfferUser ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F52F8E]"></div>
+                  </div>
+                ) : selectedOfferUser ? (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center gap-4 mb-3">
+                      {selectedOfferUser.avatar_url ? (
+                        <Image
+                          src={selectedOfferUser.avatar_url}
+                          alt={selectedOfferUser.display_name || 'משתמש'}
+                          width={64}
+                          height={64}
+                          className="rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#F52F8E] to-[#E01E7A] flex items-center justify-center text-white text-xl font-bold">
+                          {(selectedOfferUser.display_name || selectedOfferUser.first_name || 'מ')[0]}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800">
+                          {selectedOfferUser.display_name || selectedOfferUser.first_name || 'משתמש לא ידוע'}
+                        </p>
+                        {selectedOfferUser.bio && (
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{selectedOfferUser.bio}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
+                      {selectedOfferUser.experience_level && (
+                        <div>
+                          <span className="text-gray-600">רמת ניסיון:</span>
+                          <span className="text-gray-800 mr-2">{selectedOfferUser.experience_level}</span>
+                        </div>
+                      )}
+                      {selectedOfferUser.points !== undefined && (
+                        <div>
+                          <span className="text-gray-600">נקודות:</span>
+                          <span className="text-gray-800 mr-2">{selectedOfferUser.points || 0}</span>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const userId = selectedOfferUser.user_id || selectedOfferUser.id
+                        if (userId) {
+                          localStorage.setItem('selectedUserId', userId)
+                          // Use window.location for full page reload to ensure profile loads correctly
+                          window.location.href = `/profile?userId=${userId}`
+                        }
+                      }}
+                      className="mt-4 w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-semibold"
+                    >
+                      <User className="w-5 h-5" />
+                      <span>צפייה בפרופיל</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-gray-600">
+                      {selectedOffer.user?.display_name || 'משתמש לא ידוע'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

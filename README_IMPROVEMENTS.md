@@ -167,3 +167,5 @@ const { data, error } = await postsRepo.findAllWithProfiles();
 - ✅ API middleware מאורגן
 - ✅ Repository pattern ליישום
 
+
+

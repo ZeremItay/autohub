@@ -98,16 +98,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
       const { data, error } = await response.json();
       
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Search performed:', { query, hasData: !!data, error, data });
+      }
+      
       if (!error && data) {
         setSearchResults(data);
         setShowSearchResults(true);
+        // Force update for mobile
+        if (mobileSearchOpen) {
+          setShowSearchResults(true);
+        }
+      } else {
+        setSearchResults(null);
+        setShowSearchResults(false);
       }
     } catch (error) {
       console.error('Search error:', error);
+      setSearchResults(null);
+      setShowSearchResults(false);
     } finally {
       setIsSearching(false);
     }
-  }, []);
+  }, [mobileSearchOpen]);
 
   // Handle search input with debounce
   useEffect(() => {
@@ -140,6 +153,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       }, 100);
     }
   }, [mobileSearchOpen]);
+
+  // Debug: Log mobile search state
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && mobileSearchOpen) {
+      console.log('Mobile search modal state:', {
+        mobileSearchOpen,
+        hasSearchResults: !!searchResults,
+        searchQuery,
+        searchQueryLength: searchQuery.trim().length,
+        isSearching,
+        totalResults: searchResults ? getTotalResults() : 0
+      });
+    }
+  }, [mobileSearchOpen, searchResults, searchQuery, isSearching]);
 
   // Load current user from Supabase session
   useEffect(() => {
@@ -468,19 +495,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [profileMenuOpen]);
 
-  // Calculate search dropdown position
-  const [searchDropdownStyle, setSearchDropdownStyle] = useState<React.CSSProperties>({});
-  useEffect(() => {
-    if (showSearchResults && searchRef.current) {
-      const rect = searchRef.current.getBoundingClientRect();
-      setSearchDropdownStyle({
-        top: `${rect.bottom + 8}px`,
-        left: `${rect.left}px`,
-        width: `${rect.width}px`,
-        maxWidth: '90vw'
-      });
-    }
-  }, [showSearchResults, searchResults]);
+  // Removed searchDropdownStyle - using absolute positioning instead
 
   // Calculate notifications dropdown position
   const [notificationsDropdownStyle, setNotificationsDropdownStyle] = useState<React.CSSProperties>({});
@@ -504,15 +519,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   async function markAsRead(notificationId: string) {
     try {
-      await fetch(`/api/notifications/${notificationId}`, {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_read: true })
       });
-      setNotifications(prev => prev.map(n => 
-        n.id === notificationId ? { ...n, is_read: true } : n
-      ));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      if (response.ok) {
+        // Only update state if API call succeeded
+        setNotifications(prev => prev.map(n => 
+          n.id === notificationId ? { ...n, is_read: true } : n
+        ));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } else {
+        console.error('Failed to mark notification as read:', await response.json());
+      }
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -765,7 +786,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {showSearchResults && searchResults && (
                   <>
                     {/* Desktop: Dropdown */}
-                    <div className="hidden lg:block fixed bg-white rounded-xl shadow-2xl border border-gray-200 z-[60] max-h-[600px] overflow-y-auto" style={searchDropdownStyle}>
+                    <div className="hidden lg:block absolute top-full mt-2 left-0 right-0 bg-white rounded-xl shadow-2xl border border-gray-200 z-[60] max-h-[600px] overflow-y-auto">
                       {getTotalResults() === 0 ? (
                         <div className="p-6 text-center text-gray-500">
                           <p className="text-sm">לא נמצאו תוצאות</p>
@@ -988,7 +1009,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => {
                       setMobileSearchOpen(false);
-                      setSearchQuery('');
+                      // Don't clear searchQuery - keep it for next time
                       setShowSearchResults(false);
                     }}
                     className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
@@ -1016,21 +1037,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Search Results */}
-                <div className="flex-1 overflow-y-auto">
-                  {isSearching ? (
+                <div className="flex-1 overflow-y-auto pb-4">
+                  {isSearching && !searchResults ? (
                     <div className="flex items-center justify-center py-12">
-                      <p className="text-sm text-gray-500">מחפש...</p>
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-sm text-gray-500">מחפש...</p>
+                      </div>
                     </div>
-                  ) : showSearchResults && searchResults ? (
-                    <div className="p-4">
+                  ) : searchResults ? (
+                    <div className="p-4 pb-6">
                       {getTotalResults() === 0 ? (
                         <div className="p-8 text-center text-gray-500">
                           <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                          <p className="text-base">לא נמצאו תוצאות</p>
+                          <p className="text-base font-medium">לא נמצאו תוצאות</p>
                           <p className="text-sm mt-2 text-gray-400">נסה מונחי חיפוש אחרים</p>
                         </div>
                       ) : (
-                        <div className="space-y-6">
+                        <div className="space-y-5">
                           {(() => {
                             const limited = getLimitedResults();
                             if (!limited) return null;
@@ -1038,12 +1062,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                               <>
                                 {/* Recordings */}
                                 {limited.recordings.length > 0 && (
-                                  <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-3">
+                                  <div className="mb-5">
+                                    <div className="flex items-center gap-2 mb-3 px-1">
                                       <Video className="w-5 h-5 text-[#F52F8E]" />
                                       <h3 className="text-base font-bold text-gray-800">הקלטות ({searchResults.recordings.length})</h3>
                                     </div>
-                                    <div className="space-y-2.5">
+                                    <div className="space-y-3">
                                       {limited.recordings.map((recording: any) => (
                                         <Link
                                           key={recording.id}
@@ -1053,11 +1077,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                             setShowSearchResults(false);
                                             setSearchQuery('');
                                           }}
-                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                                          className="block px-4 py-3.5 rounded-xl hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
                                         >
-                                          <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{recording.title}</p>
+                                          <p className="text-base font-semibold text-gray-900 break-words leading-relaxed mb-1.5">{recording.title}</p>
                                           {recording.description && (
-                                            <p className="text-xs text-gray-600 line-clamp-2 mt-1.5 break-words leading-relaxed">{recording.description}</p>
+                                            <p className="text-sm text-gray-600 line-clamp-2 break-words leading-relaxed">{recording.description}</p>
                                           )}
                                         </Link>
                                       ))}
@@ -1067,12 +1091,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                                 {/* Forums */}
                                 {limited.forums.length > 0 && (
-                                  <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-3">
+                                  <div className="mb-5">
+                                    <div className="flex items-center gap-2 mb-3 px-1">
                                       <MessageSquare className="w-5 h-5 text-[#F52F8E]" />
                                       <h3 className="text-base font-bold text-gray-800">פורומים ({searchResults.forums.length})</h3>
                                     </div>
-                                    <div className="space-y-2.5">
+                                    <div className="space-y-3">
                                       {limited.forums.map((forum: any) => (
                                         <Link
                                           key={forum.id}
@@ -1082,11 +1106,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                             setShowSearchResults(false);
                                             setSearchQuery('');
                                           }}
-                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                                          className="block px-4 py-3.5 rounded-xl hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
                                         >
-                                          <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{forum.display_name || forum.name}</p>
+                                          <p className="text-base font-semibold text-gray-900 break-words leading-relaxed mb-1.5">{forum.display_name || forum.name}</p>
                                           {forum.description && (
-                                            <p className="text-xs text-gray-600 line-clamp-2 mt-1.5 break-words leading-relaxed">{forum.description}</p>
+                                            <p className="text-sm text-gray-600 line-clamp-2 break-words leading-relaxed">{forum.description}</p>
                                           )}
                                         </Link>
                                       ))}
@@ -1096,12 +1120,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                                 {/* Forum Posts */}
                                 {limited.forumPosts.length > 0 && (
-                                  <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-3">
+                                  <div className="mb-5">
+                                    <div className="flex items-center gap-2 mb-3 px-1">
                                       <MessageSquare className="w-5 h-5 text-blue-600" />
                                       <h3 className="text-base font-bold text-gray-800">פוסטים בפורומים ({searchResults.forumPosts.length})</h3>
                                     </div>
-                                    <div className="space-y-2.5">
+                                    <div className="space-y-3">
                                       {limited.forumPosts.map((post: any) => (
                                         <Link
                                           key={post.id}
@@ -1111,11 +1135,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                             setShowSearchResults(false);
                                             setSearchQuery('');
                                           }}
-                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                                          className="block px-4 py-3.5 rounded-xl hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
                                         >
-                                          <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{post.title}</p>
+                                          <p className="text-base font-semibold text-gray-900 break-words leading-relaxed mb-1.5">{post.title}</p>
                                           {post.forums && (
-                                            <p className="text-xs text-gray-600 mt-1.5 break-words leading-relaxed">בפורום: {post.forums.display_name}</p>
+                                            <p className="text-sm text-gray-600 break-words leading-relaxed">בפורום: {post.forums.display_name}</p>
                                           )}
                                         </Link>
                                       ))}
@@ -1125,20 +1149,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                                 {/* Posts (Announcements) */}
                                 {limited.posts.length > 0 && (
-                                  <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-3">
+                                  <div className="mb-5">
+                                    <div className="flex items-center gap-2 mb-3 px-1">
                                       <FileText className="w-5 h-5 text-purple-600" />
                                       <h3 className="text-base font-bold text-gray-800">הכרזות ({searchResults.posts.length})</h3>
                                     </div>
-                                    <div className="space-y-2.5">
+                                    <div className="space-y-3">
                                       {limited.posts.map((post: any) => (
                                         <div
                                           key={post.id}
-                                          className="block px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm"
+                                          className="block px-4 py-3.5 rounded-xl border border-gray-200 bg-white shadow-sm"
                                         >
-                                          <p className="text-sm text-gray-900 line-clamp-3 break-words leading-relaxed">{post.content}</p>
+                                          <p className="text-base text-gray-900 line-clamp-3 break-words leading-relaxed mb-1.5">{post.content}</p>
                                           {post.profiles && (
-                                            <p className="text-xs text-gray-600 mt-1.5 break-words leading-relaxed">מאת: {post.profiles.display_name}</p>
+                                            <p className="text-sm text-gray-600 break-words leading-relaxed">מאת: {post.profiles.display_name}</p>
                                           )}
                                         </div>
                                       ))}
@@ -1148,12 +1172,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                                 {/* Projects */}
                                 {limited.projects.length > 0 && (
-                                  <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-3">
+                                  <div className="mb-5">
+                                    <div className="flex items-center gap-2 mb-3 px-1">
                                       <Briefcase className="w-5 h-5 text-green-600" />
                                       <h3 className="text-base font-bold text-gray-800">פרויקטים ({searchResults.projects.length})</h3>
                                     </div>
-                                    <div className="space-y-2.5">
+                                    <div className="space-y-3">
                                       {limited.projects.map((project: any) => (
                                         <Link
                                           key={project.id}
@@ -1163,11 +1187,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                             setShowSearchResults(false);
                                             setSearchQuery('');
                                           }}
-                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                                          className="block px-4 py-3.5 rounded-xl hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
                                         >
-                                          <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{project.title}</p>
+                                          <p className="text-base font-semibold text-gray-900 break-words leading-relaxed mb-1.5">{project.title}</p>
                                           {project.description && (
-                                            <p className="text-xs text-gray-600 line-clamp-2 mt-1.5 break-words leading-relaxed">{project.description}</p>
+                                            <p className="text-sm text-gray-600 line-clamp-2 break-words leading-relaxed">{project.description}</p>
                                           )}
                                         </Link>
                                       ))}
@@ -1177,12 +1201,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                                 {/* Courses */}
                                 {limited.courses.length > 0 && (
-                                  <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-3">
+                                  <div className="mb-5">
+                                    <div className="flex items-center gap-2 mb-3 px-1">
                                       <BookOpen className="w-5 h-5 text-orange-600" />
                                       <h3 className="text-base font-bold text-gray-800">קורסים ({searchResults.courses.length})</h3>
                                     </div>
-                                    <div className="space-y-2.5">
+                                    <div className="space-y-3">
                                       {limited.courses.map((course: any) => (
                                         <Link
                                           key={course.id}
@@ -1192,11 +1216,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                             setShowSearchResults(false);
                                             setSearchQuery('');
                                           }}
-                                          className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
+                                          className="block px-4 py-3.5 rounded-xl hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
                                         >
-                                          <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed">{course.title}</p>
+                                          <p className="text-base font-semibold text-gray-900 break-words leading-relaxed mb-1.5">{course.title}</p>
                                           {course.description && (
-                                            <p className="text-xs text-gray-600 line-clamp-2 mt-1.5 break-words leading-relaxed">{course.description}</p>
+                                            <p className="text-sm text-gray-600 line-clamp-2 break-words leading-relaxed">{course.description}</p>
                                           )}
                                         </Link>
                                       ))}
@@ -1213,7 +1237,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                         setMobileSearchOpen(false);
                                         setShowSearchResults(false);
                                       }}
-                                      className="block text-center px-6 py-3.5 text-base font-bold text-[#F52F8E] hover:bg-pink-50 rounded-xl transition-colors border-2 border-[#F52F8E] active:bg-pink-100"
+                                      className="block text-center px-6 py-4 text-base font-bold text-white bg-[#F52F8E] hover:bg-[#E01E7A] rounded-xl transition-colors active:bg-[#D01D6A] shadow-md"
                                     >
                                       לכל התוצאות →
                                     </Link>
@@ -1225,11 +1249,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         </div>
                       )}
                     </div>
+                  ) : searchQuery.trim().length > 0 && searchQuery.trim().length < 2 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      <Search className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium mb-2">התחל לחפש</p>
+                      <p className="text-sm text-gray-400">הקלד לפחות 2 תווים כדי להתחיל לחפש</p>
+                    </div>
                   ) : (
                     <div className="p-8 text-center text-gray-500">
-                      <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p className="text-base">התחל לחפש</p>
-                      <p className="text-sm mt-2 text-gray-400">הקלד לפחות 2 תווים כדי להתחיל לחפש</p>
+                      <Search className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium mb-2">התחל לחפש</p>
+                      <p className="text-sm text-gray-400">הקלד לפחות 2 תווים כדי להתחיל לחפש</p>
                     </div>
                   )}
                 </div>
@@ -1585,7 +1615,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                       {/* Logout */}
                       <button
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 w-full text-right transition-colors"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 w-full text-right transition-colors cursor-pointer"
                         onClick={async () => {
                           try {
                             // Update is_online to false before signing out
