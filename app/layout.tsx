@@ -66,6 +66,11 @@ export const metadata: Metadata = {
     },
   },
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://autohub.com'),
+  icons: {
+    icon: '/CLUB-FAVICON.ico',
+    shortcut: '/CLUB-FAVICON.ico',
+    apple: '/CLUB-FAVICON.ico',
+  },
 };
 
 export default function RootLayout({
@@ -93,6 +98,9 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <head>
+        <link rel="icon" href="/CLUB-FAVICON.ico" type="image/x-icon" />
+        <link rel="shortcut icon" href="/CLUB-FAVICON.ico" type="image/x-icon" />
+        <link rel="apple-touch-icon" href="/CLUB-FAVICON.ico" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
         <script
           type="application/ld+json"
