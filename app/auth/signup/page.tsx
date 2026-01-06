@@ -85,15 +85,18 @@ export default function SignupPage() {
 
       // Create profile in profiles table
       // Get free role ID - ensure it exists
+      // The role name is 'free' and display_name is 'מנוי חינמי'
       let freeRoleId = null;
       const { data: roles, error: roleError } = await supabase
         .from('roles')
-        .select('id')
+        .select('id, name, display_name')
         .eq('name', 'free')
         .single();
 
       if (roleError || !roles?.id) {
         console.error('Error fetching free role or role not found:', roleError);
+        console.log('Attempting to create free role (מנוי חינמי)...');
+        
         // Try to create the free role if it doesn't exist
         const { data: newRole, error: createRoleError } = await supabase
           .from('roles')
@@ -104,22 +107,34 @@ export default function SignupPage() {
           }, {
             onConflict: 'name'
           })
-          .select('id')
+          .select('id, name, display_name')
           .single();
 
         if (createRoleError || !newRole?.id) {
           console.error('Failed to create free role:', createRoleError);
+          setError('שגיאה ביצירת תפקיד המשתמש. אנא פנה לתמיכה.');
+          setLoading(false);
+          return;
         } else {
           freeRoleId = newRole.id;
-          console.log('Free role created/found:', freeRoleId);
+          console.log('✅ Free role (מנוי חינמי) created/found:', {
+            id: freeRoleId,
+            name: newRole.name,
+            display_name: newRole.display_name
+          });
         }
       } else {
         freeRoleId = roles.id;
+        console.log('✅ Free role (מנוי חינמי) found:', {
+          id: freeRoleId,
+          name: roles.name,
+          display_name: roles.display_name
+        });
       }
 
       // Ensure we have a role ID before creating profile
       if (!freeRoleId) {
-        console.error('Cannot create profile without free role ID');
+        console.error('❌ Cannot create profile without free role ID');
         setError('שגיאה בהגדרת תפקיד המשתמש. אנא פנה לתמיכה.');
         setLoading(false);
         return;
