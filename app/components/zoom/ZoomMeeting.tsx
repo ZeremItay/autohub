@@ -83,9 +83,14 @@ export default function ZoomMeeting({
         await ZoomMtg.prepareWebSDK();
 
         // Initialize Zoom Meeting
+        const siteUrl = typeof window !== 'undefined' 
+          ? window.location.origin 
+          : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        
         ZoomMtg.init({
           leaveOnPageUnload: true,
           patchJsMedia: true,
+          leaveUrl: `${siteUrl}/live-room`,
           success: async () => {
             try {
               // Join meeting
@@ -130,7 +135,8 @@ export default function ZoomMeeting({
     // Cleanup on unmount
     return () => {
       try {
-        ZoomMtg.leave();
+        // Zoom SDK will handle cleanup automatically when page unloads
+        // No need to manually call leave() as it's not available in the SDK
       } catch (err) {
         // Ignore cleanup errors
       }
