@@ -10,6 +10,7 @@ export default function CompleteProfilePage() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [originalFirstName, setOriginalFirstName] = useState<string>('');
   const [formData, setFormData] = useState({
     displayName: '',
     firstName: '',
@@ -57,6 +58,9 @@ export default function CompleteProfilePage() {
           how_to_address: profile.how_to_address || '',
           nocode_experience: profile.nocode_experience || ''
         });
+
+        // Store original first_name to check if it's new
+        setOriginalFirstName(profile.first_name || '');
 
         setChecking(false);
       } catch (err: any) {
@@ -122,8 +126,8 @@ export default function CompleteProfilePage() {
       }
 
       // Send welcome email after profile is completed
-      // Only send if this is the first time completing the profile (has first_name now)
-      if (formData.firstName) {
+      // Only send if this is the first time adding first_name (was empty before, now has value)
+      if (formData.firstName && !originalFirstName) {
         try {
           const siteUrl = typeof window !== 'undefined' 
             ? window.location.origin 

@@ -120,8 +120,30 @@ export default function SignupPage() {
         localStorage.setItem('userEmail', formData.email);
       }
 
-      // Note: Welcome email will be sent after completing profile (complete-profile page)
-      // This ensures we have the first name and all required information
+      // Send welcome email if first_name is provided
+      if (formData.firstName) {
+        try {
+          const siteUrl = typeof window !== 'undefined' 
+            ? window.location.origin 
+            : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+          
+          await fetch(`${siteUrl}/api/auth/send-welcome-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: authData.user.id,
+              userName: formData.displayName || formData.firstName,
+              userEmail: formData.email,
+            }),
+          }).catch(err => {
+            // Silently fail - don't block user if email fails
+            console.warn('Failed to send welcome email:', err);
+          });
+        } catch (err) {
+          // Silently fail - don't block user if email fails
+          console.warn('Failed to send welcome email:', err);
+        }
+      }
 
       // Redirect to home page
       router.push('/');
