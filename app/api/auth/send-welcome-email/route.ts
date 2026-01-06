@@ -15,12 +15,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user email from auth (in case it's not provided)
+    // Get user email and first name from profile
     let email = userEmail;
+    let firstName = '';
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!email && supabaseServiceKey) {
+    if (supabaseServiceKey) {
       const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
         auth: {
           autoRefreshToken: false,
@@ -28,8 +29,22 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId);
-      email = user?.email || userEmail;
+      // Get user email from auth
+      if (!email) {
+        const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId);
+        email = user?.email || userEmail;
+      }
+
+      // Get first_name from profile
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('first_name')
+        .eq('user_id', userId)
+        .single();
+
+      firstName = profile?.first_name?.trim() || userName?.trim() || '';
+    } else {
+      firstName = userName?.trim() || '';
     }
 
     if (!email) {
@@ -39,8 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const displayName = userName?.trim() || '';
-    const greeting = displayName ? `שלום ${displayName},` : 'שלום,';
+    const greeting = firstName ? `שלום ${firstName}` : 'שלום';
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
     const emailHtml = `
@@ -69,30 +83,31 @@ export async function POST(request: NextRequest) {
             </p>
             
             <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 25px;">
-              עכשיו אתה חלק מקהילה של אוטומטורים שמתמחים ביצירת פתרונות מתקדמים עם כלי No Code. כאן תוכל:
+              המטרה של המועדון זה לצמוח ביחד כאנשי אוטומציה, מתחילים ומתקדמים כאחד.
+            </p>
+            
+            <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 15px;">
+              חלק מהדברים שאפשר למצוא במועדון:
             </p>
             
             <div style="background-color: #f8f9fa; border-right: 4px solid #F52F8E; padding: 20px; border-radius: 8px; margin: 25px 0;">
               <ul style="margin: 0; padding-right: 20px; color: #333; line-height: 2;">
+                <li>השתתפות בפורומים מקצועיים</li>
                 <li>לצפות בהדרכות והקלטות של לייבים קודמים</li>
-                <li>להשתתף בפורומים ולדון עם חברי הקהילה</li>
-                <li>לשתף פרויקטים ולקבל משוב</li>
+                <li>למצוא פרויקטים ולגייס לקוחות</li>
                 <li>לגשת לקורסים והדרכות מתקדמות</li>
                 <li>להשתתף בלייבים חודשיים עם שאלות ותשובות</li>
+                <li>לבנות פרופיל עסקי חזק</li>
+                <li>עוד המון דברים שמחכים לך בפנים</li>
               </ul>
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
               <a href="${siteUrl}" 
                  style="display: inline-block; background-color: #F52F8E; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                התחל לחקור את המועדון
+                נכנסים כאן ומכירים את הבית החדש שלך!
               </a>
             </div>
-            
-            <p style="font-size: 14px; color: #999; margin-top: 30px; text-align: center;">
-              אם יש לך שאלות, אנחנו כאן בשבילך!<br>
-              צוות מועדון האוטומטורים
-            </p>
           </div>
           
           <!-- Footer -->

@@ -132,7 +132,7 @@ export default function SignupPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userId: authData.user.id,
-              userName: formData.displayName || formData.firstName,
+              userName: formData.firstName, // Send first_name for greeting
               userEmail: formData.email,
             }),
           }).catch(err => {

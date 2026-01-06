@@ -138,7 +138,7 @@ export default function CompleteProfilePage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userId: session.user.id,
-              userName: formData.displayName,
+              userName: formData.firstName, // Send first_name for greeting
               userEmail: session.user.email || '',
             }),
           });
