@@ -1031,7 +1031,10 @@ export default function AdminPanel() {
         if (activeTab !== 'tags') {
           setTags(approvedTagsData)
         }
-      } else if (activeTab === 'feedbacks') {
+      }
+      
+      // Load feedbacks
+      if (activeTab === 'feedbacks') {
         const response = await fetch('/api/admin/feedbacks', {
           credentials: 'include'
         })
@@ -1045,7 +1048,10 @@ export default function AdminPanel() {
           }
           setFeedbacks([])
         }
-      } else if (activeTab === 'forums') {
+      }
+      
+      // Load forums
+      if (activeTab === 'forums') {
         try {
           const response = await fetch('/api/admin/forums', {
             credentials: 'include'
