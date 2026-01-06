@@ -64,15 +64,50 @@ export default function MessagesPage() {
           return;
         }
 
-        // Load conversations from localStorage (temporary solution until messages table is created)
-        const savedConversations = localStorage.getItem(`conversations_${userId}`);
-        if (savedConversations) {
-          try {
-            const parsed = JSON.parse(savedConversations);
-            setConversations(parsed);
-          } catch (e) {
-            console.error('Error parsing saved conversations:', e);
+        // Load conversations from API
+        try {
+          const response = await fetch('/api/messages', {
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+              // Convert API response to conversation format
+              const apiConversations = result.data.conversations || [];
+              const formattedConversations: Conversation[] = apiConversations.map((conv: any) => ({
+                id: conv.partner_id,
+                name: conv.partner_name,
+                avatar: conv.partner_avatar ? '' : (conv.partner_name?.charAt(0) || '?'),
+                avatarColor: 'bg-pink-500',
+                lastMessage: conv.messages && conv.messages.length > 0 
+                  ? conv.messages[conv.messages.length - 1].text 
+                  : '',
+                timestamp: conv.last_message_at 
+                  ? new Date(conv.last_message_at).toLocaleTimeString('he-IL', { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })
+                  : 'עכשיו',
+                unreadCount: conv.unread_count || 0,
+                isOnline: false, // TODO: Implement real-time online status
+                messages: (conv.messages || []).map((msg: any) => ({
+                  id: msg.id,
+                  text: msg.text,
+                  sender: msg.sender as 'me' | 'other',
+                  timestamp: new Date(msg.timestamp).toLocaleTimeString('he-IL', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })
+                }))
+              }));
+              setConversations(formattedConversations);
+            }
+          } else {
+            console.error('Failed to load messages:', await response.json());
           }
+        } catch (error) {
+          console.error('Error loading messages:', error);
         }
 
         // Check if there's a partner to start conversation with
@@ -126,22 +161,34 @@ export default function MessagesPage() {
     loadUserAndConversations();
   }, []);
 
-  // Save conversations to localStorage whenever they change
+  // Mark conversation as read when opened
   useEffect(() => {
-    if (currentUserId && conversations.length > 0) {
-      localStorage.setItem(`conversations_${currentUserId}`, JSON.stringify(conversations));
+    if (activeConversation && currentUserId) {
+      // Mark messages as read in the API
+      fetch('/api/messages', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversation_id: activeConversation.id
+        }),
+      }).catch(error => {
+        console.error('Error marking messages as read:', error);
+      });
     }
-  }, [conversations, currentUserId]);
+  }, [activeConversation, currentUserId]);
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !activeConversation) return;
+    if (!messageInput.trim() || !activeConversation || !currentUserId) return;
     
     const messageText = messageInput.trim();
     setMessageInput(''); // Clear input immediately for better UX
     
     // Add message to local state optimistically
+    const tempId = Date.now().toString();
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: tempId,
       text: messageText,
       sender: 'me',
       timestamp: 'עכשיו'
@@ -171,8 +218,82 @@ export default function MessagesPage() {
       return conv;
     }));
     
-    // TODO: Send to backend API when messages table is created
-    // For now, messages are saved in localStorage
+    // Send to backend API
+    try {
+      const response = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipient_id: activeConversation.id,
+          content: messageText
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send message');
+      }
+
+      // Replace temp message with real message from server
+      if (result.data) {
+        const realMessage: Message = {
+          id: result.data.id,
+          text: result.data.content,
+          sender: 'me',
+          timestamp: new Date(result.data.created_at).toLocaleTimeString('he-IL', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })
+        };
+
+        setActiveConversation(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            messages: prev.messages.map(msg => msg.id === tempId ? realMessage : msg),
+            lastMessage: messageText,
+            timestamp: realMessage.timestamp
+          };
+        });
+
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === activeConversation.id) {
+            return {
+              ...conv,
+              messages: conv.messages.map(msg => msg.id === tempId ? realMessage : msg),
+              lastMessage: messageText,
+              timestamp: realMessage.timestamp
+            };
+          }
+          return conv;
+        }));
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      // Remove optimistic message on error
+      setActiveConversation(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          messages: prev.messages.filter(msg => msg.id !== tempId)
+        };
+      });
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === activeConversation.id) {
+          return {
+            ...conv,
+            messages: conv.messages.filter(msg => msg.id !== tempId)
+          };
+        }
+        return conv;
+      }));
+      // Restore message input
+      setMessageInput(messageText);
+      alert('שגיאה בשליחת ההודעה. נסה שוב.');
+    }
   };
 
   const filteredConversations = conversations.filter(conv =>
