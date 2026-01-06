@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
 import Link from 'next/link';
 import { getAllCourses, getCoursesByCategory, getCoursesInProgress, checkEnrollment, type Course } from '@/lib/queries/courses';
 import { getAllProfiles } from '@/lib/queries/profiles';
 import { isAdmin } from '@/lib/utils/user';
+import { getAllTags, getContentByTag, type Tag } from '@/lib/queries/tags';
+import { supabase } from '@/lib/supabase';
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -15,8 +17,7 @@ export default function CoursesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('הכל');
   const [enrollments, setEnrollments] = useState<Map<string, boolean>>(new Map());
-  
-  const categories = ['הכל', 'Make.com', 'AI', 'Airtable', 'בוטים', 'עסקים', 'כללי'];
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
 
   useEffect(() => {
     loadCurrentUser();
@@ -26,8 +27,46 @@ export default function CoursesPage() {
     if (currentUser) {
       loadCourses();
       loadInProgressCourses();
+      loadAvailableTags();
     }
   }, [currentUser, selectedCategory]);
+
+  async function loadAvailableTags() {
+    try {
+      // Get all tags that have courses assigned to them in a single query
+      const { data: assignments, error } = await supabase
+        .from('tag_assignments')
+        .select(`
+          tag_id,
+          tag:tags (*)
+        `)
+        .eq('content_type', 'course');
+
+      if (error) {
+        console.error('Error loading tag assignments:', error);
+        setAvailableTags([]);
+        return;
+      }
+
+      if (!assignments || assignments.length === 0) {
+        setAvailableTags([]);
+        return;
+      }
+
+      // Extract unique tags
+      const tagMap = new Map<string, Tag>();
+      assignments.forEach((assignment: any) => {
+        if (assignment.tag && assignment.tag.id) {
+          tagMap.set(assignment.tag.id, assignment.tag);
+        }
+      });
+
+      setAvailableTags(Array.from(tagMap.values()));
+    } catch (error) {
+      console.error('Error loading available tags:', error);
+      setAvailableTags([]);
+    }
+  }
 
   async function loadCurrentUser() {
     try {
@@ -47,9 +86,27 @@ export default function CoursesPage() {
   async function loadCourses() {
     setLoading(true);
     try {
-      const { data, error } = selectedCategory === 'הכל'
-        ? await getAllCourses(currentUser?.id)
-        : await getCoursesByCategory(selectedCategory, currentUser?.id);
+      let data: Course[] = [];
+      let error: any = null;
+
+      if (selectedCategory === 'הכל') {
+        const result = await getAllCourses(currentUser?.id);
+        data = result.data || [];
+        error = result.error;
+      } else {
+        // Filter by tag - selectedCategory is now a tag ID
+        const { data: assignments } = await getContentByTag(selectedCategory, 'course');
+        if (assignments && assignments.length > 0) {
+          const courseIds = assignments.map((a: any) => a.content_id);
+          
+          if (courseIds.length > 0) {
+            const allCoursesResult = await getAllCourses(currentUser?.id);
+            if (allCoursesResult.data) {
+              data = allCoursesResult.data.filter((c: Course) => courseIds.includes(c.id));
+            }
+          }
+        }
+      }
       
       if (!error && data) {
         setCourses(data);
@@ -153,22 +210,34 @@ export default function CoursesPage() {
               />
             </div>
 
-            {/* Category Filters */}
-            <div className="flex gap-2 flex-wrap">
-              {categories.map((category) => (
+            {/* Tag Filters - Only show tags that have courses */}
+            {availableTags.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
                 <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => setSelectedCategory('הכל')}
                   className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    selectedCategory === category
+                    selectedCategory === 'הכל'
                       ? 'bg-[#F52F8E] text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  {category}
+                  הכל
                 </button>
-              ))}
-            </div>
+                {availableTags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    onClick={() => setSelectedCategory(tag.id)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      selectedCategory === tag.id
+                        ? 'bg-[#F52F8E] text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Continue Learning Section */}
@@ -235,12 +304,8 @@ export default function CoursesPage() {
 
           {/* All Courses Section */}
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-800">כל הקורסים</h2>
-              <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <Filter className="w-5 h-5" />
-                <span>סינון</span>
-              </button>
             </div>
 
             {loading ? (
