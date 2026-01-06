@@ -59,7 +59,9 @@ export default function AccountSettingsPage() {
           avatar_url: user.avatar_url || '',
           keepPasswordEmpty: true
         });
-        setAvatarPreview(user.avatar_url || null);
+        // Add cache buster to avatar URL
+        const avatarUrl = user.avatar_url || null;
+        setAvatarPreview(avatarUrl ? `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : null);
         setSocialLinks(user.social_links || []);
       }
     } catch (error) {
@@ -68,6 +70,30 @@ export default function AccountSettingsPage() {
       setLoading(false);
     }
   }
+
+  // Listen for profile updates from other users
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      // Clear cache and reload user data
+      const { clearCache } = require('@/lib/cache');
+      clearCache('profiles:all');
+      loadUser();
+    };
+
+    window.addEventListener('profileUpdated', handleProfileUpdate);
+    
+    // Also poll for profile updates every 30 seconds to catch changes from other users
+    const pollInterval = setInterval(() => {
+      const { clearCache } = require('@/lib/cache');
+      clearCache('profiles:all');
+      loadUser();
+    }, 30000); // Poll every 30 seconds
+    
+    return () => {
+      window.removeEventListener('profileUpdated', handleProfileUpdate);
+      clearInterval(pollInterval);
+    };
+  }, []);
 
   async function handleAvatarUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -121,7 +147,9 @@ export default function AccountSettingsPage() {
         .from('avatars')
         .getPublicUrl(filePath);
 
-      setAvatarPreview(publicUrl);
+      // Add cache buster to public URL
+      const avatarUrlWithCache = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      setAvatarPreview(avatarUrlWithCache);
       setFormData({ ...formData, avatar_url: publicUrl });
     } catch (error) {
       console.error('Error uploading avatar:', error);
@@ -153,7 +181,18 @@ export default function AccountSettingsPage() {
         updates.bio = formData.bio;
       }
       if (formData.avatar_url) {
-        updates.avatar_url = formData.avatar_url;
+        // Remove cache buster from URL before saving
+        const cleanAvatarUrl = formData.avatar_url.split('?')[0].split('&')[0];
+        updates.avatar_url = cleanAvatarUrl;
+      }
+
+      // Clear cache after saving to ensure fresh data
+      const { clearCache } = await import('@/lib/cache');
+      clearCache('profiles:all');
+      
+      // Notify other components about profile update
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('profileUpdated'));
       }
 
       // Only update password if provided
@@ -394,9 +433,18 @@ export default function AccountSettingsPage() {
                             </div>
                           ) : avatarPreview ? (
                             <img 
-                              src={avatarPreview} 
+                              src={`${avatarPreview}${avatarPreview.includes('?') ? '&' : '?'}t=${Date.now()}`}
                               alt="Profile" 
                               className="w-full h-full rounded-full object-cover"
+                              key={`avatar-${currentUser?.user_id || currentUser?.id}-${Date.now()}`}
+                              onError={(e) => {
+                                // If image fails to load, try without cache buster
+                                const img = e.target as HTMLImageElement;
+                                const urlWithoutCache = avatarPreview.split('?')[0].split('&')[0];
+                                if (img.src !== urlWithoutCache) {
+                                  img.src = urlWithoutCache;
+                                }
+                              }}
                             />
                           ) : (
                             <span>{currentUser?.display_name?.charAt(0) || currentUser?.first_name?.charAt(0) || 'א'}</span>
