@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const displayName = userName || 'משתמש';
+    const displayName = userName?.trim() || '';
+    const greeting = displayName ? `שלום ${displayName},` : 'שלום,';
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
     const emailHtml = `
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
           <!-- Content -->
           <div style="padding: 40px 30px;">
             <p style="font-size: 18px; color: #333; margin-bottom: 20px;">
-              שלום ${displayName},
+              ${greeting}
             </p>
             
             <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 25px;">
