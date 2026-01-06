@@ -36,15 +36,20 @@ export async function POST(request: NextRequest) {
       }
 
       // Get first_name from profile
-      const { data: profile } = await supabaseAdmin
+      const { data: profile, error: profileError } = await supabaseAdmin
         .from('profiles')
         .select('first_name')
         .eq('user_id', userId)
         .single();
 
-      firstName = profile?.first_name?.trim() || userName?.trim() || '';
+      if (profileError) {
+        console.warn('Error fetching profile for welcome email:', profileError);
+      }
+
+      // Prefer first_name from database, fallback to userName from request
+      firstName = (profile?.first_name?.trim() || userName?.trim() || '').replace(/\0/g, ''); // Remove null bytes
     } else {
-      firstName = userName?.trim() || '';
+      firstName = (userName?.trim() || '').replace(/\0/g, ''); // Remove null bytes
     }
 
     if (!email) {
@@ -54,7 +59,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const greeting = firstName ? `שלום ${firstName}` : 'שלום';
+    // Use first name directly - ensure it's a valid string
+    const safeFirstName = firstName && firstName.length > 0 ? firstName : '';
+    const greeting = safeFirstName ? `שלום ${safeFirstName}` : 'שלום';
+    
+    // Log for debugging
+    console.log('Welcome email - firstName from DB:', firstName, 'safeFirstName:', safeFirstName, 'greeting:', greeting);
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
     const emailHtml = `
