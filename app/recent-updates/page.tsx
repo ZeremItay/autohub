@@ -31,7 +31,6 @@ interface RecentUpdate {
 export default function RecentUpdatesPage() {
   const [updates, setUpdates] = useState<RecentUpdate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const { isAdmin, loading: userLoading, user } = useCurrentUser();
 
   useEffect(() => {
@@ -256,41 +255,17 @@ export default function RecentUpdatesPage() {
     }
   }
 
-  async function handleDeleteUpdate(update: RecentUpdate) {
-    if (!update.id || !update.type) {
-      alert('לא ניתן למחוק עדכון זה');
-      return;
-    }
-
-    if (!confirm('האם אתה בטוח שברצונך למחוק עדכון זה?')) {
-      return;
-    }
-
-    setDeletingIds(prev => new Set(prev).add(update.id!));
-    
-    try {
-      const response = await fetch(`/api/admin/recent-updates/${update.type}/${update.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'שגיאה במחיקת העדכון');
+  function handleDeleteUpdate(update: RecentUpdate) {
+    // Only hide the update from the view, don't delete from database
+    // This just removes it from the local state
+    setUpdates(prev => prev.filter(u => {
+      // Use a unique key to identify the update (id + type + created_at)
+      if (u.id && update.id) {
+        return u.id !== update.id || u.type !== update.type;
       }
-
-      // Remove the update from the list
-      setUpdates(prev => prev.filter(u => u.id !== update.id));
-    } catch (error: any) {
-      console.error('Error deleting update:', error);
-      alert(error.message || 'שגיאה במחיקת העדכון');
-    } finally {
-      setDeletingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(update.id!);
-        return newSet;
-      });
-    }
+      // Fallback: compare by text and time if no ID
+      return u.text !== update.text || u.time !== update.time;
+    }));
   }
 
   return (
@@ -322,7 +297,6 @@ export default function RecentUpdatesPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="space-y-4">
               {updates.map((update, index) => {
-                const isDeleting = update.id ? deletingIds.has(update.id) : false;
                 const content = (
                   <div className="flex items-start gap-3 p-3 rounded-lg transition-colors group hover:bg-gray-50">
                     {update.link ? (
@@ -354,7 +328,7 @@ export default function RecentUpdatesPage() {
                         </div>
                       </div>
                     )}
-                    {!userLoading && isAdmin && update.id && (
+                    {!userLoading && isAdmin && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -362,15 +336,10 @@ export default function RecentUpdatesPage() {
                           e.stopPropagation();
                           handleDeleteUpdate(update);
                         }}
-                        disabled={isDeleting}
-                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg disabled:opacity-50 flex-shrink-0 transition-colors"
-                        title="מחק עדכון"
+                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg flex-shrink-0 transition-colors"
+                        title="הסתר עדכון מהתצוגה"
                       >
-                        {isDeleting ? (
-                          <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <X className="w-4 h-4" />
-                        )}
+                        <X className="w-4 h-4" />
                       </button>
                     )}
                   </div>

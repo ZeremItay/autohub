@@ -301,7 +301,6 @@ export default function LiveRoomPage() {
                   meetingNumber={event.zoom_meeting_id}
                   userName={currentUser?.display_name || currentUser?.first_name || 'משתמש'}
                   userEmail={currentUser?.email || ''}
-                  passWord={event.zoom_meeting_password || ''}
                 />
               </div>
             ) : (

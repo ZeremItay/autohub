@@ -73,7 +73,7 @@ async function getZoomAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-// Update Zoom meeting settings to disable participant invites
+// Update Zoom meeting settings to disable participant invites and registration
 async function updateMeetingSettings(accessToken: string, meetingId: string) {
   const response = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}`, {
     method: 'PATCH',
@@ -84,6 +84,8 @@ async function updateMeetingSettings(accessToken: string, meetingId: string) {
     body: JSON.stringify({
       settings: {
         participants_can_invite_others: false, // Disable invite option
+        approval_type: 0, // Automatically approve (0 = Automatically approve, 1 = Manually approve, 2 = No registration required)
+        registration_type: 0, // No registration required (0 = Attendees register once and can attend any occurrence, 1 = Attendees must register for each occurrence, 2 = Attendees register once and can attend any occurrence, 3 = No registration required)
       },
     }),
   });

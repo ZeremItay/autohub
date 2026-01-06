@@ -1,24 +1,23 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { ZoomMtg } from '@zoom/meetingsdk';
 
 interface ZoomMeetingProps {
   meetingNumber: string; // Zoom Meeting ID
   userName: string;
   userEmail: string;
-  passWord?: string; // Meeting password if required
+  // Password is now handled server-side for security
 }
 
 export default function ZoomMeeting({
   meetingNumber,
   userName,
-  userEmail,
-  passWord = ''
+  userEmail
 }: ZoomMeetingProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [joinUrl, setJoinUrl] = useState<string | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!meetingNumber) {
@@ -30,34 +29,95 @@ export default function ZoomMeeting({
     const initializeMeeting = async () => {
       try {
         // Update meeting settings to disable participant invites
-        // This ensures participants cannot invite others to the meeting
         try {
           await fetch('/api/zoom/update-meeting-settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ meetingId: meetingNumber }),
           });
-          // Silently fail if update doesn't work - meeting will still load
         } catch (err) {
           console.warn('Could not update meeting settings (this is OK):', err);
         }
 
-        // Generate Zoom Web Client join URL
-        // Using Zoom's web client which doesn't require SDK
-        const params = new URLSearchParams({
-          role: '0', // 0 = participant
-          name: userName || 'משתמש',
-          email: userEmail || '',
+        // Get signature from server (requires authentication and premium)
+        const signatureResponse = await fetch('/api/zoom/generate-signature', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ meetingNumber }),
         });
 
-        if (passWord) {
-          params.append('pwd', passWord);
+        if (!signatureResponse.ok) {
+          throw new Error('Failed to generate signature');
         }
 
-        // Zoom Web Client join URL format
-        const joinUrl = `https://zoom.us/wc/join/${meetingNumber}?${params.toString()}`;
-        setJoinUrl(joinUrl);
-        setLoading(false);
+        const { signature, sdkKey } = await signatureResponse.json();
+
+        if (!signature || !sdkKey) {
+          throw new Error('Invalid signature response');
+        }
+
+        // Get meeting password from server
+        const joinUrlResponse = await fetch('/api/zoom/generate-join-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            meetingNumber,
+            userName: userName || 'משתמש',
+            userEmail: userEmail || '',
+          }),
+        });
+
+        if (!joinUrlResponse.ok) {
+          throw new Error('Failed to get meeting password');
+        }
+
+        const { joinUrl } = await joinUrlResponse.json();
+        // Extract password from joinUrl if exists
+        const urlParams = new URLSearchParams(joinUrl.split('?')[1]);
+        const passWord = urlParams.get('pwd') || '';
+
+        // Initialize Zoom SDK
+        ZoomMtg.setZoomJSLib('https://source.zoom.us/2.18.0/lib', '/av');
+
+        await ZoomMtg.preLoadWasm();
+        await ZoomMtg.prepareWebSDK();
+
+        // Initialize Zoom Meeting
+        ZoomMtg.init({
+          leaveOnPageUnload: true,
+          patchJsMedia: true,
+          success: async () => {
+            try {
+              // Join meeting
+              ZoomMtg.join({
+                signature: signature,
+                sdkKey: sdkKey,
+                meetingNumber: meetingNumber,
+                userName: userName || 'משתמש',
+                userEmail: userEmail || '',
+                passWord: passWord,
+                success: () => {
+                  console.log('Successfully joined Zoom meeting');
+                  setLoading(false);
+                },
+                error: (err: any) => {
+                  console.error('Error joining meeting:', err);
+                  setError(err.reason || 'שגיאה בהצטרפות לפגישה');
+                  setLoading(false);
+                },
+              });
+            } catch (err: any) {
+              console.error('Error joining meeting:', err);
+              setError(err.message || 'שגיאה בהצטרפות לפגישה');
+              setLoading(false);
+            }
+          },
+          error: (err: any) => {
+            console.error('Error initializing Zoom:', err);
+            setError(err.reason || 'שגיאה באתחול Zoom');
+            setLoading(false);
+          },
+        });
       } catch (err: any) {
         console.error('Error initializing meeting:', err);
         setError(err.message || 'שגיאה באתחול פגישה');
@@ -66,7 +126,16 @@ export default function ZoomMeeting({
     };
 
     initializeMeeting();
-  }, [meetingNumber, userName, userEmail, passWord]);
+
+    // Cleanup on unmount
+    return () => {
+      try {
+        ZoomMtg.leave();
+      } catch (err) {
+        // Ignore cleanup errors
+      }
+    };
+  }, [meetingNumber, userName, userEmail]);
 
   if (error) {
     return (
@@ -77,7 +146,7 @@ export default function ZoomMeeting({
     );
   }
 
-  if (loading || !joinUrl) {
+  if (loading) {
     return (
       <div className="w-full h-full bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -90,13 +159,7 @@ export default function ZoomMeeting({
 
   return (
     <div className="relative w-full h-full bg-gray-900">
-      <iframe
-        ref={iframeRef}
-        src={joinUrl}
-        className="absolute inset-0 w-full h-full border-0"
-        allow="microphone *; camera *; fullscreen; autoplay; display-capture"
-        title="Zoom Meeting"
-      />
+      <div ref={containerRef} id="zoom-meeting-container" className="w-full h-full" />
     </div>
   );
 }
