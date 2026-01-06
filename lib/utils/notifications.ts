@@ -60,12 +60,41 @@ export async function notifyForumPostReply(
   // Don't notify if user replied to their own post
   if (replierId === postOwnerId) return;
 
+  // Validate forumId - if it's null/undefined, try to get it from the post
+  let validForumId = forumId;
+  if (!validForumId || validForumId === 'null' || validForumId === 'undefined') {
+    // Try to fetch forum_id from the post
+    const { supabase } = await import('../supabase');
+    const { data: postData } = await supabase
+      .from('forum_posts')
+      .select('forum_id')
+      .eq('id', postId)
+      .maybeSingle();
+    
+    if (postData?.forum_id) {
+      validForumId = postData.forum_id;
+    } else {
+      // If we can't get forum_id, use a fallback link to the forums page
+      console.warn(`Could not determine forum_id for post ${postId}, using fallback link`);
+      return await createNotification({
+        user_id: postOwnerId,
+        type: 'forum_reply',
+        title: 'תגובה על הפוסט שלך',
+        message: `${replierName} הגיב על הפוסט "${postTitle}"`,
+        link: `/forums`,
+        related_id: postId,
+        related_type: 'forum_post',
+        is_read: false
+      });
+    }
+  }
+
   return await createNotification({
     user_id: postOwnerId,
     type: 'forum_reply',
     title: 'תגובה על הפוסט שלך',
     message: `${replierName} הגיב על הפוסט "${postTitle}"`,
-    link: `/forums/${forumId}/posts/${postId}`,
+    link: `/forums/${validForumId}/posts/${postId}`,
     related_id: postId,
     related_type: 'forum_post',
     is_read: false

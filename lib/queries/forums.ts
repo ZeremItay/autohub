@@ -600,12 +600,21 @@ export async function createForumPostReply(postId: string, userId: string, conte
       if (parentId && parentReplyOwnerId && parentReplyOwnerId !== userId) {
         // This is a reply to a reply - notify the parent reply owner
         const { createNotification } = await import('../queries/notifications');
+        // Validate forum_id before creating link
+        const validForumId = postData.forum_id && postData.forum_id !== 'null' && postData.forum_id !== 'undefined' 
+          ? postData.forum_id 
+          : null;
+        
+        if (!validForumId) {
+          console.warn(`Invalid forum_id for post ${postId}, skipping notification link`);
+        }
+        
         await createNotification({
           user_id: parentReplyOwnerId,
           type: 'forum_reply',
           title: 'תגובה לתגובה שלך',
           message: `${displayName} הגיב על התגובה שלך`,
-          link: `/forums/${postData.forum_id}/posts/${postId}`,
+          link: validForumId ? `/forums/${validForumId}/posts/${postId}` : `/forums`,
           related_id: parentId,
           related_type: 'forum_reply',
           is_read: false
