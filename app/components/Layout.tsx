@@ -59,6 +59,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -87,16 +88,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Search function
   const performSearch = useCallback(async (query: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:90',message:'performSearch called',data:{query,queryLength:query?.trim().length,mobileSearchOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     if (!query || query.trim().length < 2) {
       setSearchResults(null);
       setShowSearchResults(false);
+      setSearchError(null);
       return;
     }
 
     setIsSearching(true);
+    setSearchError(null);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:99',message:'Starting search fetch',data:{query},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     try {
       const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
       const { data, error } = await response.json();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:102',message:'Search API response received',data:{query,hasData:!!data,hasError:!!error,dataKeys:data?Object.keys(data):null,recordingsCount:data?.recordings?.length,forumsCount:data?.forums?.length,forumPostsCount:data?.forumPosts?.length,postsCount:data?.posts?.length,projectsCount:data?.projects?.length,coursesCount:data?.courses?.length,error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       
       if (process.env.NODE_ENV === 'development') {
         console.log('Search performed:', { query, hasData: !!data, error, data });
@@ -105,36 +118,54 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       if (!error && data) {
         setSearchResults(data);
         setShowSearchResults(true);
-        // Force update for mobile
-        if (mobileSearchOpen) {
-          setShowSearchResults(true);
-        }
+        setSearchError(null);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:109',message:'Search results set successfully',data:{query,recordingsCount:data?.recordings?.length,forumsCount:data?.forums?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
       } else {
         setSearchResults(null);
         setShowSearchResults(false);
+        setSearchError(error || 'שגיאה בחיפוש. נסה שוב מאוחר יותר.');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:115',message:'Search error occurred',data:{query,error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
       }
     } catch (error) {
       console.error('Search error:', error);
       setSearchResults(null);
       setShowSearchResults(false);
+      setSearchError('שגיאה בחיבור לשרת. בדוק את החיבור לאינטרנט.');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:121',message:'Search exception caught',data:{query,errorMessage:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     } finally {
       setIsSearching(false);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:123',message:'Search completed, isSearching set to false',data:{query},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
     }
-  }, [mobileSearchOpen]);
+  }, []);
 
   // Handle search input with debounce
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:128',message:'Search query useEffect triggered',data:{searchQuery,searchQueryLength:searchQuery?.trim().length,mobileSearchOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
     if (searchQuery.trim().length >= 2) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:134',message:'Setting timeout to call performSearch',data:{searchQuery},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       searchTimeoutRef.current = setTimeout(() => {
         performSearch(searchQuery);
       }, 300);
     } else {
       setSearchResults(null);
       setShowSearchResults(false);
+      setSearchError(null);
     }
 
     return () => {
@@ -637,8 +668,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }
 
   const getTotalResults = () => {
-    if (!searchResults) return 0;
-    return (
+    if (!searchResults) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:639',message:'getTotalResults: searchResults is null',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      return 0;
+    }
+    const total = (
       searchResults.recordings.length +
       searchResults.forums.length +
       searchResults.forumPosts.length +
@@ -646,6 +682,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       searchResults.projects.length +
       searchResults.courses.length
     );
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:648',message:'getTotalResults calculated',data:{total,recordings:searchResults.recordings.length,forums:searchResults.forums.length,forumPosts:searchResults.forumPosts.length,posts:searchResults.posts.length,projects:searchResults.projects.length,courses:searchResults.courses.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    return total;
   };
 
   const getLimitedResults = () => {
@@ -1000,17 +1040,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            {/* Mobile Search Modal */}
+            {/* Mobile Search Modal - Rebuilt from Scratch */}
             {mobileSearchOpen && (
-              <div className="fixed inset-0 bg-white z-[100] flex flex-col lg:hidden">
+              <div className="fixed inset-0 bg-white z-[9999] flex flex-col lg:hidden w-full h-full">
                 {/* Header */}
-                <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-10">
+                <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
                   <h2 className="text-lg font-bold text-gray-800">חיפוש</h2>
                   <button
                     onClick={() => {
                       setMobileSearchOpen(false);
-                      // Don't clear searchQuery - keep it for next time
-                      setShowSearchResults(false);
+                      setSearchError(null);
                     }}
                     className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
                     aria-label="סגור"
@@ -1020,7 +1059,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Search Input */}
-                <div className="px-4 py-3 border-b border-gray-200">
+                <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200">
                   <div className="relative">
                     <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
                     <input
@@ -1029,233 +1068,267 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       dir="rtl"
                       placeholder="חפש במועדון..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:1032',message:'Mobile search input onChange',data:{newValue:e.target.value,oldValue:searchQuery},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                        // #endregion
+                        setSearchQuery(e.target.value);
+                      }}
                       className="modern-input w-full pr-10 pl-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500/50 shadow-md text-base text-right"
                       autoFocus
                     />
                   </div>
                 </div>
 
-                {/* Search Results */}
-                <div className="flex-1 overflow-y-auto pb-4">
-                  {isSearching && !searchResults ? (
+                {/* Search Results Container - Simple and Direct */}
+                <div className="flex-1 overflow-visible pb-20">
+                  {/* 1. Loading State */}
+                  {isSearching && (
                     <div className="flex items-center justify-center py-12">
                       <div className="flex flex-col items-center gap-2">
                         <div className="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
                         <p className="text-sm text-gray-500">מחפש...</p>
                       </div>
                     </div>
-                  ) : searchResults ? (
-                    <div className="p-4 pb-6">
-                      {getTotalResults() === 0 ? (
-                        <div className="p-8 text-center text-gray-500">
-                          <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                          <p className="text-base font-medium">לא נמצאו תוצאות</p>
-                          <p className="text-sm mt-2 text-gray-400">נסה מונחי חיפוש אחרים</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-5">
-                          {(() => {
-                            const limited = getLimitedResults();
-                            if (!limited) return null;
-                            return (
-                              <>
-                                {/* Recordings */}
-                                {limited.recordings.length > 0 && (
-                                  <div className="mb-5">
-                                    <div className="flex items-center gap-2 mb-3 px-1">
-                                      <Video className="w-5 h-5 text-[#F52F8E]" />
-                                      <h3 className="text-base font-bold text-gray-800">הקלטות ({searchResults.recordings.length})</h3>
-                                    </div>
-                                    <div className="space-y-3">
-                                      {limited.recordings.map((recording: any) => (
-                                        <Link
-                                          key={recording.id}
-                                          href={`/recordings/${recording.id}`}
-                                          onClick={() => {
-                                            setMobileSearchOpen(false);
-                                            setShowSearchResults(false);
-                                            setSearchQuery('');
-                                          }}
-                                          className="block px-4 py-3.5 rounded-xl hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
-                                        >
-                                          <p className="text-base font-semibold text-gray-900 break-words leading-relaxed mb-1.5">{recording.title}</p>
-                                          {recording.description && (
-                                            <p className="text-sm text-gray-600 line-clamp-2 break-words leading-relaxed">{recording.description}</p>
-                                          )}
-                                        </Link>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                  )}
 
-                                {/* Forums */}
-                                {limited.forums.length > 0 && (
-                                  <div className="mb-5">
-                                    <div className="flex items-center gap-2 mb-3 px-1">
-                                      <MessageSquare className="w-5 h-5 text-[#F52F8E]" />
-                                      <h3 className="text-base font-bold text-gray-800">פורומים ({searchResults.forums.length})</h3>
-                                    </div>
-                                    <div className="space-y-3">
-                                      {limited.forums.map((forum: any) => (
-                                        <Link
-                                          key={forum.id}
-                                          href={`/forums/${forum.id}`}
-                                          onClick={() => {
-                                            setMobileSearchOpen(false);
-                                            setShowSearchResults(false);
-                                            setSearchQuery('');
-                                          }}
-                                          className="block px-4 py-3.5 rounded-xl hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
-                                        >
-                                          <p className="text-base font-semibold text-gray-900 break-words leading-relaxed mb-1.5">{forum.display_name || forum.name}</p>
-                                          {forum.description && (
-                                            <p className="text-sm text-gray-600 line-clamp-2 break-words leading-relaxed">{forum.description}</p>
-                                          )}
-                                        </Link>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Forum Posts */}
-                                {limited.forumPosts.length > 0 && (
-                                  <div className="mb-5">
-                                    <div className="flex items-center gap-2 mb-3 px-1">
-                                      <MessageSquare className="w-5 h-5 text-blue-600" />
-                                      <h3 className="text-base font-bold text-gray-800">פוסטים בפורומים ({searchResults.forumPosts.length})</h3>
-                                    </div>
-                                    <div className="space-y-3">
-                                      {limited.forumPosts.map((post: any) => (
-                                        <Link
-                                          key={post.id}
-                                          href={`/forums/${post.forum_id}/posts/${post.id}`}
-                                          onClick={() => {
-                                            setMobileSearchOpen(false);
-                                            setShowSearchResults(false);
-                                            setSearchQuery('');
-                                          }}
-                                          className="block px-4 py-3.5 rounded-xl hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
-                                        >
-                                          <p className="text-base font-semibold text-gray-900 break-words leading-relaxed mb-1.5">{post.title}</p>
-                                          {post.forums && (
-                                            <p className="text-sm text-gray-600 break-words leading-relaxed">בפורום: {post.forums.display_name}</p>
-                                          )}
-                                        </Link>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Posts (Announcements) */}
-                                {limited.posts.length > 0 && (
-                                  <div className="mb-5">
-                                    <div className="flex items-center gap-2 mb-3 px-1">
-                                      <FileText className="w-5 h-5 text-purple-600" />
-                                      <h3 className="text-base font-bold text-gray-800">הכרזות ({searchResults.posts.length})</h3>
-                                    </div>
-                                    <div className="space-y-3">
-                                      {limited.posts.map((post: any) => (
-                                        <div
-                                          key={post.id}
-                                          className="block px-4 py-3.5 rounded-xl border border-gray-200 bg-white shadow-sm"
-                                        >
-                                          <p className="text-base text-gray-900 line-clamp-3 break-words leading-relaxed mb-1.5">{post.content}</p>
-                                          {post.profiles && (
-                                            <p className="text-sm text-gray-600 break-words leading-relaxed">מאת: {post.profiles.display_name}</p>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Projects */}
-                                {limited.projects.length > 0 && (
-                                  <div className="mb-5">
-                                    <div className="flex items-center gap-2 mb-3 px-1">
-                                      <Briefcase className="w-5 h-5 text-green-600" />
-                                      <h3 className="text-base font-bold text-gray-800">פרויקטים ({searchResults.projects.length})</h3>
-                                    </div>
-                                    <div className="space-y-3">
-                                      {limited.projects.map((project: any) => (
-                                        <Link
-                                          key={project.id}
-                                          href={`/projects#${project.id}`}
-                                          onClick={() => {
-                                            setMobileSearchOpen(false);
-                                            setShowSearchResults(false);
-                                            setSearchQuery('');
-                                          }}
-                                          className="block px-4 py-3.5 rounded-xl hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
-                                        >
-                                          <p className="text-base font-semibold text-gray-900 break-words leading-relaxed mb-1.5">{project.title}</p>
-                                          {project.description && (
-                                            <p className="text-sm text-gray-600 line-clamp-2 break-words leading-relaxed">{project.description}</p>
-                                          )}
-                                        </Link>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Courses */}
-                                {limited.courses.length > 0 && (
-                                  <div className="mb-5">
-                                    <div className="flex items-center gap-2 mb-3 px-1">
-                                      <BookOpen className="w-5 h-5 text-orange-600" />
-                                      <h3 className="text-base font-bold text-gray-800">קורסים ({searchResults.courses.length})</h3>
-                                    </div>
-                                    <div className="space-y-3">
-                                      {limited.courses.map((course: any) => (
-                                        <Link
-                                          key={course.id}
-                                          href={`/courses#${course.id}`}
-                                          onClick={() => {
-                                            setMobileSearchOpen(false);
-                                            setShowSearchResults(false);
-                                            setSearchQuery('');
-                                          }}
-                                          className="block px-4 py-3.5 rounded-xl hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
-                                        >
-                                          <p className="text-base font-semibold text-gray-900 break-words leading-relaxed mb-1.5">{course.title}</p>
-                                          {course.description && (
-                                            <p className="text-sm text-gray-600 line-clamp-2 break-words leading-relaxed">{course.description}</p>
-                                          )}
-                                        </Link>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* View All Results Link */}
-                                {hasMoreResults() && (
-                                  <div className="pt-4 border-t-2 border-gray-200 mt-4">
-                                    <Link
-                                      href={`/search?q=${encodeURIComponent(searchQuery)}`}
-                                      onClick={() => {
-                                        setMobileSearchOpen(false);
-                                        setShowSearchResults(false);
-                                      }}
-                                      className="block text-center px-6 py-4 text-base font-bold text-white bg-[#F52F8E] hover:bg-[#E01E7A] rounded-xl transition-colors active:bg-[#D01D6A] shadow-md"
-                                    >
-                                      לכל התוצאות →
-                                    </Link>
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
+                  {/* 2. Error State */}
+                  {!isSearching && searchError && (
+                    <div className="p-8 text-center text-gray-500">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                        <X className="w-8 h-8 text-red-500" />
+                      </div>
+                      <p className="text-lg font-medium mb-2 text-red-600">שגיאה בחיפוש</p>
+                      <p className="text-sm text-gray-400 mb-4">{searchError}</p>
+                      <button
+                        onClick={() => {
+                          setSearchError(null);
+                          if (searchQuery.trim().length >= 2) {
+                            performSearch(searchQuery);
+                          }
+                        }}
+                        className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
+                      >
+                        נסה שוב
+                      </button>
                     </div>
-                  ) : searchQuery.trim().length > 0 && searchQuery.trim().length < 2 ? (
+                  )}
+
+                  {/* 3. Query Too Short */}
+                  {!isSearching && !searchError && searchQuery.trim().length < 2 && (
                     <div className="p-8 text-center text-gray-500">
                       <Search className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                       <p className="text-lg font-medium mb-2">התחל לחפש</p>
                       <p className="text-sm text-gray-400">הקלד לפחות 2 תווים כדי להתחיל לחפש</p>
                     </div>
-                  ) : (
+                  )}
+
+                  {/* 4. Results Found - DIRECT CHECK */}
+                  {(() => {
+                    // #region agent log
+                    const totalResults = searchResults ? getTotalResults() : 0;
+                    const shouldShowResults = !isSearching && !searchError && searchQuery.trim().length >= 2 && searchResults && totalResults > 0;
+                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:1127',message:'Mobile search render check',data:{isSearching,searchError,searchQuery,searchQueryLength:searchQuery?.trim().length,hasSearchResults:!!searchResults,totalResults,shouldShowResults},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                    // #endregion
+                    if (shouldShowResults) {
+                      return (
+                    <div className="p-3 pb-6 bg-gray-50 shadow-inner">
+                      <div className="space-y-4">
+                        {/* Recordings */}
+                        {searchResults.recordings && searchResults.recordings.length > 0 && (
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                              <Video className="w-4 h-4 text-[#F52F8E]" />
+                              <h3 className="text-sm font-bold text-gray-800">הקלטות ({searchResults.recordings.length})</h3>
+                            </div>
+                            <div className="space-y-2">
+                              {searchResults.recordings.slice(0, 3).map((recording: any) => (
+                                <Link
+                                  key={recording.id}
+                                  href={`/recordings/${recording.id}`}
+                                  onClick={() => {
+                                    setMobileSearchOpen(false);
+                                    setSearchQuery('');
+                                  }}
+                                  className="block px-3 py-2.5 rounded-lg hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
+                                >
+                                  <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed mb-1">{recording.title}</p>
+                                  {recording.description && (
+                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{recording.description}</p>
+                                  )}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Forums */}
+                        {searchResults.forums && searchResults.forums.length > 0 && (
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                              <MessageSquare className="w-4 h-4 text-[#F52F8E]" />
+                              <h3 className="text-sm font-bold text-gray-800">פורומים ({searchResults.forums.length})</h3>
+                            </div>
+                            <div className="space-y-2">
+                              {searchResults.forums.slice(0, 3).map((forum: any) => (
+                                <Link
+                                  key={forum.id}
+                                  href={`/forums/${forum.id}`}
+                                  onClick={() => {
+                                    setMobileSearchOpen(false);
+                                    setSearchQuery('');
+                                  }}
+                                  className="block px-3 py-2.5 rounded-lg hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
+                                >
+                                  <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed mb-1">{forum.display_name || forum.name}</p>
+                                  {forum.description && (
+                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{forum.description}</p>
+                                  )}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Forum Posts */}
+                        {searchResults.forumPosts && searchResults.forumPosts.length > 0 && (
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                              <MessageSquare className="w-4 h-4 text-blue-600" />
+                              <h3 className="text-sm font-bold text-gray-800">פוסטים בפורומים ({searchResults.forumPosts.length})</h3>
+                            </div>
+                            <div className="space-y-2">
+                              {searchResults.forumPosts.slice(0, 3).map((post: any) => (
+                                <Link
+                                  key={post.id}
+                                  href={`/forums/${post.forum_id}/posts/${post.id}`}
+                                  onClick={() => {
+                                    setMobileSearchOpen(false);
+                                    setSearchQuery('');
+                                  }}
+                                  className="block px-3 py-2.5 rounded-lg hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
+                                >
+                                  <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed mb-1">{post.title}</p>
+                                  {post.forums && (
+                                    <p className="text-xs text-gray-600 break-words leading-relaxed">בפורום: {post.forums.display_name}</p>
+                                  )}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Posts (Announcements) */}
+                        {searchResults.posts && searchResults.posts.length > 0 && (
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                              <FileText className="w-4 h-4 text-purple-600" />
+                              <h3 className="text-sm font-bold text-gray-800">הכרזות ({searchResults.posts.length})</h3>
+                            </div>
+                            <div className="space-y-2">
+                              {searchResults.posts.slice(0, 3).map((post: any) => (
+                                <div
+                                  key={post.id}
+                                  className="block px-3 py-2.5 rounded-lg border border-gray-200 bg-white shadow-sm"
+                                >
+                                  <p className="text-sm text-gray-900 line-clamp-3 break-words leading-relaxed mb-1">{post.content}</p>
+                                  {post.profiles && (
+                                    <p className="text-xs text-gray-600 break-words leading-relaxed">מאת: {post.profiles.display_name}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Projects */}
+                        {searchResults.projects && searchResults.projects.length > 0 && (
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                              <Briefcase className="w-4 h-4 text-green-600" />
+                              <h3 className="text-sm font-bold text-gray-800">פרויקטים ({searchResults.projects.length})</h3>
+                            </div>
+                            <div className="space-y-2">
+                              {searchResults.projects.slice(0, 3).map((project: any) => (
+                                <Link
+                                  key={project.id}
+                                  href={`/projects#${project.id}`}
+                                  onClick={() => {
+                                    setMobileSearchOpen(false);
+                                    setSearchQuery('');
+                                  }}
+                                  className="block px-3 py-2.5 rounded-lg hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
+                                >
+                                  <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed mb-1">{project.title}</p>
+                                  {project.description && (
+                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{project.description}</p>
+                                  )}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Courses */}
+                        {searchResults.courses && searchResults.courses.length > 0 && (
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                              <BookOpen className="w-4 h-4 text-orange-600" />
+                              <h3 className="text-sm font-bold text-gray-800">קורסים ({searchResults.courses.length})</h3>
+                            </div>
+                            <div className="space-y-2">
+                              {searchResults.courses.slice(0, 3).map((course: any) => (
+                                <Link
+                                  key={course.id}
+                                  href={`/courses#${course.id}`}
+                                  onClick={() => {
+                                    setMobileSearchOpen(false);
+                                    setSearchQuery('');
+                                  }}
+                                  className="block px-3 py-2.5 rounded-lg hover:bg-pink-50 active:bg-pink-100 transition-colors border border-gray-200 bg-white shadow-sm"
+                                >
+                                  <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed mb-1">{course.title}</p>
+                                  {course.description && (
+                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{course.description}</p>
+                                  )}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* View All Results Link */}
+                        {getTotalResults() > 6 && (
+                          <div className="pt-3 border-t-2 border-gray-200 mt-3">
+                            <Link
+                              href={`/search?q=${encodeURIComponent(searchQuery)}`}
+                              onClick={() => {
+                                setMobileSearchOpen(false);
+                              }}
+                              className="block text-center px-4 py-3 text-sm font-bold text-white bg-[#F52F8E] hover:bg-[#E01E7A] rounded-lg transition-colors active:bg-[#D01D6A] shadow-md"
+                            >
+                              לכל התוצאות →
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {/* 5. No Results */}
+                  {!isSearching && !searchError && searchQuery.trim().length >= 2 && searchResults && getTotalResults() === 0 && (
+                    <div className="p-8 text-center text-gray-500">
+                      <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-base font-medium">לא נמצאו תוצאות</p>
+                      <p className="text-sm mt-2 text-gray-400">נסה מונחי חיפוש אחרים</p>
+                    </div>
+                  )}
+
+                  {/* 6. Default - No query yet */}
+                  {!isSearching && !searchError && searchQuery.trim().length === 0 && !searchResults && (
                     <div className="p-8 text-center text-gray-500">
                       <Search className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                       <p className="text-lg font-medium mb-2">התחל לחפש</p>
