@@ -1081,7 +1081,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Search Results Container - Simple and Direct */}
-                <div className="flex-1 overflow-visible pb-20">
+                {(() => {
+                  const totalResults = searchResults ? getTotalResults() : 0;
+                  const shouldShowResults = !isSearching && !searchError && searchQuery.trim().length >= 2 && searchResults && totalResults > 0;
+                  const hasNoSearchYet = !isSearching && !searchError && searchQuery.trim().length < 2;
+                  const shouldUseFullHeight = shouldShowResults || isSearching || searchError;
+                  
+                  return (
+                    <div 
+                      className={`pb-20 bg-gray-100 ${shouldUseFullHeight ? 'flex-1 overflow-y-auto' : 'h-auto overflow-visible'}`}
+                      style={shouldUseFullHeight ? { minHeight: 'calc(100vh - 200px)' } : {}}
+                    >
                   {/* 1. Loading State */}
                   {isSearching && (
                     <div className="flex items-center justify-center py-12">
@@ -1132,7 +1142,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     // #endregion
                     if (shouldShowResults) {
                       return (
-                    <div className="p-3 pb-6 bg-gray-50 shadow-inner">
+                    <div className="p-3 pb-6 bg-white shadow-xl rounded-lg mx-2 mt-2 border border-gray-200">
                       <div className="space-y-4">
                         {/* Recordings */}
                         {searchResults.recordings && searchResults.recordings.length > 0 && (
@@ -1327,15 +1337,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     </div>
                   )}
 
-                  {/* 6. Default - No query yet */}
-                  {!isSearching && !searchError && searchQuery.trim().length === 0 && !searchResults && (
-                    <div className="p-8 text-center text-gray-500">
-                      <Search className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg font-medium mb-2">התחל לחפש</p>
-                      <p className="text-sm text-gray-400">הקלד לפחות 2 תווים כדי להתחיל לחפש</p>
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
               </div>
             )}
 
