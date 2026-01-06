@@ -970,8 +970,10 @@ export default function Home() {
 
 
   // Filter friends based on active tab
+  // For "active" tab, show all friends (is_online is not reliable in real-time)
+  // Only show online indicator for the current logged-in user
   const filteredFriends = activeFriendsTab === 'active' 
-    ? friends.filter((f: any) => f.is_online === true)
+    ? friends // Show all friends, but only mark current user as online
     : friends.sort((a: any, b: any) => {
         const aDate = new Date(a.created_at || 0).getTime();
         const bDate = new Date(b.created_at || 0).getTime();
@@ -1552,9 +1554,15 @@ export default function Home() {
                               {getInitials(friend.display_name || friend.full_name)}
                             </div>
                           )}
-                          {friend.is_online && (
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white z-10"></div>
-                          )}
+                          {(() => {
+                            // Only show online indicator for the current logged-in user
+                            const friendUserId = friend.user_id || friend.id;
+                            const currentUserId = currentUser?.user_id || currentUser?.id;
+                            const isCurrentUser = friendUserId === currentUserId;
+                            return isCurrentUser ? (
+                              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white z-10"></div>
+                            ) : null;
+                          })()}
                           {/* Badge overlay - bottom left */}
                           {(() => {
                             const friendBadge = friendsBadges[friendUserId];
@@ -1656,9 +1664,15 @@ export default function Home() {
                             {getInitials(friend.display_name || friend.full_name)}
                           </div>
                         )}
-                        {friend.is_online && (
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white z-10"></div>
-                        )}
+                        {(() => {
+                          // Only show online indicator for the current logged-in user
+                          const friendUserId = friend.user_id || friend.id;
+                          const currentUserId = currentUser?.user_id || currentUser?.id;
+                          const isCurrentUser = friendUserId === currentUserId;
+                          return isCurrentUser ? (
+                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white z-10"></div>
+                          ) : null;
+                        })()}
                         {/* Badge overlay - bottom left */}
                         {(() => {
                           const friendBadge = friendsBadges[friendUserId];
