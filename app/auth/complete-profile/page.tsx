@@ -121,6 +121,29 @@ export default function CompleteProfilePage() {
         }));
       }
 
+      // Send welcome email after profile is completed
+      // Only send if this is the first time completing the profile (has first_name now)
+      if (formData.firstName) {
+        try {
+          const siteUrl = typeof window !== 'undefined' 
+            ? window.location.origin 
+            : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+          
+          await fetch(`${siteUrl}/api/auth/send-welcome-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: session.user.id,
+              userName: formData.displayName,
+              userEmail: session.user.email || '',
+            }),
+          });
+        } catch (err) {
+          // Silently fail - don't block user if email fails
+          console.warn('Failed to send welcome email:', err);
+        }
+      }
+
       // Redirect to home
       router.push('/');
       router.refresh();

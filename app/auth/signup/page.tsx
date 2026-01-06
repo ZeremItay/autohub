@@ -120,6 +120,9 @@ export default function SignupPage() {
         localStorage.setItem('userEmail', formData.email);
       }
 
+      // Note: Welcome email will be sent after completing profile (complete-profile page)
+      // This ensures we have the first name and all required information
+
       // Redirect to home page
       router.push('/');
       router.refresh();
