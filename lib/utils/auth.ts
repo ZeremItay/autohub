@@ -54,18 +54,38 @@ export async function ensureUserProfile(user: User) {
     // Get avatar URL from Google
     const avatarUrl = userMetadata.avatar_url || userMetadata.picture || null;
 
-    // Get free role ID
+    // Get free role ID - ensure it exists
+    let freeRoleId = null;
     const { data: freeRole, error: roleError } = await supabase
       .from('roles')
       .select('id')
       .eq('name', 'free')
       .single();
 
-    if (roleError) {
-      console.error('Error fetching free role:', roleError);
-    }
+    if (roleError || !freeRole?.id) {
+      console.error('Error fetching free role or role not found:', roleError);
+      // Try to create the free role if it doesn't exist
+      const { data: newRole, error: createRoleError } = await supabase
+        .from('roles')
+        .upsert({
+          name: 'free',
+          display_name: 'מנוי חינמי',
+          description: 'מנוי חינמי - גישה בסיסית'
+        }, {
+          onConflict: 'name'
+        })
+        .select('id')
+        .single();
 
-    const freeRoleId = freeRole?.id || null;
+      if (createRoleError || !newRole?.id) {
+        console.error('Failed to create free role:', createRoleError);
+      } else {
+        freeRoleId = newRole.id;
+        console.log('Free role created/found:', freeRoleId);
+      }
+    } else {
+      freeRoleId = freeRole.id;
+    }
 
     // Create new profile
     const { data: newProfile, error: profileError } = await supabase

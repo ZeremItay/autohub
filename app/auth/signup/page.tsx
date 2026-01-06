@@ -84,14 +84,46 @@ export default function SignupPage() {
       }
 
       // Create profile in profiles table
-      // Get free role ID
-      const { data: roles } = await supabase
+      // Get free role ID - ensure it exists
+      let freeRoleId = null;
+      const { data: roles, error: roleError } = await supabase
         .from('roles')
         .select('id')
         .eq('name', 'free')
         .single();
 
-      const freeRoleId = roles?.id;
+      if (roleError || !roles?.id) {
+        console.error('Error fetching free role or role not found:', roleError);
+        // Try to create the free role if it doesn't exist
+        const { data: newRole, error: createRoleError } = await supabase
+          .from('roles')
+          .upsert({
+            name: 'free',
+            display_name: 'מנוי חינמי',
+            description: 'מנוי חינמי - גישה בסיסית'
+          }, {
+            onConflict: 'name'
+          })
+          .select('id')
+          .single();
+
+        if (createRoleError || !newRole?.id) {
+          console.error('Failed to create free role:', createRoleError);
+        } else {
+          freeRoleId = newRole.id;
+          console.log('Free role created/found:', freeRoleId);
+        }
+      } else {
+        freeRoleId = roles.id;
+      }
+
+      // Ensure we have a role ID before creating profile
+      if (!freeRoleId) {
+        console.error('Cannot create profile without free role ID');
+        setError('שגיאה בהגדרת תפקיד המשתמש. אנא פנה לתמיכה.');
+        setLoading(false);
+        return;
+      }
 
       const { error: profileError } = await supabase
         .from('profiles')
@@ -104,14 +136,16 @@ export default function SignupPage() {
           nickname: formData.displayName,
           how_to_address: formData.how_to_address,
           nocode_experience: formData.nocode_experience,
-          role_id: freeRoleId || null,
+          role_id: freeRoleId, // Now guaranteed to have a value
           points: 0,
           is_online: true
         });
 
       if (profileError) {
         console.error('Error creating profile:', profileError);
-        // Don't fail the signup if profile creation fails - user can update it later
+        setError('שגיאה ביצירת הפרופיל. נסה שוב.');
+        setLoading(false);
+        return;
       }
 
       // Save user to localStorage
