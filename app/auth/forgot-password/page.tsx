@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import { Mail, ArrowRight, Loader2, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -24,18 +23,19 @@ export default function ForgotPasswordPage() {
         return;
       }
 
-      // Get the current URL to use as redirect
-      const redirectUrl = typeof window !== 'undefined' 
-        ? `${window.location.origin}/auth/reset-password`
-        : 'http://localhost:3000/auth/reset-password';
-
-      // Send password reset email
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
+      // Send password reset email via our API (which uses Resend)
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
       });
 
-      if (resetError) {
-        setError(resetError.message || 'שגיאה בשליחת אימייל איפוס סיסמה');
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'שגיאה בשליחת אימייל איפוס סיסמה');
         setLoading(false);
         return;
       }

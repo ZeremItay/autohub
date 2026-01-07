@@ -78,14 +78,16 @@ export default function PaymentPage() {
                 src="https://pay.sumit.co.il/eaxdrn/hsclm5/c/payment" 
                 style={{
                   width: '100%',
-                  height: '600px',
+                  height: '800px',
+                  minHeight: '600px',
                   border: 'none',
                   borderRadius: '12px',
                   boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
                 }}
                 title="Payment Form"
-                allow="payment"
-                sandbox="allow-forms allow-scripts allow-same-origin allow-top-navigation allow-popups allow-popups-to-escape-sandbox"
+                allow="payment *"
+                sandbox="allow-forms allow-scripts allow-same-origin allow-top-navigation allow-popups allow-popups-to-escape-sandbox allow-modals"
+                loading="lazy"
               />
             </div>
           </div>

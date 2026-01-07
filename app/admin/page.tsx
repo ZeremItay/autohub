@@ -727,6 +727,8 @@ export default function AdminPanel() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [showImageGallery, setShowImageGallery] = useState(false)
   const [imageGalleryField, setImageGalleryField] = useState<string | null>(null)
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false)
+  const [bulkEditData, setBulkEditData] = useState<any>({})
   
   // Calculate selected date for events DatePicker
   const eventSelectedDate = useMemo(() => {
@@ -2650,6 +2652,52 @@ export default function AdminPanel() {
     }
   }
 
+  async function handleBulkEditUsers() {
+    if (selectedItems.size === 0 || activeTab !== 'users') return
+    
+    try {
+      const idsToUpdate = Array.from(selectedItems)
+      const updates: any = {}
+      
+      // Only include fields that were actually changed
+      if (bulkEditData.role_id) {
+        updates.role_id = bulkEditData.role_id
+      }
+      
+      if (Object.keys(updates).length === 0) {
+        alert('אנא בחר לפחות שדה אחד לעדכון')
+        return
+      }
+      
+      const response = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          ids: idsToUpdate,
+          ...updates
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (response.ok && result.success) {
+        alert(`עודכנו ${result.count || idsToUpdate.length} משתמשים בהצלחה!`)
+        setSelectedItems(new Set())
+        setShowBulkEditModal(false)
+        setBulkEditData({})
+        await loadData()
+      } else {
+        alert(`שגיאה בעדכון המשתמשים: ${result.error || 'שגיאה לא ידועה'}`)
+      }
+    } catch (error: any) {
+      console.error('Error bulk editing users:', error)
+      alert(`שגיאה בעדכון המשתמשים: ${error.message || 'שגיאה לא ידועה'}`)
+    }
+  }
+
   async function handleDeleteSelected() {
     if (selectedItems.size === 0) return
     
@@ -3104,17 +3152,28 @@ export default function AdminPanel() {
                 {activeTab === 'api-docs' && 'דוקומנטציה API'}
               </h2>
               {selectedItems.size > 0 && (
-                <button
-                  onClick={async () => {
-                    if (confirm(`האם אתה בטוח שברצונך למחוק ${selectedItems.size} פריטים?`)) {
-                      await handleDeleteSelected()
-                    }
-                  }}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  מחק נבחרים ({selectedItems.size})
-                </button>
+                <div className="flex gap-2">
+                  {activeTab === 'users' && (
+                    <button
+                      onClick={() => setShowBulkEditModal(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                      ערוך נבחרים ({selectedItems.size})
+                    </button>
+                  )}
+                  <button
+                    onClick={async () => {
+                      if (confirm(`האם אתה בטוח שברצונך למחוק ${selectedItems.size} פריטים?`)) {
+                        await handleDeleteSelected()
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    מחק נבחרים ({selectedItems.size})
+                  </button>
+                </div>
               )}
               {activeTab === 'subscriptions' && (
                 <div className="flex gap-2">
@@ -7633,6 +7692,60 @@ export default function AdminPanel() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Edit Users Modal */}
+      {showBulkEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">
+              ערוך {selectedItems.size} משתמשים
+            </h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  שנה תפקיד
+                </label>
+                <select
+                  value={bulkEditData.role_id || ''}
+                  onChange={(e) => setBulkEditData({ ...bulkEditData, role_id: e.target.value || null })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                >
+                  <option value="">-- בחר תפקיד --</option>
+                  {availableRoles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.display_name || role.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  השאר ריק כדי לא לשנות את התפקיד
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleBulkEditUsers}
+                className="flex-1 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors flex items-center justify-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                שמור שינויים
+              </button>
+              <button
+                onClick={() => {
+                  setShowBulkEditModal(false)
+                  setBulkEditData({})
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                ביטול
+              </button>
             </div>
           </div>
         </div>

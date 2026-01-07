@@ -146,38 +146,151 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createServerClient()
-    const { id, ...updates } = await request.json()
-    
-    console.log('Updating user via API:', { id, updates })
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', id)
-      .select(`
-        *,
-        roles:role_id (
-          id,
-          name,
-          display_name,
-          description
-        )
-      `)
-      .single()
-    
-    if (error) {
-      console.error('Error updating user:', error)
-      return NextResponse.json({ 
-        error: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      }, { status: 400 })
+    // Security: Check authentication via API Key or Admin Session
+    const apiKey = request.headers.get('X-API-Key') || request.headers.get('Authorization')?.replace('Bearer ', '')
+    const validApiKey = process.env.ADMIN_API_KEY || process.env.API_KEY
+
+    let isAuthorized = false
+
+    // Option 1: Check API Key
+    if (apiKey && validApiKey && apiKey === validApiKey) {
+      isAuthorized = true
+    } else {
+      // Option 2: Check Admin Session (for browser-based requests)
+      try {
+        const cookieStore = await cookies()
+        const supabase = createServerClient(cookieStore)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+        if (!sessionError && session) {
+          // Check if user is admin
+          const { data: adminProfile } = await supabase
+            .from('profiles')
+            .select(`
+              *,
+              roles:role_id (
+                id,
+                name,
+                display_name,
+                description
+              )
+            `)
+            .eq('user_id', session.user.id)
+            .single()
+
+          const role = adminProfile?.roles || adminProfile?.role
+          const roleName = typeof role === 'object' ? role?.name : role
+
+          if (roleName === 'admin') {
+            isAuthorized = true
+          }
+        }
+      } catch (error) {
+        // Session check failed - continue to check API key only
+      }
     }
+
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Provide valid API key in X-API-Key header or be logged in as admin.' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
     
-    console.log('User updated successfully:', data)
-    return NextResponse.json({ data })
+    // Check if this is a bulk update (multiple IDs)
+    if (body.ids && Array.isArray(body.ids)) {
+      // Bulk update multiple users
+      const { ids, ...updates } = body
+      
+      if (!ids || ids.length === 0) {
+        return NextResponse.json({ error: 'No user IDs provided' }, { status: 400 })
+      }
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+      if (!supabaseUrl || !supabaseServiceKey) {
+        return NextResponse.json(
+          { error: 'Server configuration error' },
+          { status: 500 }
+        )
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      })
+
+      // Update all users in the array
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .update(updates)
+        .in('id', ids)
+        .select(`
+          *,
+          roles:role_id (
+            id,
+            name,
+            display_name,
+            description
+          )
+        `)
+
+      if (error) {
+        console.error('Error bulk updating users:', error)
+        return NextResponse.json({ 
+          error: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        }, { status: 400 })
+      }
+
+      console.log(`Bulk updated ${data?.length || 0} users successfully`)
+      return NextResponse.json({ 
+        success: true,
+        data: data || [],
+        count: data?.length || 0
+      })
+    } else {
+      // Single user update (existing behavior)
+      const supabase = createServerClient()
+      const { id, ...updates } = body
+      
+      console.log('Updating user via API:', { id, updates })
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', id)
+        .select(`
+          *,
+          roles:role_id (
+            id,
+            name,
+            display_name,
+            description
+          )
+        `)
+        .single()
+      
+      if (error) {
+        console.error('Error updating user:', error)
+        return NextResponse.json({ 
+          error: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        }, { status: 400 })
+      }
+      
+      console.log('User updated successfully:', data)
+      return NextResponse.json({ data })
+    }
   } catch (error: any) {
     console.error('Exception updating user:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
