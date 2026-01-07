@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Get user's current role_id to save as previous_role_id (different from adminProfile above)
+    // Verify user exists
     const { data: userProfile, error: userProfileError } = await supabase
       .from('profiles')
       .select('role_id')
@@ -177,8 +177,6 @@ export async function POST(request: NextRequest) {
       console.error('Error fetching user profile:', userProfileError);
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-
-    const previous_role_id = userProfile.role_id || null;
 
     // Calculate end_date if not provided (default: 1 month from start_date)
     let calculatedEndDate = end_date;
@@ -194,12 +192,10 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id,
         role_id,
-        previous_role_id,
         status: status || 'active',
         start_date,
         end_date: calculatedEndDate,
-        auto_renew: auto_renew !== false,
-        warning_sent: false
+        auto_renew: auto_renew !== false
       })
       .select()
       .single();
