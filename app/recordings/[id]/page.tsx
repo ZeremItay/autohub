@@ -420,36 +420,31 @@ function RecordingDetailPageContent() {
 
           {/* Description */}
           {recording.description && (() => {
-            // Check if description contains HTML tags
-            const hasHTML = /<[a-z][\s\S]*>/i.test(recording.description);
-            const words = recording.description.split(/\s+/);
+            // Strip HTML tags for truncation check (like in courses)
+            const textContent = recording.description.replace(/<[^>]*>/g, '');
+            const words = textContent.split(/\s+/);
             const shouldTruncate = words.length > 25;
-            
-            // For HTML content, we'll show full content (truncation with HTML is complex)
-            // For plain text, we'll truncate as before
-            const displayFull = !shouldTruncate || descriptionExpanded || hasHTML;
+            const hasHTML = /<[a-z][\s\S]*>/i.test(recording.description);
+            const truncatedText = shouldTruncate ? words.slice(0, 25).join(' ') : textContent;
             
             return (
               <div className="mb-6">
                 <h2 className="text-xl font-bold text-gray-800 mb-3">תיאור</h2>
                 <div 
-                  className="text-gray-700 leading-relaxed"
+                  className="text-gray-700 leading-relaxed prose prose-sm max-w-none [&_p]:mb-3 [&_ul]:list-disc [&_ul]:mr-6 [&_ol]:list-decimal [&_ol]:mr-6 [&_li]:mb-2 [&_strong]:font-bold [&_em]:italic"
                   style={{ direction: 'rtl', textAlign: 'right' }}
                 >
-                  {hasHTML ? (
-                    <div 
-                      dangerouslySetInnerHTML={{ __html: recording.description }}
-                      className="prose prose-sm max-w-none [&_p]:mb-3 [&_ul]:list-disc [&_ul]:mr-6 [&_ol]:list-decimal [&_ol]:mr-6 [&_li]:mb-2 [&_strong]:font-bold [&_em]:italic"
-                    />
-                  ) : displayFull ? (
-                    <div className="whitespace-pre-line">
-                      {recording.description}
-                    </div>
-                  ) : (
+                  {shouldTruncate && !descriptionExpanded ? (
                     <>
-                      <div className="whitespace-pre-line">
-                        {words.slice(0, 25).join(' ')}...
-                      </div>
+                      {hasHTML ? (
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: truncatedText + '...' }}
+                        />
+                      ) : (
+                        <div className="whitespace-pre-line">
+                          {truncatedText}...
+                        </div>
+                      )}
                       <button
                         onClick={() => setDescriptionExpanded(true)}
                         className="text-[#F52F8E] hover:text-[#E01E7A] font-medium mt-2 transition-colors"
@@ -457,14 +452,26 @@ function RecordingDetailPageContent() {
                         המשך קריאה
                       </button>
                     </>
-                  )}
-                  {shouldTruncate && descriptionExpanded && !hasHTML && (
-                    <button
-                      onClick={() => setDescriptionExpanded(false)}
-                      className="block text-[#F52F8E] hover:text-[#E01E7A] font-medium mt-2 transition-colors"
-                    >
-                      הצג פחות
-                    </button>
+                  ) : (
+                    <>
+                      {hasHTML ? (
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: recording.description }}
+                        />
+                      ) : (
+                        <div className="whitespace-pre-line">
+                          {recording.description}
+                        </div>
+                      )}
+                      {shouldTruncate && descriptionExpanded && (
+                        <button
+                          onClick={() => setDescriptionExpanded(false)}
+                          className="block text-[#F52F8E] hover:text-[#E01E7A] font-medium mt-2 transition-colors"
+                        >
+                          הצג פחות
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

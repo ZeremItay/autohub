@@ -1994,6 +1994,13 @@ export default function AdminPanel() {
         delete updateData.is_new;
         delete updateData.selectedTagIds; // Remove from update data - handled separately
         delete updateData.category; // Remove old category - we use tags only now
+        
+        // Ensure description is preserved if it exists (even if empty string)
+        // Only include description if it was explicitly provided in formData
+        if (formData.description === undefined) {
+          // If description wasn't in formData, don't include it in update to preserve existing value
+          delete updateData.description;
+        }
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1858',message:'updateData prepared',data:{hasCategory:!!updateData.category},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
         // #endregion

@@ -184,14 +184,37 @@ export async function createRecording(recording: Omit<Recording, 'id' | 'updated
 
 // Update recording (admin only)
 export async function updateRecording(id: string, updates: Partial<Recording>) {
+  // Build update object, only including fields that are explicitly provided
+  // This prevents accidentally clearing fields that weren't meant to be updated
+  const updateData: any = {
+    updated_at: new Date().toISOString()
+  };
+  
+  // Only include fields that are explicitly provided (not undefined)
+  if (updates.title !== undefined) updateData.title = updates.title;
+  if (updates.description !== undefined) {
+    // Allow empty string to clear description, but preserve if undefined
+    updateData.description = updates.description || null;
+  }
+  if (updates.video_url !== undefined) updateData.video_url = updates.video_url;
+  if (updates.thumbnail_url !== undefined) updateData.thumbnail_url = updates.thumbnail_url;
+  if (updates.category !== undefined) updateData.category = updates.category;
+  if (updates.duration !== undefined) updateData.duration = updates.duration;
+  if (updates.views !== undefined) updateData.views = updates.views;
+  if (updates.is_new !== undefined) updateData.is_new = updates.is_new;
+  if (updates.user_id !== undefined) updateData.user_id = updates.user_id;
+  
+  // Handle qa_section and key_points specially
+  if (updates.qa_section !== undefined) {
+    updateData.qa_section = updates.qa_section || [];
+  }
+  if (updates.key_points !== undefined) {
+    updateData.key_points = updates.key_points || [];
+  }
+  
   const { data, error } = await supabase
     .from('recordings')
-    .update({
-      ...updates,
-      qa_section: updates.qa_section !== undefined ? updates.qa_section : undefined,
-      key_points: updates.key_points !== undefined ? updates.key_points : undefined,
-      updated_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq('id', id)
     .select()
     .single()
