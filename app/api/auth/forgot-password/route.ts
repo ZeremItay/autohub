@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'מועדון האוטומטורים <onboarding@resend.dev>',
+        from: 'מועדון האוטומטורים <noreply@autohub.co.il>',
         to: [email],
         subject: 'איפוס סיסמה - מועדון האוטומטורים',
         html: emailHtml,

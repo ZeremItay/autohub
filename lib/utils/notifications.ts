@@ -256,7 +256,7 @@ export async function sendForumReplyEmail(
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'מועדון האוטומטורים <onboarding@resend.dev>',
+        from: 'מועדון האוטומטורים <noreply@autohub.co.il>',
         to: [ownerUser.user.email],
         subject: `${replierName} ענה על הפוסט שלך בפורום ${forumName}`,
         html: emailHtml,

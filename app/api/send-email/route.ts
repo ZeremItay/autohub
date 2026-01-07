@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'מועדון האוטומטורים <onboarding@resend.dev>', // Change to your domain after setting it up in Resend
+        from: 'מועדון האוטומטורים <noreply@autohub.co.il>',
         to: [to],
         subject,
         html,
