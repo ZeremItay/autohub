@@ -176,7 +176,7 @@ export default function SignupPage() {
           ? window.location.origin 
           : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
         
-        await fetch(`${siteUrl}/api/auth/send-welcome-email`, {
+        const emailResponse = await fetch(`${siteUrl}/api/auth/send-welcome-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -184,10 +184,17 @@ export default function SignupPage() {
             userName: formData.firstName || '', // Send first_name if available, otherwise empty
             userEmail: formData.email,
           }),
-        }).catch(err => {
-          // Silently fail - don't block user if email fails
-          console.warn('Failed to send welcome email:', err);
         });
+
+        if (!emailResponse.ok) {
+          const errorData = await emailResponse.json().catch(() => ({}));
+          console.warn('Failed to send welcome email:', {
+            status: emailResponse.status,
+            error: errorData
+          });
+        } else {
+          console.log('✅ Welcome email sent successfully');
+        }
       } catch (err) {
         // Silently fail - don't block user if email fails
         console.warn('Failed to send welcome email:', err);

@@ -215,34 +215,35 @@ export async function awardPoints(userId: string, actionName: string, options?: 
     };
     
     // Try to determine which column to use by checking a sample record
+    // Default to 'action_name' as it's more common in newer schemas
     try {
-      // Try 'action' first
-      const { data: sampleHistoryWithAction, error: actionError } = await supabase
+      // Try 'action_name' first (more common in newer schemas)
+      const { data: sampleHistoryWithActionName, error: actionNameError } = await supabase
         .from('points_history')
-        .select('action')
+        .select('action_name')
         .limit(1);
       
-      if (!actionError && sampleHistoryWithAction && sampleHistoryWithAction.length > 0) {
-        // 'action' column exists
-        historyData.action = historyActionName;
+      if (!actionNameError) {
+        // 'action_name' column exists (even if no records)
+        historyData.action_name = historyActionName;
       } else {
-        // Try 'action_name' column
-        const { data: sampleHistoryWithActionName, error: actionNameError } = await supabase
+        // Try 'action' column as fallback
+        const { data: sampleHistoryWithAction, error: actionError } = await supabase
           .from('points_history')
-          .select('action_name')
+          .select('action')
           .limit(1);
         
-        if (!actionNameError && sampleHistoryWithActionName && sampleHistoryWithActionName.length > 0) {
-          // 'action_name' column exists
-          historyData.action_name = historyActionName;
-        } else {
-          // No records yet, try 'action' first (most common)
+        if (!actionError) {
+          // 'action' column exists
           historyData.action = historyActionName;
+        } else {
+          // Neither column exists, default to 'action_name' (most common)
+          historyData.action_name = historyActionName;
         }
       }
     } catch (error) {
-      // If we can't check, default to 'action' (most common)
-      historyData.action = historyActionName;
+      // If we can't check, default to 'action_name' (most common)
+      historyData.action_name = historyActionName;
     }
     
     // Try to insert with 'action' first, then fallback to 'action_name' if needed

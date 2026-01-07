@@ -206,23 +206,48 @@ export async function createNotification(notification: Omit<Notification, 'id' |
         body: JSON.stringify(notification),
       });
 
-      let result: any = {};
-      try {
-        result = await response.json();
-      } catch (jsonError) {
-        // If response is not JSON (e.g., 405 Method Not Allowed), return error
-        const textResponse = await response.text();
-        console.error('❌ Error parsing notification API response:', {
+      // Check if response is ok first
+      if (!response.ok) {
+        // If response is not ok, try to get error message
+        let errorMessage = `API returned ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If can't parse as JSON, try text
+          try {
+            const textResponse = await response.clone().text();
+            errorMessage = textResponse || errorMessage;
+          } catch (textError) {
+            // If can't read text either, use status
+            console.warn('Could not read error response body');
+          }
+        }
+        console.error('❌ Error calling notification API:', {
           status: response.status,
           statusText: response.statusText,
-          text: textResponse
+          message: errorMessage
         });
         return { 
           data: null, 
           error: { 
-            message: `API returned ${response.status}: ${response.statusText}`,
-            status: response.status,
-            text: textResponse
+            message: errorMessage,
+            status: response.status
+          } 
+        };
+      }
+
+      // Response is ok, parse as JSON
+      let result: any = {};
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        console.error('❌ Error parsing notification API response as JSON:', jsonError);
+        return { 
+          data: null, 
+          error: { 
+            message: 'Invalid JSON response from notification API',
+            status: response.status
           } 
         };
       }

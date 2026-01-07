@@ -157,14 +157,41 @@ export async function POST(request: NextRequest) {
     });
 
     let emailData: any = {};
+    
+    // Check if response is ok first
+    if (!resendResponse.ok) {
+      // If response is not ok, try to get error message
+      let errorMessage = `Resend API returned ${resendResponse.status}: ${resendResponse.statusText}`;
+      try {
+        const errorData = await resendResponse.json();
+        errorMessage = errorData.message || errorData.error?.message || errorMessage;
+        emailData = errorData;
+      } catch (e) {
+        // If can't parse as JSON, try text
+        try {
+          const textResponse = await resendResponse.clone().text();
+          errorMessage = textResponse || errorMessage;
+        } catch (textError) {
+          console.warn('Could not read error response body from Resend API');
+        }
+      }
+      console.error('❌ Resend API error:', {
+        status: resendResponse.status,
+        error: emailData || errorMessage
+      });
+      return NextResponse.json(
+        { error: 'Failed to send email', details: emailData || errorMessage },
+        { status: 500 }
+      );
+    }
+
+    // Response is ok, parse as JSON
     try {
       emailData = await resendResponse.json();
     } catch (jsonError) {
-      console.error('❌ Error parsing Resend API response:', jsonError);
-      const textResponse = await resendResponse.text();
-      console.error('Response text:', textResponse);
+      console.error('❌ Error parsing Resend API response as JSON:', jsonError);
       return NextResponse.json(
-        { error: 'Failed to parse email service response', details: textResponse },
+        { error: 'Failed to parse email service response', details: jsonError },
         { status: 500 }
       );
     }
