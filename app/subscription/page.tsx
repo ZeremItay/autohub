@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Crown, Calendar, CheckCircle, X, Download, CreditCard, XCircle, Edit, Save, Settings, Users } from 'lucide-react';
 import { getAllProfiles } from '@/lib/queries/profiles';
 import { getAllRoles, type Role } from '@/lib/queries/roles';
 import { supabase } from '@/lib/supabase';
 
 export default function SubscriptionPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -384,8 +386,8 @@ export default function SubscriptionPage() {
   }
 
   function handleChangePlan() {
-    // TODO: Implement change plan
-    alert('שינוי תוכנית יטופל בקרוב');
+    // Redirect to payment page for subscription upgrade
+    router.push('/payment');
   }
 
   function handleUpdatePayment() {
