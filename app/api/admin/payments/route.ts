@@ -266,6 +266,45 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: paymentError.message }, { status: 500 });
     }
 
+    // If payment status was updated to 'completed', activate subscription (if pending) and extend it
+    if (updates.status === 'completed') {
+      // Get subscription to check its status
+      const { data: subscription, error: subError } = await supabase
+        .from('subscriptions')
+        .select('id, status, end_date')
+        .eq('id', payment.subscription_id)
+        .single();
+
+      if (!subError && subscription) {
+        // Activate subscription if it's pending
+        if (subscription.status === 'pending') {
+          const { error: activateError } = await supabase
+            .from('subscriptions')
+            .update({ status: 'active' })
+            .eq('id', subscription.id);
+          
+          if (activateError) {
+            console.error('Error activating subscription:', activateError);
+            // Don't fail the request, just log the error
+          } else {
+            console.log(`Subscription ${subscription.id} activated`);
+          }
+        }
+        
+        // Extend subscription if it's active or was just activated
+        if (subscription.status === 'active' || subscription.status === 'pending') {
+          const { data: extended, error: extendError } = await extendSubscription(subscription.id, 1);
+          
+          if (extendError) {
+            console.error('Error extending subscription:', extendError);
+            // Don't fail the request, just log the error
+          } else {
+            console.log(`Subscription ${subscription.id} extended by 1 month`);
+          }
+        }
+      }
+    }
+
     return NextResponse.json({ data: payment });
   } catch (error: any) {
     console.error('Error updating payment:', error);
