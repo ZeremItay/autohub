@@ -169,29 +169,28 @@ export default function SignupPage() {
         localStorage.setItem('userEmail', formData.email);
       }
 
-      // Send welcome email if first_name is provided
-      if (formData.firstName) {
-        try {
-          const siteUrl = typeof window !== 'undefined' 
-            ? window.location.origin 
-            : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-          
-          await fetch(`${siteUrl}/api/auth/send-welcome-email`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: authData.user.id,
-              userName: formData.firstName, // Send first_name for greeting
-              userEmail: formData.email,
-            }),
-          }).catch(err => {
-            // Silently fail - don't block user if email fails
-            console.warn('Failed to send welcome email:', err);
-          });
-        } catch (err) {
+      // Send welcome email - always send, even if first_name is not provided yet
+      // The email will use "שלום" if no first_name is available
+      try {
+        const siteUrl = typeof window !== 'undefined' 
+          ? window.location.origin 
+          : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        
+        await fetch(`${siteUrl}/api/auth/send-welcome-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: authData.user.id,
+            userName: formData.firstName || '', // Send first_name if available, otherwise empty
+            userEmail: formData.email,
+          }),
+        }).catch(err => {
           // Silently fail - don't block user if email fails
           console.warn('Failed to send welcome email:', err);
-        }
+        });
+      } catch (err) {
+        // Silently fail - don't block user if email fails
+        console.warn('Failed to send welcome email:', err);
       }
 
       // Redirect to home page

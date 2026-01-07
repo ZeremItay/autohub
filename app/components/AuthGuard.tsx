@@ -134,7 +134,7 @@ export default function AuthGuard({
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-200 p-8 text-center">
-          <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-[#F52F8E] to-pink-400 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock className="w-10 h-10 text-white" />
           </div>
           
@@ -144,7 +144,7 @@ export default function AuthGuard({
           <div className="space-y-3">
             <Link
               href="/subscription"
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg hover:from-yellow-500 hover:to-orange-600 transition-all font-semibold shadow-md hover:shadow-lg"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#F52F8E] to-pink-500 text-white rounded-lg hover:from-[#E01E7A] hover:to-pink-600 transition-all font-semibold shadow-md hover:shadow-lg"
             >
               <span>שדרג לפרימיום</span>
               <ArrowRight className="w-5 h-5" />

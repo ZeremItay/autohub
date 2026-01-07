@@ -5928,7 +5928,22 @@ export default function AdminPanel() {
                       </td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
-                          {user.roles?.display_name || user.role?.display_name || 'לא מוגדר'}
+                          {(() => {
+                            // Handle different possible structures of roles data
+                            const role = user.roles;
+                            if (role && typeof role === 'object') {
+                              // If roles is an object with display_name
+                              if ('display_name' in role) {
+                                return role.display_name;
+                              }
+                              // If roles is an array, get first item
+                              if (Array.isArray(role) && role.length > 0 && role[0]?.display_name) {
+                                return role[0].display_name;
+                              }
+                            }
+                            // Fallback to role (singular) or default
+                            return user.role?.display_name || 'מנוי חינמי';
+                          })()}
                         </span>
                       </td>
                       <td className="py-3 px-4">
