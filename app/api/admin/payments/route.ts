@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { cookies } from 'next/headers';
 import { extendSubscription } from '@/lib/queries/subscriptions';
 
 // GET - Get all payments with subscription and user data (admin only)
 export async function GET() {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     
     // Check authorization - get session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -94,7 +96,8 @@ export async function GET() {
 // POST - Create new payment (admin only)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     
     // Check authorization - get session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -132,8 +135,34 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { subscription_id, user_id, amount, currency, status, payment_method, payment_date, invoice_url, invoice_number, transaction_id } = body;
 
-    if (!subscription_id || !user_id || !amount) {
-      return NextResponse.json({ error: 'Missing required fields: subscription_id, user_id, amount' }, { status: 400 });
+    if (!subscription_id) {
+      return NextResponse.json({ error: 'Missing required field: subscription_id' }, { status: 400 });
+    }
+    
+    // Allow amount to be 0 for free month - check if amount is provided (even if 0)
+    if (amount === undefined || amount === null || amount === '') {
+      return NextResponse.json({ error: 'Missing required field: amount' }, { status: 400 });
+    }
+    
+    const paymentAmount = parseFloat(amount.toString());
+    if (isNaN(paymentAmount)) {
+      return NextResponse.json({ error: 'Invalid amount value' }, { status: 400 });
+    }
+
+    // Get user_id from subscription if not provided
+    let finalUserId = user_id;
+    if (!finalUserId) {
+      const { data: subscription, error: subError } = await supabase
+        .from('subscriptions')
+        .select('user_id')
+        .eq('id', subscription_id)
+        .single();
+
+      if (subError || !subscription || !subscription.user_id) {
+        return NextResponse.json({ error: 'Subscription not found or missing user_id' }, { status: 404 });
+      }
+
+      finalUserId = subscription.user_id;
     }
 
     // Create payment
@@ -141,8 +170,8 @@ export async function POST(request: NextRequest) {
       .from('payments')
       .insert({
         subscription_id,
-        user_id,
-        amount: parseFloat(amount),
+        user_id: finalUserId,
+        amount: paymentAmount,
         currency: currency || 'ILS',
         status: status || 'pending',
         payment_method: payment_method || null,
@@ -169,15 +198,15 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (!subError && subscription) {
+        // Get role_id and user_id from subscription to update user's profile
+        const { data: subData, error: subDataError } = await supabase
+          .from('subscriptions')
+          .select('role_id, user_id')
+          .eq('id', subscription_id)
+          .single();
+        
         // Activate subscription if it's pending
         if (subscription.status === 'pending') {
-          // Get role_id from subscription to update user's profile
-          const { data: subData, error: subDataError } = await supabase
-            .from('subscriptions')
-            .select('role_id, user_id')
-            .eq('id', subscription_id)
-            .single();
-          
           const { error: activateError } = await supabase
             .from('subscriptions')
             .update({ status: 'active' })
@@ -188,21 +217,22 @@ export async function POST(request: NextRequest) {
             // Don't fail the request, just log the error
           } else {
             console.log(`Subscription ${subscription_id} activated`);
-            
-            // Update user's role_id to the subscription role when activated
-            if (!subDataError && subData) {
-              const { error: updateRoleError } = await supabase
-                .from('profiles')
-                .update({ role_id: subData.role_id })
-                .eq('user_id', subData.user_id);
-              
-              if (updateRoleError) {
-                console.error('Error updating user role:', updateRoleError);
-                // Don't fail the request, just log the error
-              } else {
-                console.log(`User ${subData.user_id} role updated to ${subData.role_id}`);
-              }
-            }
+          }
+        }
+        
+        // Always update user's role_id to the subscription role when payment is completed
+        // This ensures the user gets the correct role even if subscription was already active
+        if (!subDataError && subData) {
+          const { error: updateRoleError } = await supabase
+            .from('profiles')
+            .update({ role_id: subData.role_id })
+            .eq('user_id', subData.user_id);
+          
+          if (updateRoleError) {
+            console.error('Error updating user role:', updateRoleError);
+            // Don't fail the request, just log the error
+          } else {
+            console.log(`User ${subData.user_id} role updated to ${subData.role_id}`);
           }
         }
         
@@ -230,7 +260,8 @@ export async function POST(request: NextRequest) {
 // PUT - Update payment (admin only)
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     
     // Check authorization - get session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -298,15 +329,15 @@ export async function PUT(request: NextRequest) {
         .single();
 
       if (!subError && subscription) {
+        // Get role_id and user_id from subscription to update user's profile
+        const { data: subData, error: subDataError } = await supabase
+          .from('subscriptions')
+          .select('role_id, user_id')
+          .eq('id', payment.subscription_id)
+          .single();
+        
         // Activate subscription if it's pending
         if (subscription.status === 'pending') {
-          // Get role_id from subscription to update user's profile
-          const { data: subData, error: subDataError } = await supabase
-            .from('subscriptions')
-            .select('role_id, user_id')
-            .eq('id', payment.subscription_id)
-            .single();
-          
           const { error: activateError } = await supabase
             .from('subscriptions')
             .update({ status: 'active' })
@@ -317,21 +348,22 @@ export async function PUT(request: NextRequest) {
             // Don't fail the request, just log the error
           } else {
             console.log(`Subscription ${subscription.id} activated`);
-            
-            // Update user's role_id to the subscription role when activated
-            if (!subDataError && subData) {
-              const { error: updateRoleError } = await supabase
-                .from('profiles')
-                .update({ role_id: subData.role_id })
-                .eq('user_id', subData.user_id);
-              
-              if (updateRoleError) {
-                console.error('Error updating user role:', updateRoleError);
-                // Don't fail the request, just log the error
-              } else {
-                console.log(`User ${subData.user_id} role updated to ${subData.role_id}`);
-              }
-            }
+          }
+        }
+        
+        // Always update user's role_id to the subscription role when payment is completed
+        // This ensures the user gets the correct role even if subscription was already active
+        if (!subDataError && subData) {
+          const { error: updateRoleError } = await supabase
+            .from('profiles')
+            .update({ role_id: subData.role_id })
+            .eq('user_id', subData.user_id);
+          
+          if (updateRoleError) {
+            console.error('Error updating user role:', updateRoleError);
+            // Don't fail the request, just log the error
+          } else {
+            console.log(`User ${subData.user_id} role updated to ${subData.role_id}`);
           }
         }
         
@@ -359,7 +391,8 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete payment (admin only)
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     
     // Check authorization - get session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -401,6 +434,20 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameter: id' }, { status: 400 });
     }
 
+    // Get payment to check subscription_id and user_id before deleting
+    const { data: payment, error: getPaymentError } = await supabase
+      .from('payments')
+      .select('subscription_id, user_id')
+      .eq('id', id)
+      .single();
+
+    if (getPaymentError || !payment) {
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+    }
+
+    const subscriptionId = payment.subscription_id;
+    const userId = payment.user_id;
+
     // Delete payment
     const { error: paymentError } = await supabase
       .from('payments')
@@ -410,6 +457,61 @@ export async function DELETE(request: NextRequest) {
     if (paymentError) {
       console.error('Error deleting payment:', paymentError);
       return NextResponse.json({ error: paymentError.message }, { status: 500 });
+    }
+
+    // Check if there are any other completed payments for this subscription
+    const { data: remainingPayments, error: paymentsCheckError } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('subscription_id', subscriptionId)
+      .eq('status', 'completed')
+      .limit(1);
+
+    // If no completed payments remain, set subscription to pending and restore user's role to free
+    if (!paymentsCheckError && (!remainingPayments || remainingPayments.length === 0)) {
+      // Get subscription to get role_id
+      const { data: subscription, error: subError } = await supabase
+        .from('subscriptions')
+        .select('role_id')
+        .eq('id', subscriptionId)
+        .single();
+
+      if (!subError && subscription) {
+        // Update subscription status to pending
+        const { error: updateSubError } = await supabase
+          .from('subscriptions')
+          .update({ status: 'pending' })
+          .eq('id', subscriptionId);
+
+        if (updateSubError) {
+          console.error('Error updating subscription status:', updateSubError);
+          // Don't fail the request, just log
+        } else {
+          console.log(`Subscription ${subscriptionId} set to pending (no payments)`);
+        }
+
+        // Get free role ID
+        const { data: freeRole, error: freeRoleError } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'free')
+          .single();
+
+        if (!freeRoleError && freeRole) {
+          // Restore user's role to free
+          const { error: updateRoleError } = await supabase
+            .from('profiles')
+            .update({ role_id: freeRole.id })
+            .eq('user_id', userId);
+
+          if (updateRoleError) {
+            console.error('Error restoring user role:', updateRoleError);
+            // Don't fail the request, just log
+          } else {
+            console.log(`User ${userId} role restored to free`);
+          }
+        }
+      }
     }
 
     return NextResponse.json({ data: { success: true } });

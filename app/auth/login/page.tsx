@@ -62,11 +62,12 @@ function LoginContent() {
                 if (data.user) {
                   const { data: profile } = await supabase
                     .from('profiles')
-                    .select('how_to_address, nocode_experience')
+                    .select('first_name, how_to_address, nocode_experience')
                     .eq('user_id', data.user.id)
                     .single();
                   
-                  const needsCompletion = !profile?.how_to_address || !profile?.nocode_experience;
+                  // Profile needs completion if missing first_name, how_to_address, or nocode_experience
+                  const needsCompletion = !profile?.first_name || !profile?.how_to_address || !profile?.nocode_experience;
                   
                   if (needsCompletion) {
                     router.push('/auth/complete-profile');
@@ -91,10 +92,25 @@ function LoginContent() {
       setError(decodeURIComponent(errorParam));
     }
 
-    // Check if user is already logged in
+    // Check if user is already logged in and still exists in database
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      if (session?.user) {
+        // Verify user still exists in database (user might have been deleted)
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (profileError || !profile) {
+          // User was deleted from database, clear session
+          await supabase.auth.signOut();
+          // Don't redirect - let them log in
+          return;
+        }
+
+        // User exists and is logged in, redirect to home
         router.push('/');
       }
     };

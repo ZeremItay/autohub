@@ -41,8 +41,8 @@ export default function CompleteProfilePage() {
           return;
         }
 
-        // Check if profile needs completion
-        const needsCompletion = !profile.how_to_address || !profile.nocode_experience;
+        // Check if profile needs completion (missing first_name, how_to_address, or nocode_experience)
+        const needsCompletion = !profile.first_name || !profile.how_to_address || !profile.nocode_experience;
         
         if (!needsCompletion) {
           // Profile is complete, redirect to home

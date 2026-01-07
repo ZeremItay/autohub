@@ -131,37 +131,53 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    // Send email via internal API route
-    const emailResponse = await fetch(`${siteUrl}/api/send-email`, {
+    // Send email directly via Resend API (not via internal fetch to avoid issues in production)
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    
+    if (!RESEND_API_KEY) {
+      console.error('RESEND_API_KEY not configured');
+      return NextResponse.json(
+        { error: 'Email service not configured' },
+        { status: 500 }
+      );
+    }
+
+    const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        to: email,
+        from: 'מועדון האוטומטורים <onboarding@resend.dev>',
+        to: [email],
         subject: 'ברוכים הבאים למועדון האוטומטורים! 🎉',
         html: emailHtml,
       }),
     });
 
-    const emailData = await emailResponse.json();
+    const emailData = await resendResponse.json();
 
-    if (!emailResponse.ok) {
-      console.error('Email sending failed:', emailData);
+    if (!resendResponse.ok) {
+      console.error('❌ Resend API error:', {
+        status: resendResponse.status,
+        error: emailData
+      });
       return NextResponse.json(
         { error: 'Failed to send email', details: emailData },
         { status: 500 }
       );
     }
 
-    console.log('✅ Welcome email sent successfully:', {
+    console.log('✅ Welcome email sent successfully via Resend:', {
       to: email,
-      emailId: emailData.data?.id
+      emailId: emailData.id,
+      subject: 'ברוכים הבאים למועדון האוטומטורים! 🎉'
     });
 
     return NextResponse.json({ 
       success: true, 
-      emailId: emailData.data?.id 
+      emailId: emailData.id 
     });
   } catch (error: any) {
     console.error('Error in send-welcome-email API:', error);

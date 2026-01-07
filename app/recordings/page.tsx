@@ -264,11 +264,28 @@ export default function RecordingsPage() {
                 </h3>
 
                 {/* Description */}
-                {recording.description && (
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                    {recording.description}
-                  </p>
-                )}
+                {recording.description && (() => {
+                  // Check if description contains HTML tags
+                  const hasHTML = /<[a-z][\s\S]*>/i.test(recording.description);
+                  
+                  if (hasHTML) {
+                    // For HTML content, render it but limit the height with CSS
+                    return (
+                      <div 
+                        className="text-sm text-gray-600 mb-4 line-clamp-2 prose prose-sm max-w-none [&_p]:mb-1 [&_p]:text-sm [&_ul]:list-disc [&_ul]:mr-4 [&_ol]:list-decimal [&_ol]:mr-4 [&_li]:mb-0 [&_strong]:font-semibold [&_em]:italic"
+                        style={{ direction: 'rtl', textAlign: 'right' }}
+                        dangerouslySetInnerHTML={{ __html: recording.description }}
+                      />
+                    );
+                  } else {
+                    // For plain text, display normally
+                    return (
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                        {recording.description}
+                      </p>
+                    );
+                  }
+                })()}
 
                 {/* Metadata - Always at the bottom */}
                 <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">

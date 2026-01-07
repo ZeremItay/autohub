@@ -39,9 +39,29 @@ export async function middleware(request: NextRequest) {
       response.cookies.delete('sb-access-token')
       response.cookies.delete('sb-refresh-token')
       // Continue without user - they'll need to log in again
-    } else if (user && request.nextUrl.pathname === '/auth/login') {
-      // If user is signed in and the current path is /login redirect the user to /
-      return NextResponse.redirect(new URL('/', request.url))
+    } else if (user) {
+      // Check if user still exists in database (user might have been deleted)
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single()
+
+      // If user doesn't exist in profiles table, clear session (user was deleted)
+      if (profileError || !profile) {
+        // User was deleted from database, clear session
+        await supabase.auth.signOut()
+        // Clear session cookies
+        response.cookies.delete('sb-access-token')
+        response.cookies.delete('sb-refresh-token')
+        // Don't redirect if on login page - let them log in
+        if (request.nextUrl.pathname !== '/auth/login') {
+          return NextResponse.redirect(new URL('/auth/login', request.url))
+        }
+      } else if (request.nextUrl.pathname === '/auth/login') {
+        // If user exists and is signed in and the current path is /login redirect the user to /
+        return NextResponse.redirect(new URL('/', request.url))
+      }
     }
   } catch (error) {
     // Silently handle any auth errors in middleware

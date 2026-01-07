@@ -79,6 +79,8 @@ export async function ensureUserProfile(user: User) {
 
       if (createRoleError || !newRole?.id) {
         console.error('Failed to create free role:', createRoleError);
+        // Cannot create profile without free role - this is critical
+        throw new Error('Failed to assign free role to new user. Cannot create profile without role.');
       } else {
         freeRoleId = newRole.id;
         console.log('Free role created/found:', freeRoleId);
@@ -87,7 +89,14 @@ export async function ensureUserProfile(user: User) {
       freeRoleId = freeRole.id;
     }
 
-    // Create new profile
+    // CRITICAL: Ensure we have a free role ID before creating profile
+    // Every new user MUST get the free role by default
+    if (!freeRoleId) {
+      console.error('❌ Cannot create profile without free role ID - this should never happen');
+      throw new Error('Failed to assign free role to new user. Cannot create profile without role.');
+    }
+
+    // Create new profile with free role (ALWAYS free role for new users)
     const { data: newProfile, error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -98,7 +107,7 @@ export async function ensureUserProfile(user: User) {
         last_name: lastName,
         nickname: displayName,
         avatar_url: avatarUrl,
-        role_id: freeRoleId,
+        role_id: freeRoleId, // ALWAYS free role for new users - this is the default
         points: 0,
         is_online: true
       })

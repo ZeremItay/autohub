@@ -42,19 +42,35 @@ export async function GET(request: Request) {
         const { ensureUserProfile } = await import('@/lib/utils/auth');
         await ensureUserProfile(sessionData.session.user);
         
+        // Check if profile needs completion
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('first_name, how_to_address, nocode_experience')
+          .eq('user_id', sessionData.session.user.id)
+          .single();
+        
         const forwardedHost = request.headers.get('x-forwarded-host'); // original origin before load balancer
         const isLocalEnv = process.env.NODE_ENV === 'development';
         
+        // Check if profile needs completion (missing first_name, how_to_address, or nocode_experience)
+        const needsCompletion = !profile?.first_name || !profile?.how_to_address || !profile?.nocode_experience;
+        
         if (process.env.NODE_ENV === 'development') {
-          console.log('Code exchange successful, redirecting:', { isLocalEnv, forwardedHost, next });
+          console.log('Code exchange successful, profile check:', { 
+            needsCompletion, 
+            hasFirstName: !!profile?.first_name,
+            hasHowToAddress: !!profile?.how_to_address,
+            hasNocodeExperience: !!profile?.nocode_experience
+          });
         }
         
-        // Redirect to login page which will check if profile needs completion
+        // Redirect to complete-profile if profile needs completion, otherwise to home
+        const redirectPath = needsCompletion ? '/auth/complete-profile' : '/';
         const redirectUrl = isLocalEnv 
-          ? `${origin}/auth/login` 
+          ? `${origin}${redirectPath}` 
           : forwardedHost 
-            ? `https://${forwardedHost}/auth/login`
-            : `${origin}/auth/login`;
+            ? `https://${forwardedHost}${redirectPath}`
+            : `${origin}${redirectPath}`;
         
         return NextResponse.redirect(redirectUrl);
       } else {

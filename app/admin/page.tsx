@@ -809,6 +809,24 @@ export default function AdminPanel() {
     }
   }, [activeTab, editing])
 
+  // Set default payment_date for payments form when opening it
+  useEffect(() => {
+    if (activeTab === 'payments' && !editing && !formData.payment_date) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const paymentDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+      setFormData((prev: any) => ({
+        ...prev,
+        payment_date: paymentDateTime
+      }));
+    }
+  }, [activeTab, editing])
+
   async function loadZoomMeetings() {
     setLoadingZoomMeetings(true)
     try {
@@ -1377,9 +1395,43 @@ export default function AdminPanel() {
         setFormData({})
         alert('המנוי נוצר בהצלחה!')
       } else if (activeTab === 'payments') {
-        if (!formData.subscription_id || !formData.user_id || !formData.amount) {
-          alert('אנא מלא את כל השדות הנדרשים')
+        if (!formData.subscription_id) {
+          alert('אנא בחר מנוי')
           return
+        }
+
+        // Get user_id from subscription
+        const selectedSubscription = subscriptions.find(s => s.id === formData.subscription_id);
+        if (!selectedSubscription || !selectedSubscription.user_id) {
+          alert('שגיאה: לא נמצא משתמש למנוי שנבחר')
+          return
+        }
+
+        // Allow amount to be 0 for free month - check if amount is provided (even if 0)
+        if (formData.amount === undefined || formData.amount === null || formData.amount === '') {
+          alert('אנא הזן סכום (0 לחודש חינם)')
+          return
+        }
+        
+        const amount = parseFloat(formData.amount.toString());
+        if (isNaN(amount)) {
+          alert('אנא הזן סכום תקין')
+          return
+        }
+
+        // Convert payment_date from datetime-local format to ISO string if provided
+        let paymentDate = null;
+        if (formData.payment_date) {
+          // If it's already in datetime-local format (YYYY-MM-DDTHH:mm), convert to ISO
+          if (formData.payment_date.includes('T') && !formData.payment_date.includes('Z')) {
+            const date = new Date(formData.payment_date);
+            paymentDate = date.toISOString();
+          } else {
+            paymentDate = formData.payment_date;
+          }
+        } else {
+          // If no payment_date provided, use current date/time
+          paymentDate = new Date().toISOString();
         }
 
         const response = await fetch('/api/admin/payments', {
@@ -1387,12 +1439,12 @@ export default function AdminPanel() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             subscription_id: formData.subscription_id,
-            user_id: formData.user_id,
-            amount: formData.amount,
+            user_id: selectedSubscription.user_id,
+            amount: amount,
             currency: formData.currency || 'ILS',
             status: formData.status || 'pending',
             payment_method: formData.payment_method || null,
-            payment_date: formData.payment_date || null,
+            payment_date: paymentDate,
             invoice_url: formData.invoice_url || null,
             invoice_number: formData.invoice_number || null,
             transaction_id: formData.transaction_id || null
@@ -3963,7 +4015,15 @@ export default function AdminPanel() {
                   <div className="space-y-4">
                     <select
                       value={formData.subscription_id || ''}
-                      onChange={(e) => setFormData({ ...formData, subscription_id: e.target.value })}
+                      onChange={(e) => {
+                        const selectedSubscription = subscriptions.find(s => s.id === e.target.value);
+                        setFormData({ 
+                          ...formData, 
+                          subscription_id: e.target.value,
+                          // Automatically set user_id from subscription
+                          user_id: selectedSubscription?.user_id || null
+                        });
+                      }}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       required
                     >
@@ -3978,29 +4038,32 @@ export default function AdminPanel() {
                         );
                       })}
                     </select>
-                    <select
-                      value={formData.user_id || ''}
-                      onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      required
-                    >
-                      <option value="">בחר משתמש *</option>
-                      {users.map(user => (
-                        <option key={user.user_id || user.id} value={user.user_id || user.id}>
-                          {user.display_name || user.first_name || user.email || user.user_id}
-                        </option>
-                      ))}
-                    </select>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">סכום (₪) *</label>
                       <input
                         type="number"
                         step="0.01"
-                        value={formData.amount || ''}
-                        onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                        min="0"
+                        value={formData.amount !== undefined && formData.amount !== null ? formData.amount : ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Allow empty string, 0, or positive numbers
+                          if (value === '') {
+                            setFormData({ ...formData, amount: '' });
+                          } else {
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue) && numValue >= 0) {
+                              setFormData({ ...formData, amount: numValue });
+                            }
+                          }
+                        }}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                         required
+                        placeholder="0 לחודש חינם"
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        💡 הזן 0 לחודש חינם במתנה
+                      </p>
                     </div>
                     <select
                       value={formData.currency || 'ILS'}
@@ -4032,12 +4095,35 @@ export default function AdminPanel() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">תאריך תשלום (אופציונלי)</label>
-                      <input
-                        type="datetime-local"
-                        value={formData.payment_date || ''}
-                        onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
+                      <label className="block text-sm font-medium text-gray-700 mb-1">תאריך תשלום</label>
+                      <DatePicker
+                        selected={formData.payment_date ? new Date(formData.payment_date) : new Date()}
+                        onChange={(date: Date | null) => {
+                          if (date) {
+                            // Convert to datetime-local format (YYYY-MM-DDTHH:mm)
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            const dateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+                            setFormData({ ...formData, payment_date: dateTimeString });
+                          } else {
+                            setFormData({ ...formData, payment_date: null });
+                          }
+                        }}
+                        locale={he}
+                        dateFormat="dd/MM/yyyy HH:mm"
+                        showTimeSelect
+                        timeFormat="HH:mm"
+                        timeIntervals={15}
+                        placeholderText="בחר תאריך ושעה"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        calendarClassName="rtl"
+                        isClearable
+                        todayButton="היום"
+                        showPopperArrow={false}
+                        wrapperClassName="w-full"
                       />
                     </div>
                     <div>
@@ -6163,7 +6249,7 @@ export default function AdminPanel() {
                           <span className="font-medium">₪{payment.amount} {payment.currency || 'ILS'}</span>
                         </td>
                         <td className="py-3 px-4 text-sm">
-                          {formatDate(payment.payment_date)}
+                          {payment.payment_date ? formatDate(payment.payment_date) : '-'}
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 text-xs rounded ${
