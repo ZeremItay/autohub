@@ -6,7 +6,7 @@ import { getAllRecordings } from '@/lib/queries/recordings';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { isPremiumUser } from '@/lib/utils/user';
 import { formatDate } from '@/lib/utils/date';
-import { getTagsByContent, type Tag } from '@/lib/queries/tags';
+import { getTagsByContent, getTagsByContentBatch, type Tag } from '@/lib/queries/tags';
 import { 
   Search, 
   Grid3x3, 
@@ -76,18 +76,23 @@ export default function RecordingsPage() {
         
         setRecordings(sorted)
         
-        // Load tags for all recordings
+        // Load tags for all recordings in batch (much faster than individual queries)
         if (sorted.length > 0) {
-          const tagsPromises = sorted.map(async (recording: any) => {
-            const { data: tagsData } = await getTagsByContent('recording', recording.id)
-            const tags = (Array.isArray(tagsData) ? tagsData.map((t: any) => t.tag).filter(Boolean) : []) || []
-            return { recordingId: recording.id, tags }
-          })
-          const tagsResults = await Promise.all(tagsPromises)
+          const recordingIds = sorted.map((r: any) => r.id)
+          const { data: tagsData } = await getTagsByContentBatch('recording', recordingIds)
+          
+          // Group tags by recording ID
           const tagsMap: Record<string, Tag[]> = {}
-          tagsResults.forEach(({ recordingId, tags }) => {
-            tagsMap[recordingId] = tags
-          })
+          if (Array.isArray(tagsData)) {
+            tagsData.forEach((assignment: any) => {
+              if (assignment.tag && assignment.content_id) {
+                if (!tagsMap[assignment.content_id]) {
+                  tagsMap[assignment.content_id] = []
+                }
+                tagsMap[assignment.content_id].push(assignment.tag)
+              }
+            })
+          }
           setRecordingTags(tagsMap)
         }
       }
@@ -199,11 +204,13 @@ export default function RecordingsPage() {
               {/* Thumbnail */}
               <div className="relative aspect-video bg-gradient-to-br from-gray-200 to-gray-300 overflow-hidden">
                 {recording.thumbnail_url ? (
-                  // Show thumbnail image if available
+                  // Show thumbnail image with lazy loading
                   <img
                     src={recording.thumbnail_url}
                     alt={recording.title}
                     className="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       // Fallback to gradient if image fails to load
                       const target = e.target as HTMLImageElement;
@@ -309,10 +316,23 @@ export default function RecordingsPage() {
           </div>
         )}
 
-        {/* Loading State - Only show if recordings are loading, not user */}
+        {/* Loading State - Show skeleton while loading */}
         {loading && recordings.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-[#F52F8E] text-xl">טוען הקלטות...</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse">
+                <div className="aspect-video bg-gray-200"></div>
+                <div className="p-5 space-y-3">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                  <div className="flex justify-between mt-4">
+                    <div className="h-3 bg-gray-200 rounded w-20"></div>
+                    <div className="h-3 bg-gray-200 rounded w-24"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

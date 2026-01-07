@@ -362,7 +362,45 @@ function ProfilePageContent() {
       const fileName = `${userId}-${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
-      // Upload to Supabase Storage
+      // Try to use image optimization if available
+      try {
+        const { uploadAndOptimizeImage } = await import('@/lib/utils/image-upload');
+        const result = await uploadAndOptimizeImage(
+          supabase, // Pass existing supabase client with session
+          file,
+          'avatars',
+          fileName, // Use fileName only (bucket name is separate)
+          {
+            optimize: true,
+            quality: 82,
+            convertToWebP: false,
+            cacheControl: '3600',
+            upsert: true,
+          }
+        );
+
+        console.log(`✅ Image optimized! Original: ${result.originalSize} bytes, Optimized: ${result.optimizedSize} bytes, Saved: ${result.savings} bytes (${Math.round((result.savings / result.originalSize) * 100)}%)`);
+
+        setFormData({ ...formData, avatar_url: result.url });
+        await saveDetails({ avatar_url: result.url });
+        setShowAvatarModal(false);
+        
+        // Clear cache and reload profile
+        const { clearCache } = await import('@/lib/cache');
+        clearCache();
+        await loadProfile();
+        // Notify other components
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: result.url } }));
+        }
+        setUploadingAvatar(false);
+        return;
+      } catch (optimizeError: any) {
+        console.warn('Image optimization failed, uploading original image:', optimizeError);
+        // Fallback to regular upload
+      }
+
+      // Fallback: Upload to Supabase Storage without optimization
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, {

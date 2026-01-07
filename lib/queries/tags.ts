@@ -220,6 +220,37 @@ export async function getTagsByContent(contentType: string, contentId: string) {
   return { data: Array.isArray(data) ? data : (data ?? null), error: null }
 }
 
+// Get tags for multiple content items in batch (optimized for performance)
+export async function getTagsByContentBatch(contentType: string, contentIds: string[]) {
+  if (!contentIds || contentIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const cacheKey = `tags:${contentType}:batch:${contentIds.sort().join(',')}`;
+  const cached = getCached(cacheKey);
+  if (cached) {
+    return { data: Array.isArray(cached) ? cached : [], error: null };
+  }
+
+  const { data, error } = await supabase
+    .from('tag_assignments')
+    .select(`
+      *,
+      tag:tags (*)
+    `)
+    .eq('content_type', contentType)
+    .in('content_id', contentIds)
+    .eq('tag.is_approved', true)
+
+  if (error) {
+    console.error('Error fetching tags by content batch:', error)
+    return { data: null, error }
+  }
+
+  setCached(cacheKey, data, 300000);
+  return { data: Array.isArray(data) ? data : [], error: null }
+}
+
 // Assign tags to content
 export async function assignTagsToContent(
   contentType: string,

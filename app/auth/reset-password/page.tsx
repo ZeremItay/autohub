@@ -32,19 +32,32 @@ function ResetPasswordContent() {
     const finalType = type || typeFromQuery;
 
     if (finalType === 'recovery' && finalToken) {
-      // Set the session with the recovery token before allowing password reset
-      supabase.auth.setSession({
-        access_token: finalToken,
-        refresh_token: '' // Not needed for recovery, but required by API
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error('Error setting session:', error);
-          setError('קישור לא תקין או שפג תוקפו. אנא בקש קישור חדש לאיפוס סיסמה.');
-        } else if (data?.session) {
-          // Session set successfully, user can now reset password
-          console.log('Recovery session set successfully');
+      // For recovery tokens, Supabase handles the hash fragment automatically
+      // We just need to wait for Supabase to process it
+      // Check if we already have a session
+      supabase.auth.getSession().then(({ data: sessionData, error: sessionError }) => {
+        if (sessionError || !sessionData?.session) {
+          // If no session, try to set it with the token
+          // For recovery tokens, we need to use the token directly
+          // Supabase should handle recovery tokens from hash fragments automatically
+          // But if it doesn't, we'll try to set it manually
+          if (finalToken) {
+            // Try to get user with the token to verify it's valid
+            supabase.auth.getUser(finalToken).then(({ data: userData, error: userError }) => {
+              if (userError || !userData?.user) {
+                console.error('Error validating recovery token:', userError);
+                setError('קישור לא תקין או שפג תוקפו. אנא בקש קישור חדש לאיפוס סיסמה.');
+              }
+              setLoading(false);
+            });
+          } else {
+            setLoading(false);
+          }
+        } else {
+          // Session exists, we're good to go
+          console.log('Recovery session found');
+          setLoading(false);
         }
-        setLoading(false);
       });
     } else {
       // No valid token, redirect to forgot password
@@ -77,6 +90,33 @@ function ResetPasswordContent() {
         setError('הסיסמה חייבת להכיל לפחות 6 תווים');
         setSaving(false);
         return;
+      }
+
+      // Check if we have a valid session before updating password
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !sessionData?.session) {
+        // Try to get token from URL and set session
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+        
+        if (accessToken) {
+          // Set session with recovery token
+          const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: '' // Recovery tokens don't have refresh tokens
+          });
+          
+          if (setSessionError || !setSessionData?.session) {
+            setError('קישור לא תקין או שפג תוקפו. אנא בקש קישור חדש לאיפוס סיסמה.');
+            setSaving(false);
+            return;
+          }
+        } else {
+          setError('קישור לא תקין או שפג תוקפו. אנא בקש קישור חדש לאיפוס סיסמה.');
+          setSaving(false);
+          return;
+        }
       }
 
       // Update password using Supabase Auth

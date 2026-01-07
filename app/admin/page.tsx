@@ -3187,17 +3187,17 @@ export default function AdminPanel() {
                       ערוך נבחרים ({selectedItems.size})
                     </button>
                   )}
-                  <button
-                    onClick={async () => {
-                      if (confirm(`האם אתה בטוח שברצונך למחוק ${selectedItems.size} פריטים?`)) {
-                        await handleDeleteSelected()
-                      }
-                    }}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    מחק נבחרים ({selectedItems.size})
-                  </button>
+                <button
+                  onClick={async () => {
+                    if (confirm(`האם אתה בטוח שברצונך למחוק ${selectedItems.size} פריטים?`)) {
+                      await handleDeleteSelected()
+                    }
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  מחק נבחרים ({selectedItems.size})
+                </button>
                 </div>
               )}
               {activeTab === 'subscriptions' && (
@@ -4717,9 +4717,9 @@ export default function AdminPanel() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                         />
                         <p className="text-xs text-gray-500 mt-1">קישור לדף התשלום מ-Sumit. אם לא מוגדר, ישתמש בקישור ברירת מחדל.</p>
-                      </div>
-                      
-                      <div className="space-y-3">
+                        </div>
+                        
+                        <div className="space-y-3">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="checkbox"
