@@ -1012,7 +1012,7 @@ export default function AdminPanel() {
         const { data: rolesData } = await getAllRoles()
         setAvailableRoles(rolesData || [])
       } else if (activeTab === 'courses') {
-        const { data, error } = await getAllCourses()
+        const { data, error } = await getAllCourses(undefined, true) // Include drafts for admin panel
         if (!error) setCourses(data || [])
       } else if (activeTab === 'badges') {
         const { getAllBadges } = await import('@/lib/queries/badges')
@@ -1193,7 +1193,7 @@ export default function AdminPanel() {
         await loadUserEnrollments(userId)
         // Reload courses list to update counts if needed
         if (activeTab === 'courses') {
-          const { data: coursesData, error } = await getAllCourses()
+          const { data: coursesData, error } = await getAllCourses(undefined, true) // Include drafts for admin panel
           if (!error) setCourses(coursesData || [])
         }
         return { success: true, data }
@@ -1230,7 +1230,7 @@ export default function AdminPanel() {
     setSelectedUserForCourses(userId)
     // Load courses if not already loaded
     if (courses.length === 0) {
-      const { data, error } = await getAllCourses()
+      const { data, error } = await getAllCourses(undefined, true) // Include drafts for admin panel
       if (!error) setCourses(data || [])
     }
     loadUserEnrollments(userId)
@@ -1624,7 +1624,8 @@ export default function AdminPanel() {
           is_free: formData.is_free !== false && (!formData.price || formData.price === 0) && !formData.is_free_for_premium,
           is_free_for_premium: formData.is_free_for_premium || false,
           is_sequential: formData.is_sequential || false,
-          payment_url: formData.payment_url || undefined
+          payment_url: formData.payment_url || undefined,
+          status: formData.status || 'published'
         }
 
         const { data, error } = await createCourse(courseData)
@@ -2139,7 +2140,8 @@ export default function AdminPanel() {
           is_free: formData.is_free !== false && (!formData.price || formData.price === 0) && !formData.is_free_for_premium,
           is_free_for_premium: formData.is_free_for_premium || false,
           is_sequential: formData.is_sequential || false,
-          payment_url: formData.payment_url || undefined
+          payment_url: formData.payment_url || undefined,
+          status: formData.status || 'published'
         })
         
         if (!error && data) {
@@ -2224,6 +2226,13 @@ export default function AdminPanel() {
                   
                   if (sectionError) {
                     console.error('Error creating section:', sectionError)
+                    console.error('Section error details:', {
+                      message: sectionError?.message || 'No message',
+                      code: (sectionError as any)?.code || 'No code',
+                      details: (sectionError as any)?.details || 'No details',
+                      hint: (sectionError as any)?.hint || 'No hint',
+                      fullError: JSON.stringify(sectionError, Object.getOwnPropertyNames(sectionError))
+                    })
                   } else if (createdSection) {
                     sectionMap.set(section.id, createdSection.id)
                     console.log('Section created successfully:', createdSection.id)
@@ -2263,6 +2272,13 @@ export default function AdminPanel() {
                     
                     if (lessonError) {
                       console.error('Error creating lesson:', lessonError)
+                      console.error('Lesson error details:', {
+                        message: lessonError?.message || 'No message',
+                        code: (lessonError as any)?.code || 'No code',
+                        details: (lessonError as any)?.details || 'No details',
+                        hint: (lessonError as any)?.hint || 'No hint',
+                        fullError: JSON.stringify(lessonError, Object.getOwnPropertyNames(lessonError))
+                      })
                       lessonsFailed++
                     } else {
                       console.log('Lesson created successfully:', createdLesson?.id)
@@ -4767,7 +4783,23 @@ export default function AdminPanel() {
                           </label>
                           <p className="text-xs text-gray-500 mt-1 mr-6">בקורס היררכי, התלמידים חייבים לסיים שיעור לפני מעבר לשיעור הבא</p>
                         </div>
+                      
+                      {/* Status */}
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">סטטוס הקורס</label>
+                        <select
+                          value={formData.status || 'published'}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value as 'draft' | 'published' })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                        >
+                          <option value="published">מפורסם</option>
+                          <option value="draft">טיוטה</option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">קורסים בטיוטה לא יוצגו לקהל הרחב, רק למנהלים</p>
                       </div>
+                    </div>
+                    
+                    {/* Tags */}
                     
                     {/* Tags */}
                     <div className="space-y-4 border-t border-gray-200 pt-4">

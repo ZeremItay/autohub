@@ -89,8 +89,10 @@ export default function CoursesPage() {
       let data: Course[] = [];
       let error: any = null;
 
+      const isUserAdmin = currentUser ? isAdmin(currentUser) : false;
+      
       if (selectedCategory === 'הכל') {
-        const result = await getAllCourses(currentUser?.id);
+        const result = await getAllCourses(currentUser?.id, isUserAdmin);
         data = result.data || [];
         error = result.error;
       } else {
@@ -100,7 +102,7 @@ export default function CoursesPage() {
           const courseIds = assignments.map((a: any) => a.content_id);
           
           if (courseIds.length > 0) {
-            const allCoursesResult = await getAllCourses(currentUser?.id);
+            const allCoursesResult = await getAllCourses(currentUser?.id, isUserAdmin);
             if (allCoursesResult.data) {
               data = allCoursesResult.data.filter((c: Course) => courseIds.includes(c.id));
             }

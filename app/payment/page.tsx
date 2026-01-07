@@ -1,25 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { CreditCard, Lock, CheckCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { getCourseById, type Course } from '@/lib/queries/courses';
 
-export default function PaymentPage() {
+function PaymentPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string>('https://pay.sumit.co.il/eaxdrn/hsclm5/c/payment');
 
   useEffect(() => {
     checkAuth();
-    if (courseId) {
+    const courseIdParam = searchParams.get('courseId');
+    if (courseIdParam) {
       loadCourse();
     }
-  }, [courseId]);
+  }, [searchParams]);
 
   async function loadCourse() {
     try {
-      const { data, error } = await getCourseById(courseId!);
+      const courseIdParam = searchParams.get('courseId');
+      if (!courseIdParam) return;
+      
+      const { data, error } = await getCourseById(courseIdParam);
       if (data && !error) {
         setCourse(data);
         // Use payment_url from course if available, otherwise use default
@@ -41,7 +49,8 @@ export default function PaymentPage() {
       
       if (error || !session) {
         // Redirect to login if not authenticated
-        const redirectUrl = courseId ? `/payment?courseId=${courseId}` : '/payment';
+        const courseIdParam = searchParams.get('courseId');
+        const redirectUrl = courseIdParam ? `/payment?courseId=${courseIdParam}` : '/payment';
         router.push(`/auth/login?redirect=${encodeURIComponent(redirectUrl)}`);
         return;
       }
@@ -60,7 +69,8 @@ export default function PaymentPage() {
       setLoading(false);
     } catch (error) {
       console.error('Error checking auth:', error);
-      const redirectUrl = courseId ? `/payment?courseId=${courseId}` : '/payment';
+      const courseIdParam = searchParams.get('courseId');
+      const redirectUrl = courseIdParam ? `/payment?courseId=${courseIdParam}` : '/payment';
       router.push(`/auth/login?redirect=${encodeURIComponent(redirectUrl)}`);
     }
   }
@@ -153,3 +163,17 @@ export default function PaymentPage() {
   );
 }
 
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#F52F8E] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">טוען...</p>
+        </div>
+      </div>
+    }>
+      <PaymentPageContent />
+    </Suspense>
+  );
+}

@@ -21,6 +21,7 @@ export interface Course {
   is_free_for_premium?: boolean; // חינם לפרימיום - מנויים פרימיום מקבלים בחינם, מנויים חינמיים משלמים
   is_sequential?: boolean; // קורס היררכי - חייב לסיים שיעור לפני מעבר לשיעור הבא
   payment_url?: string; // קישור תשלום ספציפי לקורס זה מ-Sumit
+  status?: 'draft' | 'published'; // סטטוס הקורס: draft (טיוטה) או published (מפורסם)
   created_at: string;
   updated_at: string;
   progress?: number; // Progress percentage for user
@@ -85,12 +86,59 @@ export interface CourseLesson {
 }
 
 // Get all courses
-export async function getAllCourses(userId?: string) {
+export async function getAllCourses(userId?: string, includeDrafts: boolean = false) {
   const supabase = createServerClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('courses')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select('*');
+  
+  // Only show published courses unless includeDrafts is true (for admins)
+  // Check if status column exists by trying to filter (if column doesn't exist, this will fail gracefully)
+  if (!includeDrafts) {
+    try {
+      query = query.eq('status', 'published');
+    } catch (e) {
+      // If status column doesn't exist yet, just return all courses
+      // This allows the system to work before running the migration
+      console.warn('Status column not found, returning all courses. Please run supabase-add-course-status.sql');
+    }
+  }
+  
+  const { data, error } = await query.order('created_at', { ascending: false });
+  
+  // If error is about missing column, return all courses (backward compatibility)
+  if (error && error.message && error.message.includes('status')) {
+    console.warn('Status column not found, returning all courses. Please run supabase-add-course-status.sql');
+    const { data: allData, error: allError } = await supabase
+      .from('courses')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (allError || !allData) return { data: [], error: allError };
+    // Continue with allData instead of data
+    const finalData = allData;
+    // Get user progress if userId provided
+    if (userId) {
+      const courseIds = finalData.map(c => c.id);
+      const { data: progressData } = await supabase
+        .from('course_progress')
+        .select('course_id, progress_percentage')
+        .eq('user_id', userId)
+        .in('course_id', courseIds);
+      
+      const progressMap = new Map(
+        progressData?.map(p => [p.course_id, p.progress_percentage]) || []
+      );
+      
+      const coursesWithProgress = finalData.map(course => ({
+        ...course,
+        progress: progressMap.get(course.id) || 0
+      }));
+      
+      return { data: Array.isArray(coursesWithProgress) ? coursesWithProgress : [], error: null };
+    }
+    
+    return { data: Array.isArray(finalData) ? finalData : [], error: null };
+  }
   
   if (error || !data) return { data: [], error };
   
@@ -119,13 +167,59 @@ export async function getAllCourses(userId?: string) {
 }
 
 // Get courses by category
-export async function getCoursesByCategory(category: string, userId?: string) {
+export async function getCoursesByCategory(category: string, userId?: string, includeDrafts: boolean = false) {
   const supabase = createServerClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('courses')
     .select('*')
-    .eq('category', category)
-    .order('created_at', { ascending: false });
+    .eq('category', category);
+  
+  // Only show published courses unless includeDrafts is true (for admins)
+  if (!includeDrafts) {
+    try {
+      query = query.eq('status', 'published');
+    } catch (e) {
+      // If status column doesn't exist yet, just return all courses
+      console.warn('Status column not found, returning all courses. Please run supabase-add-course-status.sql');
+    }
+  }
+  
+  const { data, error } = await query.order('created_at', { ascending: false });
+  
+  // If error is about missing column, return all courses (backward compatibility)
+  if (error && error.message && error.message.includes('status')) {
+    console.warn('Status column not found, returning all courses. Please run supabase-add-course-status.sql');
+    const { data: allData, error: allError } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('category', category)
+      .order('created_at', { ascending: false });
+    if (allError || !allData) return { data: [], error: allError };
+    // Continue with allData instead of data
+    const finalData = allData;
+    // Get user progress if userId provided
+    if (userId) {
+      const courseIds = finalData.map(c => c.id);
+      const { data: progressData } = await supabase
+        .from('course_progress')
+        .select('course_id, progress_percentage')
+        .eq('user_id', userId)
+        .in('course_id', courseIds);
+      
+      const progressMap = new Map(
+        progressData?.map(p => [p.course_id, p.progress_percentage]) || []
+      );
+      
+      const coursesWithProgress = finalData.map(course => ({
+        ...course,
+        progress: progressMap.get(course.id) || 0
+      }));
+      
+      return { data: Array.isArray(coursesWithProgress) ? coursesWithProgress : [], error: null };
+    }
+    
+    return { data: Array.isArray(finalData) ? finalData : [], error: null };
+  }
   
   if (error || !data) return { data: [], error };
   
@@ -242,7 +336,8 @@ export async function createCourse(course: Omit<Course, 'id' | 'created_at' | 'u
     is_premium_only: Boolean(course.is_premium_only ?? false),
     is_free: course.is_free !== undefined ? Boolean(course.is_free) : (course.price === undefined || course.price === null || course.price === 0) && !course.is_free_for_premium,
     is_free_for_premium: Boolean(course.is_free_for_premium ?? false),
-    is_sequential: Boolean(course.is_sequential ?? false)
+    is_sequential: Boolean(course.is_sequential ?? false),
+    status: (course.status === 'draft' || course.status === 'published') ? course.status : 'published' // Default to published if not specified
   };
   
   // Add optional fields only if they exist
@@ -537,6 +632,13 @@ export async function createCourseSection(section: Omit<CourseSection, 'id' | 'c
     
     if (error) {
       console.error('Error creating section:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: (error as any)?.code,
+        details: (error as any)?.details,
+        hint: (error as any)?.hint,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+      });
       console.error('Section data:', sectionData);
       return { data: null, error };
     }
@@ -693,6 +795,13 @@ export async function createLesson(lesson: Omit<CourseLesson, 'id' | 'created_at
   
   if (error) {
     console.error('Error creating lesson:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: (error as any)?.code,
+      details: (error as any)?.details,
+      hint: (error as any)?.hint,
+      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+    });
     console.error('Lesson data:', lessonData);
     return { data: null, error };
   }
