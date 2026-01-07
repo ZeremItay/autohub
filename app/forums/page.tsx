@@ -269,7 +269,7 @@ export default function ForumsPage() {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
+    <div className="px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
       <div className="max-w-7xl mx-auto">
         {/* Hero Section */}
         <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl p-8 mb-8">
@@ -394,9 +394,9 @@ export default function ForumsPage() {
           </div>
         </div>
 
-        <div className="flex gap-6 flex-col lg:flex-row">
+        <div className="flex gap-6 flex-col lg:flex-row min-w-0">
           {/* Main Content - Forum Cards */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0 lg:w-[60%] xl:w-[56%] 2xl:flex-1 flex-shrink">
             {loading ? (
               <div className="text-center py-12">טוען...</div>
             ) : (
@@ -531,7 +531,7 @@ export default function ForumsPage() {
           </div>
 
           {/* Right Sidebar - Discussion Groups */}
-          <aside className="lg:w-80 flex-shrink-0">
+          <aside className="lg:w-[25%] xl:w-[28%] 2xl:w-80 flex-shrink min-w-0">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
               <button 
                 onClick={() => {

@@ -192,7 +192,7 @@ export default function CoursesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto overflow-x-hidden">
           {/* Hero Section */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-gray-800 mb-2">קורסים</h1>
@@ -276,7 +276,11 @@ export default function CoursesPage() {
                     </div>
                     <div className="p-6">
                       <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
-                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description}</p>
+                      <div 
+                        className="text-gray-600 text-sm mb-4 line-clamp-2 prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: course.description }}
+                        dir="rtl"
+                      />
                       <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
                         <span>{course.duration_hours} שעות</span>
                         <span>•</span>
@@ -341,7 +345,11 @@ export default function CoursesPage() {
                       </div>
                       <div className="p-6">
                         <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description}</p>
+                        <div 
+                        className="text-gray-600 text-sm mb-4 line-clamp-2 prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: course.description }}
+                        dir="rtl"
+                      />
                         <div className="flex items-center gap-4 text-sm text-gray-500 mb-4 flex-wrap">
                           <span>{course.duration_hours} שעות</span>
                           <span>•</span>

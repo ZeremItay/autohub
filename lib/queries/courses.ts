@@ -20,6 +20,7 @@ export interface Course {
   is_free?: boolean; // קורס חינם
   is_free_for_premium?: boolean; // חינם לפרימיום - מנויים פרימיום מקבלים בחינם, מנויים חינמיים משלמים
   is_sequential?: boolean; // קורס היררכי - חייב לסיים שיעור לפני מעבר לשיעור הבא
+  payment_url?: string; // קישור תשלום ספציפי לקורס זה מ-Sumit
   created_at: string;
   updated_at: string;
   progress?: number; // Progress percentage for user
@@ -249,6 +250,7 @@ export async function createCourse(course: Omit<Course, 'id' | 'created_at' | 'u
   if (course.instructor_name) courseData.instructor_name = course.instructor_name
   if (course.instructor_title) courseData.instructor_title = course.instructor_title
   if (course.instructor_avatar_url) courseData.instructor_avatar_url = course.instructor_avatar_url
+  if (course.payment_url) courseData.payment_url = course.payment_url
   
   console.log('Inserting course - difficulty:', JSON.stringify(courseData.difficulty))
   

@@ -778,10 +778,10 @@ export default function ProjectsPage() {
 
   return (
     <div className="min-h-screen bg-[#F3F4F6]">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-w-0">
           {/* Main Content - First on Mobile */}
-          <main className="flex-1 min-w-0 order-1 lg:order-2">
+          <main className="flex-1 min-w-0 lg:w-[60%] xl:w-[56%] 2xl:flex-1 order-1 lg:order-2 flex-shrink">
             {/* Header with Title */}
             <div className="mb-4">
               <h1 className="text-3xl font-bold text-gray-800 mb-4">לוח פרויקטים</h1>
@@ -1055,7 +1055,7 @@ export default function ProjectsPage() {
           </main>
 
           {/* Left Sidebar - Second on Mobile */}
-          <aside className="w-full lg:w-64 flex-shrink-0 space-y-4 order-2 lg:order-1">
+          <aside className="w-full lg:w-[20%] xl:w-[22%] 2xl:w-64 flex-shrink space-y-4 order-2 lg:order-1">
             {/* Who's Online */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <h3 className="text-sm font-semibold text-gray-800 mb-4">מי מחובר?</h3>

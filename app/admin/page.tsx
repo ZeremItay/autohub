@@ -1623,7 +1623,8 @@ export default function AdminPanel() {
           is_premium_only: formData.is_premium_only || false,
           is_free: formData.is_free !== false && (!formData.price || formData.price === 0) && !formData.is_free_for_premium,
           is_free_for_premium: formData.is_free_for_premium || false,
-          is_sequential: formData.is_sequential || false
+          is_sequential: formData.is_sequential || false,
+          payment_url: formData.payment_url || undefined
         }
 
         const { data, error } = await createCourse(courseData)
@@ -2137,7 +2138,8 @@ export default function AdminPanel() {
           is_premium_only: formData.is_premium_only || false,
           is_free: formData.is_free !== false && (!formData.price || formData.price === 0) && !formData.is_free_for_premium,
           is_free_for_premium: formData.is_free_for_premium || false,
-          is_sequential: formData.is_sequential || false
+          is_sequential: formData.is_sequential || false,
+          payment_url: formData.payment_url || undefined
         })
         
         if (!error && data) {
@@ -4680,8 +4682,21 @@ export default function AdminPanel() {
                           />
                           <p className="text-xs text-gray-500 mt-1">השאר ריק או 0 לקורס חינם</p>
                         </div>
-                        
-                        <div className="space-y-3">
+                      </div>
+                      
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">קישור תשלום (Sumit)</label>
+                        <input
+                          type="url"
+                          placeholder="https://pay.sumit.co.il/eaxdrn/merd7f/merd7g/payment/"
+                          value={formData.payment_url || ''}
+                          onChange={(e) => setFormData({ ...formData, payment_url: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">קישור לדף התשלום מ-Sumit. אם לא מוגדר, ישתמש בקישור ברירת מחדל.</p>
+                      </div>
+                      
+                      <div className="space-y-3">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="checkbox"
@@ -4753,7 +4768,6 @@ export default function AdminPanel() {
                           <p className="text-xs text-gray-500 mt-1 mr-6">בקורס היררכי, התלמידים חייבים לסיים שיעור לפני מעבר לשיעור הבא</p>
                         </div>
                       </div>
-                    </div>
                     
                     {/* Tags */}
                     <div className="space-y-4 border-t border-gray-200 pt-4">

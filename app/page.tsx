@@ -989,13 +989,13 @@ export default function Home() {
   }
 
   return (
-    <div className="px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6">
+    <div className="px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 overflow-x-hidden">
       {/* Reports News Ticker */}
       <ReportsTicker reports={reports} />
 
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-4 sm:gap-6">
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-4 sm:gap-6 min-w-0">
         {/* Left Sidebar - Desktop */}
-        <aside className="hidden lg:block w-80 flex-shrink-0 space-y-4 sm:space-y-6">
+        <aside className="hidden lg:block lg:w-[20%] xl:w-[22%] 2xl:w-80 space-y-4 sm:space-y-6 flex-shrink">
           {/* Who is Online */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">מי מחובר?</h2>
@@ -1092,7 +1092,7 @@ export default function Home() {
         </aside>
 
         {/* Center Column - Announcements (Admin Posts Only) */}
-        <main className="flex-1 min-w-0 space-y-4 sm:space-y-6">
+        <main className="flex-1 min-w-0 lg:w-[60%] xl:w-[56%] 2xl:flex-1 space-y-4 sm:space-y-6 flex-shrink">
           {/* News Carousel */}
           {news && news.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 relative overflow-hidden">
@@ -1601,7 +1601,7 @@ export default function Home() {
         </main>
 
         {/* Right Sidebar - Friends */}
-        <aside className="hidden lg:block w-80 flex-shrink-0">
+        <aside className="hidden lg:block lg:w-[20%] xl:w-[22%] 2xl:w-80 flex-shrink">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">חברים</h2>
             

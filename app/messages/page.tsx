@@ -312,9 +312,9 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full bg-white">
+    <div className="flex h-[calc(100vh-4rem)] w-full bg-white overflow-x-hidden">
       {/* Right Sidebar - Conversations List */}
-      <aside className={`${showConversationList ? 'flex' : 'hidden'} lg:flex w-full lg:w-80 border-l border-gray-200 bg-white flex-col`}>
+      <aside className={`${showConversationList ? 'flex' : 'hidden'} lg:flex w-full lg:w-[25%] xl:w-[28%] 2xl:w-80 border-l border-gray-200 bg-white flex-col flex-shrink min-w-0`}>
         {/* Header */}
         <div className="p-3 sm:p-4 border-b border-gray-200">
           <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">הודעות</h2>
@@ -407,7 +407,7 @@ export default function MessagesPage() {
 
       {/* Main Chat Area */}
       {activeConversation && (
-        <main className={`flex-1 flex flex-col bg-white ${showConversationList ? 'hidden' : 'flex'} lg:flex`}>
+        <main className={`flex-1 min-w-0 lg:w-[75%] xl:w-[72%] 2xl:flex-1 flex flex-col bg-white ${showConversationList ? 'hidden' : 'flex'} lg:flex flex-shrink`}>
           {/* Chat Header */}
           <div className="p-3 sm:p-4 border-b border-gray-200 bg-white">
             <div className="flex items-center gap-3">

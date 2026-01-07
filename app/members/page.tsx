@@ -279,7 +279,7 @@ function MembersPageContent() {
 
       {/* Main Content */}
       <div className={`transition-all duration-300 px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8`}>
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto overflow-x-hidden">
           {loading ? (
             <div className="text-center py-8 sm:py-12">
               <div className="text-[#F52F8E] text-lg sm:text-xl">טוען חברים...</div>

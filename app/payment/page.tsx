@@ -12,7 +12,28 @@ export default function PaymentPage() {
 
   useEffect(() => {
     checkAuth();
-  }, []);
+    if (courseId) {
+      loadCourse();
+    }
+  }, [courseId]);
+
+  async function loadCourse() {
+    try {
+      const { data, error } = await getCourseById(courseId!);
+      if (data && !error) {
+        setCourse(data);
+        // Use payment_url from course if available, otherwise use default
+        if (data.payment_url) {
+          setPaymentUrl(data.payment_url);
+        } else {
+          // Default payment URL if course doesn't have a specific one
+          setPaymentUrl('https://pay.sumit.co.il/eaxdrn/hsclm5/c/payment');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading course:', error);
+    }
+  }
 
   async function checkAuth() {
     try {
@@ -20,7 +41,8 @@ export default function PaymentPage() {
       
       if (error || !session) {
         // Redirect to login if not authenticated
-        router.push('/auth/login?redirect=/payment');
+        const redirectUrl = courseId ? `/payment?courseId=${courseId}` : '/payment';
+        router.push(`/auth/login?redirect=${encodeURIComponent(redirectUrl)}`);
         return;
       }
 
@@ -38,7 +60,8 @@ export default function PaymentPage() {
       setLoading(false);
     } catch (error) {
       console.error('Error checking auth:', error);
-      router.push('/auth/login?redirect=/payment');
+      const redirectUrl = courseId ? `/payment?courseId=${courseId}` : '/payment';
+      router.push(`/auth/login?redirect=${encodeURIComponent(redirectUrl)}`);
     }
   }
 
@@ -58,8 +81,15 @@ export default function PaymentPage() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-right mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">תשלום מאובטח</h1>
-          <p className="text-gray-600 text-sm sm:text-base">השלם את התשלום שלך בצורה בטוחה ומאובטחת</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
+            {course ? `תשלום עבור: ${course.title}` : 'תשלום מאובטח'}
+          </h1>
+          <p className="text-gray-600 text-sm sm:text-base">
+            {course ? `השלם את התשלום עבור הקורס "${course.title}"` : 'השלם את התשלום שלך בצורה בטוחה ומאובטחת'}
+          </p>
+          {course && course.price && (
+            <p className="text-2xl font-bold text-[#F52F8E] mt-2">{course.price} ₪</p>
+          )}
         </div>
 
         {/* Payment Card */}
@@ -75,7 +105,7 @@ export default function PaymentPage() {
           <div className="w-full flex justify-center mb-6">
             <div className="w-full max-w-2xl">
               <iframe 
-                src="https://pay.sumit.co.il/eaxdrn/hsclm5/c/payment" 
+                src={paymentUrl}
                 style={{
                   width: '100%',
                   height: '800px',

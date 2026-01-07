@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Play, Clock, CheckCircle, Lock, ArrowRight, ArrowLeft, HelpCircle, Star, ChevronDown, ChevronUp, ExternalLink, X, BookOpen } from 'lucide-react';
 import { getCourseById, getCourseLessons, getCourseSections, checkEnrollment, enrollInCourse, markLessonComplete, markLessonIncomplete, getCompletedLessons, isLessonCompleted, canAccessLesson, getNextAvailableLesson, type Course, type CourseLesson, type CourseSection } from '@/lib/queries/courses';
 import { getCurrentUserProfile } from '@/lib/queries/profiles';
@@ -12,6 +12,7 @@ import Link from 'next/link';
 
 export default function CourseDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const courseId = params.id as string;
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<CourseLesson[]>([]);
@@ -375,6 +376,18 @@ export default function CourseDetailPage() {
       return;
     }
     
+    // Check if course requires payment
+    const requiresPayment = !course.is_free && 
+                           course.price && 
+                           course.price > 0 && 
+                           !(course.is_free_for_premium && isPremiumUser(currentUser));
+    
+    if (requiresPayment) {
+      // Redirect to payment page with course ID
+      router.push(`/payment?courseId=${courseId}`);
+      return;
+    }
+    
     setEnrolling(true);
     try {
       const { data, error } = await enrollInCourse(courseId, currentUser.id);
@@ -550,15 +563,21 @@ export default function CourseDetailPage() {
             <div className="text-center mb-10">
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-6">{course.title}</h1>
               {course.description && (() => {
-                const words = course.description.split(/\s+/);
+                // Strip HTML tags for truncation
+                const textContent = course.description.replace(/<[^>]*>/g, '');
+                const words = textContent.split(/\s+/);
                 const shouldTruncate = words.length > 25;
-                const truncatedText = shouldTruncate ? words.slice(0, 25).join(' ') : course.description;
+                const truncatedText = shouldTruncate ? words.slice(0, 25).join(' ') : textContent;
                 
                 return (
-                  <div className="text-lg sm:text-xl text-gray-600 leading-relaxed max-w-3xl mx-auto px-4 whitespace-pre-line">
+                  <div className="text-lg sm:text-xl text-gray-600 leading-relaxed max-w-3xl mx-auto px-4 prose prose-lg max-w-none">
                     {shouldTruncate && !descriptionExpanded ? (
                       <>
-                        {truncatedText}...
+                        <div 
+                          className="inline"
+                          dangerouslySetInnerHTML={{ __html: truncatedText + '...' }}
+                          dir="rtl"
+                        />
                         <button
                           onClick={() => setDescriptionExpanded(true)}
                           className="text-[#F52F8E] hover:text-[#E01E7A] font-medium mr-2 transition-colors"
@@ -568,7 +587,10 @@ export default function CourseDetailPage() {
                       </>
                     ) : (
                       <>
-                        {course.description}
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: course.description }}
+                          dir="rtl"
+                        />
                         {shouldTruncate && descriptionExpanded && (
                           <button
                             onClick={() => setDescriptionExpanded(false)}
@@ -696,16 +718,22 @@ export default function CourseDetailPage() {
               </div>
               <h1 className="text-3xl font-bold text-gray-800 mb-3">{course.title}</h1>
               {course.description && (() => {
-                const words = course.description.split(/\s+/);
+                // Strip HTML tags for truncation
+                const textContent = course.description.replace(/<[^>]*>/g, '');
+                const words = textContent.split(/\s+/);
                 const shouldTruncate = words.length > 25;
-                const truncatedText = shouldTruncate ? words.slice(0, 25).join(' ') : course.description;
+                const truncatedText = shouldTruncate ? words.slice(0, 25).join(' ') : textContent;
                 
                 return (
                   <div className="mb-4">
-                    <div className="text-gray-600 leading-relaxed whitespace-pre-line">
+                    <div className="text-gray-600 leading-relaxed prose prose-sm max-w-none">
                       {shouldTruncate && !descriptionExpanded ? (
                         <>
-                          {truncatedText}...
+                          <div 
+                            className="inline"
+                            dangerouslySetInnerHTML={{ __html: truncatedText + '...' }}
+                            dir="rtl"
+                          />
                           <button
                             onClick={() => setDescriptionExpanded(true)}
                             className="text-[#F52F8E] hover:text-[#E01E7A] font-medium mr-2 transition-colors"
@@ -715,7 +743,10 @@ export default function CourseDetailPage() {
                         </>
                       ) : (
                         <>
-                          {course.description}
+                          <div 
+                            dangerouslySetInnerHTML={{ __html: course.description }}
+                            dir="rtl"
+                          />
                           {shouldTruncate && descriptionExpanded && (
                             <button
                               onClick={() => setDescriptionExpanded(false)}
@@ -774,10 +805,10 @@ export default function CourseDetailPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8 overflow-x-hidden">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 min-w-0">
           {/* Lessons List - Desktop Only */}
-          <div className="hidden lg:block lg:col-span-1">
+          <div className="hidden lg:block lg:w-[20%] xl:w-[22%] 2xl:w-80 flex-shrink">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:sticky lg:top-4">
               <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">תוכן הקורס</h2>
               {(() => {
@@ -1048,7 +1079,7 @@ export default function CourseDetailPage() {
           </div>
 
           {/* Lesson Content */}
-          <div className="lg:col-span-2">
+          <div className="flex-1 min-w-0 lg:w-[60%] xl:w-[56%] 2xl:flex-1 flex-shrink">
             {selectedLesson ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
                 <div className="mb-6">
