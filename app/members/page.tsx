@@ -114,17 +114,33 @@ function MembersPageContent() {
   }
 
   function getLastActiveText(member: any) {
-    if (member.is_online) return 'פעיל עכשיו'
     if (!member.updated_at) return 'לא פעיל'
+    
     const updated = new Date(member.updated_at)
     const now = new Date()
     const diffMs = now.getTime() - updated.getTime()
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+    
+    // Only show "פעיל עכשיו" if user is marked as online AND was active in the last 15 minutes
+    // This prevents showing "פעיל עכשיו" for users who are marked as online but haven't been active recently
+    if (member.is_online === true && diffMinutes < 15) {
+      return 'פעיל עכשיו'
+    }
     
     if (diffDays === 0) {
-      if (diffHours === 0) return 'פעיל עכשיו'
-      return `פעיל לפני ${diffHours} שעות`
+      if (diffHours === 0) {
+        // If less than 1 hour, show minutes
+        if (diffMinutes < 1) {
+          return 'פעיל לפני רגע'
+        } else if (diffMinutes === 1) {
+          return 'פעיל לפני דקה'
+        } else {
+          return `פעיל לפני ${diffMinutes} דקות`
+        }
+      }
+      return `פעיל לפני ${diffHours} ${diffHours === 1 ? 'שעה' : 'שעות'}`
     } else if (diffDays === 1) {
       return 'פעיל אתמול'
     } else {
