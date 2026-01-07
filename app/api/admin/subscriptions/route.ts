@@ -206,16 +206,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: subscriptionError.message }, { status: 500 });
     }
 
-    // Update user's role_id to the new subscription role
-    const { error: updateRoleError } = await supabase
-      .from('profiles')
-      .update({ role_id })
-      .eq('user_id', user_id);
-
-    if (updateRoleError) {
-      console.error('Error updating user role:', updateRoleError);
-      // Don't fail the request, but log the error
-    }
+    // Don't update user's role_id yet - subscription is pending until payment is added
+    // Role will be updated when subscription status changes to 'active' (via payment webhook or admin payment creation)
 
     return NextResponse.json({ data: subscription });
   } catch (error: any) {
