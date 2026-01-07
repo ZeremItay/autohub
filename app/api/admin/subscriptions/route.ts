@@ -186,13 +186,14 @@ export async function POST(request: NextRequest) {
       calculatedEndDate = startDateObj.toISOString();
     }
 
-    // Create subscription
+    // Create subscription with 'pending' status if no payment is provided
+    // Status will be updated to 'active' when a payment is associated via webhook
     const { data: subscription, error: subscriptionError } = await supabase
       .from('subscriptions')
       .insert({
         user_id,
         role_id,
-        status: status || 'active',
+        status: 'pending', // Always start as pending - will be activated when payment is added
         start_date,
         end_date: calculatedEndDate,
         auto_renew: auto_renew !== false

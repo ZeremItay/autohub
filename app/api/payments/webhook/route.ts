@@ -123,15 +123,33 @@ export async function POST(request: NextRequest) {
       payment = created;
     }
 
-    // If payment is completed and subscription is active, extend the subscription
-    if (payment_status === 'completed' && subscription.status === 'active') {
-      const { data: extended, error: extendError } = await extendSubscription(subscription_id, 1);
+    // If payment is completed, activate subscription (if pending) and extend it
+    if (payment_status === 'completed') {
+      // Activate subscription if it's pending
+      if (subscription.status === 'pending') {
+        const { error: activateError } = await supabase
+          .from('subscriptions')
+          .update({ status: 'active' })
+          .eq('id', subscription_id);
+        
+        if (activateError) {
+          console.error('Error activating subscription:', activateError);
+          // Don't fail the request, just log the error
+        } else {
+          console.log(`Subscription ${subscription_id} activated`);
+        }
+      }
       
-      if (extendError) {
-        console.error('Error extending subscription:', extendError);
-        // Don't fail the request, just log the error
-      } else {
-        console.log(`Subscription ${subscription_id} extended by 1 month`);
+      // Extend subscription if it's active
+      if (subscription.status === 'active' || subscription.status === 'pending') {
+        const { data: extended, error: extendError } = await extendSubscription(subscription_id, 1);
+        
+        if (extendError) {
+          console.error('Error extending subscription:', extendError);
+          // Don't fail the request, just log the error
+        } else {
+          console.log(`Subscription ${subscription_id} extended by 1 month`);
+        }
       }
     }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { extendSubscription } from '@/lib/queries/subscriptions';
 
 // GET - Get all payments with subscription and user data (admin only)
 export async function GET() {
@@ -156,6 +157,45 @@ export async function POST(request: NextRequest) {
     if (paymentError) {
       console.error('Error creating payment:', paymentError);
       return NextResponse.json({ error: paymentError.message }, { status: 500 });
+    }
+
+    // If payment is completed, activate subscription (if pending) and extend it
+    if (status === 'completed') {
+      // Get subscription to check its status
+      const { data: subscription, error: subError } = await supabase
+        .from('subscriptions')
+        .select('id, status, end_date')
+        .eq('id', subscription_id)
+        .single();
+
+      if (!subError && subscription) {
+        // Activate subscription if it's pending
+        if (subscription.status === 'pending') {
+          const { error: activateError } = await supabase
+            .from('subscriptions')
+            .update({ status: 'active' })
+            .eq('id', subscription_id);
+          
+          if (activateError) {
+            console.error('Error activating subscription:', activateError);
+            // Don't fail the request, just log the error
+          } else {
+            console.log(`Subscription ${subscription_id} activated`);
+          }
+        }
+        
+        // Extend subscription if it's active or was just activated
+        if (subscription.status === 'active' || subscription.status === 'pending') {
+          const { data: extended, error: extendError } = await extendSubscription(subscription_id, 1);
+          
+          if (extendError) {
+            console.error('Error extending subscription:', extendError);
+            // Don't fail the request, just log the error
+          } else {
+            console.log(`Subscription ${subscription_id} extended by 1 month`);
+          }
+        }
+      }
     }
 
     return NextResponse.json({ data: payment });
