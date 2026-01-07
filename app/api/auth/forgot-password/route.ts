@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     if (!recoveryLink) {
       // Fallback: build the link manually if action_link is not provided
       // Supabase recovery links typically use hash fragments
-      const token = resetData.properties?.hashed_token || resetData.properties?.token;
+      const token = resetData.properties?.hashed_token;
       if (token) {
         recoveryLink = `${resetUrl}#access_token=${token}&type=recovery`;
       } else {
