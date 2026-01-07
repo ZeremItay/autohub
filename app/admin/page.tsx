@@ -781,6 +781,34 @@ export default function AdminPanel() {
     }
   }, [activeTab, isAuthorized])
 
+  // Set default dates for subscription form when opening it
+  useEffect(() => {
+    if (activeTab === 'subscriptions' && !editing && (!formData.start_date || !formData.end_date)) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const startDate = `${year}-${month}-${day}T${hours}:${minutes}`;
+      
+      const endDate = new Date(now);
+      endDate.setMonth(endDate.getMonth() + 1);
+      const endYear = endDate.getFullYear();
+      const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
+      const endDay = String(endDate.getDate()).padStart(2, '0');
+      const endHours = String(endDate.getHours()).padStart(2, '0');
+      const endMinutes = String(endDate.getMinutes()).padStart(2, '0');
+      const endDateStr = `${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}`;
+      
+      setFormData((prev: any) => ({
+        ...prev,
+        start_date: prev.start_date || startDate,
+        end_date: prev.end_date || endDateStr
+      }));
+    }
+  }, [activeTab, editing])
+
   async function loadZoomMeetings() {
     setLoadingZoomMeetings(true)
     try {
@@ -1308,10 +1336,22 @@ export default function AdminPanel() {
           setFormData({})
         }
       } else if (activeTab === 'subscriptions') {
-        if (!formData.user_id || !formData.role_id || !formData.start_date) {
+        if (!formData.user_id || !formData.role_id) {
           alert('אנא מלא את כל השדות הנדרשים')
           return
         }
+
+        // Set default dates if not provided
+        const startDate = formData.start_date || (() => {
+          const now = new Date();
+          return now.toISOString();
+        })();
+        
+        const endDate = formData.end_date || (() => {
+          const date = new Date(startDate);
+          date.setMonth(date.getMonth() + 1);
+          return date.toISOString();
+        })();
 
         const response = await fetch('/api/admin/subscriptions', {
           method: 'POST',
@@ -1320,9 +1360,10 @@ export default function AdminPanel() {
             user_id: formData.user_id,
             role_id: formData.role_id,
             status: formData.status || 'active',
-            start_date: formData.start_date,
-            end_date: formData.end_date || null,
-            auto_renew: formData.auto_renew !== false
+            start_date: startDate,
+            end_date: endDate,
+            auto_renew: true, // Always true - automatic renewal via payments
+            amount: formData.amount !== undefined && formData.amount !== '' ? parseFloat(formData.amount) : null
           })
         })
 
@@ -3860,8 +3901,41 @@ export default function AdminPanel() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">תאריך התחלה *</label>
                       <input
                         type="datetime-local"
-                        value={formData.start_date || ''}
-                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                        value={formData.start_date || (() => {
+                          const now = new Date();
+                          const year = now.getFullYear();
+                          const month = String(now.getMonth() + 1).padStart(2, '0');
+                          const day = String(now.getDate()).padStart(2, '0');
+                          const hours = String(now.getHours()).padStart(2, '0');
+                          const minutes = String(now.getMinutes()).padStart(2, '0');
+                          return `${year}-${month}-${day}T${hours}:${minutes}`;
+                        })()}
+                        onChange={(e) => {
+                          const startDate = e.target.value;
+                          // Auto-calculate end_date as 1 month from start_date
+                          let calculatedEndDate = '';
+                          if (startDate) {
+                            try {
+                              const date = new Date(startDate);
+                              if (!isNaN(date.getTime())) {
+                                date.setMonth(date.getMonth() + 1);
+                                const year = date.getFullYear();
+                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                const day = String(date.getDate()).padStart(2, '0');
+                                const hours = String(date.getHours()).padStart(2, '0');
+                                const minutes = String(date.getMinutes()).padStart(2, '0');
+                                calculatedEndDate = `${year}-${month}-${day}T${hours}:${minutes}`;
+                              }
+                            } catch (err) {
+                              console.error('Error calculating end date:', err);
+                            }
+                          }
+                          setFormData({ 
+                            ...formData, 
+                            start_date: startDate,
+                            end_date: calculatedEndDate || formData.end_date
+                          });
+                        }}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                         required
                       />
@@ -3870,22 +3944,36 @@ export default function AdminPanel() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">תאריך סיום (אופציונלי)</label>
                       <input
                         type="datetime-local"
-                        value={formData.end_date || ''}
+                        value={formData.end_date || (() => {
+                          const now = new Date();
+                          now.setMonth(now.getMonth() + 1);
+                          const year = now.getFullYear();
+                          const month = String(now.getMonth() + 1).padStart(2, '0');
+                          const day = String(now.getDate()).padStart(2, '0');
+                          const hours = String(now.getHours()).padStart(2, '0');
+                          const minutes = String(now.getMinutes()).padStart(2, '0');
+                          return `${year}-${month}-${day}T${hours}:${minutes}`;
+                        })()}
                         onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="auto_renew"
-                        checked={formData.auto_renew !== false}
-                        onChange={(e) => setFormData({ ...formData, auto_renew: e.target.checked })}
-                        className="w-4 h-4"
-                      />
-                      <label htmlFor="auto_renew" className="text-sm text-gray-700">
-                        חידוש אוטומטי
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        סכום תשלום (0 לחודש חינם במתנה)
                       </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.amount || ''}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        placeholder="0"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        💡 השאר 0 או ריק לחודש חינם במתנה. אם תזין 0, יווצר payment אוטומטית עם status='completed'.
+                      </p>
                     </div>
                   </div>
                 )}
