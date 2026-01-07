@@ -127,6 +127,13 @@ export async function POST(request: NextRequest) {
     if (payment_status === 'completed') {
       // Activate subscription if it's pending
       if (subscription.status === 'pending') {
+        // Get role_id from subscription to update user's profile
+        const { data: subData, error: subDataError } = await supabase
+          .from('subscriptions')
+          .select('role_id, user_id')
+          .eq('id', subscription_id)
+          .single();
+        
         const { error: activateError } = await supabase
           .from('subscriptions')
           .update({ status: 'active' })
@@ -137,10 +144,25 @@ export async function POST(request: NextRequest) {
           // Don't fail the request, just log the error
         } else {
           console.log(`Subscription ${subscription_id} activated`);
+          
+          // Update user's role_id to the subscription role when activated
+          if (!subDataError && subData) {
+            const { error: updateRoleError } = await supabase
+              .from('profiles')
+              .update({ role_id: subData.role_id })
+              .eq('user_id', subData.user_id);
+            
+            if (updateRoleError) {
+              console.error('Error updating user role:', updateRoleError);
+              // Don't fail the request, just log the error
+            } else {
+              console.log(`User ${subData.user_id} role updated to ${subData.role_id}`);
+            }
+          }
         }
       }
       
-      // Extend subscription if it's active
+      // Extend subscription if it's active or was just activated
       if (subscription.status === 'active' || subscription.status === 'pending') {
         const { data: extended, error: extendError } = await extendSubscription(subscription_id, 1);
         
