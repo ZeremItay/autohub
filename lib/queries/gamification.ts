@@ -216,26 +216,29 @@ export async function awardPoints(userId: string, actionName: string, options?: 
     
     // Try to determine which column to use by checking a sample record
     try {
-      const { data: sampleHistory } = await supabase
+      // Try 'action' first
+      const { data: sampleHistoryWithAction, error: actionError } = await supabase
         .from('points_history')
-        .select('action, action_name')
+        .select('action')
         .limit(1);
       
-      if (sampleHistory && sampleHistory.length > 0) {
-        const hasAction = 'action' in sampleHistory[0];
-        const hasActionName = 'action_name' in sampleHistory[0];
+      if (!actionError && sampleHistoryWithAction && sampleHistoryWithAction.length > 0) {
+        // 'action' column exists
+        historyData.action = historyActionName;
+      } else {
+        // Try 'action_name' column
+        const { data: sampleHistoryWithActionName, error: actionNameError } = await supabase
+          .from('points_history')
+          .select('action_name')
+          .limit(1);
         
-        if (hasAction) {
-          historyData.action = historyActionName;
-        } else if (hasActionName) {
+        if (!actionNameError && sampleHistoryWithActionName && sampleHistoryWithActionName.length > 0) {
+          // 'action_name' column exists
           historyData.action_name = historyActionName;
         } else {
-          // Default to action (most common)
+          // No records yet, try 'action' first (most common)
           historyData.action = historyActionName;
         }
-      } else {
-        // No records yet, try 'action' first (most common)
-        historyData.action = historyActionName;
       }
     } catch (error) {
       // If we can't check, default to 'action' (most common)

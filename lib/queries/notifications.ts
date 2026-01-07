@@ -206,7 +206,26 @@ export async function createNotification(notification: Omit<Notification, 'id' |
         body: JSON.stringify(notification),
       });
 
-      const result = await response.json();
+      let result: any = {};
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        // If response is not JSON (e.g., 405 Method Not Allowed), return error
+        const textResponse = await response.text();
+        console.error('❌ Error parsing notification API response:', {
+          status: response.status,
+          statusText: response.statusText,
+          text: textResponse
+        });
+        return { 
+          data: null, 
+          error: { 
+            message: `API returned ${response.status}: ${response.statusText}`,
+            status: response.status,
+            text: textResponse
+          } 
+        };
+      }
 
       if (!response.ok) {
         console.error('❌ Error creating notification via API:', result);

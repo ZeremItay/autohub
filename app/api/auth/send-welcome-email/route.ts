@@ -156,7 +156,18 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    const emailData = await resendResponse.json();
+    let emailData: any = {};
+    try {
+      emailData = await resendResponse.json();
+    } catch (jsonError) {
+      console.error('❌ Error parsing Resend API response:', jsonError);
+      const textResponse = await resendResponse.text();
+      console.error('Response text:', textResponse);
+      return NextResponse.json(
+        { error: 'Failed to parse email service response', details: textResponse },
+        { status: 500 }
+      );
+    }
 
     if (!resendResponse.ok) {
       console.error('❌ Resend API error:', {
