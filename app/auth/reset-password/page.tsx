@@ -28,9 +28,24 @@ function ResetPasswordContent() {
     const tokenFromQuery = searchParams.get('access_token');
     const typeFromQuery = searchParams.get('type');
 
-    if (type === 'recovery' || typeFromQuery === 'recovery') {
-      // We have a valid recovery token
-      setLoading(false);
+    const finalToken = accessToken || tokenFromQuery;
+    const finalType = type || typeFromQuery;
+
+    if (finalType === 'recovery' && finalToken) {
+      // Set the session with the recovery token before allowing password reset
+      supabase.auth.setSession({
+        access_token: finalToken,
+        refresh_token: '' // Not needed for recovery, but required by API
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error('Error setting session:', error);
+          setError('קישור לא תקין או שפג תוקפו. אנא בקש קישור חדש לאיפוס סיסמה.');
+        } else if (data?.session) {
+          // Session set successfully, user can now reset password
+          console.log('Recovery session set successfully');
+        }
+        setLoading(false);
+      });
     } else {
       // No valid token, redirect to forgot password
       setError('קישור לא תקין או שפג תוקפו. אנא בקש קישור חדש לאיפוס סיסמה.');
