@@ -9009,3 +9009,4 @@
 {"location":"Layout.tsx:128","message":"Search query useEffect triggered","data":{"searchQuery":"","searchQueryLength":0,"mobileSearchOpen":false},"timestamp":1767700436305,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
 {"location":"Layout.tsx:128","message":"Search query useEffect triggered","data":{"searchQuery":"","searchQueryLength":0,"mobileSearchOpen":false},"timestamp":1767708475035,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
 {"location":"Layout.tsx:128","message":"Search query useEffect triggered","data":{"searchQuery":"","searchQueryLength":0,"mobileSearchOpen":false},"timestamp":1767713533606,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
+{"location":"Layout.tsx:128","message":"Search query useEffect triggered","data":{"searchQuery":"","searchQueryLength":0,"mobileSearchOpen":false},"timestamp":1767766244697,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}

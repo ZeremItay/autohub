@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { cookies } from 'next/headers';
 
 // GET - Get all subscriptions with user and role data (admin only)
 export async function GET() {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     
     // Check authorization - get session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -92,7 +94,8 @@ export async function GET() {
 // POST - Create new subscription (admin only)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     
     // Check authorization - get session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -128,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { user_id, role_id, status, start_date, end_date, auto_renew, amount } = body;
+    const { user_id, role_id, status, start_date, end_date, auto_renew } = body;
 
     if (!user_id || !role_id || !start_date) {
       return NextResponse.json({ error: 'Missing required fields: user_id, role_id, start_date' }, { status: 400 });
@@ -215,30 +218,6 @@ export async function POST(request: NextRequest) {
     if (updateRoleError) {
       console.error('Error updating user role:', updateRoleError);
       // Don't fail the request, but log the error
-    }
-
-    // If amount is provided and is 0, create a free trial payment
-    if (amount !== undefined && amount !== null && parseFloat(amount.toString()) === 0) {
-      const { data: trialPayment, error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          subscription_id: subscription.id,
-          user_id,
-          amount: 0,
-          currency: 'ILS',
-          status: 'completed',
-          payment_method: 'חודש חינם במתנה',
-          payment_date: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (paymentError) {
-        console.error('Error creating trial payment:', paymentError);
-        // Don't fail the request, just log
-      } else {
-        console.log('✅ Trial payment created:', trialPayment.id);
-      }
     }
 
     return NextResponse.json({ data: subscription });

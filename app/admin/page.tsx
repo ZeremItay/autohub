@@ -1362,8 +1362,7 @@ export default function AdminPanel() {
             status: formData.status || 'active',
             start_date: startDate,
             end_date: endDate,
-            auto_renew: true, // Always true - automatic renewal via payments
-            amount: formData.amount !== undefined && formData.amount !== '' ? parseFloat(formData.amount) : null
+            auto_renew: true // Always true - automatic renewal via payments
           })
         })
 
@@ -3957,23 +3956,6 @@ export default function AdminPanel() {
                         onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        סכום תשלום (0 לחודש חינם במתנה)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.amount || ''}
-                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                        placeholder="0"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        💡 השאר 0 או ריק לחודש חינם במתנה. אם תזין 0, יווצר payment אוטומטית עם status='completed'.
-                      </p>
                     </div>
                   </div>
                 )}
