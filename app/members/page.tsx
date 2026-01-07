@@ -113,6 +113,20 @@ function MembersPageContent() {
     return `${monthNames[date.getMonth()]} ${date.getFullYear()}`
   }
 
+  // Helper function to check if user is actually online (active within last 15 minutes)
+  function isUserActuallyOnline(member: any): boolean {
+    if (member.is_online !== true) return false
+    if (!member.updated_at) return false
+    
+    const updated = new Date(member.updated_at)
+    const now = new Date()
+    const diffMs = now.getTime() - updated.getTime()
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+    
+    // Only consider user online if they were active in the last 15 minutes
+    return diffMinutes < 15
+  }
+
   function getLastActiveText(member: any) {
     if (!member.updated_at) return 'לא פעיל'
     
@@ -125,7 +139,7 @@ function MembersPageContent() {
     
     // Only show "פעיל עכשיו" if user is marked as online AND was active in the last 15 minutes
     // This prevents showing "פעיל עכשיו" for users who are marked as online but haven't been active recently
-    if (member.is_online === true && diffMinutes < 15) {
+    if (isUserActuallyOnline(member)) {
       return 'פעיל עכשיו'
     }
     
@@ -310,7 +324,7 @@ function MembersPageContent() {
               {viewMode === 'grid' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {filteredMembers.map((member) => (
-                    <MemberCard key={member.id} member={member} formatJoinDate={formatJoinDate} getLastActiveText={getLastActiveText} handleSendMessage={handleSendMessage} />
+                    <MemberCard key={member.id} member={member} formatJoinDate={formatJoinDate} getLastActiveText={getLastActiveText} handleSendMessage={handleSendMessage} isUserActuallyOnline={isUserActuallyOnline} />
                   ))}
                 </div>
               )}
@@ -319,7 +333,7 @@ function MembersPageContent() {
               {viewMode === 'list' && (
                 <div className="space-y-3 sm:space-y-4">
                   {filteredMembers.map((member) => (
-                    <MemberCardList key={member.id} member={member} formatJoinDate={formatJoinDate} getLastActiveText={getLastActiveText} handleSendMessage={handleSendMessage} />
+                    <MemberCardList key={member.id} member={member} formatJoinDate={formatJoinDate} getLastActiveText={getLastActiveText} handleSendMessage={handleSendMessage} isUserActuallyOnline={isUserActuallyOnline} />
                   ))}
                 </div>
               )}
@@ -337,7 +351,7 @@ function MembersPageContent() {
 }
 
 // Member Card Component (Grid)
-function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessage }: any) {
+function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessage, isUserActuallyOnline }: any) {
   const displayName = member.display_name || member.nickname || 'משתמש'
   const points = member.points || 0
   const rank = member.rank || 1
@@ -382,7 +396,7 @@ function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessa
               <span>{displayName.charAt(0)}</span>
             )}
           </div>
-          {member.is_online && (
+          {isUserActuallyOnline(member) && (
             <div className="absolute bottom-0 right-0 w-4 h-4 sm:w-5 sm:h-5 bg-green-500 rounded-full border-3 sm:border-4 border-white"></div>
           )}
         </div>
@@ -426,7 +440,7 @@ function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessa
 }
 
 // Member Card Component (List)
-function MemberCardList({ member, formatJoinDate, getLastActiveText, handleSendMessage }: any) {
+function MemberCardList({ member, formatJoinDate, getLastActiveText, handleSendMessage, isUserActuallyOnline }: any) {
   const displayName = member.display_name || member.nickname || 'משתמש'
   const points = member.points || 0
   const rank = member.rank || 1
@@ -460,7 +474,7 @@ function MemberCardList({ member, formatJoinDate, getLastActiveText, handleSendM
               <span>{displayName.charAt(0)}</span>
             )}
           </div>
-          {member.is_online && (
+          {isUserActuallyOnline(member) && (
             <div className="absolute bottom-0 right-0 w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded-full border-2 border-white"></div>
           )}
         </div>
