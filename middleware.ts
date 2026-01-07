@@ -58,9 +58,35 @@ export async function middleware(request: NextRequest) {
         if (request.nextUrl.pathname !== '/auth/login') {
           return NextResponse.redirect(new URL('/auth/login', request.url))
         }
-      } else if (request.nextUrl.pathname === '/auth/login') {
-        // If user exists and is signed in and the current path is /login redirect the user to /
-        return NextResponse.redirect(new URL('/', request.url))
+      } else {
+        // User exists - check if profile is complete (user is fully registered)
+        // Profile needs: first_name, how_to_address, nocode_experience
+        const { data: fullProfile, error: fullProfileError } = await supabase
+          .from('profiles')
+          .select('first_name, how_to_address, nocode_experience')
+          .eq('user_id', user.id)
+          .single()
+
+        const needsCompletion = !fullProfile?.first_name || !fullProfile?.how_to_address || !fullProfile?.nocode_experience
+        
+        // Allow access to auth pages and complete-profile page
+        const authPages = ['/auth/login', '/auth/signup', '/auth/complete-profile', '/auth/forgot-password', '/auth/reset-password']
+        const isAuthPage = authPages.some(page => request.nextUrl.pathname.startsWith(page))
+        
+        // If profile is not complete and user is not on an auth page, redirect to complete-profile
+        if (needsCompletion && !isAuthPage) {
+          return NextResponse.redirect(new URL('/auth/complete-profile', request.url))
+        }
+        
+        // If profile is complete and user is on login page, redirect to home
+        if (!needsCompletion && request.nextUrl.pathname === '/auth/login') {
+          return NextResponse.redirect(new URL('/', request.url))
+        }
+        
+        // If profile is complete and user is on complete-profile page, redirect to home
+        if (!needsCompletion && request.nextUrl.pathname === '/auth/complete-profile') {
+          return NextResponse.redirect(new URL('/', request.url))
+        }
       }
     }
   } catch (error) {

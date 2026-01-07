@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getAllProfiles, updateProfile } from '@/lib/queries/profiles';
 import { clearCache } from '@/lib/cache';
@@ -51,6 +51,7 @@ interface SearchResult {
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -221,6 +222,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         setCurrentUserId(user.user_id || user.id || null);
         setCurrentUser(user);
         setAvatarUrl(user.avatar_url || null);
+        
+        // CRITICAL: Check if profile is complete - user is not registered until profile is complete
+        // Profile needs: first_name, how_to_address, nocode_experience
+        const needsCompletion = !user.first_name || !user.how_to_address || !user.nocode_experience;
+        
+        // Allow access to auth pages and complete-profile page
+        const authPages = ['/auth/login', '/auth/signup', '/auth/complete-profile', '/auth/forgot-password', '/auth/reset-password'];
+        const isAuthPage = authPages.some(page => pathname?.startsWith(page));
+        
+        // If profile is not complete and user is not on an auth page, redirect to complete-profile
+        if (needsCompletion && !isAuthPage && typeof window !== 'undefined') {
+          router.push('/auth/complete-profile');
+          return;
+        }
         
         // Update is_online to true when user logs in
         if (!user.is_online && (user.user_id || user.id)) {
