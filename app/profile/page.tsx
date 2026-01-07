@@ -1449,7 +1449,7 @@ function ProfilePageContent() {
                         </select>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-                        <label className="text-sm font-medium text-[#F52F8E] sm:w-1/4">מה הניסיון שלך עם אוטומציות No Code בטופ 100*</label>
+                        <label className="text-sm font-medium text-[#F52F8E] sm:w-1/4">מה הניסיון שלך עם אוטומציות No Code*</label>
                         <select
                           dir="rtl"
                           lang="he"
@@ -1523,7 +1523,7 @@ function ProfilePageContent() {
                         <span className="text-sm sm:text-base text-gray-800 font-medium text-right">{formData.how_to_address || '-'}</span>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
-                        <span className="text-xs sm:text-sm font-medium text-[#F52F8E]">מה הניסיון שלך עם אוטומציות No Code בטופ 100*</span>
+                        <span className="text-xs sm:text-sm font-medium text-[#F52F8E]">מה הניסיון שלך עם אוטומציות No Code*</span>
                         <span className="text-sm sm:text-base text-gray-800 font-medium text-right">{formData.nocode_experience || '-'}</span>
                       </div>
                     </div>

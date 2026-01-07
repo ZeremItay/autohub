@@ -269,7 +269,7 @@ export default function CompleteProfilePage() {
             {/* NoCode Experience */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                מה הניסיון שלך עם אוטומציות No Code בטופ 100? *
+                מה הניסיון שלך עם אוטומציות No Code? *
               </label>
               <div className="relative">
                 <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
