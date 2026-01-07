@@ -1,5 +1,6 @@
 import { createNotification } from '../queries/notifications';
 import { createServerClient } from '../supabase-server';
+import { createClient } from '@supabase/supabase-js';
 
 // Helper function to create notification for comment on recording
 export async function notifyRecordingComment(
@@ -55,7 +56,8 @@ export async function notifyForumPostReply(
   forumId: string,
   replierId: string,
   replierName: string,
-  postOwnerId: string
+  postOwnerId: string,
+  replyContent?: string
 ) {
   // Don't notify if user replied to their own post
   if (replierId === postOwnerId) return;
@@ -89,7 +91,7 @@ export async function notifyForumPostReply(
     }
   }
 
-  return await createNotification({
+  const notification = await createNotification({
     user_id: postOwnerId,
     type: 'forum_reply',
     title: 'תגובה על הפוסט שלך',
@@ -99,6 +101,187 @@ export async function notifyForumPostReply(
     related_type: 'forum_post',
     is_read: false
   });
+
+  // Send email notification (don't fail if email fails)
+  try {
+    await sendForumReplyEmail(
+      postOwnerId,
+      postId,
+      postTitle,
+      validForumId,
+      replierName,
+      replyContent || ''
+    );
+  } catch (error) {
+    console.error('Error sending forum reply email:', error);
+  }
+
+  return notification;
+}
+
+// Send email notification for forum post reply
+export async function sendForumReplyEmail(
+  postOwnerId: string,
+  postId: string,
+  postTitle: string,
+  forumId: string,
+  replierName: string,
+  replyContent: string
+) {
+  try {
+    // Get Supabase credentials
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseServiceKey) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured');
+      return;
+    }
+
+    // Create admin client
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+
+    // Get post owner email and name
+    const { data: ownerUser } = await supabaseAdmin.auth.admin.getUserById(postOwnerId);
+    if (!ownerUser?.user?.email) {
+      console.error('Post owner email not found');
+      return;
+    }
+
+    const { data: ownerProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('display_name, first_name, nickname')
+      .eq('user_id', postOwnerId)
+      .maybeSingle();
+
+    const ownerName = ownerProfile?.display_name || ownerProfile?.first_name || ownerProfile?.nickname || 'משתמש';
+
+    // Get forum name
+    const { data: forum } = await supabaseAdmin
+      .from('forums')
+      .select('display_name, name')
+      .eq('id', forumId)
+      .maybeSingle();
+
+    const forumName = forum?.display_name || forum?.name || 'הפורום';
+
+    // Strip HTML tags from reply content for email
+    const plainTextContent = replyContent.replace(/<[^>]*>/g, '').trim();
+    const truncatedContent = plainTextContent.length > 200 
+      ? plainTextContent.substring(0, 200) + '...' 
+      : plainTextContent;
+
+    // Build post URL
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || 'https://www.autohub.co.il';
+    const postUrl = `${siteUrl}/forums/${forumId}/posts/${postId}`;
+
+    // Create email HTML
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="he">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>תגובה חדשה על הפוסט שלך - מועדון האוטומטורים</title>
+      </head>
+      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; background-color: #f5f5f5; margin: 0; padding: 20px;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #F52F8E 0%, #E01E7A 100%); padding: 40px 20px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">💬 תגובה חדשה</h1>
+          </div>
+          
+          <!-- Content -->
+          <div style="padding: 40px 30px;">
+            <p style="font-size: 18px; color: #333; margin-bottom: 20px;">
+              היי ${ownerName},
+            </p>
+            
+            <p style="font-size: 16px; color: #555; margin-bottom: 20px; line-height: 1.6;">
+              <strong>${replierName}</strong> ענה לך על הפוסט שפרסמת בפורום <strong>${forumName}</strong>.
+            </p>
+            
+            <div style="background-color: #f8f9fa; border-right: 4px solid #F52F8E; padding: 20px; margin: 20px 0; border-radius: 8px;">
+              <p style="margin: 0 0 10px 0; font-size: 14px; color: #999; font-weight: bold;">הפוסט:</p>
+              <p style="margin: 0; font-size: 16px; color: #333; font-weight: bold;">${postTitle}</p>
+            </div>
+            
+            ${truncatedContent ? `
+            <div style="background-color: #f8f9fa; border-right: 4px solid #F52F8E; padding: 20px; margin: 20px 0; border-radius: 8px;">
+              <p style="margin: 0 0 10px 0; font-size: 14px; color: #999; font-weight: bold;">התגובה:</p>
+              <p style="margin: 0; font-size: 15px; color: #555; line-height: 1.6; white-space: pre-wrap;">${truncatedContent}</p>
+            </div>
+            ` : ''}
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${postUrl}" 
+                 style="display: inline-block; background-color: #F52F8E; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                צפה בפוסט
+              </a>
+            </div>
+            
+            <p style="font-size: 14px; color: #999; margin-top: 30px; text-align: center;">
+              זהו מייל אוטומטי, אנא אל תשיב למייל זה
+            </p>
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e0e0e0;">
+            <p style="margin: 0; font-size: 12px; color: #999;">
+              © ${new Date().getFullYear()} מועדון האוטומטורים. כל הזכויות שמורות.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Send email via Resend
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    
+    if (!RESEND_API_KEY) {
+      console.error('RESEND_API_KEY not configured');
+      return;
+    }
+
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: 'מועדון האוטומטורים <onboarding@resend.dev>',
+        to: [ownerUser.user.email],
+        subject: `${replierName} ענה על הפוסט שלך בפורום ${forumName}`,
+        html: emailHtml,
+      }),
+    });
+
+    const emailData = await resendResponse.json();
+
+    if (!resendResponse.ok) {
+      console.error('❌ Resend API error:', {
+        status: resendResponse.status,
+        error: emailData
+      });
+      return;
+    }
+
+    console.log('✅ Forum reply email sent successfully via Resend:', {
+      to: ownerUser.user.email,
+      emailId: emailData.id,
+      subject: `${replierName} ענה על הפוסט שלך בפורום ${forumName}`
+    });
+  } catch (error: any) {
+    console.error('Error sending forum reply email:', error);
+    // Don't throw - email is not critical
+  }
 }
 
 // Helper function to create notification for comment on post

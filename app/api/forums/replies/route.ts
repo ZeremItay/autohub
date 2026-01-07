@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const replier = (Array.isArray(profiles) ? profiles : []).find((p: any) => (p.user_id || p.id) === user_id);
     const replierName = replier?.display_name || profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
 
-    // Create notification for post owner
+    // Create notification for post owner (includes email sending)
     if (post.user_id && post.user_id !== user_id) {
       await notifyForumPostReply(
         post_id,
@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
         post.forum_id,
         user_id,
         replierName,
-        post.user_id
+        post.user_id,
+        content // Pass reply content for email
       );
     }
 
