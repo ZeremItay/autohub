@@ -39,16 +39,21 @@ export function useOnlineUsers(profiles?: ProfileWithRole[]): UseOnlineUsersRetu
         return;
       }
 
-      // Get current session
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      // Get all users who are actually online (is_online === true and active within last 15 minutes)
+      const now = new Date();
       const online: ProfileWithRole[] = [];
       
-      // Only count the current logged-in user as online
-      // This is more accurate than relying on is_online field
-      if (currentSession && currentSession.user) {
-        const currentUserProfile = profilesToUse.find((p: any) => p.user_id === currentSession.user.id);
-        if (currentUserProfile) {
-          online.push(currentUserProfile);
+      for (const profile of profilesToUse) {
+        // Check if user is marked as online
+        if (profile.is_online === true && profile.updated_at) {
+          // Check if user was active within last 15 minutes
+          const updated = new Date(profile.updated_at);
+          const diffMs = now.getTime() - updated.getTime();
+          const diffMinutes = Math.floor(diffMs / (1000 * 60));
+          
+          if (diffMinutes < 15) {
+            online.push(profile);
+          }
         }
       }
       

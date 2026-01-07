@@ -995,7 +995,7 @@ export default function Home() {
 
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-4 sm:gap-6 min-w-0">
         {/* Left Sidebar - Desktop */}
-        <aside className="hidden lg:block lg:w-[20%] xl:w-[22%] 2xl:w-80 space-y-4 sm:space-y-6 flex-shrink">
+        <aside className="hidden lg:block lg:w-[20%] xl:w-[22%] 2xl:w-[22%] space-y-4 sm:space-y-6 flex-shrink-0">
           {/* Who is Online */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">מי מחובר?</h2>
@@ -1005,12 +1005,16 @@ export default function Home() {
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {onlineUsers.map((user: any) => (
+                <div className="flex items-center" style={{ direction: 'rtl' }}>
+                  {onlineUsers.slice(0, 5).map((user: any, index: number) => (
                     <div
                       key={user.id || user.user_id}
                       className="relative group"
                       title={user.display_name || user.first_name || 'משתמש'}
+                      style={{
+                        marginRight: index > 0 ? '-8px' : '0',
+                        zIndex: 5 - index
+                      }}
                     >
                       {user.avatar_url ? (
                         <img
@@ -1092,7 +1096,7 @@ export default function Home() {
         </aside>
 
         {/* Center Column - Announcements (Admin Posts Only) */}
-        <main className="flex-1 min-w-0 lg:w-[60%] xl:w-[56%] 2xl:flex-1 space-y-4 sm:space-y-6 flex-shrink">
+        <main className="flex-1 min-w-0 lg:w-[60%] xl:w-[56%] 2xl:w-[56%] space-y-4 sm:space-y-6 flex-shrink">
           {/* News Carousel */}
           {news && news.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 relative overflow-hidden">
@@ -1601,7 +1605,7 @@ export default function Home() {
         </main>
 
         {/* Right Sidebar - Friends */}
-        <aside className="hidden lg:block lg:w-[20%] xl:w-[22%] 2xl:w-80 flex-shrink">
+        <aside className="hidden lg:block lg:w-[20%] xl:w-[22%] 2xl:w-[22%] flex-shrink-0">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">חברים</h2>
             
