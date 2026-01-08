@@ -791,11 +791,23 @@ export default function MessagesPage() {
 
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 space-y-3 sm:space-y-4 bg-gray-50">
-            {activeConversation.messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
-              >
+            {(() => {
+              // Remove duplicate messages by ID (last occurrence wins)
+              const seenIds = new Set<string>();
+              const uniqueMessages = activeConversation.messages.filter(msg => {
+                if (seenIds.has(msg.id)) {
+                  console.warn('⚠️ Duplicate message detected, removing:', msg.id);
+                  return false;
+                }
+                seenIds.add(msg.id);
+                return true;
+              });
+              
+              return uniqueMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+                >
                 <div
                   className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 sm:px-4 py-2 ${
                     message.sender === 'me'
@@ -813,7 +825,8 @@ export default function MessagesPage() {
                   </p>
                 </div>
               </div>
-            ))}
+              ));
+            })()}
             {/* Typing Indicator */}
             {typingUsers[activeConversation.id] && (
               <div className="flex justify-start">
