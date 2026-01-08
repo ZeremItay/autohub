@@ -65,21 +65,32 @@ export default function ProtectedAction({
           </div>
         )}
         
+        {/* Invisible bridge to keep tooltip open when moving mouse */}
         {showTooltip && (
           <div 
-            className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-1/2 sm:translate-x-1/2 mb-2 w-full sm:w-64 sm:max-w-[280px] bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
+            className="absolute bottom-full left-0 right-0 h-3 pointer-events-auto"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          />
+        )}
+        
+        {showTooltip && (
+          <div 
+            className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-1/2 sm:translate-x-1/2 mb-3 w-full sm:w-56 sm:max-w-[240px] bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg z-50 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
             style={{
-              maxWidth: 'min(280px, 100%)'
+              maxWidth: 'min(240px, 100%)'
             }}
           >
             <div className="flex items-start gap-2">
-              <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <Lock className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium mb-2 break-words">{message}</p>
+                <p className="font-medium mb-1.5 break-words text-xs leading-relaxed">{message}</p>
                 <Link
                   href={redirectTo}
-                  className="inline-flex items-center gap-1 text-[#F52F8E] hover:underline font-medium"
+                  className="inline-flex items-center gap-1 text-[#F52F8E] hover:underline font-medium text-xs"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <LogIn className="w-3 h-3" />
@@ -123,21 +134,32 @@ export default function ProtectedAction({
           </div>
         )}
         
+        {/* Invisible bridge to keep tooltip open when moving mouse */}
         {showTooltip && (
           <div 
-            className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-1/2 sm:translate-x-1/2 mb-2 w-full sm:w-64 sm:max-w-[280px] bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
+            className="absolute bottom-full left-0 right-0 h-3 pointer-events-auto"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          />
+        )}
+        
+        {showTooltip && (
+          <div 
+            className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-1/2 sm:translate-x-1/2 mb-3 w-full sm:w-56 sm:max-w-[240px] bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg z-50 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
             style={{
-              maxWidth: 'min(280px, 100%)'
+              maxWidth: 'min(240px, 100%)'
             }}
           >
             <div className="flex items-start gap-2">
-              <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <Lock className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium mb-2 break-words">{message}</p>
+                <p className="font-medium mb-1.5 break-words text-xs leading-relaxed">{message}</p>
                 <Link
                   href={redirectTo}
-                  className="inline-flex items-center gap-1 text-[#F52F8E] hover:underline font-medium"
+                  className="inline-flex items-center gap-1 text-[#F52F8E] hover:underline font-medium text-xs"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <LogIn className="w-3 h-3" />
@@ -180,21 +202,32 @@ export default function ProtectedAction({
           </div>
         )}
         
+        {/* Invisible bridge to keep tooltip open when moving mouse */}
         {showTooltip && (
           <div 
-            className="absolute bottom-full right-0 sm:right-1/2 sm:translate-x-1/2 mb-2 w-[calc(100vw-2rem)] sm:w-64 max-w-[280px] bg-gray-900 text-white text-sm rounded-lg p-3 shadow-lg z-50 pointer-events-auto"
+            className="absolute bottom-full left-0 right-0 h-3 pointer-events-auto"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          />
+        )}
+        
+        {showTooltip && (
+          <div 
+            className="absolute bottom-full right-0 sm:right-1/2 sm:translate-x-1/2 mb-3 w-[calc(100vw-2rem)] sm:w-56 max-w-[240px] bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg z-50 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
             style={{
-              maxWidth: 'min(280px, calc(100vw - 2rem))'
+              maxWidth: 'min(240px, calc(100vw - 2rem))'
             }}
           >
             <div className="flex items-start gap-2">
-              <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <Lock className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium mb-2 break-words">{message}</p>
+                <p className="font-medium mb-1.5 break-words text-xs leading-relaxed">{message}</p>
                 <Link
                   href="/subscription"
-                  className="inline-flex items-center gap-1 text-yellow-400 hover:underline font-medium"
+                  className="inline-flex items-center gap-1 text-yellow-400 hover:underline font-medium text-xs"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <span>שדרג לפרימיום</span>
