@@ -208,7 +208,7 @@ export default function RecordingsPage() {
                   <img
                     src={recording.thumbnail_url}
                     alt={recording.title}
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover"
                     loading="lazy"
                     decoding="async"
                     onError={(e) => {
@@ -218,7 +218,7 @@ export default function RecordingsPage() {
                       const parent = target.parentElement;
                       if (parent) {
                         const fallback = document.createElement('div');
-                        fallback.className = 'w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-blue-500';
+                        fallback.className = 'absolute inset-0 w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-blue-500';
                         fallback.innerHTML = `<svg class="w-16 h-16 text-white opacity-80" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
                         parent.appendChild(fallback);
                       }

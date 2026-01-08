@@ -129,6 +129,14 @@ export async function sendForumReplyEmail(
   replyContent: string
 ) {
   try {
+    // Check if user wants to receive email notifications for forum replies
+    const { shouldSendEmail } = await import('../queries/email-preferences');
+    const wantsEmail = await shouldSendEmail(postOwnerId, 'forum_reply');
+    
+    if (!wantsEmail) {
+      console.log('User has disabled forum reply email notifications, skipping email');
+      return;
+    }
     // Get Supabase credentials
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

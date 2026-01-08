@@ -96,6 +96,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Send email notifications to users who want to receive new project notifications
+    if (data) {
+      try {
+        const { sendNewProjectEmail } = await import('@/lib/utils/project-notifications');
+        await sendNewProjectEmail(
+          data.id,
+          title,
+          description,
+          budget_min || null,
+          budget_max || null,
+          budget_currency || 'ILS'
+        );
+      } catch (emailError) {
+        // Don't fail the request if email sending fails
+        console.error('Error sending new project email notifications:', emailError);
+      }
+    }
+
     return NextResponse.json({ data }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(

@@ -27,6 +27,11 @@ export default function AccountSettingsPage() {
   const [showSocialModal, setShowSocialModal] = useState(false);
   const [editingSocialIndex, setEditingSocialIndex] = useState<number | null>(null);
   const [socialForm, setSocialForm] = useState({ platform: '', url: '' });
+  const [emailPreferences, setEmailPreferences] = useState({
+    forum_reply: true,
+    new_project: true
+  });
+  const [savingEmailPreferences, setSavingEmailPreferences] = useState(false);
   
   const socialPlatforms = [
     { value: 'instagram', label: 'Instagram', icon: Instagram, color: 'bg-gradient-to-br from-purple-600 to-pink-500' },
@@ -63,6 +68,23 @@ export default function AccountSettingsPage() {
         const avatarUrl = user.avatar_url || null;
         setAvatarPreview(avatarUrl ? `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : null);
         setSocialLinks(user.social_links || []);
+        
+        // Load email preferences
+        try {
+          const prefsResponse = await fetch('/api/email-preferences');
+          if (prefsResponse.ok) {
+            const prefsData = await prefsResponse.json();
+            if (prefsData.data) {
+              setEmailPreferences({
+                forum_reply: prefsData.data.forum_reply ?? true,
+                new_project: prefsData.data.new_project ?? true
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error loading email preferences:', error);
+          // Use defaults if loading fails
+        }
       }
     } catch (error) {
       console.error('Error loading user:', error);
@@ -532,7 +554,82 @@ export default function AccountSettingsPage() {
               {activeTab === 'notifications' && (
                 <div className="space-y-6">
                   <h2 className="text-2xl font-bold text-gray-800 mb-6">הגדרות התראות</h2>
-                  <p className="text-gray-600">הגדרות התראות יגיעו בקרוב...</p>
+                  <p className="text-gray-600 mb-6">
+                    בחר איזה התראות תרצה לקבל במייל. תוכל לשנות את ההגדרות בכל עת.
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* Forum Reply Notification */}
+                    <div className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] transition-colors">
+                      <input
+                        type="checkbox"
+                        id="forum_reply"
+                        checked={emailPreferences.forum_reply}
+                        onChange={(e) => setEmailPreferences({ ...emailPreferences, forum_reply: e.target.checked })}
+                        className="mt-1 w-5 h-5 text-[#F52F8E] rounded focus:ring-[#F52F8E] cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="forum_reply" className="block text-base font-medium text-gray-800 cursor-pointer">
+                          התראה על תגובה על פוסט שפרסמתי
+                        </label>
+                        <p className="text-sm text-gray-500 mt-1">
+                          קבל מייל כאשר מישהו מגיב על פוסט שפרסמת בפורום
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* New Project Notification */}
+                    <div className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] transition-colors">
+                      <input
+                        type="checkbox"
+                        id="new_project"
+                        checked={emailPreferences.new_project}
+                        onChange={(e) => setEmailPreferences({ ...emailPreferences, new_project: e.target.checked })}
+                        className="mt-1 w-5 h-5 text-[#F52F8E] rounded focus:ring-[#F52F8E] cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="new_project" className="block text-base font-medium text-gray-800 cursor-pointer">
+                          התראה על פרויקט חדש שעלה
+                        </label>
+                        <p className="text-sm text-gray-500 mt-1">
+                          קבל מייל כאשר פרויקט חדש נוצר באתר
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <button
+                      onClick={async () => {
+                        setSavingEmailPreferences(true);
+                        try {
+                          const response = await fetch('/api/email-preferences', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(emailPreferences)
+                          });
+
+                          if (response.ok) {
+                            alert('ההעדפות נשמרו בהצלחה');
+                          } else {
+                            const errorData = await response.json();
+                            alert(`שגיאה בשמירת ההעדפות: ${errorData.error || 'שגיאה לא ידועה'}`);
+                          }
+                        } catch (error) {
+                          console.error('Error saving email preferences:', error);
+                          alert('שגיאה בשמירת ההעדפות');
+                        } finally {
+                          setSavingEmailPreferences(false);
+                        }
+                      }}
+                      disabled={savingEmailPreferences}
+                      className="flex items-center gap-2 px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Save className="w-5 h-5" />
+                      <span>שמור העדפות</span>
+                    </button>
+                  </div>
                 </div>
               )}
 

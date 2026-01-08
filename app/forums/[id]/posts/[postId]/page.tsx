@@ -379,11 +379,11 @@ export default function ForumPostDetailPage() {
             {post.media_url && (
               <div className="mb-6">
                 {post.media_type === 'image' ? (
-                  <div className="mb-6">
+                  <div className="mb-6 aspect-video w-full rounded-lg border border-gray-200 overflow-hidden bg-gray-100">
                     <img 
                       src={post.media_url} 
                       alt="Post media" 
-                      className="w-full max-h-96 object-contain rounded-lg border border-gray-200"
+                      className="w-full h-full object-contain"
                       loading="lazy"
                       decoding="async"
                     />

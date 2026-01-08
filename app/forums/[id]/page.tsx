@@ -861,13 +861,15 @@ function ForumDetailPageContent() {
                             {selectedPost.media_url && (
                               <div className="mt-4">
                                 {selectedPost.media_type === 'image' ? (
-                                  <img
-                                    src={selectedPost.media_url}
-                                    alt="Post media"
-                                    className="max-w-full rounded-lg"
-                                    loading="lazy"
-                                    decoding="async"
-                                  />
+                                  <div className="aspect-video w-full rounded-lg overflow-hidden bg-gray-100">
+                                    <img
+                                      src={selectedPost.media_url}
+                                      alt="Post media"
+                                      className="w-full h-full object-contain"
+                                      loading="lazy"
+                                      decoding="async"
+                                    />
+                                  </div>
                                 ) : selectedPost.media_type === 'video' ? (
                                   <video
                                     src={selectedPost.media_url}
