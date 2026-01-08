@@ -161,7 +161,7 @@ export default function MessagesPage() {
     // Create channel for listening to new messages
     // Listen to both messages you receive AND messages you send
     const channel = supabase
-      .channel('messages')
+      .channel(`messages:${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -171,6 +171,7 @@ export default function MessagesPage() {
           filter: `recipient_id=eq.${currentUserId}`
         },
         (payload) => {
+          console.log('📨 New message received via Realtime:', payload.new);
           handleNewMessage(payload.new as any);
         }
       )
@@ -183,10 +184,18 @@ export default function MessagesPage() {
           filter: `sender_id=eq.${currentUserId}`
         },
         (payload) => {
+          console.log('📤 Message sent via Realtime:', payload.new);
           handleNewMessage(payload.new as any);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🔔 Realtime subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to messages Realtime');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime channel error - check if Realtime is enabled for messages table');
+        }
+      });
 
     messagesChannelRef.current = channel;
 
@@ -202,61 +211,80 @@ export default function MessagesPage() {
   function handleNewMessage(newMessage: any) {
     if (!currentUserId) return;
 
-    // Check if message already exists (prevent duplicates)
-    const messageExists = conversations.some(conv => 
-      conv.messages.some(msg => msg.id === newMessage.id)
-    );
-    if (messageExists) return;
-
     const senderId = newMessage.sender_id;
     const isFromCurrentUser = senderId === currentUserId;
-    
-    // Find or create conversation
     const partnerId = isFromCurrentUser ? newMessage.recipient_id : senderId;
-    const existingConv = conversations.find(conv => conv.id === partnerId);
 
-    const formattedMessage: Message = {
-      id: newMessage.id,
-      text: newMessage.content,
-      sender: isFromCurrentUser ? 'me' : 'other',
-      timestamp: new Date(newMessage.created_at).toLocaleTimeString('he-IL', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    };
+    console.log('🔄 Handling new message:', {
+      messageId: newMessage.id,
+      senderId,
+      recipientId: newMessage.recipient_id,
+      partnerId,
+      isFromCurrentUser
+    });
 
-    if (existingConv) {
-      // Update existing conversation
-      const updatedConv = {
-        ...existingConv,
-        messages: [...existingConv.messages, formattedMessage],
-        lastMessage: newMessage.content,
+    // Use functional update to ensure we have the latest state
+    setConversations(prev => {
+      // Check if message already exists (prevent duplicates)
+      const messageExists = prev.some(conv => 
+        conv.messages.some(msg => msg.id === newMessage.id)
+      );
+      if (messageExists) {
+        console.log('⚠️ Message already exists, skipping:', newMessage.id);
+        return prev;
+      }
+
+      // Find existing conversation
+      const existingConv = prev.find(conv => conv.id === partnerId);
+
+      const formattedMessage: Message = {
+        id: newMessage.id,
+        text: newMessage.content,
+        sender: isFromCurrentUser ? 'me' : 'other',
         timestamp: new Date(newMessage.created_at).toLocaleTimeString('he-IL', {
           hour: '2-digit',
           minute: '2-digit'
-        }),
-        unreadCount: activeConversation?.id === partnerId 
-          ? existingConv.unreadCount 
-          : (existingConv.unreadCount + (newMessage.is_read ? 0 : 1))
+        })
       };
 
-      setConversations(prev => {
+      if (existingConv) {
+        console.log('✅ Updating existing conversation:', partnerId);
+        // Update existing conversation
+        const updatedConv = {
+          ...existingConv,
+          messages: [...existingConv.messages, formattedMessage],
+          lastMessage: newMessage.content,
+          timestamp: new Date(newMessage.created_at).toLocaleTimeString('he-IL', {
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          unreadCount: activeConversation?.id === partnerId 
+            ? existingConv.unreadCount 
+            : (existingConv.unreadCount + (newMessage.is_read ? 0 : 1))
+        };
+
         const updated = prev.map(conv => 
           conv.id === partnerId ? updatedConv : conv
         );
+        
         // Sort by last message time
-        return updated.sort((a, b) => {
+        const sorted = updated.sort((a, b) => {
           const aTime = new Date(a.timestamp).getTime();
           const bTime = new Date(b.timestamp).getTime();
           return bTime - aTime;
         });
-      });
 
-      // If this conversation is active, update it
-      if (activeConversation?.id === partnerId) {
-        setActiveConversation(updatedConv);
-      }
-    } else {
+        // If this conversation is active, update it
+        setActiveConversation(prevActive => {
+          if (prevActive?.id === partnerId) {
+            return updatedConv;
+          }
+          return prevActive;
+        });
+
+        return sorted;
+      } else {
+        console.log('🆕 Creating new conversation for partner:', partnerId);
         // Create new conversation - need to fetch partner profile
         (async () => {
           try {
@@ -266,30 +294,55 @@ export default function MessagesPage() {
               (p.user_id || p.id) === partnerId
             );
 
-          if (partner) {
-            const partnerName = partner.display_name || partner.first_name || partner.nickname || 'משתמש';
-            const newConversation: Conversation = {
-              id: partnerId,
-              name: partnerName,
-              avatar: partnerName.charAt(0),
-              avatarColor: 'bg-pink-500',
-              lastMessage: newMessage.content,
-              timestamp: new Date(newMessage.created_at).toLocaleTimeString('he-IL', {
-                hour: '2-digit',
-                minute: '2-digit'
-              }),
-              unreadCount: newMessage.is_read ? 0 : 1,
-              isOnline: false,
-              messages: [formattedMessage]
-            };
+            if (partner) {
+              const partnerName = partner.display_name || partner.first_name || partner.nickname || 'משתמש';
+              const newConversation: Conversation = {
+                id: partnerId,
+                name: partnerName,
+                avatar: partnerName.charAt(0),
+                avatarColor: 'bg-pink-500',
+                lastMessage: newMessage.content,
+                timestamp: new Date(newMessage.created_at).toLocaleTimeString('he-IL', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }),
+                unreadCount: newMessage.is_read ? 0 : 1,
+                isOnline: false,
+                messages: [formattedMessage]
+              };
 
-            setConversations(prev => [newConversation, ...prev]);
+              setConversations(prevConv => {
+                // Double check it doesn't exist (race condition protection)
+                const alreadyExists = prevConv.find(c => c.id === partnerId);
+                if (alreadyExists) {
+                  console.log('⚠️ Conversation already exists, updating instead:', partnerId);
+                  // Update existing instead of creating duplicate
+                  return prevConv.map(conv => 
+                    conv.id === partnerId 
+                      ? {
+                          ...conv,
+                          messages: [...conv.messages, formattedMessage],
+                          lastMessage: newMessage.content,
+                          timestamp: newConversation.timestamp
+                        }
+                      : conv
+                  );
+                }
+                console.log('✅ Adding new conversation:', partnerId);
+                return [newConversation, ...prevConv];
+              });
+            } else {
+              console.error('❌ Partner not found:', partnerId);
+            }
+          } catch (error) {
+            console.error('❌ Error creating new conversation:', error);
           }
-        } catch (error) {
-          console.error('Error creating new conversation:', error);
-        }
-      })();
-    }
+        })();
+        
+        // Return previous state while fetching partner profile
+        return prev;
+      }
+    });
   }
 
   // Set up typing indicator channel for active conversation
@@ -503,6 +556,7 @@ export default function MessagesPage() {
       }
 
       // Replace temp message with real message from server
+      // Note: The message will also come through Realtime, so we need to handle duplicates
       if (result.data) {
         const realMessage: Message = {
           id: result.data.id,
@@ -514,24 +568,55 @@ export default function MessagesPage() {
           })
         };
 
+        // Update active conversation - replace temp message or add if not exists
         setActiveConversation(prev => {
           if (!prev) return null;
-          return {
-            ...prev,
-            messages: prev.messages.map(msg => msg.id === tempId ? realMessage : msg),
-            lastMessage: messageText,
-            timestamp: realMessage.timestamp
-          };
-        });
-
-        setConversations(prev => prev.map(conv => {
-          if (conv.id === activeConversation.id) {
+          const hasTempMessage = prev.messages.some(msg => msg.id === tempId);
+          if (hasTempMessage) {
             return {
-              ...conv,
-              messages: conv.messages.map(msg => msg.id === tempId ? realMessage : msg),
+              ...prev,
+              messages: prev.messages.map(msg => msg.id === tempId ? realMessage : msg),
               lastMessage: messageText,
               timestamp: realMessage.timestamp
             };
+          } else {
+            // Temp message already replaced by Realtime, just update timestamp
+            const hasRealMessage = prev.messages.some(msg => msg.id === realMessage.id);
+            if (!hasRealMessage) {
+              return {
+                ...prev,
+                messages: [...prev.messages, realMessage],
+                lastMessage: messageText,
+                timestamp: realMessage.timestamp
+              };
+            }
+            return prev;
+          }
+        });
+
+        // Update conversations list
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === activeConversation.id) {
+            const hasTempMessage = conv.messages.some(msg => msg.id === tempId);
+            if (hasTempMessage) {
+              return {
+                ...conv,
+                messages: conv.messages.map(msg => msg.id === tempId ? realMessage : msg),
+                lastMessage: messageText,
+                timestamp: realMessage.timestamp
+              };
+            } else {
+              // Temp message already replaced by Realtime
+              const hasRealMessage = conv.messages.some(msg => msg.id === realMessage.id);
+              if (!hasRealMessage) {
+                return {
+                  ...conv,
+                  messages: [...conv.messages, realMessage],
+                  lastMessage: messageText,
+                  timestamp: realMessage.timestamp
+                };
+              }
+            }
           }
           return conv;
         }));
