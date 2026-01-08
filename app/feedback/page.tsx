@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MessageCircleMore, Send, CheckCircle, Upload, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getAllProfiles } from '@/lib/queries/profiles';
 
 export default function FeedbackPage() {
   const [formData, setFormData] = useState({
@@ -18,7 +19,48 @@ export default function FeedbackPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loadingUser, setLoadingUser] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load user info if logged in
+  useEffect(() => {
+    async function loadUserInfo() {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        
+        if (authUser) {
+          setIsLoggedIn(true);
+          // Get user profile
+          const profiles = await getAllProfiles();
+          const profilesArray = Array.isArray(profiles) ? profiles : [];
+          const userProfile = profilesArray.find((p: any) => 
+            (p.user_id || p.id) === authUser.id
+          );
+
+          if (userProfile) {
+            const displayName = userProfile.display_name || 
+                               userProfile.first_name || 
+                               userProfile.nickname || 
+                               '';
+            const userEmail = authUser.email || userProfile.email || '';
+
+            setFormData(prev => ({
+              ...prev,
+              name: displayName,
+              email: userEmail
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user info:', error);
+      } finally {
+        setLoadingUser(false);
+      }
+    }
+
+    loadUserInfo();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,38 +221,42 @@ export default function FeedbackPage() {
                 </div>
               )}
 
-              {/* Name */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium mb-2 text-gray-700">
-                  שם *
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-[#F52F8E] focus:border-transparent"
-                  placeholder="השם שלך"
-                />
-              </div>
+              {/* Name - only show if not logged in */}
+              {!isLoggedIn && (
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium mb-2 text-gray-700">
+                    שם *
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-[#F52F8E] focus:border-transparent"
+                    placeholder="השם שלך"
+                  />
+                </div>
+              )}
 
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2 text-gray-700">
-                  אימייל (אופציונלי)
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-[#F52F8E] focus:border-transparent"
-                  placeholder="your@email.com"
-                />
-              </div>
+              {/* Email - only show if not logged in */}
+              {!isLoggedIn && (
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium mb-2 text-gray-700">
+                    אימייל (אופציונלי)
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-[#F52F8E] focus:border-transparent"
+                    placeholder="your@email.com"
+                  />
+                </div>
+              )}
 
               {/* Feedback Type */}
               <div>
