@@ -1286,9 +1286,6 @@ export default function AdminPanel() {
           setFormData({})
         }
       } else if (activeTab === 'recordings') {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1203',message:'handleCreate recordings entry',data:{selectedTagIds:formData.selectedTagIds?.length||0,tagsCount:tags.length,approvedTagsCount:approvedTags.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         // Don't use category anymore - we use tags only
         const { data, error } = await createRecording({
           title: formData.title || '',
@@ -1335,21 +1332,12 @@ export default function AdminPanel() {
           }
         }
         if (!error && data) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1225',message:'before assignTagsToContent',data:{recordingId:data.id,selectedTagIds:formData.selectedTagIds?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           // Assign tags if provided
           if (formData.selectedTagIds && formData.selectedTagIds.length > 0) {
             try {
               const { assignTagsToContent } = await import('@/lib/queries/tags')
               await assignTagsToContent('recording', data.id, formData.selectedTagIds)
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1230',message:'assignTagsToContent success',data:{recordingId:data.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-              // #endregion
             } catch (tagError: any) {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1232',message:'assignTagsToContent error',data:{errorMessage:tagError?.message,errorStack:tagError?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-              // #endregion
               console.warn('Error assigning tags:', tagError)
             }
           }
@@ -2015,9 +2003,6 @@ export default function AdminPanel() {
           alert('המשתמש עודכן בהצלחה!')
         }
       } else if (activeTab === 'recordings') {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1849',message:'handleUpdate recordings entry',data:{selectedTagIds:formData.selectedTagIds?.length||0,tagsCount:tags.length,approvedTagsCount:approvedTags.length,oldCategory:formData.category},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,E'})}).catch(()=>{});
-        // #endregion
         // Don't use category anymore - we use tags only
         const updateData: any = { ...formData };
         // Remove is_new from update - it's set automatically
@@ -2031,14 +2016,8 @@ export default function AdminPanel() {
           // If description wasn't in formData, don't include it in update to preserve existing value
           delete updateData.description;
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1858',message:'updateData prepared',data:{hasCategory:!!updateData.category},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
 
         const { error } = await updateRecording(id, updateData)
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1868',message:'updateRecording result',data:{hasError:!!error,errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         if (!error) {
           // Update instructor's profile if instructor_user_id is provided
           if (formData.instructor_user_id) {
@@ -2068,27 +2047,15 @@ export default function AdminPanel() {
               // Don't fail the recording update if profile update fails
             }
           }
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1871',message:'before assignTagsToContent update',data:{recordingId:id,selectedTagIds:formData.selectedTagIds?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           // Update tags if provided
           if (formData.selectedTagIds !== undefined) {
             try {
               const { assignTagsToContent } = await import('@/lib/queries/tags')
               await assignTagsToContent('recording', id, formData.selectedTagIds || [])
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1877',message:'assignTagsToContent update success',data:{recordingId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-              // #endregion
             } catch (tagError: any) {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1879',message:'assignTagsToContent update error',data:{errorMessage:tagError?.message,errorStack:tagError?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-              // #endregion
               console.warn('Error assigning tags:', tagError)
             }
           }
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1884',message:'before loadData',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           await loadData()
           // Reload tags for this specific recording after update
           try {
@@ -2099,18 +2066,9 @@ export default function AdminPanel() {
           } catch (tagError) {
             console.warn('Error reloading tags after update:', tagError)
           }
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1886',message:'after loadData, before setEditing',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           setEditing(null)
           setFormData({})
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1889',message:'handleUpdate recordings complete',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
         } else {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1892',message:'updateRecording error',data:{errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
         }
       } else if (activeTab === 'resources') {
         const { updateResource } = await import('@/lib/queries/resources')
@@ -3929,42 +3887,21 @@ export default function AdminPanel() {
                               onSelectionChange={(tagIds) => setFormData({ ...formData, selectedTagIds: tagIds })}
                               availableTags={approvedTags}
                               onNewTagCreate={async (tagName: string) => {
-                                // #region agent log
-                                fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3585',message:'onNewTagCreate entry',data:{tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                                // #endregion
                                 try {
                                   const { data: newTag, error: tagError } = await suggestTag(tagName)
-                                  // #region agent log
-                                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3588',message:'suggestTag result',data:{newTag:newTag?.id,error:tagError?.message,hasNewTag:!!newTag,hasError:!!tagError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                                  // #endregion
                                   if (newTag && !tagError) {
-                                    // #region agent log
-                                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3589',message:'before setApprovedTags',data:{approvedTagsCount:approvedTags.length,isApproved:newTag.is_approved},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                                    // #endregion
                                     // Only add to approvedTags if the tag is approved (admin-created tags are auto-approved)
                                     if (newTag.is_approved) {
                                       setApprovedTags(prev => [...prev, newTag])
                                     }
                                     setTags(prev => [...prev, newTag])
-                                    // #region agent log
-                                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3591',message:'after setTags, before setFormData',data:{newTagId:newTag.id,currentSelectedTagIds:formData.selectedTagIds?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                                    // #endregion
                                     setFormData((prev: any) => ({
                                       ...prev,
                                       selectedTagIds: [...(prev.selectedTagIds || []), newTag.id]
                                     }))
-                                    // #region agent log
-                                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3595',message:'onNewTagCreate success',data:{newTagId:newTag.id,isApproved:newTag.is_approved},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                                    // #endregion
                                   } else {
-                                    // #region agent log
-                                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3597',message:'onNewTagCreate failed',data:{hasNewTag:!!newTag,hasError:!!tagError,errorMessage:tagError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                                    // #endregion
                                   }
                                 } catch (error: any) {
-                                  // #region agent log
-                                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:3600',message:'onNewTagCreate exception',data:{errorMessage:error?.message,errorStack:error?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                                  // #endregion
                                 }
                               }}
                             />

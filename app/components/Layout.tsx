@@ -89,9 +89,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Search function
   const performSearch = useCallback(async (query: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:90',message:'performSearch called',data:{query,queryLength:query?.trim().length,mobileSearchOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     if (!query || query.trim().length < 2) {
       setSearchResults(null);
       setShowSearchResults(false);
@@ -101,16 +98,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
     setIsSearching(true);
     setSearchError(null);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:99',message:'Starting search fetch',data:{query},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     try {
       const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
       const { data, error } = await response.json();
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:102',message:'Search API response received',data:{query,hasData:!!data,hasError:!!error,dataKeys:data?Object.keys(data):null,recordingsCount:data?.recordings?.length,forumsCount:data?.forums?.length,forumPostsCount:data?.forumPosts?.length,postsCount:data?.posts?.length,projectsCount:data?.projects?.length,coursesCount:data?.courses?.length,error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       
       if (process.env.NODE_ENV === 'development') {
         console.log('Search performed:', { query, hasData: !!data, error, data });
@@ -120,46 +111,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         setSearchResults(data);
         setShowSearchResults(true);
         setSearchError(null);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:109',message:'Search results set successfully',data:{query,recordingsCount:data?.recordings?.length,forumsCount:data?.forums?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
       } else {
         setSearchResults(null);
         setShowSearchResults(false);
         setSearchError(error || 'שגיאה בחיפוש. נסה שוב מאוחר יותר.');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:115',message:'Search error occurred',data:{query,error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
       }
     } catch (error) {
       console.error('Search error:', error);
       setSearchResults(null);
       setShowSearchResults(false);
       setSearchError('שגיאה בחיבור לשרת. בדוק את החיבור לאינטרנט.');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:121',message:'Search exception caught',data:{query,errorMessage:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
     } finally {
       setIsSearching(false);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:123',message:'Search completed, isSearching set to false',data:{query},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
     }
   }, []);
 
   // Handle search input with debounce
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:128',message:'Search query useEffect triggered',data:{searchQuery,searchQueryLength:searchQuery?.trim().length,mobileSearchOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
     if (searchQuery.trim().length >= 2) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:134',message:'Setting timeout to call performSearch',data:{searchQuery},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       searchTimeoutRef.current = setTimeout(() => {
         performSearch(searchQuery);
       }, 300);
@@ -684,9 +657,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const getTotalResults = () => {
     if (!searchResults) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:639',message:'getTotalResults: searchResults is null',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       return 0;
     }
     const total = (
@@ -697,9 +667,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       searchResults.projects.length +
       searchResults.courses.length
     );
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:648',message:'getTotalResults calculated',data:{total,recordings:searchResults.recordings.length,forums:searchResults.forums.length,forumPosts:searchResults.forumPosts.length,posts:searchResults.posts.length,projects:searchResults.projects.length,courses:searchResults.courses.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     return total;
   };
 
@@ -1084,9 +1051,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       placeholder="חפש במועדון..."
                       value={searchQuery}
                       onChange={(e) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:1032',message:'Mobile search input onChange',data:{newValue:e.target.value,oldValue:searchQuery},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                        // #endregion
                         setSearchQuery(e.target.value);
                       }}
                       className="modern-input w-full pr-10 pl-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500/50 shadow-md text-base text-right"
@@ -1150,11 +1114,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                   {/* 4. Results Found - DIRECT CHECK */}
                   {(() => {
-                    // #region agent log
                     const totalResults = searchResults ? getTotalResults() : 0;
                     const shouldShowResults = !isSearching && !searchError && searchQuery.trim().length >= 2 && searchResults && totalResults > 0;
-                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Layout.tsx:1127',message:'Mobile search render check',data:{isSearching,searchError,searchQuery,searchQueryLength:searchQuery?.trim().length,hasSearchResults:!!searchResults,totalResults,shouldShowResults},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                    // #endregion
                     if (shouldShowResults) {
                       return (
                     <div className="p-3 pb-6 bg-white shadow-xl rounded-lg mx-2 mt-2 border border-gray-200">
