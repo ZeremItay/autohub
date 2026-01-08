@@ -76,12 +76,12 @@ export default function ProtectedAction({
         
         {showTooltip && (
           <div 
-            className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-1/2 sm:translate-x-1/2 mb-3 w-full sm:w-56 sm:max-w-[240px] bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg z-50 pointer-events-auto"
+            className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-1/2 sm:translate-x-1/2 mb-3 w-full sm:w-72 sm:max-w-[320px] bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg z-50 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
             style={{
-              maxWidth: 'min(240px, 100%)'
+              maxWidth: 'min(320px, 100%)'
             }}
           >
             <div className="flex items-start gap-2">
@@ -145,12 +145,12 @@ export default function ProtectedAction({
         
         {showTooltip && (
           <div 
-            className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-1/2 sm:translate-x-1/2 mb-3 w-full sm:w-56 sm:max-w-[240px] bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg z-50 pointer-events-auto"
+            className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-1/2 sm:translate-x-1/2 mb-3 w-full sm:w-72 sm:max-w-[320px] bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg z-50 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
             style={{
-              maxWidth: 'min(240px, 100%)'
+              maxWidth: 'min(320px, 100%)'
             }}
           >
             <div className="flex items-start gap-2">
@@ -213,12 +213,12 @@ export default function ProtectedAction({
         
         {showTooltip && (
           <div 
-            className="absolute bottom-full right-0 sm:right-1/2 sm:translate-x-1/2 mb-3 w-[calc(100vw-2rem)] sm:w-56 max-w-[240px] bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg z-50 pointer-events-auto"
+            className="absolute bottom-full right-0 sm:right-1/2 sm:translate-x-1/2 mb-3 w-[calc(100vw-2rem)] sm:w-72 max-w-[320px] bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg z-50 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
             style={{
-              maxWidth: 'min(240px, calc(100vw - 2rem))'
+              maxWidth: 'min(320px, calc(100vw - 2rem))'
             }}
           >
             <div className="flex items-start gap-2">
