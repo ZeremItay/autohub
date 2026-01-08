@@ -188,15 +188,27 @@ export default function MessagesPage() {
           handleNewMessage(payload.new as any);
         }
       )
-      .subscribe((status) => {
+      .subscribe(async (status) => {
         console.log('🔔 Realtime subscription status:', status);
         if (status === 'SUBSCRIBED') {
           console.log('✅ Successfully subscribed to messages Realtime');
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ Realtime channel error - check if Realtime is enabled for messages table');
-          console.error('💡 To enable Realtime: Go to Supabase Dashboard > Database > Replication > Enable for "messages" table');
+          console.error('💡 To enable Realtime:');
+          console.error('   1. Go to Supabase Dashboard');
+          console.error('   2. Navigate to Database > Replication');
+          console.error('   3. Find the "messages" table');
+          console.error('   4. Enable Realtime for it');
+          console.warn('⚠️ Messages will still work, but won\'t update in real-time. Refresh the page to see new messages.');
         } else if (status === 'TIMED_OUT') {
-          console.warn('⏱️ Realtime subscription timed out, retrying...');
+          console.warn('⏱️ Realtime subscription timed out');
+          // Try to resubscribe after a delay
+          setTimeout(() => {
+            if (messagesChannelRef.current) {
+              console.log('🔄 Retrying Realtime subscription...');
+              messagesChannelRef.current.subscribe();
+            }
+          }, 3000);
         } else if (status === 'CLOSED') {
           console.warn('🔒 Realtime subscription closed');
         }
