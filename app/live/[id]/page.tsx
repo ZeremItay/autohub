@@ -187,7 +187,9 @@ export default function LiveEventPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs sm:text-sm text-gray-500">מיקום</p>
-                      <p className="font-semibold text-gray-800 text-sm sm:text-base truncate">{event.location || 'Google Meet'}</p>
+                      <p className="font-semibold text-gray-800 text-sm sm:text-base truncate">
+                        {event.zoom_meeting_id ? 'Zoom' : (event.location || 'Google Meet')}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -236,7 +238,11 @@ export default function LiveEventPage() {
               {event.about_text && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">על האירוע</h2>
-                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">{event.about_text}</p>
+                  <div 
+                    className="text-sm sm:text-base text-gray-700 leading-relaxed prose prose-sm max-w-none [&_p]:mb-3 [&_ul]:list-disc [&_ul]:mr-6 [&_ol]:list-decimal [&_ol]:mr-6 [&_li]:mb-2 [&_strong]:font-bold [&_em]:italic"
+                    style={{ direction: 'rtl', textAlign: 'right' }}
+                    dangerouslySetInnerHTML={{ __html: event.about_text }}
+                  />
                 </div>
               )}
 
@@ -283,13 +289,6 @@ export default function LiveEventPage() {
                 </div>
               )}
 
-              {/* Description (fallback) */}
-              {!event.about_text && event.description && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">תיאור</h2>
-                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">{event.description}</p>
-                </div>
-              )}
             </div>
           </div>
         </div>

@@ -118,3 +118,4 @@ export function FriendsList({ friends, badges = {} }: FriendsListProps) {
 
 
 
+

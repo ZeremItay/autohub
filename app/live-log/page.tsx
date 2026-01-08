@@ -174,9 +174,19 @@ export default function LiveLogPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-800 mb-1 text-base">{event.title}</h3>
-                            {event.description && (
-                              <p className="text-sm text-gray-600 mb-2 line-clamp-2">{event.description}</p>
-                            )}
+                            {event.description && (() => {
+                              const hasHTML = /<[a-z][\s\S]*>/i.test(event.description);
+                              if (hasHTML) {
+                                // Strip HTML tags for preview
+                                const textContent = event.description.replace(/<[^>]*>/g, '').trim();
+                                return (
+                                  <p className="text-sm text-gray-600 mb-2 line-clamp-2">{textContent}</p>
+                                );
+                              }
+                              return (
+                                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{event.description}</p>
+                              );
+                            })()}
                             <div className="flex items-center gap-3 flex-wrap">
                               <span className="text-sm text-gray-500">{formatTime(event.event_time)}</span>
                               <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
@@ -300,9 +310,19 @@ export default function LiveLogPage() {
                           </button>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{event.title}</h3>
-                            {event.description && (
-                              <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{event.description}</p>
-                            )}
+                            {event.description && (() => {
+                              const hasHTML = /<[a-z][\s\S]*>/i.test(event.description);
+                              if (hasHTML) {
+                                // Strip HTML tags for preview
+                                const textContent = event.description.replace(/<[^>]*>/g, '').trim();
+                                return (
+                                  <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{textContent}</p>
+                                );
+                              }
+                              return (
+                                <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{event.description}</p>
+                              );
+                            })()}
                             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                               <span className="text-xs sm:text-sm text-gray-500">{formatTime(event.event_time)}</span>
                               <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">

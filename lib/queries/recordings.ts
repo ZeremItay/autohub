@@ -26,6 +26,10 @@ export interface Recording {
   qa_section?: QAItem[]
   key_points?: KeyPoint[]
   user_id?: string
+  instructor_name?: string
+  instructor_title?: string
+  instructor_avatar_url?: string
+  instructor_user_id?: string
   created_at?: string
   updated_at?: string
 }
@@ -203,6 +207,10 @@ export async function updateRecording(id: string, updates: Partial<Recording>) {
   if (updates.views !== undefined) updateData.views = updates.views;
   if (updates.is_new !== undefined) updateData.is_new = updates.is_new;
   if (updates.user_id !== undefined) updateData.user_id = updates.user_id;
+  if (updates.instructor_name !== undefined) updateData.instructor_name = updates.instructor_name;
+  if (updates.instructor_title !== undefined) updateData.instructor_title = updates.instructor_title;
+  if (updates.instructor_avatar_url !== undefined) updateData.instructor_avatar_url = updates.instructor_avatar_url;
+  if (updates.instructor_user_id !== undefined) updateData.instructor_user_id = updates.instructor_user_id;
   
   // Handle qa_section and key_points specially
   if (updates.qa_section !== undefined) {

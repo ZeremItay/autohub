@@ -184,9 +184,23 @@ export function AnnouncementsFeed({
                         </button>
                       )}
                     </div>
-                    <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 leading-relaxed whitespace-pre-line">
-                      {post.content}
-                    </p>
+                    {(() => {
+                      const hasHTML = /<[a-z][\s\S]*>/i.test(post.content);
+                      if (hasHTML) {
+                        return (
+                          <div 
+                            className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 leading-relaxed prose prose-sm max-w-none [&_p]:mb-3 [&_ul]:list-disc [&_ul]:mr-6 [&_ol]:list-decimal [&_ol]:mr-6 [&_li]:mb-2 [&_strong]:font-bold [&_em]:italic"
+                            style={{ direction: 'rtl', textAlign: 'right' }}
+                            dangerouslySetInnerHTML={{ __html: post.content }}
+                          />
+                        );
+                      }
+                      return (
+                        <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 leading-relaxed whitespace-pre-line">
+                          {post.content}
+                        </p>
+                      );
+                    })()}
                     {(post.image_url || post.media_url) && (
                       <div className="mb-3 sm:mb-4">
                         <img 
@@ -254,6 +268,7 @@ export function AnnouncementsFeed({
     </main>
   );
 }
+
 
 
 

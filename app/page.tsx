@@ -1123,9 +1123,19 @@ export default function Home() {
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">
                               <div className="p-4 sm:p-6 text-white w-full">
                                 <h3 className="text-lg sm:text-xl font-bold mb-2">{item.title}</h3>
-                                {item.content && (
-                                  <p className="text-sm sm:text-base opacity-90 line-clamp-2">{item.content}</p>
-                                )}
+                                {item.content && (() => {
+                                  const hasHTML = /<[a-z][\s\S]*>/i.test(item.content);
+                                  if (hasHTML) {
+                                    // Strip HTML tags for preview
+                                    const textContent = item.content.replace(/<[^>]*>/g, '').trim();
+                                    return (
+                                      <p className="text-sm sm:text-base opacity-90 line-clamp-2">{textContent}</p>
+                                    );
+                                  }
+                                  return (
+                                    <p className="text-sm sm:text-base opacity-90 line-clamp-2">{item.content}</p>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
@@ -1142,9 +1152,19 @@ export default function Home() {
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">
                             <div className="p-4 sm:p-6 text-white w-full">
                               <h3 className="text-lg sm:text-xl font-bold mb-2">{item.title}</h3>
-                              {item.content && (
-                                <p className="text-sm sm:text-base opacity-90 line-clamp-2">{item.content}</p>
-                              )}
+                              {item.content && (() => {
+                                const hasHTML = /<[a-z][\s\S]*>/i.test(item.content);
+                                if (hasHTML) {
+                                  // Strip HTML tags for preview
+                                  const textContent = item.content.replace(/<[^>]*>/g, '').trim();
+                                  return (
+                                    <p className="text-sm sm:text-base opacity-90 line-clamp-2">{textContent}</p>
+                                  );
+                                }
+                                return (
+                                  <p className="text-sm sm:text-base opacity-90 line-clamp-2">{item.content}</p>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>

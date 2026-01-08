@@ -352,7 +352,19 @@ export default function ForumsPage() {
                             }}
                             className="block px-4 py-3 rounded-xl hover:bg-pink-50 transition-colors border border-gray-200 bg-white shadow-sm active:bg-pink-100"
                           >
-                            <p className="text-sm text-gray-900 line-clamp-2 break-words leading-relaxed">{reply.content}</p>
+                            {(() => {
+                              const hasHTML = /<[a-z][\s\S]*>/i.test(reply.content);
+                              if (hasHTML) {
+                                // Strip HTML tags for preview
+                                const textContent = reply.content.replace(/<[^>]*>/g, '').trim();
+                                return (
+                                  <p className="text-sm text-gray-900 line-clamp-2 break-words leading-relaxed">{textContent}</p>
+                                );
+                              }
+                              return (
+                                <p className="text-sm text-gray-900 line-clamp-2 break-words leading-relaxed">{reply.content}</p>
+                              );
+                            })()}
                             {reply.forum_posts && (
                               <div className="mt-1.5">
                                 <p className="text-xs text-gray-600 break-words leading-relaxed">בפוסט: {reply.forum_posts.title}</p>

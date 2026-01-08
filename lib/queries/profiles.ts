@@ -21,6 +21,7 @@ export interface Profile {
   email?: string
   role_id: string // Required - every profile MUST have a role
   social_links?: SocialLink[]
+  hosted_recordings?: string[] // Array of recording IDs that the user has hosted/instructed
   created_at?: string
   updated_at?: string
 }

@@ -190,7 +190,7 @@ function EventDetailPageContent() {
                   <h3 className="text-sm font-semibold text-gray-600 mb-2">מיקום</h3>
                   <div className="flex items-center gap-2 text-gray-800">
                     <MapPin className="w-5 h-5 text-[#F52F8E]" />
-                    <span>{event.location || 'Google Meet'}</span>
+                    <span>{event.zoom_meeting_id ? 'Zoom' : (event.location || 'Google Meet')}</span>
                   </div>
                 </div>
 
@@ -223,7 +223,11 @@ function EventDetailPageContent() {
               {event.about_text && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                   <h2 className="text-2xl font-bold text-gray-800 mb-4">על האירוע</h2>
-                  <p className="text-gray-700 leading-relaxed">{event.about_text}</p>
+                  <div 
+                    className="text-gray-700 leading-relaxed prose prose-sm max-w-none [&_p]:mb-3 [&_ul]:list-disc [&_ul]:mr-6 [&_ol]:list-decimal [&_ol]:mr-6 [&_li]:mb-2 [&_strong]:font-bold [&_em]:italic"
+                    style={{ direction: 'rtl', textAlign: 'right' }}
+                    dangerouslySetInnerHTML={{ __html: event.about_text }}
+                  />
                 </div>
               )}
 

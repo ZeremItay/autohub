@@ -1,8 +1,9 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { Trash2, Heart } from 'lucide-react';
 import { formatTimeAgo } from '@/lib/utils/date';
 import CommentForm from './CommentForm';
+import { useState } from 'react';
 
 interface CommentUser {
   id?: string;
@@ -23,6 +24,8 @@ interface Comment {
   content: string;
   created_at: string;
   updated_at?: string;
+  likes_count?: number;
+  user_liked?: boolean;
   user?: CommentUser;
   replies?: Comment[];
 }
@@ -67,6 +70,9 @@ export default function CommentItem({
   const commentUserId = comment.user_id || comment.user?.user_id;
   const canDelete = currentUser && (currentUser.id === commentUserId || currentUser.user_id === commentUserId);
   const isReplying = replyingTo === comment.id;
+  const [likesCount, setLikesCount] = useState(comment.likes_count || 0);
+  const [userLiked, setUserLiked] = useState(comment.user_liked || false);
+  const [liking, setLiking] = useState(false);
 
   const displayName = comment.user?.display_name || 
                      comment.user?.first_name || 
@@ -79,10 +85,44 @@ export default function CommentItem({
 
   const handleReply = async (text: string) => {
     if (onReply) {
-      await onReply(comment.id, text);
-      if (onToggleReply) {
-        onToggleReply(comment.id);
+      try {
+        await onReply(comment.id, text);
+        // Close reply form after successful submission
+        if (onToggleReply) {
+          onToggleReply(comment.id);
+        }
+      } catch (error) {
+        console.error('Error submitting reply:', error);
+        // Don't close on error
       }
+    }
+  };
+
+  const handleLike = async () => {
+    if (!currentUser || liking) return;
+    
+    const userId = currentUser.user_id || currentUser.id;
+    if (!userId) return;
+    
+    setLiking(true);
+    try {
+      const response = await fetch(`/api/forums/replies/${comment.id}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.data) {
+        const newLiked = result.data.liked;
+        setUserLiked(newLiked);
+        setLikesCount(prev => newLiked ? prev + 1 : Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    } finally {
+      setLiking(false);
     }
   };
 
@@ -141,15 +181,34 @@ export default function CommentItem({
           dir="rtl"
         />
         
-        {/* Reply Button */}
-        {currentUser && onReply && onToggleReply && !isReply && (
-          <button
-            onClick={() => onToggleReply(comment.id)}
-            className={`${textSize} text-[#F52F8E] hover:underline`}
-          >
-            {isReplying ? 'בטל' : 'הגב'}
-          </button>
-        )}
+        {/* Actions */}
+        <div className="flex items-center gap-4 mt-2">
+          {/* Like Button */}
+          {currentUser && (
+            <button
+              onClick={handleLike}
+              disabled={liking}
+              className={`flex items-center gap-1 ${textSize} transition-colors ${
+                userLiked
+                  ? 'text-[#F52F8E]'
+                  : 'text-gray-500 hover:text-[#F52F8E]'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              <Heart className={isReply ? 'w-3 h-3' : 'w-4 h-4'} fill={userLiked ? 'currentColor' : 'none'} />
+              {likesCount > 0 && <span>{likesCount}</span>}
+            </button>
+          )}
+          
+          {/* Reply Button */}
+          {currentUser && onReply && onToggleReply && !isReply && (
+            <button
+              onClick={() => onToggleReply(comment.id)}
+              className={`${textSize} text-[#F52F8E] hover:underline`}
+            >
+              {isReplying ? 'בטל' : 'הגב'}
+            </button>
+          )}
+        </div>
 
         {/* Reply Form */}
         {isReplying && currentUser && onReply && (

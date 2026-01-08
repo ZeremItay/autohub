@@ -63,6 +63,8 @@ export interface ForumPostReply {
   content: string;
   parent_id?: string | null;
   is_answer?: boolean;
+  likes_count?: number;
+  user_liked?: boolean;
   created_at: string;
   updated_at: string;
   profile?: {
@@ -366,7 +368,29 @@ export async function getForumPostById(postId: string, userId?: string) {
           console.warn('No profiles found for reply user IDs:', replyUserIds);
         }
         
-        // Map all replies with profiles
+        // Get likes for all replies
+        const replyIds = repliesData.map((r: any) => r.id);
+        const { data: replyLikes } = await supabase
+          .from('forum_reply_likes')
+          .select('reply_id, user_id')
+          .in('reply_id', replyIds);
+        
+        // Count likes per reply and check if user liked
+        const likesCountMap = new Map<string, number>();
+        const userLikedMap = new Map<string, boolean>();
+        
+        if (replyLikes) {
+          replyLikes.forEach((like: any) => {
+            const count = likesCountMap.get(like.reply_id) || 0;
+            likesCountMap.set(like.reply_id, count + 1);
+            
+            if (like.user_id === userId) {
+              userLikedMap.set(like.reply_id, true);
+            }
+          });
+        }
+        
+        // Map all replies with profiles and likes
         const allReplies = repliesData.map((reply: any) => {
           const profile = profileMap.get(reply.user_id);
           // Build display name with fallback chain
@@ -393,6 +417,8 @@ export async function getForumPostById(postId: string, userId?: string) {
               display_name: 'משתמש',
               avatar_url: null
             },
+            likes_count: likesCountMap.get(reply.id) || 0,
+            user_liked: userLikedMap.get(reply.id) || false,
             replies: [] // Initialize replies array
           };
         });
@@ -854,6 +880,40 @@ export async function toggleForumPostLike(postId: string, userId: string) {
     
     // Note: likes_count column may not exist, so we skip updating it
     // The count can be calculated from forum_post_likes table if needed
+    
+    return { data: { liked: true }, error: null };
+  }
+}
+
+// Like/Unlike a forum post reply
+export async function toggleForumReplyLike(replyId: string, userId: string) {
+  // Use client-side supabase for client components
+  
+  // Check if user already liked the reply
+  const { data: existingLike } = await supabase
+    .from('forum_reply_likes')
+    .select('id')
+    .eq('reply_id', replyId)
+    .eq('user_id', userId)
+    .single();
+  
+  if (existingLike) {
+    // Unlike - delete the like
+    const { error } = await supabase
+      .from('forum_reply_likes')
+      .delete()
+      .eq('id', existingLike.id);
+    
+    if (error) return { error };
+    
+    return { data: { liked: false }, error: null };
+  } else {
+    // Like - insert the like
+    const { error } = await supabase
+      .from('forum_reply_likes')
+      .insert([{ reply_id: replyId, user_id: userId }]);
+    
+    if (error) return { error, data: null };
     
     return { data: { liked: true }, error: null };
   }

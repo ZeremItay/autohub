@@ -1301,8 +1301,39 @@ export default function AdminPanel() {
           // is_new will be set automatically based on creation date
           qa_section: formData.qa_section || [],
           key_points: formData.key_points || [],
-          created_at: formData.created_at || undefined
+          created_at: formData.created_at || undefined,
+          instructor_name: formData.instructor_name || undefined,
+          instructor_title: formData.instructor_title || undefined,
+          instructor_avatar_url: formData.instructor_avatar_url || undefined,
+          instructor_user_id: formData.instructor_user_id || undefined
         })
+        
+        // Update instructor's profile if instructor_user_id is provided
+        if (!error && data && formData.instructor_user_id) {
+          try {
+            const { updateProfile } = await import('@/lib/queries/profiles');
+            // Get current profile to preserve existing data
+            const { data: currentProfile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', formData.instructor_user_id)
+              .single();
+            
+            if (currentProfile) {
+              // Add recording to instructor's hosted_recordings array (or create it)
+              const hostedRecordings = Array.isArray(currentProfile.hosted_recordings) 
+                ? [...currentProfile.hosted_recordings, data.id]
+                : [data.id];
+              
+              await updateProfile(formData.instructor_user_id, {
+                hosted_recordings: hostedRecordings
+              });
+            }
+          } catch (profileError) {
+            console.warn('Error updating instructor profile:', profileError);
+            // Don't fail the recording creation if profile update fails
+          }
+        }
         if (!error && data) {
           // #region agent log
           fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1225',message:'before assignTagsToContent',data:{recordingId:data.id,selectedTagIds:formData.selectedTagIds?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
@@ -1784,7 +1815,6 @@ export default function AdminPanel() {
 
         const eventData = {
           title: formData.title || '',
-          description: formData.description || undefined,
           event_date: eventDate,
           event_time: formData.event_time || '',
           event_type: formData.event_type || 'live',
@@ -2010,6 +2040,34 @@ export default function AdminPanel() {
         fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1868',message:'updateRecording result',data:{hasError:!!error,errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
         // #endregion
         if (!error) {
+          // Update instructor's profile if instructor_user_id is provided
+          if (formData.instructor_user_id) {
+            try {
+              const { updateProfile } = await import('@/lib/queries/profiles');
+              // Get current profile to preserve existing data
+              const { data: currentProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('user_id', formData.instructor_user_id)
+                .single();
+              
+              if (currentProfile) {
+                // Add recording to instructor's hosted_recordings array (or create it)
+                const hostedRecordings = Array.isArray(currentProfile.hosted_recordings) 
+                  ? currentProfile.hosted_recordings.includes(id)
+                    ? currentProfile.hosted_recordings
+                    : [...currentProfile.hosted_recordings, id]
+                  : [id];
+                
+                await updateProfile(formData.instructor_user_id, {
+                  hosted_recordings: hostedRecordings
+                });
+              }
+            } catch (profileError) {
+              console.warn('Error updating instructor profile:', profileError);
+              // Don't fail the recording update if profile update fails
+            }
+          }
           // #region agent log
           fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:1871',message:'before assignTagsToContent update',data:{recordingId:id,selectedTagIds:formData.selectedTagIds?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
           // #endregion
@@ -3987,6 +4045,213 @@ export default function AdminPanel() {
                       keyPoints={formData.key_points || []}
                       onChange={(keyPoints) => setFormData({ ...formData, key_points: keyPoints })}
                     />
+
+                    {/* Instructor Section */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">מנחה</h3>
+                      <div className="space-y-4">
+                        {/* Select Instructor from Users */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            בחר מנחה ממשתמשים קיימים (אופציונלי)
+                          </label>
+                          <select
+                            value={formData.instructor_user_id || ''}
+                            onChange={(e) => {
+                              const selectedUserId = e.target.value;
+                              if (selectedUserId) {
+                                const selectedUser = users.find((u: any) => (u.user_id || u.id) === selectedUserId);
+                                if (selectedUser) {
+                                  setFormData({
+                                    ...formData,
+                                    instructor_user_id: selectedUserId,
+                                    instructor_name: selectedUser.display_name || selectedUser.first_name || selectedUser.nickname || '',
+                                    instructor_title: selectedUser.role?.name || '',
+                                    instructor_avatar_url: selectedUser.avatar_url || ''
+                                  });
+                                }
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  instructor_user_id: '',
+                                  instructor_name: formData.instructor_name || '',
+                                  instructor_title: formData.instructor_title || '',
+                                  instructor_avatar_url: formData.instructor_avatar_url || ''
+                                });
+                              }
+                            }}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          >
+                            <option value="">-- בחר מנחה --</option>
+                            {users.map((user: any) => (
+                              <option key={user.user_id || user.id} value={user.user_id || user.id}>
+                                {user.display_name || user.first_name || user.nickname || 'משתמש'} {user.role?.name ? `(${user.role.name})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            בחירת מנחה תמלא אוטומטית את השדות למטה ותעדכן את הפרופיל שלו
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">שם המנחה</label>
+                            <input
+                              type="text"
+                              placeholder="שם המנחה"
+                              value={formData.instructor_name || ''}
+                              onChange={(e) => setFormData({ ...formData, instructor_name: e.target.value })}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">תפקיד המנחה</label>
+                            <input
+                              type="text"
+                              placeholder="תפקיד"
+                              value={formData.instructor_title || ''}
+                              onChange={(e) => setFormData({ ...formData, instructor_title: e.target.value })}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">תמונת המנחה</label>
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <input
+                                type="url"
+                                placeholder="URL תמונה"
+                                value={formData.instructor_avatar_url || ''}
+                                onChange={(e) => setFormData({ ...formData, instructor_avatar_url: e.target.value })}
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                              />
+                              {isAuthorized && (
+                                <>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      
+                                      // Validate file type
+                                      if (!file.type.startsWith('image/')) {
+                                        alert('אנא בחר קובץ תמונה בלבד');
+                                        return;
+                                      }
+                                      
+                                      // Validate file size (max 5MB)
+                                      if (file.size > 5 * 1024 * 1024) {
+                                        alert('גודל הקובץ גדול מדי. מקסימום 5MB');
+                                        return;
+                                      }
+                                      
+                                      setUploadingFile(true);
+                                      try {
+                                        const fileExt = file.name.split('.').pop();
+                                        const fileName = `instructor-avatar-${Date.now()}.${fileExt}`;
+                                        const filePath = `instructors/${fileName}`;
+
+                                        // Try to upload to Supabase Storage
+                                        const { error: uploadError } = await supabase.storage
+                                          .from('avatars')
+                                          .upload(filePath, file, {
+                                            cacheControl: '3600',
+                                            upsert: true
+                                          });
+
+                                        if (uploadError) {
+                                          // If avatars bucket fails, try thumbnails bucket
+                                          const { error: uploadError2 } = await supabase.storage
+                                            .from('thumbnails')
+                                            .upload(filePath, file, {
+                                              cacheControl: '3600',
+                                              upsert: true
+                                            });
+                                          
+                                          if (uploadError2) {
+                                            // If both fail, use base64 as fallback
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                              const base64 = reader.result as string;
+                                              setFormData({ ...formData, instructor_avatar_url: base64 });
+                                            };
+                                            reader.readAsDataURL(file);
+                                            setUploadingFile(false);
+                                            return;
+                                          } else {
+                                            // Get public URL from thumbnails bucket
+                                            const { data: { publicUrl } } = supabase.storage
+                                              .from('thumbnails')
+                                              .getPublicUrl(filePath);
+                                            setFormData({ ...formData, instructor_avatar_url: publicUrl });
+                                          }
+                                        } else {
+                                          // Get public URL from avatars bucket
+                                          const { data: { publicUrl } } = supabase.storage
+                                            .from('avatars')
+                                            .getPublicUrl(filePath);
+                                          setFormData({ ...formData, instructor_avatar_url: publicUrl });
+                                        }
+                                      } catch (error) {
+                                        console.error('Error uploading instructor avatar:', error);
+                                        alert('שגיאה בהעלאת התמונה');
+                                      } finally {
+                                        setUploadingFile(false);
+                                      }
+                                    }}
+                                    className="hidden"
+                                    id="recording-instructor-avatar-upload"
+                                  />
+                                  <label
+                                    htmlFor="recording-instructor-avatar-upload"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors cursor-pointer whitespace-nowrap"
+                                  >
+                                    {uploadingFile ? (
+                                      <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>מעלה...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Upload className="w-4 h-4" />
+                                        <span>העלה מהמחשב</span>
+                                      </>
+                                    )}
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setImageGalleryField('instructor_avatar_url');
+                                      setShowImageGallery(true);
+                                    }}
+                                    className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors whitespace-nowrap"
+                                  >
+                                    בחר מהגלריה
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                            {formData.instructor_avatar_url && (
+                              <div className="mt-2">
+                                <img 
+                                  src={formData.instructor_avatar_url} 
+                                  alt="תצוגה מקדימה" 
+                                  className="w-24 h-24 object-cover rounded-full border border-gray-200"
+                                  onError={(e) => {
+                                    // Hide image if it fails to load
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {activeTab === 'subscriptions' && (
@@ -5096,16 +5361,6 @@ export default function AdminPanel() {
                       required
                     />
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        תיאור האירוע
-                      </label>
-                      <RichTextEditor
-                        content={formData.description || ''}
-                        onChange={(content) => setFormData({ ...formData, description: content })}
-                        placeholder="תאר את האירוע..."
-                      />
-                    </div>
-                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">תאריך ושעה של האירוע *</label>
                       <DatePicker
                         selected={eventSelectedDate}
@@ -5314,26 +5569,135 @@ export default function AdminPanel() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">URL תמונת המנחה</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="url"
-                              placeholder="URL תמונה"
-                              value={formData.instructor_avatar_url || ''}
-                              onChange={(e) => setFormData({ ...formData, instructor_avatar_url: e.target.value })}
-                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
-                            />
-                            {isAuthorized && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setImageGalleryField('instructor_avatar_url');
-                                  setShowImageGallery(true);
-                                }}
-                                className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors whitespace-nowrap"
-                              >
-                                בחר מהגלריה
-                              </button>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">תמונת המנחה</label>
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <input
+                                type="url"
+                                placeholder="URL תמונה"
+                                value={formData.instructor_avatar_url || ''}
+                                onChange={(e) => setFormData({ ...formData, instructor_avatar_url: e.target.value })}
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                              />
+                              {isAuthorized && (
+                                <>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      
+                                      // Validate file type
+                                      if (!file.type.startsWith('image/')) {
+                                        alert('אנא בחר קובץ תמונה בלבד');
+                                        return;
+                                      }
+                                      
+                                      // Validate file size (max 5MB)
+                                      if (file.size > 5 * 1024 * 1024) {
+                                        alert('גודל הקובץ גדול מדי. מקסימום 5MB');
+                                        return;
+                                      }
+                                      
+                                      setUploadingFile(true);
+                                      try {
+                                        const fileExt = file.name.split('.').pop();
+                                        const fileName = `instructor-avatar-${Date.now()}.${fileExt}`;
+                                        const filePath = `instructors/${fileName}`;
+
+                                        // Try to upload to Supabase Storage
+                                        const { error: uploadError } = await supabase.storage
+                                          .from('avatars')
+                                          .upload(filePath, file, {
+                                            cacheControl: '3600',
+                                            upsert: true
+                                          });
+
+                                        if (uploadError) {
+                                          // If avatars bucket fails, try thumbnails bucket
+                                          const { error: uploadError2 } = await supabase.storage
+                                            .from('thumbnails')
+                                            .upload(filePath, file, {
+                                              cacheControl: '3600',
+                                              upsert: true
+                                            });
+                                          
+                                          if (uploadError2) {
+                                            // If both fail, use base64 as fallback
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                              const base64 = reader.result as string;
+                                              setFormData({ ...formData, instructor_avatar_url: base64 });
+                                            };
+                                            reader.readAsDataURL(file);
+                                            setUploadingFile(false);
+                                            return;
+                                          } else {
+                                            // Get public URL from thumbnails bucket
+                                            const { data: { publicUrl } } = supabase.storage
+                                              .from('thumbnails')
+                                              .getPublicUrl(filePath);
+                                            setFormData({ ...formData, instructor_avatar_url: publicUrl });
+                                          }
+                                        } else {
+                                          // Get public URL from avatars bucket
+                                          const { data: { publicUrl } } = supabase.storage
+                                            .from('avatars')
+                                            .getPublicUrl(filePath);
+                                          setFormData({ ...formData, instructor_avatar_url: publicUrl });
+                                        }
+                                      } catch (error) {
+                                        console.error('Error uploading instructor avatar:', error);
+                                        alert('שגיאה בהעלאת התמונה');
+                                      } finally {
+                                        setUploadingFile(false);
+                                      }
+                                    }}
+                                    className="hidden"
+                                    id="instructor-avatar-upload"
+                                  />
+                                  <label
+                                    htmlFor="instructor-avatar-upload"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors cursor-pointer whitespace-nowrap"
+                                  >
+                                    {uploadingFile ? (
+                                      <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>מעלה...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Upload className="w-4 h-4" />
+                                        <span>העלה מהמחשב</span>
+                                      </>
+                                    )}
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setImageGalleryField('instructor_avatar_url');
+                                      setShowImageGallery(true);
+                                    }}
+                                    className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors whitespace-nowrap"
+                                  >
+                                    בחר מהגלריה
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                            {formData.instructor_avatar_url && (
+                              <div className="mt-2">
+                                <img 
+                                  src={formData.instructor_avatar_url} 
+                                  alt="תצוגה מקדימה" 
+                                  className="w-24 h-24 object-cover rounded-full border border-gray-200"
+                                  onError={(e) => {
+                                    // Hide image if it fails to load
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </div>
                             )}
                           </div>
                         </div>

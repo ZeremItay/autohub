@@ -10,6 +10,8 @@ interface ForumReply {
   created_at: string;
   updated_at?: string;
   parent_id?: string | null;
+  likes_count?: number;
+  user_liked?: boolean;
   profile?: {
     user_id?: string;
     display_name?: string;
@@ -27,6 +29,8 @@ interface Comment {
   content: string;
   created_at: string;
   updated_at?: string;
+  likes_count?: number;
+  user_liked?: boolean;
   user?: {
     id?: string;
     user_id?: string;
@@ -49,6 +53,8 @@ function adaptForumReplyToComment(reply: ForumReply): Comment {
     content: reply.content,
     created_at: reply.created_at,
     updated_at: reply.updated_at,
+    likes_count: reply.likes_count || 0,
+    user_liked: reply.user_liked || false,
     user: reply.profile ? {
       id: reply.profile.user_id,
       user_id: reply.profile.user_id,
