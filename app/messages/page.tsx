@@ -249,10 +249,29 @@ export default function MessagesPage() {
 
       if (existingConv) {
         console.log('✅ Updating existing conversation:', partnerId);
+        
+        // If this is a message from current user, check for temp message to replace
+        let updatedMessages = [...existingConv.messages];
+        if (isFromCurrentUser) {
+          // Find and remove temp message with same content (sent recently)
+          const tempMessageIndex = updatedMessages.findIndex(msg => 
+            msg.id.startsWith('temp-') && 
+            msg.text === newMessage.content &&
+            msg.sender === 'me'
+          );
+          if (tempMessageIndex !== -1) {
+            console.log('🔄 Replacing temp message with real message');
+            updatedMessages.splice(tempMessageIndex, 1);
+          }
+        }
+        
+        // Add the real message
+        updatedMessages.push(formattedMessage);
+        
         // Update existing conversation
         const updatedConv = {
           ...existingConv,
-          messages: [...existingConv.messages, formattedMessage],
+          messages: updatedMessages,
           lastMessage: newMessage.content,
           timestamp: new Date(newMessage.created_at).toLocaleTimeString('he-IL', {
             hour: '2-digit',
@@ -276,8 +295,25 @@ export default function MessagesPage() {
 
         // If this conversation is active, update it
         setActiveConversation(prevActive => {
-          if (prevActive?.id === partnerId) {
-            return updatedConv;
+          if (prevActive && prevActive.id === partnerId) {
+            // Also replace temp message in active conversation
+            let activeMessages = [...prevActive.messages];
+            if (isFromCurrentUser) {
+              const tempMessageIndex = activeMessages.findIndex(msg => 
+                msg.id.startsWith('temp-') && 
+                msg.text === newMessage.content &&
+                msg.sender === 'me'
+              );
+              if (tempMessageIndex !== -1) {
+                activeMessages.splice(tempMessageIndex, 1);
+              }
+            }
+            activeMessages.push(formattedMessage);
+            
+            return {
+              ...updatedConv,
+              messages: activeMessages
+            };
           }
           return prevActive;
         });
@@ -504,7 +540,8 @@ export default function MessagesPage() {
     setMessageInput(''); // Clear input immediately for better UX
     
     // Add message to local state optimistically
-    const tempId = Date.now().toString();
+    // Use 'temp-' prefix so we can identify and replace it later
+    const tempId = `temp-${Date.now()}`;
     const newMessage: Message = {
       id: tempId,
       text: messageText,
@@ -555,72 +592,10 @@ export default function MessagesPage() {
         throw new Error(result.error || 'Failed to send message');
       }
 
-      // Replace temp message with real message from server
-      // Note: The message will also come through Realtime, so we need to handle duplicates
-      if (result.data) {
-        const realMessage: Message = {
-          id: result.data.id,
-          text: result.data.content,
-          sender: 'me',
-          timestamp: new Date(result.data.created_at).toLocaleTimeString('he-IL', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })
-        };
-
-        // Update active conversation - replace temp message or add if not exists
-        setActiveConversation(prev => {
-          if (!prev) return null;
-          const hasTempMessage = prev.messages.some(msg => msg.id === tempId);
-          if (hasTempMessage) {
-            return {
-              ...prev,
-              messages: prev.messages.map(msg => msg.id === tempId ? realMessage : msg),
-              lastMessage: messageText,
-              timestamp: realMessage.timestamp
-            };
-          } else {
-            // Temp message already replaced by Realtime, just update timestamp
-            const hasRealMessage = prev.messages.some(msg => msg.id === realMessage.id);
-            if (!hasRealMessage) {
-              return {
-                ...prev,
-                messages: [...prev.messages, realMessage],
-                lastMessage: messageText,
-                timestamp: realMessage.timestamp
-              };
-            }
-            return prev;
-          }
-        });
-
-        // Update conversations list
-        setConversations(prev => prev.map(conv => {
-          if (conv.id === activeConversation.id) {
-            const hasTempMessage = conv.messages.some(msg => msg.id === tempId);
-            if (hasTempMessage) {
-              return {
-                ...conv,
-                messages: conv.messages.map(msg => msg.id === tempId ? realMessage : msg),
-                lastMessage: messageText,
-                timestamp: realMessage.timestamp
-              };
-            } else {
-              // Temp message already replaced by Realtime
-              const hasRealMessage = conv.messages.some(msg => msg.id === realMessage.id);
-              if (!hasRealMessage) {
-                return {
-                  ...conv,
-                  messages: [...conv.messages, realMessage],
-                  lastMessage: messageText,
-                  timestamp: realMessage.timestamp
-                };
-              }
-            }
-          }
-          return conv;
-        }));
-      }
+      // Don't replace temp message here - let Realtime handle it
+      // This prevents duplicate messages. Realtime will receive the message
+      // and call handleNewMessage, which will replace the temp message.
+      console.log('✅ Message sent successfully, waiting for Realtime update');
     } catch (error) {
       console.error('Error sending message:', error);
       // Remove optimistic message on error
