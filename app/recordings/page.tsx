@@ -202,7 +202,7 @@ export default function RecordingsPage() {
                 </div>
               ) : null}
               {/* Thumbnail */}
-              <div className="relative aspect-video bg-gradient-to-br from-gray-200 to-gray-300 overflow-hidden">
+              <div className="relative aspect-video bg-gradient-to-br from-gray-200 to-gray-300 overflow-hidden" style={{ minHeight: '180px' }}>
                 {recording.thumbnail_url ? (
                   // Show thumbnail image with lazy loading
                   <img
@@ -211,6 +211,7 @@ export default function RecordingsPage() {
                     className="w-full h-full object-cover"
                     loading="lazy"
                     decoding="async"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     onError={(e) => {
                       // Fallback to gradient if image fails to load
                       const target = e.target as HTMLImageElement;

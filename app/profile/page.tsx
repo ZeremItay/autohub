@@ -2408,7 +2408,13 @@ function ProfilePageContent() {
                         onClick={() => handleAvatarSelect(avatarUrl)}
                         className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-[#F52F8E] transition-colors"
                       >
-                        <Image src={avatarUrl} alt={style} fill className="object-cover" />
+                        <Image 
+                          src={avatarUrl} 
+                          alt={style} 
+                          fill 
+                          className="object-cover" 
+                          sizes="(max-width: 640px) 100px, 120px"
+                        />
                       </button>
                     );
                   })}

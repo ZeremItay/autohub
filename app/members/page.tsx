@@ -391,7 +391,13 @@ function MemberCard({ member, formatJoinDate, getLastActiveText, handleSendMessa
         <div className="relative mb-3 sm:mb-4">
           <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg overflow-hidden">
             {member.avatar_url ? (
-              <Image src={member.avatar_url} alt={displayName} fill className="object-cover rounded-full" />
+              <Image 
+                src={member.avatar_url} 
+                alt={displayName} 
+                fill 
+                className="object-cover rounded-full" 
+                sizes="(max-width: 640px) 80px, 96px"
+              />
             ) : (
               <span>{displayName.charAt(0)}</span>
             )}

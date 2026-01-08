@@ -437,3 +437,41 @@ textarea[lang="he"]::placeholder {
   border-color: #3b82f6;
   ring: 1px solid #3b82f6;
 }
+
+/* CLS Optimization - Prevent Layout Shifts */
+/* Only target images in HTML content (prose) - be very specific */
+.prose img,
+.prose-sm img,
+.prose-lg img,
+[class*="prose"] img:not([class*="avatar"]):not([class*="profile"]) {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  display: block !important;
+  object-fit: cover !important;
+}
+
+/* Only apply aspect-ratio to images in content areas without dimensions, not avatars */
+.prose img:not([width]):not([height]):not([class*="avatar"]):not([class*="profile"]),
+[class*="prose"] img:not([width]):not([height]):not([class*="avatar"]):not([class*="profile"]) {
+  aspect-ratio: 16 / 9;
+  min-height: 200px;
+  background-color: #f3f4f6;
+}
+
+/* Prevent layout shift for loading skeletons */
+.animate-pulse[class*="skeleton"],
+[class*="skeleton"] {
+  min-height: 200px;
+}
+
+/* Ensure containers with aspect-ratio maintain their size */
+[class*="aspect-"] {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Prevent font loading layout shift - already set in layout.tsx but ensure it's applied */
+@font-face {
+  font-display: swap;
+}

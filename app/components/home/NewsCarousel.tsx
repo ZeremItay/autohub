@@ -32,7 +32,7 @@ export function NewsCarousel({ news }: NewsCarouselProps) {
             <div
               key={item.id}
               className={`absolute inset-0 transition-opacity duration-500 ${
-                index === currentIndex ? 'opacity-100' : 'opacity-0'
+                index === currentIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
               {item.link_url ? (
@@ -43,6 +43,8 @@ export function NewsCarousel({ news }: NewsCarouselProps) {
                         src={item.image_url}
                         alt={item.title}
                         className="w-full h-full object-cover"
+                        loading={index === 0 ? 'eager' : 'lazy'}
+                        decoding="async"
                       />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">
@@ -62,6 +64,8 @@ export function NewsCarousel({ news }: NewsCarouselProps) {
                       src={item.image_url}
                       alt={item.title}
                       className="w-full h-full object-cover"
+                      loading={index === 0 ? 'eager' : 'lazy'}
+                      decoding="async"
                     />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">

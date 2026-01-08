@@ -377,13 +377,18 @@ export default function ForumPostDetailPage() {
 
             {/* Media */}
             {post.media_url && (
-              <div className="mb-6">
+              <div className="mb-6" style={{ minHeight: '200px' }}>
                 {post.media_type === 'image' ? (
-                  <img 
-                    src={post.media_url} 
-                    alt="Post media" 
-                    className="w-full max-h-96 object-contain rounded-lg border border-gray-200"
-                  />
+                  <div className="mb-6">
+                    <img 
+                      src={post.media_url} 
+                      alt="Post media" 
+                      className="w-full max-h-96 object-contain rounded-lg border border-gray-200"
+                      loading="lazy"
+                      decoding="async"
+                      style={{ minHeight: '200px', width: '100%', height: 'auto' }}
+                    />
+                  </div>
                 ) : post.media_type === 'video' ? (
                   <video 
                     src={post.media_url} 

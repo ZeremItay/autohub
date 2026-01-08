@@ -1574,6 +1574,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                           alt="Profile" 
                           className="w-full h-full rounded-full object-cover"
                           key={`layout-avatar-${avatarUrl}`}
+                          width={40}
+                          height={40}
                         />
                       ) : (
                         <span>{currentUser?.display_name?.charAt(0) || currentUser?.first_name?.charAt(0) || 'א'}</span>

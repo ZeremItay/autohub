@@ -1107,7 +1107,7 @@ export default function Home() {
                     <div
                       key={item.id}
                       className={`absolute inset-0 transition-opacity duration-500 ${
-                        index === currentNewsIndex ? 'opacity-100' : 'opacity-0'
+                        index === currentNewsIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
                       }`}
                     >
                       {item.link_url ? (
@@ -1118,6 +1118,8 @@ export default function Home() {
                                 src={item.image_url}
                                 alt={item.title}
                                 className="w-full h-full object-cover"
+                                loading={index === 0 ? 'eager' : 'lazy'}
+                                decoding="async"
                               />
                             ) : null}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">
@@ -1147,6 +1149,8 @@ export default function Home() {
                               src={item.image_url}
                               alt={item.title}
                               className="w-full h-full object-cover"
+                              loading={index === 0 ? 'eager' : 'lazy'}
+                              decoding="async"
                             />
                           ) : null}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">
@@ -1298,6 +1302,8 @@ export default function Home() {
                           alt={post.profile.display_name || 'User'}
                           className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover shadow-lg shadow-pink-500/30 ring-2 ring-white/50"
                           key={`post-${post.id}-${post.profile.avatar_url}`}
+                          loading="lazy"
+                          decoding="async"
                         />
                       ) : (
                         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-pink-500 via-rose-400 to-amber-300 flex items-center justify-center text-white font-semibold shadow-lg shadow-pink-500/30 ring-2 ring-white/50 text-sm sm:text-base">
