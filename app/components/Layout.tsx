@@ -51,6 +51,7 @@ interface SearchResult {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const hasUpdatedOnlineStatusRef = useRef(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -209,19 +210,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           return;
         }
         
-        // Update is_online to true when user logs in
-        if (!user.is_online && (user.user_id || user.id)) {
-          try {
-            const { updateProfile } = await import('@/lib/queries/profiles');
-            const userId = user.user_id || user.id;
-            if (userId) {
-              await updateProfile(userId, { is_online: true });
-            }
-          } catch (error) {
-            const { logError } = await import('@/lib/utils/errorHandler');
-            logError(error, 'Layout:updateIsOnline');
-          }
-        }
+        // Don't update is_online here - it will be updated in onAuthStateChange
+        // This prevents the "disconnect/reconnect" effect when navigating between pages
             
         // Award daily login points (only once per day) - do this asynchronously to not block UI
         const userId = user.user_id || user.id;
@@ -287,8 +277,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        // Update is_online only on actual sign-in or token refresh, not on every page load
+        if (session?.user && !hasUpdatedOnlineStatusRef.current) {
+          try {
+            const { updateProfile } = await import('@/lib/queries/profiles');
+            await updateProfile(session.user.id, { is_online: true });
+            hasUpdatedOnlineStatusRef.current = true;
+          } catch (error) {
+            const { logError } = await import('@/lib/utils/errorHandler');
+            logError(error, 'Layout:updateIsOnlineOnAuth');
+          }
+        }
         loadUser();
       } else if (event === 'SIGNED_OUT') {
+        // Reset flag on logout
+        hasUpdatedOnlineStatusRef.current = false;
         // Update is_online to false when user logs out
         const userIdToUpdate = currentUserId;
         if (userIdToUpdate) {
