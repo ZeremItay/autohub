@@ -818,7 +818,7 @@ export default function MessagesPage() {
               return uniqueMessages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${message.sender === 'me' ? 'justify-start' : 'justify-end'}`}
                 >
                 <div
                   className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 sm:px-4 py-2 ${
