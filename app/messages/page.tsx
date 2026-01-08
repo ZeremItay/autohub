@@ -194,6 +194,11 @@ export default function MessagesPage() {
           console.log('✅ Successfully subscribed to messages Realtime');
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ Realtime channel error - check if Realtime is enabled for messages table');
+          console.error('💡 To enable Realtime: Go to Supabase Dashboard > Database > Replication > Enable for "messages" table');
+        } else if (status === 'TIMED_OUT') {
+          console.warn('⏱️ Realtime subscription timed out, retrying...');
+        } else if (status === 'CLOSED') {
+          console.warn('🔒 Realtime subscription closed');
         }
       });
 
@@ -225,13 +230,26 @@ export default function MessagesPage() {
 
     // Use functional update to ensure we have the latest state
     setConversations(prev => {
-      // Check if message already exists (prevent duplicates)
-      const messageExists = prev.some(conv => 
+      // Check if message already exists (prevent duplicates) - check both conversations and activeConversation
+      const messageExistsInConversations = prev.some(conv => 
         conv.messages.some(msg => msg.id === newMessage.id)
       );
+      
+      // Also check activeConversation state (using a ref or checking if it's in the conversations list)
+      const messageExists = messageExistsInConversations;
+      
       if (messageExists) {
         console.log('⚠️ Message already exists, skipping:', newMessage.id);
         return prev;
+      }
+      
+      // Also check if this message is already in activeConversation (race condition protection)
+      if (activeConversation && activeConversation.id === partnerId) {
+        const existsInActive = activeConversation.messages.some(msg => msg.id === newMessage.id);
+        if (existsInActive) {
+          console.log('⚠️ Message already exists in active conversation, skipping:', newMessage.id);
+          return prev;
+        }
       }
 
       // Find existing conversation
@@ -296,6 +314,13 @@ export default function MessagesPage() {
         // If this conversation is active, update it
         setActiveConversation(prevActive => {
           if (prevActive && prevActive.id === partnerId) {
+            // Check if message already exists (prevent duplicates)
+            const messageAlreadyExists = prevActive.messages.some(msg => msg.id === newMessage.id);
+            if (messageAlreadyExists) {
+              console.log('⚠️ Message already in active conversation, skipping update');
+              return prevActive;
+            }
+            
             // Also replace temp message in active conversation
             let activeMessages = [...prevActive.messages];
             if (isFromCurrentUser) {
@@ -305,10 +330,16 @@ export default function MessagesPage() {
                 msg.sender === 'me'
               );
               if (tempMessageIndex !== -1) {
+                console.log('🔄 Replacing temp message in active conversation');
                 activeMessages.splice(tempMessageIndex, 1);
               }
             }
-            activeMessages.push(formattedMessage);
+            
+            // Double-check message doesn't exist after removing temp
+            const stillExists = activeMessages.some(msg => msg.id === newMessage.id);
+            if (!stillExists) {
+              activeMessages.push(formattedMessage);
+            }
             
             return {
               ...updatedConv,
