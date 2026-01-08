@@ -16,7 +16,6 @@ import {
   Facebook,
   Save,
   X,
-  Activity,
   Mail,
   Menu,
   Camera,
@@ -55,7 +54,7 @@ function ProfilePageContent() {
   const searchParams = useSearchParams()
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'profile' | 'timeline' | 'messages' | 'forums' | 'points' | 'courses' | 'notifications' | 'projects'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'forums' | 'points' | 'courses' | 'notifications' | 'projects'>('profile')
   const [editingDetails, setEditingDetails] = useState(false)
   const [editingPersonal, setEditingPersonal] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -121,7 +120,7 @@ function ProfilePageContent() {
         localStorage.setItem('selectedUserId', userId)
       }
       
-      if (tab && ['profile', 'timeline', 'messages', 'forums', 'points', 'courses', 'notifications', 'projects'].includes(tab)) {
+      if (tab && ['profile', 'messages', 'forums', 'points', 'courses', 'notifications', 'projects'].includes(tab)) {
         setActiveTab(tab as any)
       }
     }
@@ -1207,7 +1206,6 @@ function ProfilePageContent() {
             >
               <span className="font-medium">
                 {activeTab === 'profile' && 'פרופיל'}
-                {activeTab === 'timeline' && 'ציר זמן'}
                 {isOwnerOrAdmin() && activeTab === 'messages' && 'הודעות'}
                 {activeTab === 'forums' && 'פורומים'}
                 {activeTab === 'points' && 'נקודות'}
@@ -1229,17 +1227,6 @@ function ProfilePageContent() {
                 >
                   <User className="w-5 h-5" />
                   <span className="font-medium">פרופיל</span>
-                </button>
-                <button
-                  onClick={() => { setActiveTab('timeline'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === 'timeline'
-                      ? 'bg-[#F52F8E] text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
-                  }`}
-                >
-                  <Activity className="w-5 h-5" />
-                  <span className="font-medium">ציר זמן</span>
                 </button>
                 {isOwnerOrAdmin() && (
                   <button
@@ -1332,17 +1319,6 @@ function ProfilePageContent() {
               >
                 <User className="w-5 h-5" />
                 <span className="font-medium">פרופיל</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('timeline')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeTab === 'timeline'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
-                }`}
-              >
-                <Activity className="w-5 h-5" />
-                <span className="font-medium">ציר זמן</span>
               </button>
               {isOwnerOrAdmin() && (
                 <button
@@ -1641,12 +1617,6 @@ function ProfilePageContent() {
               </>
             )}
 
-            {activeTab === 'timeline' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">ציר זמן</h2>
-                <p className="text-sm sm:text-base text-gray-500">אין פעילות עדיין</p>
-              </div>
-            )}
 
             {activeTab === 'messages' && (
               <>

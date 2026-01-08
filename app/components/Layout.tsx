@@ -15,7 +15,6 @@ import {
   Settings,
   LogOut,
   UserCircle,
-  Activity,
   Mail,
   Image as ImageIcon,
   CreditCard,
@@ -1704,14 +1703,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         >
                           <UserCircle className="w-5 h-5 text-[#F52F8E]" />
                           <span>חשבון</span>
-                        </Link>
-                        <Link
-                          href="/timeline"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          onClick={closeProfileMenu}
-                        >
-                          <Activity className="w-5 h-5 text-[#F52F8E]" />
-                          <span>ציר זמן</span>
                         </Link>
                         <Link
                           href="/messages"

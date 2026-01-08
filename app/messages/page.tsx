@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Send, ArrowRight, ChevronRight } from 'lucide-react';
 import { getAllProfiles } from '@/lib/queries/profiles';
+import { supabase } from '@/lib/supabase';
 
 interface Message {
   id: string;
@@ -32,6 +33,10 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
+  const typingTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const messagesChannelRef = useRef<any>(null);
+  const typingChannelsRef = useRef<Record<string, any>>({});
 
   // Load current user and conversations
   useEffect(() => {
@@ -40,29 +45,17 @@ export default function MessagesPage() {
       
       setLoading(true);
       try {
-        // Load current user
-        const savedUserId = localStorage.getItem('selectedUserId');
-        let userId: string | null = null;
+        // Get the currently authenticated user from Supabase Auth
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
         
-        if (savedUserId) {
-          userId = savedUserId;
-          setCurrentUserId(userId);
-        } else {
-          const { data: profiles } = await getAllProfiles();
-          if (Array.isArray(profiles) && profiles.length > 0) {
-            userId = profiles[0].user_id || profiles[0].id;
-            setCurrentUserId(userId);
-            // Save to localStorage for future use
-            if (userId) {
-              localStorage.setItem('selectedUserId', userId);
-            }
-          }
-        }
-
-        if (!userId) {
+        if (authError || !authUser) {
+          console.error('Error getting authenticated user:', authError);
           setLoading(false);
           return;
         }
+        
+        const userId = authUser.id;
+        setCurrentUserId(userId);
 
         // Load conversations from API
         try {
@@ -161,6 +154,244 @@ export default function MessagesPage() {
     loadUserAndConversations();
   }, []);
 
+  // Set up Realtime subscription for new messages
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    // Create channel for listening to new messages
+    // Listen to both messages you receive AND messages you send
+    const channel = supabase
+      .channel('messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `recipient_id=eq.${currentUserId}`
+        },
+        (payload) => {
+          handleNewMessage(payload.new as any);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `sender_id=eq.${currentUserId}`
+        },
+        (payload) => {
+          handleNewMessage(payload.new as any);
+        }
+      )
+      .subscribe();
+
+    messagesChannelRef.current = channel;
+
+    return () => {
+      if (messagesChannelRef.current) {
+        supabase.removeChannel(messagesChannelRef.current);
+        messagesChannelRef.current = null;
+      }
+    };
+  }, [currentUserId]);
+
+  // Handle new message from Realtime
+  function handleNewMessage(newMessage: any) {
+    if (!currentUserId) return;
+
+    // Check if message already exists (prevent duplicates)
+    const messageExists = conversations.some(conv => 
+      conv.messages.some(msg => msg.id === newMessage.id)
+    );
+    if (messageExists) return;
+
+    const senderId = newMessage.sender_id;
+    const isFromCurrentUser = senderId === currentUserId;
+    
+    // Find or create conversation
+    const partnerId = isFromCurrentUser ? newMessage.recipient_id : senderId;
+    const existingConv = conversations.find(conv => conv.id === partnerId);
+
+    const formattedMessage: Message = {
+      id: newMessage.id,
+      text: newMessage.content,
+      sender: isFromCurrentUser ? 'me' : 'other',
+      timestamp: new Date(newMessage.created_at).toLocaleTimeString('he-IL', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    };
+
+    if (existingConv) {
+      // Update existing conversation
+      const updatedConv = {
+        ...existingConv,
+        messages: [...existingConv.messages, formattedMessage],
+        lastMessage: newMessage.content,
+        timestamp: new Date(newMessage.created_at).toLocaleTimeString('he-IL', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        unreadCount: activeConversation?.id === partnerId 
+          ? existingConv.unreadCount 
+          : (existingConv.unreadCount + (newMessage.is_read ? 0 : 1))
+      };
+
+      setConversations(prev => {
+        const updated = prev.map(conv => 
+          conv.id === partnerId ? updatedConv : conv
+        );
+        // Sort by last message time
+        return updated.sort((a, b) => {
+          const aTime = new Date(a.timestamp).getTime();
+          const bTime = new Date(b.timestamp).getTime();
+          return bTime - aTime;
+        });
+      });
+
+      // If this conversation is active, update it
+      if (activeConversation?.id === partnerId) {
+        setActiveConversation(updatedConv);
+      }
+    } else {
+        // Create new conversation - need to fetch partner profile
+        (async () => {
+          try {
+            const { data: profiles } = await getAllProfiles();
+            const profilesArray = Array.isArray(profiles) ? profiles : [];
+            const partner = profilesArray.find((p: any) => 
+              (p.user_id || p.id) === partnerId
+            );
+
+          if (partner) {
+            const partnerName = partner.display_name || partner.first_name || partner.nickname || 'משתמש';
+            const newConversation: Conversation = {
+              id: partnerId,
+              name: partnerName,
+              avatar: partnerName.charAt(0),
+              avatarColor: 'bg-pink-500',
+              lastMessage: newMessage.content,
+              timestamp: new Date(newMessage.created_at).toLocaleTimeString('he-IL', {
+                hour: '2-digit',
+                minute: '2-digit'
+              }),
+              unreadCount: newMessage.is_read ? 0 : 1,
+              isOnline: false,
+              messages: [formattedMessage]
+            };
+
+            setConversations(prev => [newConversation, ...prev]);
+          }
+        } catch (error) {
+          console.error('Error creating new conversation:', error);
+        }
+      })();
+    }
+  }
+
+  // Set up typing indicator channel for active conversation
+  useEffect(() => {
+    if (!activeConversation || !currentUserId) {
+      // Clean up all typing channels when no active conversation
+      Object.values(typingChannelsRef.current).forEach(channel => {
+        if (channel) {
+          supabase.removeChannel(channel);
+        }
+      });
+      typingChannelsRef.current = {};
+      return;
+    }
+
+    const conversationId = activeConversation.id;
+    
+    // Clean up previous typing channel
+    if (typingChannelsRef.current[conversationId]) {
+      supabase.removeChannel(typingChannelsRef.current[conversationId]);
+    }
+
+    // Create typing channel for this conversation
+    const typingChannel = supabase
+      .channel(`typing:${conversationId}`)
+      .on('presence', { event: 'sync' }, () => {
+        const state = typingChannel.presenceState();
+        const partnerTyping = Object.values(state).some((presence: any) => {
+          return presence[0]?.typing === true && presence[0]?.userId !== currentUserId;
+        });
+        setTypingUsers(prev => ({
+          ...prev,
+          [conversationId]: partnerTyping
+        }));
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        const partnerTyping = newPresences.some((presence: any) => 
+          presence.typing === true && presence.userId !== currentUserId
+        );
+        if (partnerTyping) {
+          setTypingUsers(prev => ({
+            ...prev,
+            [conversationId]: true
+          }));
+        }
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        setTypingUsers(prev => ({
+          ...prev,
+          [conversationId]: false
+        }));
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await typingChannel.track({
+            typing: false,
+            userId: currentUserId
+          });
+        }
+      });
+
+    typingChannelsRef.current[conversationId] = typingChannel;
+
+    return () => {
+      if (typingChannelsRef.current[conversationId]) {
+        supabase.removeChannel(typingChannelsRef.current[conversationId]);
+        delete typingChannelsRef.current[conversationId];
+      }
+    };
+  }, [activeConversation, currentUserId]);
+
+  // Handle typing indicator
+  function handleTyping(text: string) {
+    if (!activeConversation || !currentUserId) return;
+
+    const conversationId = activeConversation.id;
+    const typingChannel = typingChannelsRef.current[conversationId];
+
+    if (!typingChannel) return;
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current[conversationId]) {
+      clearTimeout(typingTimeoutRef.current[conversationId]);
+    }
+
+    // Send typing indicator
+    typingChannel.track({
+      typing: text.length > 0,
+      userId: currentUserId
+    });
+
+    // Stop typing indicator after 1 second of no typing
+    typingTimeoutRef.current[conversationId] = setTimeout(() => {
+      if (typingChannel) {
+        typingChannel.track({
+          typing: false,
+          userId: currentUserId
+        });
+      }
+    }, 1000);
+  }
+
   // Mark conversation as read when opened
   useEffect(() => {
     if (activeConversation && currentUserId) {
@@ -176,8 +407,42 @@ export default function MessagesPage() {
       }).catch(error => {
         console.error('Error marking messages as read:', error);
       });
+
+      // Reset unread count in local state
+      setConversations(prev => prev.map(conv => 
+        conv.id === activeConversation.id 
+          ? { ...conv, unreadCount: 0 }
+          : conv
+      ));
     }
   }, [activeConversation, currentUserId]);
+
+  // Cleanup all subscriptions on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup messages channel
+      if (messagesChannelRef.current) {
+        supabase.removeChannel(messagesChannelRef.current);
+        messagesChannelRef.current = null;
+      }
+
+      // Cleanup typing channels
+      Object.values(typingChannelsRef.current).forEach(channel => {
+        if (channel) {
+          supabase.removeChannel(channel);
+        }
+      });
+      typingChannelsRef.current = {};
+
+      // Cleanup typing timeouts
+      Object.values(typingTimeoutRef.current).forEach(timeout => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+      });
+      typingTimeoutRef.current = {};
+    };
+  }, []);
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !activeConversation || !currentUserId) return;
@@ -458,6 +723,19 @@ export default function MessagesPage() {
                 </div>
               </div>
             ))}
+            {/* Typing Indicator */}
+            {typingUsers[activeConversation.id] && (
+              <div className="flex justify-start">
+                <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 sm:px-4 py-2 bg-gray-200">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    <span className="text-xs text-gray-600 mr-2">כותב...</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Message Input */}
@@ -468,7 +746,10 @@ export default function MessagesPage() {
                 dir="rtl"
                 placeholder="כתוב הודעה..."
                 value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
+                onChange={(e) => {
+                  setMessageInput(e.target.value);
+                  handleTyping(e.target.value);
+                }}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     handleSendMessage();
