@@ -859,7 +859,7 @@ function ForumDetailPageContent() {
                               dangerouslySetInnerHTML={{ __html: cleanPlaceholderImages(selectedPost.content || '') }}
                             />
                             {selectedPost.media_url && (
-                              <div className="mt-4" style={{ minHeight: '200px' }}>
+                              <div className="mt-4">
                                 {selectedPost.media_type === 'image' ? (
                                   <img
                                     src={selectedPost.media_url}
@@ -867,7 +867,6 @@ function ForumDetailPageContent() {
                                     className="max-w-full rounded-lg"
                                     loading="lazy"
                                     decoding="async"
-                                    style={{ minHeight: '200px', width: '100%', height: 'auto' }}
                                   />
                                 ) : selectedPost.media_type === 'video' ? (
                                   <video

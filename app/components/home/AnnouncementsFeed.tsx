@@ -202,14 +202,13 @@ export function AnnouncementsFeed({
                       );
                     })()}
                     {(post.image_url || post.media_url) && (
-                      <div className="mb-3 sm:mb-4 w-full rounded-lg overflow-hidden bg-gray-100" style={{ minHeight: '200px' }}>
+                      <div className="mb-3 sm:mb-4 w-full rounded-lg overflow-hidden bg-gray-100">
                         <img 
                           src={post.image_url || post.media_url} 
                           alt="Post media" 
                           className="w-full rounded-lg max-h-64 sm:max-h-96 object-cover"
                           loading="lazy"
                           decoding="async"
-                          style={{ minHeight: '200px', width: '100%', height: 'auto' }}
                         />
                       </div>
                     )}

@@ -452,26 +452,15 @@ textarea[lang="he"]::placeholder {
 }
 
 /* Only apply aspect-ratio to images in content areas without dimensions, not avatars */
+/* Don't use min-height as it causes layout shifts */
 .prose img:not([width]):not([height]):not([class*="avatar"]):not([class*="profile"]),
 [class*="prose"] img:not([width]):not([height]):not([class*="avatar"]):not([class*="profile"]) {
   aspect-ratio: 16 / 9;
-  min-height: 200px;
   background-color: #f3f4f6;
-}
-
-/* Prevent layout shift for loading skeletons */
-.animate-pulse[class*="skeleton"],
-[class*="skeleton"] {
-  min-height: 200px;
 }
 
 /* Ensure containers with aspect-ratio maintain their size */
 [class*="aspect-"] {
   position: relative;
   overflow: hidden;
-}
-
-/* Prevent font loading layout shift - already set in layout.tsx but ensure it's applied */
-@font-face {
-  font-display: swap;
 }
