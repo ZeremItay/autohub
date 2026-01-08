@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { MessageCircle } from 'lucide-react';
 import CommentForm from './CommentForm';
 import CommentItem from './CommentItem';
 
@@ -56,6 +57,7 @@ export default function CommentsList({
   size = 'md'
 }: CommentsListProps) {
   const [replyingTo, setReplyingTo] = useState<Record<string, string | null>>({});
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   const handleToggleReply = (commentId: string) => {
     setReplyingTo(prev => ({
@@ -86,19 +88,34 @@ export default function CommentsList({
     return getBadgeForUser(userId);
   };
 
+  const handleFormSubmit = async (text: string) => {
+    await onSubmitComment(text);
+    setIsFormOpen(false);
+  };
+
   return (
     <div className="space-y-4">
-      {/* Add Comment Form */}
+      {/* Add Comment Button / Form */}
       {showForm && currentUser && (
         <div className="mb-4 pb-4 border-b border-gray-200">
-          <CommentForm
-            onSubmit={onSubmitComment}
-            placeholder="כתוב תגובה..."
-            buttonText="שלח"
-            currentUser={currentUser}
-            badge={getCurrentUserBadge()}
-            size={size}
-          />
+          {!isFormOpen ? (
+            <button
+              onClick={() => setIsFormOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors"
+            >
+              <MessageCircle className="w-5 h-5" />
+              <span>תגובה</span>
+            </button>
+          ) : (
+            <CommentForm
+              onSubmit={handleFormSubmit}
+              placeholder="כתוב תגובה..."
+              buttonText="שלח"
+              currentUser={currentUser}
+              badge={getCurrentUserBadge()}
+              size={size}
+            />
+          )}
         </div>
       )}
 

@@ -1423,22 +1423,55 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                 );
                               }
 
+                              // Handle post links - convert /post/ to /#post- for homepage navigation
+                              const handleNotificationClick = (e: React.MouseEvent) => {
+                                e.preventDefault();
+                                let link = notification.link || '#';
+                                
+                                // Convert old /post/ links to /#post- format
+                                if (link.startsWith('/post/')) {
+                                  const postId = link.replace('/post/', '');
+                                  link = `/#post-${postId}`;
+                                }
+                                
+                                // If it's a hash link to a post, navigate to home with hash
+                                if (link.startsWith('/#post-')) {
+                                  router.push('/');
+                                  // Wait for navigation then scroll
+                                  setTimeout(() => {
+                                    const hash = link.replace('/', '');
+                                    const element = document.querySelector(hash);
+                                    if (element) {
+                                      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      // Highlight briefly
+                                      element.classList.add('ring-2', 'ring-pink-500', 'ring-offset-2');
+                                      setTimeout(() => {
+                                        element.classList.remove('ring-2', 'ring-pink-500', 'ring-offset-2');
+                                      }, 2000);
+                                    }
+                                  }, 100);
+                                } else {
+                                  // Regular link navigation
+                                  router.push(link);
+                                }
+                                
+                                if (!notification.is_read) {
+                                  markAsRead(notification.id);
+                                }
+                                setNotificationsOpen(false);
+                              };
+
                               return (
-                                <Link
+                                <a
                                   key={notification.id}
                                   href={notification.link || '#'}
-                                  onClick={() => {
-                                    if (!notification.is_read) {
-                                      markAsRead(notification.id);
-                                    }
-                                    setNotificationsOpen(false);
-                                  }}
-                                  className={`block p-4 hover:bg-gray-50 transition-colors ${
+                                  onClick={handleNotificationClick}
+                                  className={`block p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
                                     !notification.is_read ? 'bg-pink-50/50' : ''
                                   }`}
                                 >
                                   {NotificationContent}
-                                </Link>
+                                </a>
                               );
                             })}
                           </div>
@@ -1523,22 +1556,55 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                 );
                               }
 
+                              // Handle post links - convert /post/ to /#post- for homepage navigation
+                              const handleNotificationClick = (e: React.MouseEvent) => {
+                                e.preventDefault();
+                                let link = notification.link || '#';
+                                
+                                // Convert old /post/ links to /#post- format
+                                if (link.startsWith('/post/')) {
+                                  const postId = link.replace('/post/', '');
+                                  link = `/#post-${postId}`;
+                                }
+                                
+                                // If it's a hash link to a post, navigate to home with hash
+                                if (link.startsWith('/#post-')) {
+                                  router.push('/');
+                                  // Wait for navigation then scroll
+                                  setTimeout(() => {
+                                    const hash = link.replace('/', '');
+                                    const element = document.querySelector(hash);
+                                    if (element) {
+                                      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      // Highlight briefly
+                                      element.classList.add('ring-2', 'ring-pink-500', 'ring-offset-2');
+                                      setTimeout(() => {
+                                        element.classList.remove('ring-2', 'ring-pink-500', 'ring-offset-2');
+                                      }, 2000);
+                                    }
+                                  }, 100);
+                                } else {
+                                  // Regular link navigation
+                                  router.push(link);
+                                }
+                                
+                                if (!notification.is_read) {
+                                  markAsRead(notification.id);
+                                }
+                                setNotificationsOpen(false);
+                              };
+
                               return (
-                                <Link
+                                <a
                                   key={notification.id}
                                   href={notification.link || '#'}
-                                  onClick={() => {
-                                    if (!notification.is_read) {
-                                      markAsRead(notification.id);
-                                    }
-                                    setNotificationsOpen(false);
-                                  }}
-                                  className={`block p-4 hover:bg-gray-50 transition-colors ${
+                                  onClick={handleNotificationClick}
+                                  className={`block p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
                                     !notification.is_read ? 'bg-pink-50/50' : ''
                                   }`}
                                 >
                                   {NotificationContent}
-                                </Link>
+                                </a>
                               );
                             })}
                           </div>

@@ -434,7 +434,7 @@ export default function ForumPostDetailPage() {
               onSubmitReply={handleSubmitReply}
               onDeleteComment={handleDeleteComment}
               emptyMessage="אין תגובות עדיין. היה הראשון להגיב!"
-              showForm={!post.is_locked}
+              showForm={!post.is_locked && !!currentUser}
             />
           </div>
         </div>

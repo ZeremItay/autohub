@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { cookies } from 'next/headers';
 import { getEmailPreferences, updateEmailPreferences } from '@/lib/queries/email-preferences';
 
 // GET - Get email preferences for current user
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -39,7 +41,8 @@ export async function GET(request: NextRequest) {
 // PUT - Update email preferences for current user
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();

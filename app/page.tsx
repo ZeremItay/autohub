@@ -15,6 +15,8 @@ import {
   Plus,
   X,
   Trash2,
+  Edit,
+  Save,
   ChevronDown,
   ChevronUp,
   ChevronLeft,
@@ -25,7 +27,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { getPosts, createPost, deletePost, toggleLike, checkUserLikedPost, checkUserLikedPosts, type PostWithProfile } from '@/lib/queries/posts';
+import { getPosts, createPost, deletePost, updatePost, toggleLike, checkUserLikedPost, checkUserLikedPosts, type PostWithProfile } from '@/lib/queries/posts';
 import { getAllProfiles, type ProfileWithRole } from '@/lib/queries/profiles';
 import { getUpcomingEvents, type Event } from '@/lib/queries/events';
 import { getAllRecordings } from '@/lib/queries/recordings';
@@ -81,9 +83,49 @@ export default function Home() {
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [reports, setReports] = useState<Report[]>([]);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+  const [editingPost, setEditingPost] = useState<string | null>(null);
+  const [editPostContent, setEditPostContent] = useState<string>('');
+  const [editPostImageUrl, setEditPostImageUrl] = useState<string>('');
 
   useEffect(() => {
     loadData(); // Load data on initial page load
+    
+    // Handle hash navigation (for notifications linking to posts)
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith('#post-')) {
+        const postId = hash.replace('#post-', '');
+        // Try multiple times in case posts haven't loaded yet
+        let attempts = 0;
+        const maxAttempts = 10;
+        const tryScroll = () => {
+          attempts++;
+          const element = document.getElementById(`post-${postId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Highlight the post briefly
+            element.classList.add('ring-2', 'ring-pink-500', 'ring-offset-2');
+            setTimeout(() => {
+              element.classList.remove('ring-2', 'ring-pink-500', 'ring-offset-2');
+            }, 2000);
+          } else if (attempts < maxAttempts) {
+            // Try again after a short delay
+            setTimeout(tryScroll, 200);
+          }
+        };
+        tryScroll();
+      }
+    };
+    
+    // Check hash on mount (with delay to allow posts to load)
+    setTimeout(handleHashChange, 500);
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
     
     // Auto-rotate news carousel every 5 seconds
     let newsInterval: NodeJS.Timeout | null = null;
@@ -196,20 +238,16 @@ export default function Home() {
         if (currentUser) {
           const userId = currentUser.user_id || currentUser.id;
           if (userId && adminPosts.length > 0) {
-            // Load in background - don't block page load
-            lazyLoad(async () => {
-              try {
-                const postIds = adminPosts.map((post: any) => post.id);
-                const { likedMap, error } = await checkUserLikedPosts(postIds, userId);
-                if (!error && likedMap) {
-                  setLikedPosts(likedMap);
-                }
-              } catch (error) {
-                // Silently fail
+            // Load immediately - don't delay
+            try {
+              const postIds = adminPosts.map((post: any) => post.id);
+              const { likedMap, error } = await checkUserLikedPosts(postIds, userId);
+              if (!error && likedMap) {
+                setLikedPosts(likedMap);
               }
-            }, 500).catch(() => {
+            } catch (error) {
               // Silently fail
-            });
+            }
           }
         }
       }
@@ -895,6 +933,8 @@ export default function Home() {
       // If we have data, the operation succeeded - update state
       if (data) {
         setLikedPosts(prev => ({ ...prev, [postId]: data.liked }));
+        // Reload posts to get updated likes_count
+        await loadData();
       } else if (error) {
         // Check if error is meaningful
         const errorKeys = error && typeof error === 'object' ? Object.keys(error) : [];
@@ -968,6 +1008,57 @@ export default function Home() {
     }
   }
 
+  function handleEditPost(post: PostWithProfile) {
+    setEditingPost(post.id);
+    setEditPostContent(post.content || '');
+    setEditPostImageUrl(post.image_url || post.media_url || '');
+  }
+
+  function handleCancelEdit() {
+    setEditingPost(null);
+    setEditPostContent('');
+    setEditPostImageUrl('');
+  }
+
+  async function handleSaveEdit(postId: string) {
+    if (!editPostContent.trim()) {
+      alert('אנא הזן תוכן לפוסט');
+      return;
+    }
+
+    try {
+      const updateData: any = {
+        content: editPostContent
+      };
+
+      // Handle image_url - posts table uses media_url
+      if (editPostImageUrl) {
+        updateData.media_url = editPostImageUrl;
+        updateData.media_type = 'image';
+      }
+
+      const { data, error } = await updatePost(postId, updateData);
+
+      if (error) {
+        console.error('Error updating post:', error);
+        alert('שגיאה בעדכון הפוסט. אנא נסה שוב.');
+      } else {
+        // Update post in local state
+        setAnnouncements(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, content: editPostContent, media_url: editPostImageUrl || post.media_url, image_url: editPostImageUrl || post.image_url }
+            : post
+        ));
+        setEditingPost(null);
+        setEditPostContent('');
+        setEditPostImageUrl('');
+        alert('הפוסט עודכן בהצלחה!');
+      }
+    } catch (error) {
+      console.error('Error updating post:', error);
+      alert('שגיאה בעדכון הפוסט. אנא נסה שוב.');
+    }
+  }
 
   // Filter friends based on active tab
   // For "active" tab, show all friends (is_online is not reliable in real-time)
@@ -1293,7 +1384,7 @@ export default function Home() {
           ) : (
             <div className="space-y-4 sm:space-y-6">
               {announcements.map((post) => (
-                <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                <div key={post.id} id={`post-${post.id}`} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
                   <div className="flex gap-3 sm:gap-4">
                     <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
                       {post.profile?.avatar_url ? (
@@ -1341,21 +1432,68 @@ export default function Home() {
                           <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">•</span>
                           <span className="text-xs sm:text-sm text-gray-500">{formatTimeAgo(post.created_at)}</span>
                         </div>
-                        {currentUser && (currentUser.id === post.user_id || currentUser.user_id === post.user_id) && (
-                          <button
-                            onClick={() => handleDeletePost(post.id)}
-                            className="text-red-500 hover:text-red-700 transition-colors p-1 rounded-lg hover:bg-red-50"
-                            title="מחק פוסט"
-                          >
-                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {userIsAdmin && (
+                            <button
+                              onClick={() => handleEditPost(post)}
+                              className="text-blue-500 hover:text-blue-700 transition-colors p-1 rounded-lg hover:bg-blue-50"
+                              title="ערוך פוסט"
+                            >
+                              <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </button>
+                          )}
+                          {currentUser && (currentUser.id === post.user_id || currentUser.user_id === post.user_id) && (
+                            <button
+                              onClick={() => handleDeletePost(post.id)}
+                              className="text-red-500 hover:text-red-700 transition-colors p-1 rounded-lg hover:bg-red-50"
+                              title="מחק פוסט"
+                            >
+                              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div 
-                        className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 leading-relaxed prose prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: post.content }}
-                        dir="rtl"
-                      />
+                      {editingPost === post.id && userIsAdmin ? (
+                        <div className="space-y-4 mb-3 sm:mb-4">
+                          <RichTextEditor
+                            content={editPostContent}
+                            onChange={setEditPostContent}
+                            placeholder="ערוך את תוכן הפוסט..."
+                            userId={currentUser?.id || currentUser?.user_id || ''}
+                          />
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="URL תמונה (אופציונלי)"
+                              value={editPostImageUrl}
+                              onChange={(e) => setEditPostImageUrl(e.target.value)}
+                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleSaveEdit(post.id)}
+                              className="flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                            >
+                              <Save className="w-4 h-4" />
+                              שמור
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                              ביטול
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 leading-relaxed prose prose-sm max-w-none"
+                          dangerouslySetInnerHTML={{ __html: post.content }}
+                          dir="rtl"
+                        />
+                      )}
                       {(post.image_url || post.media_url) && (
                         <div className="mb-3 sm:mb-4">
                           <img 

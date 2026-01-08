@@ -468,3 +468,38 @@ textarea[lang="he"]::placeholder {
   overflow: hidden;
   contain: layout style paint;
 }
+
+/* Hide ProseMirror separators */
+.ProseMirror-separator,
+img.ProseMirror-separator {
+  display: none !important;
+}
+
+/* Image resize controls in editor */
+.ProseMirror img {
+  max-width: 100% !important;
+  height: auto !important;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.ProseMirror img:hover {
+  opacity: 0.9;
+}
+
+/* Image resize handles */
+.ProseMirror img[data-resize] {
+  position: relative;
+}
+
+.ProseMirror img[data-resize]::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  background: #F52F8E;
+  border-radius: 4px 0 0 0;
+  cursor: nwse-resize;
+}

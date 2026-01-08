@@ -311,7 +311,7 @@ export async function notifyPostComment(
       type: 'reply',
       title: 'תגובה לתגובה שלך',
       message: `${commenterName} הגיב על התגובה שלך`,
-      link: `/post/${postId}`,
+      link: `/#post-${postId}`,
       related_id: postId,
       related_type: 'comment',
       is_read: false
@@ -327,7 +327,7 @@ export async function notifyPostComment(
     type: 'comment',
     title: 'תגובה על הפוסט שלך',
     message: `${commenterName} הגיב על הפוסט שלך`,
-    link: `/post/${postId}`,
+    link: `/#post-${postId}`,
     related_id: postId,
     related_type: 'post',
     is_read: false
@@ -349,7 +349,7 @@ export async function notifyPostLike(
     type: 'like',
     title: 'לייק על הפוסט שלך',
     message: `${likerName} אהב את הפוסט שלך`,
-    link: `/post/${postId}`,
+    link: `/#post-${postId}`,
     related_id: postId,
     related_type: 'post',
     is_read: false

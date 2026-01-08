@@ -29,7 +29,50 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
         inline: true,
         allowBase64: true,
         HTMLAttributes: {
-          class: 'max-w-full h-auto rounded-lg my-4',
+          class: 'max-w-full h-auto rounded-lg my-4 cursor-pointer',
+          style: 'max-width: 100%; height: auto;',
+        },
+      }).extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            width: {
+              default: null,
+              parseHTML: element => element.getAttribute('width'),
+              renderHTML: attributes => {
+                if (!attributes.width) {
+                  return {};
+                }
+                return {
+                  width: attributes.width,
+                };
+              },
+            },
+            height: {
+              default: null,
+              parseHTML: element => element.getAttribute('height'),
+              renderHTML: attributes => {
+                if (!attributes.height) {
+                  return {};
+                }
+                return {
+                  height: attributes.height,
+                };
+              },
+            },
+            style: {
+              default: null,
+              parseHTML: element => element.getAttribute('style'),
+              renderHTML: attributes => {
+                if (!attributes.style) {
+                  return {};
+                }
+                return {
+                  style: attributes.style,
+                };
+              },
+            },
+          };
         },
       }),
       Placeholder.configure({
@@ -47,11 +90,15 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
       }),
     ],
     content,
-    editorProps: {
+      editorProps: {
       attributes: {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none focus:outline-none min-h-[200px] px-4 py-3 text-right prose-headings:text-right prose-p:text-right prose-ul:text-right prose-ol:text-right prose-img:max-w-full prose-img:rounded-lg prose-img:my-4',
         dir: 'rtl',
         style: 'direction: rtl; text-align: right;',
+      },
+      transformPastedHTML(html) {
+        // Remove ProseMirror separators
+        return html.replace(/<img[^>]*class="[^"]*ProseMirror-separator[^"]*"[^>]*>/gi, '');
       },
       handlePaste: (view, event) => {
         const items = Array.from(event.clipboardData?.items || []);
@@ -103,6 +150,29 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
       
       // Insert base64 preview immediately
       editor.chain().focus().setImage({ src: base64Preview }).run();
+      
+      // Set style after insertion
+      setTimeout(() => {
+        let imageNodePos: number | null = null;
+        editor.state.doc.descendants((node, pos) => {
+          if (node.type.name === 'image' && node.attrs.src === base64Preview) {
+            imageNodePos = pos;
+            return false;
+          }
+        });
+        
+        if (imageNodePos !== null) {
+          const tr = editor.state.tr;
+          const imageNode = editor.state.doc.nodeAt(imageNodePos);
+          if (imageNode) {
+            tr.setNodeMarkup(imageNodePos, undefined, {
+              ...imageNode.attrs,
+              style: 'max-width: 100%; height: auto;'
+            });
+            editor.view.dispatch(tr);
+          }
+        }
+      }, 0);
 
       try {
         const fileExt = file.name.split('.').pop();
@@ -160,13 +230,15 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
         });
 
         if (imageNodePos !== null) {
-          // Replace the preview image with actual URL
+          // Replace the preview image with actual URL, preserving size
           const tr = editor.state.tr;
           const imageNode = editor.state.doc.nodeAt(imageNodePos);
           if (imageNode) {
             tr.setNodeMarkup(imageNodePos, undefined, {
               ...imageNode.attrs,
-              src: imageUrl
+              src: imageUrl,
+              width: imageNode.attrs.width || '100%',
+              style: imageNode.attrs.style || 'max-width: 100%; height: auto;'
             });
             editor.view.dispatch(tr);
           }
@@ -247,6 +319,57 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
         >
           <ImageIcon className="w-4 h-4" />
         </button>
+        {(() => {
+          // Check if selection is on an image
+          const { from } = editor.state.selection;
+          const node = editor.state.doc.nodeAt(from);
+          const isImageSelected = node && node.type.name === 'image';
+          
+          if (!isImageSelected) return null;
+          
+          return (
+            <div className="flex items-center gap-1 border-r border-gray-300 pr-2 mr-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const { from } = editor.state.selection;
+                  const node = editor.state.doc.nodeAt(from);
+                  if (node && node.type.name === 'image') {
+                    const currentStyle = node.attrs.style || '';
+                    let newWidth = '100%';
+                    
+                    // Extract current width from style
+                    const widthMatch = currentStyle.match(/width:\s*(\d+%)/);
+                    if (widthMatch) {
+                      const currentWidth = widthMatch[1];
+                      if (currentWidth === '100%') {
+                        newWidth = '50%';
+                      } else if (currentWidth === '50%') {
+                        newWidth = '30%';
+                      } else {
+                        newWidth = '100%';
+                      }
+                    } else {
+                      // No width in style, start with 50%
+                      newWidth = '50%';
+                    }
+                    
+                    const tr = editor.state.tr;
+                    tr.setNodeMarkup(from, undefined, {
+                      ...node.attrs,
+                      style: `max-width: ${newWidth}; width: ${newWidth}; height: auto;`
+                    });
+                    editor.view.dispatch(tr);
+                  }
+                }}
+                className="px-2 py-1 text-xs rounded hover:bg-gray-200 transition-colors"
+                title="שנה גודל תמונה (100% → 50% → 30% → 100%)"
+              >
+                גודל
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Editor */}

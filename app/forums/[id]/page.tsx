@@ -902,7 +902,7 @@ function ForumDetailPageContent() {
                           onSubmitReply={handleSubmitReply}
                           onDeleteComment={handleDeleteComment}
                           emptyMessage="אין תגובות עדיין. היה הראשון להגיב!"
-                          showForm={true}
+                          showForm={!!currentUser}
                         />
                       </div>
                     </>

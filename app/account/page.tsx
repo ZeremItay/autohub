@@ -51,43 +51,85 @@ export default function AccountSettingsPage() {
   async function loadUser() {
     setLoading(true);
     try {
+      // Get the currently authenticated user from Supabase Auth
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !authUser) {
+        console.error('Error getting authenticated user:', authError);
+        alert('שגיאה: לא ניתן לזהות את המשתמש המחובר. אנא התחבר מחדש.');
+        return;
+      }
+      
+      // Get user email from auth
+      const userEmail = authUser.email;
+      if (!userEmail) {
+        console.error('No email found for authenticated user');
+        alert('שגיאה: לא נמצא אימייל למשתמש המחובר.');
+        return;
+      }
+      
+      // Get all profiles and find the one matching the authenticated user
       const { data: profiles } = await getAllProfiles();
-      if (profiles && Array.isArray(profiles) && profiles.length > 0) {
-        const user = profiles[0];
-        setCurrentUser(user);
-        setFormData({
-          email: user.email || '',
-          password: '',
-          confirmPassword: '',
-          display_name: user.display_name || '',
-          bio: user.bio || '',
-          avatar_url: user.avatar_url || '',
-          keepPasswordEmpty: true
+      if (!profiles || !Array.isArray(profiles) || profiles.length === 0) {
+        console.error('No profiles found');
+        alert('שגיאה: לא נמצאו פרופילים.');
+        return;
+      }
+      
+      // Find the profile that matches the authenticated user
+      // Match by user_id (UUID) or email
+      const user = profiles.find((p: any) => 
+        p.user_id === authUser.id || 
+        p.email === userEmail ||
+        (p.user_id && p.user_id === authUser.id)
+      );
+      
+      if (!user) {
+        console.error('User profile not found for authenticated user:', authUser.id, userEmail);
+        alert('שגיאה: לא נמצא פרופיל למשתמש המחובר.');
+        return;
+      }
+      
+      // Set the current user
+      setCurrentUser(user);
+      setFormData({
+        email: userEmail || user.email || '',
+        password: '',
+        confirmPassword: '',
+        display_name: user.display_name || '',
+        bio: user.bio || '',
+        avatar_url: user.avatar_url || '',
+        keepPasswordEmpty: true
+      });
+      // Add cache buster to avatar URL
+      const avatarUrl = user.avatar_url || null;
+      setAvatarPreview(avatarUrl ? `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : null);
+      setSocialLinks(user.social_links || []);
+      
+      // Load email preferences only if user is logged in
+      try {
+        const prefsResponse = await fetch('/api/email-preferences', {
+          credentials: 'include'
         });
-        // Add cache buster to avatar URL
-        const avatarUrl = user.avatar_url || null;
-        setAvatarPreview(avatarUrl ? `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : null);
-        setSocialLinks(user.social_links || []);
-        
-        // Load email preferences
-        try {
-          const prefsResponse = await fetch('/api/email-preferences');
-          if (prefsResponse.ok) {
-            const prefsData = await prefsResponse.json();
-            if (prefsData.data) {
-              setEmailPreferences({
-                forum_reply: prefsData.data.forum_reply ?? true,
-                new_project: prefsData.data.new_project ?? true
-              });
-            }
+        if (prefsResponse.ok) {
+          const prefsData = await prefsResponse.json();
+          if (prefsData.data) {
+            setEmailPreferences({
+              forum_reply: prefsData.data.forum_reply ?? true,
+              new_project: prefsData.data.new_project ?? true
+            });
           }
-        } catch (error) {
-          console.error('Error loading email preferences:', error);
-          // Use defaults if loading fails
+        } else if (prefsResponse.status === 401) {
+          // User not authenticated, use defaults silently
+          console.log('User not authenticated, using default email preferences');
         }
+      } catch (error) {
+        console.error('Error loading email preferences:', error);
+        // Use defaults if loading fails
       }
     } catch (error) {
       console.error('Error loading user:', error);
+      alert('שגיאה בטעינת נתוני המשתמש. אנא נסה שוב.');
     } finally {
       setLoading(false);
     }
@@ -99,23 +141,29 @@ export default function AccountSettingsPage() {
       // Clear cache and reload user data
       const { clearCache } = require('@/lib/cache');
       clearCache('profiles:all');
-      loadUser();
+      // Only reload if we have a current user
+      if (currentUser) {
+        loadUser();
+      }
     };
 
     window.addEventListener('profileUpdated', handleProfileUpdate);
     
     // Also poll for profile updates every 30 seconds to catch changes from other users
+    // But only if we have a current user
     const pollInterval = setInterval(() => {
-      const { clearCache } = require('@/lib/cache');
-      clearCache('profiles:all');
-      loadUser();
+      if (currentUser) {
+        const { clearCache } = require('@/lib/cache');
+        clearCache('profiles:all');
+        loadUser();
+      }
     }, 30000); // Poll every 30 seconds
     
     return () => {
       window.removeEventListener('profileUpdated', handleProfileUpdate);
       clearInterval(pollInterval);
     };
-  }, []);
+  }, [currentUser]);
 
   async function handleAvatarUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -607,6 +655,7 @@ export default function AccountSettingsPage() {
                           const response = await fetch('/api/email-preferences', {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
                             body: JSON.stringify(emailPreferences)
                           });
 

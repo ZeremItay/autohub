@@ -2525,6 +2525,30 @@ export default function AdminPanel() {
         setEditing(null)
         setFormData({})
         alert('התשלום עודכן בהצלחה!')
+      } else if (activeTab === 'posts') {
+        const { updatePost } = await import('@/lib/queries/posts')
+        const updateData: any = {
+          content: formData.content || '',
+          user_id: formData.user_id || ''
+        }
+        
+        // Handle image_url - posts table uses media_url
+        if (formData.image_url) {
+          updateData.media_url = formData.image_url
+          updateData.media_type = 'image'
+        }
+        
+        const { data, error } = await updatePost(id, updateData)
+        
+        if (error) {
+          console.error('Error updating post:', error)
+          alert(`שגיאה בעדכון ההודעה: ${error?.message || 'שגיאה לא ידועה'}`)
+        } else {
+          await loadData()
+          setEditing(null)
+          setFormData({})
+          alert('ההודעה עודכנה בהצלחה!')
+        }
       }
     } catch (error) {
       console.error('Error updating:', error)

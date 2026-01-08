@@ -134,13 +134,14 @@ export async function getPosts() {
     role: p.roles || (p.role_id ? { id: p.role_id } : null)
   }]) || [])
   
-  // Count comments for each post from the comments table
+  // Count comments and likes for each post from the tables
   const postIds = posts.map((p: any) => p.id)
   const commentsCountMap = new Map<string, number>()
+  const likesCountMap = new Map<string, number>()
   
   if (postIds.length > 0) {
+    // Get all comments for all posts in one query
     try {
-      // Get all comments for all posts in one query
       const { data: allComments, error: commentsError } = await supabase
         .from('comments')
         .select('post_id')
@@ -162,15 +163,42 @@ export async function getPosts() {
       logError(error, 'getPosts:comments:catch');
       // Continue without comments count - use existing values
     }
+    
+    // Get all likes for all posts in one query
+    try {
+      const { data: allLikes, error: likesError } = await supabase
+        .from('post_likes')
+        .select('post_id')
+        .in('post_id', postIds)
+      
+      if (!likesError && allLikes) {
+        // Count likes per post
+        allLikes.forEach((like: any) => {
+          const postId = like.post_id
+          likesCountMap.set(postId, (likesCountMap.get(postId) || 0) + 1)
+        })
+      } else if (likesError) {
+        if (!isNotFoundError(likesError)) {
+          logError(likesError, 'getPosts:likes');
+        }
+        // Continue without likes count - use existing values
+      }
+    } catch (error) {
+      logError(error, 'getPosts:likes:catch');
+      // Continue without likes count - use existing values
+    }
   }
   
   const postsWithProfiles = posts.map((post: any) => {
     // Use actual count from comments table if available, otherwise use existing comments_count
     const actualCommentsCount = commentsCountMap.get(post.id) ?? post.comments_count ?? 0
+    // Use actual count from post_likes table if available, otherwise use existing likes_count
+    const actualLikesCount = likesCountMap.get(post.id) ?? post.likes_count ?? 0
     
     return {
       ...post,
       comments_count: actualCommentsCount,
+      likes_count: actualLikesCount,
       profile: profileMap.get(post.user_id) || null
     }
   })
