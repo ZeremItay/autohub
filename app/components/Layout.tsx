@@ -233,7 +233,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         console.warn('loadUser taking too long, checking session as fallback');
         isCancelledUserRef.current = true; // Mark as cancelled
         // On timeout, check session and don't clear user if session exists
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(({ data: { session } }: any) => {
           // Check if operation was cancelled before updating state
           if (isCancelledUserRef.current) {
             // Only update if we don't have a user and session exists
@@ -261,7 +261,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             }
           }
           isLoadingUserRef.current = false;
-        }).catch(err => {
+        }).catch((err: any) => {
           console.error('Error checking session on loadUser timeout:', err);
           // On error, don't clear user - keep current state
           isLoadingUserRef.current = false;
@@ -526,7 +526,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     // CRITICAL: Add guard to prevent infinite loops
     let isProcessingAuthChange = false;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
       // Prevent concurrent processing
       if (isProcessingAuthChange) {
         console.log('Auth state change already processing, skipping...');

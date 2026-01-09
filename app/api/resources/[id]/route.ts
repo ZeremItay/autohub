@@ -34,7 +34,7 @@ export async function GET(
     // Get likes count and check if user liked
     const { getResourcesWithDetails } = await import('@/lib/queries/resources');
     const { data: resourcesWithDetails } = await getResourcesWithDetails(userId);
-    const resourceWithDetails = resourcesWithDetails?.find(r => r.id === id) || resource;
+    const resourceWithDetails = resourcesWithDetails?.find((r: any) => r.id === id) || resource;
 
     return NextResponse.json({ data: resourceWithDetails }, { status: 200 });
   } catch (error: any) {

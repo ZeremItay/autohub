@@ -87,7 +87,7 @@ export async function getAllForums() {
   if (error || !data) return { data, error };
   
   // Batch count posts for all forums in parallel
-  const forumIds = data.map(f => f.id);
+  const forumIds = data.map((f: any) => f.id);
   const { data: countsData } = await supabase
     .from('forum_posts')
     .select('forum_id')
@@ -103,7 +103,7 @@ export async function getAllForums() {
   }
   
   // Map counts to forums
-  const forumsWithCounts = data.map((forum) => ({
+  const forumsWithCounts = data.map((forum: any) => ({
     ...forum,
     posts_count: countsMap.get(forum.id) || 0
   }));
@@ -179,18 +179,18 @@ export async function getForumPosts(forumId: string) {
       const profile = profileMap.get(post.user_id);
       // Build display name with fallback chain
       const displayName = profile 
-        ? (profile.display_name || profile.first_name || profile.nickname || 'משתמש')
+        ? ((profile as any).display_name || (profile as any).first_name || (profile as any).nickname || 'משתמש')
         : 'משתמש';
       
       return {
         ...post,
         profile: profile ? {
-          user_id: profile.user_id,
+          user_id: (profile as any).user_id,
           display_name: displayName,
-          avatar_url: profile.avatar_url,
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          nickname: profile.nickname
+          avatar_url: (profile as any).avatar_url,
+          first_name: (profile as any).first_name,
+          last_name: (profile as any).last_name,
+          nickname: (profile as any).nickname
         } : {
           user_id: post.user_id,
           display_name: 'משתמש',
@@ -395,7 +395,7 @@ export async function getForumPostById(postId: string, userId?: string) {
           const profile = profileMap.get(reply.user_id);
           // Build display name with fallback chain
           const displayName = profile 
-            ? (profile.display_name || profile.first_name || profile.nickname || 'משתמש')
+            ? ((profile as any).display_name || (profile as any).first_name || (profile as any).nickname || 'משתמש')
             : 'משתמש';
           
           // Log if profile is missing
@@ -406,12 +406,12 @@ export async function getForumPostById(postId: string, userId?: string) {
           return {
             ...reply,
             profile: profile ? {
-              user_id: profile.user_id,
+              user_id: (profile as any).user_id,
               display_name: displayName,
-              avatar_url: profile.avatar_url,
-              first_name: profile.first_name,
-              last_name: profile.last_name,
-              nickname: profile.nickname
+              avatar_url: (profile as any).avatar_url,
+              first_name: (profile as any).first_name,
+              last_name: (profile as any).last_name,
+              nickname: (profile as any).nickname
             } : {
               user_id: reply.user_id,
               display_name: 'משתמש',
@@ -432,10 +432,10 @@ export async function getForumPostById(postId: string, userId?: string) {
             // This is a nested reply
             const parent = replyMap.get(reply.parent_id);
             if (parent) {
-              if (!parent.replies) {
-                parent.replies = [];
+              if (!(parent as any).replies) {
+                (parent as any).replies = [];
               }
-              parent.replies.push(reply);
+              (parent as any).replies.push(reply);
             }
           } else {
             // This is a top-level reply
@@ -773,7 +773,7 @@ export async function getUserLikedForumPosts(userId: string) {
     return { data: [], error: null };
   }
   
-  const postIds = likes.map(l => l.post_id);
+  const postIds = likes.map((l: any) => l.post_id);
   
   const { data, error } = await supabase
     .from('forum_posts')
@@ -1075,7 +1075,7 @@ export async function getAllForumsForAdmin() {
   if (error || !data) return { data, error };
   
   // Batch count posts for all forums in parallel
-  const forumIds = data.map(f => f.id);
+  const forumIds = data.map((f: any) => f.id);
   const { data: countsData } = await supabase
     .from('forum_posts')
     .select('forum_id')
@@ -1091,7 +1091,7 @@ export async function getAllForumsForAdmin() {
   }
   
   // Map counts to forums
-  const forumsWithCounts = data.map((forum) => ({
+  const forumsWithCounts = data.map((forum: any) => ({
     ...forum,
     posts_count: countsMap.get(forum.id) || 0
   }));

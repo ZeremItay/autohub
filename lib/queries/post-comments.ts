@@ -80,10 +80,10 @@ export async function getPostComments(postId: string) {
       if (comment.parent_id) {
         const parent = commentMap.get(comment.parent_id)
         if (parent) {
-          if (!parent.replies) {
-            parent.replies = []
+          if (!(parent as any).replies) {
+            (parent as any).replies = []
           }
-          parent.replies.push(comment)
+          (parent as any).replies.push(comment)
         }
       } else {
         topLevelComments.push(comment)

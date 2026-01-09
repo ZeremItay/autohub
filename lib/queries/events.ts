@@ -177,7 +177,7 @@ export async function getNextLiveEvent() {
   }
   
   // Filter events that are within 1 hour before or after start time
-  const eligibleEvents = data.filter((event) => {
+  const eligibleEvents = data.filter((event: any) => {
     const eventDateTime = new Date(`${event.event_date}T${event.event_time}`);
     const eventEndTime = new Date(eventDateTime.getTime() + 2 * 60 * 60 * 1000); // Assume 2 hour duration
     

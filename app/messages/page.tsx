@@ -170,7 +170,7 @@ export default function MessagesPage() {
           table: 'messages',
           filter: `recipient_id=eq.${currentUserId}`
         },
-        (payload) => {
+        (payload: any) => {
           console.log('📨 New message received via Realtime:', payload.new);
           handleNewMessage(payload.new as any);
         }
@@ -183,12 +183,12 @@ export default function MessagesPage() {
           table: 'messages',
           filter: `sender_id=eq.${currentUserId}`
         },
-        (payload) => {
+        (payload: any) => {
           console.log('📤 Message sent via Realtime:', payload.new);
           handleNewMessage(payload.new as any);
         }
       )
-      .subscribe(async (status) => {
+      .subscribe(async (status: any) => {
         console.log('🔔 Realtime subscription status:', status);
         if (status === 'SUBSCRIBED') {
           console.log('✅ Successfully subscribed to messages Realtime');
@@ -457,7 +457,7 @@ export default function MessagesPage() {
           [conversationId]: partnerTyping
         }));
       })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+      .on('presence', { event: 'join' }, ({ key, newPresences }: any) => {
         const partnerTyping = newPresences.some((presence: any) => 
           presence.typing === true && presence.userId !== currentUserId
         );
@@ -468,13 +468,13 @@ export default function MessagesPage() {
           }));
         }
       })
-      .on('presence', { event: 'leave' }, ({ key }) => {
+      .on('presence', { event: 'leave' }, ({ key }: any) => {
         setTypingUsers(prev => ({
           ...prev,
           [conversationId]: false
         }));
       })
-      .subscribe(async (status) => {
+      .subscribe(async (status: any) => {
         if (status === 'SUBSCRIBED') {
           await typingChannel.track({
             typing: false,

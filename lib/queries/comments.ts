@@ -44,7 +44,7 @@ export async function getRecordingComments(recordingId: string) {
   }
 
   // Get all user IDs
-  const userIds = [...new Set(commentsData.map(c => c.user_id).filter(Boolean))]
+  const userIds = [...new Set(commentsData.map((c: any) => c.user_id).filter(Boolean))]
   
   // Get profiles for all users with roles - try with roles first, then fallback
   let profiles: any[] = [];
@@ -100,8 +100,8 @@ export async function getRecordingComments(recordingId: string) {
           .select('id, name, display_name')
           .in('id', roleIds);
         
-        const roleMap = new Map(rolesData?.map(r => [r.id, r]) || []);
-        profiles = profiles.map(p => ({
+        const roleMap = new Map(rolesData?.map((r: any) => [r.id, r]) || []);
+        profiles = profiles.map((p: any) => ({
           ...p,
           roles: roleMap.get(p.role_id) || null
         }));
@@ -130,7 +130,7 @@ export async function getRecordingComments(recordingId: string) {
 
   // Get replies for each comment
   const commentsWithReplies = await Promise.all(
-    commentsData.map(async (comment) => {
+    commentsData.map(async (comment: any) => {
       // Get replies for this comment
       const { data: repliesData } = await supabase
         .from('recording_comments')
@@ -196,8 +196,8 @@ export async function getRecordingComments(recordingId: string) {
                 .select('id, name, display_name')
                 .in('id', roleIds);
               
-              const roleMap = new Map(rolesData?.map(r => [r.id, r]) || []);
-              replyProfiles = replyProfiles.map(p => ({
+              const roleMap = new Map(rolesData?.map((r: any) => [r.id, r]) || []);
+              replyProfiles = replyProfiles.map((p: any) => ({
                 ...p,
                 roles: roleMap.get(p.role_id) || null
               }));
@@ -225,7 +225,7 @@ export async function getRecordingComments(recordingId: string) {
             display_name: 'משתמש',
             avatar_url: null
           },
-          replies: repliesData.map(reply => ({
+          replies: repliesData.map((reply: any) => ({
             ...reply,
             user: replyProfileMap.get(reply.user_id) || {
               user_id: reply.user_id,

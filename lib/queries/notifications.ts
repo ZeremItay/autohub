@@ -312,7 +312,7 @@ export async function deleteOldNotifications(userId: string, keepCount: number =
     
     // Get IDs of notifications to delete (everything after keepCount)
     const notificationsToDelete = allNotifications.slice(keepCount);
-    const idsToDelete = notificationsToDelete.map(n => n.id);
+    const idsToDelete = notificationsToDelete.map((n: any) => n.id);
     
     if (idsToDelete.length === 0) {
       return { deletedCount: 0, error: null };

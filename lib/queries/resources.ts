@@ -114,7 +114,7 @@ export async function getResourcesWithDetails(userId?: string, cookieStore?: any
     }
     
     // Get unique user IDs from created_by
-    const userIds = [...new Set(resourcesData.filter(r => r.created_by).map(r => r.created_by))];
+    const userIds = [...new Set(resourcesData.filter((r: any) => r.created_by).map((r: any) => r.created_by))];
     
     // Fetch profiles for authors
     let profilesMap = new Map();
@@ -129,14 +129,14 @@ export async function getResourcesWithDetails(userId?: string, cookieStore?: any
       }
       
       if (profiles) {
-        profiles.forEach(profile => {
+        profiles.forEach((profile: any) => {
           profilesMap.set(profile.user_id, profile);
         });
       }
     }
     
     // Combine resources with authors
-    const resources = resourcesData.map(resource => ({
+    const resources = resourcesData.map((resource: any) => ({
       ...resource,
       author: resource.created_by ? profilesMap.get(resource.created_by) : null
     }));
@@ -148,7 +148,7 @@ export async function getResourcesWithDetails(userId?: string, cookieStore?: any
     }
 
     // Get likes count for each resource
-    const resourceIds = resources.map(r => r.id);
+    const resourceIds = resources.map((r: any) => r.id);
     const { data: likesData, error: likesError } = await supabaseClient
       .from('resource_likes')
       .select('resource_id, user_id')
@@ -163,7 +163,7 @@ export async function getResourcesWithDetails(userId?: string, cookieStore?: any
     const userLikesSet = new Set<string>();
 
     if (likesData) {
-      likesData.forEach(like => {
+      likesData.forEach((like: any) => {
         const count = likesCountMap.get(like.resource_id) || 0;
         likesCountMap.set(like.resource_id, count + 1);
         
@@ -174,7 +174,7 @@ export async function getResourcesWithDetails(userId?: string, cookieStore?: any
     }
 
     // Combine data
-    const resourcesWithDetails = resources.map(resource => ({
+    const resourcesWithDetails = resources.map((resource: any) => ({
       ...resource,
       likes_count: likesCountMap.get(resource.id) || 0,
       is_liked: userId ? userLikesSet.has(resource.id) : false,
@@ -201,7 +201,7 @@ export async function getResourcesByType(type: 'document' | 'video' | 'image' | 
   const { data, error } = await getResourcesWithDetails(userId);
   if (error) return { data: null, error };
   return { 
-    data: data?.filter(r => r.type === type) || [], 
+    data: data?.filter((r: any) => r.type === type) || [], 
     error: null 
   };
 }
@@ -211,7 +211,7 @@ export async function getResourcesByCategory(category: string, userId?: string) 
   const { data, error } = await getResourcesWithDetails(userId);
   if (error) return { data: null, error };
   return { 
-    data: data?.filter(r => r.category === category) || [], 
+    data: data?.filter((r: any) => r.category === category) || [], 
     error: null 
   };
 }
@@ -222,7 +222,7 @@ export async function searchResources(query: string, userId?: string) {
   if (error) return { data: null, error };
   
   const lowerQuery = query.toLowerCase();
-  const filtered = data?.filter(r => 
+  const filtered = data?.filter((r: any) => 
     r.title?.toLowerCase().includes(lowerQuery) ||
     r.description?.toLowerCase().includes(lowerQuery) ||
     r.category?.toLowerCase().includes(lowerQuery)

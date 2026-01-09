@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getCurrentUser, isPremiumUser as checkPremium, isAdmin as checkAdmin, type UserWithRole } from '../utils/user';
 
 interface UseCurrentUserReturn {
@@ -20,8 +20,18 @@ export function useCurrentUser(): UseCurrentUserReturn {
   const [user, setUser] = useState<UserWithRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  
+  // Ref to prevent concurrent/recursive calls
+  const isLoadingRef = useRef(false);
 
   const loadUser = useCallback(async () => {
+    // Prevent concurrent calls
+    if (isLoadingRef.current) {
+      console.log('useCurrentUser: loadUser already running, skipping...');
+      return;
+    }
+    
+    isLoadingRef.current = true;
     setLoading(true);
     setError(null);
     
@@ -32,7 +42,8 @@ export function useCurrentUser(): UseCurrentUserReturn {
       // If user loading failed, check session as fallback
       if (!currentUser) {
         try {
-          const { supabase } = await import('../supabase');
+          const { getSupabaseClient } = await import('../supabase');
+          const supabase = getSupabaseClient();
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             // Use minimal user from session
@@ -43,6 +54,7 @@ export function useCurrentUser(): UseCurrentUserReturn {
               email: session.user.email
             });
             setLoading(false);
+            isLoadingRef.current = false;
             return;
           }
         } catch (sessionError) {
@@ -54,7 +66,8 @@ export function useCurrentUser(): UseCurrentUserReturn {
     } catch (err: any) {
       // If error occurs, try to get user from session as fallback
       try {
-        const { supabase } = await import('../supabase');
+        const { getSupabaseClient } = await import('../supabase');
+        const supabase = getSupabaseClient();
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           // Use minimal user from session
@@ -66,6 +79,7 @@ export function useCurrentUser(): UseCurrentUserReturn {
           });
           setError(null);
           setLoading(false);
+          isLoadingRef.current = false;
           return;
         }
       } catch (sessionError) {
@@ -78,6 +92,7 @@ export function useCurrentUser(): UseCurrentUserReturn {
       setUser(null);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   }, []);
 
@@ -97,4 +112,3 @@ export function useCurrentUser(): UseCurrentUserReturn {
     refetch: loadUser
   };
 }
-

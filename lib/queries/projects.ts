@@ -62,7 +62,7 @@ export async function getAllProjects() {
 
   // Fetch user profiles for each project (only for projects with user_id)
   if (projects && projects.length > 0) {
-    const userIds = [...new Set(projects.map(p => p.user_id).filter((id): id is string => id !== null))]
+    const userIds = [...new Set(projects.map((p: any) => p.user_id).filter((id: any): id is string => id !== null))]
     let profileMap = new Map();
     
     if (userIds.length > 0) {
@@ -74,7 +74,7 @@ export async function getAllProjects() {
       profileMap = new Map(profiles?.map((p: any) => [p.user_id, p]) || [])
     }
 
-    const projectsWithUsers = projects.map(project => ({
+    const projectsWithUsers = projects.map((project: any) => ({
       ...project,
       user: project.user_id ? (profileMap.get(project.user_id) || null) : null
     }))
@@ -179,7 +179,7 @@ export async function getProjectOffers(projectId: string) {
 
   // Fetch user profiles
   if (offers && offers.length > 0) {
-    const userIds = [...new Set(offers.map(o => o.user_id))]
+    const userIds = [...new Set(offers.map((o: any) => o.user_id))]
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, display_name, avatar_url')
@@ -187,7 +187,7 @@ export async function getProjectOffers(projectId: string) {
 
     const profileMap = new Map(profiles?.map((p: any) => [p.user_id, p]) || [])
 
-    const offersWithUsers = offers.map(offer => ({
+    const offersWithUsers = offers.map((offer: any) => ({
       ...offer,
       user: profileMap.get(offer.user_id) || null
     }))
@@ -402,8 +402,8 @@ export async function getAllProjectOffers() {
 
   // Fetch user profiles and project details
   if (offers && offers.length > 0) {
-    const userIds = [...new Set(offers.map(o => o.user_id))]
-    const projectIds = [...new Set(offers.map(o => o.project_id))]
+    const userIds = [...new Set(offers.map((o: any) => o.user_id))]
+    const projectIds = [...new Set(offers.map((o: any) => o.project_id))]
     
     const [profilesRes, projectsRes] = await Promise.all([
       supabase
@@ -419,7 +419,7 @@ export async function getAllProjectOffers() {
     const profileMap = new Map(profilesRes.data?.map((p: any) => [p.user_id, p]) || [])
     const projectMap = new Map(projectsRes.data?.map((p: any) => [p.id, p]) || [])
 
-    const offersWithDetails = offers.map(offer => ({
+    const offersWithDetails = offers.map((offer: any) => ({
       ...offer,
       user: profileMap.get(offer.user_id) || null,
       project: projectMap.get(offer.project_id) || null
@@ -459,7 +459,7 @@ export async function getUserProjects(userId: string) {
       .eq('user_id', userId)
       .single()
 
-    const projectsWithUser = projects.map(project => ({
+    const projectsWithUser = projects.map((project: any) => ({
       ...project,
       user: profile || null
     }))
@@ -511,7 +511,7 @@ export async function getProjectOffersByUser(userId: string) {
       .eq('user_id', userId)
       .single()
 
-    const offersWithUser = offers.map(offer => ({
+    const offersWithUser = offers.map((offer: any) => ({
       ...offer,
       user: profile || null
     }))

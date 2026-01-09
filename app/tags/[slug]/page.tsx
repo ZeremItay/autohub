@@ -42,14 +42,14 @@ export default function TagDetailPage() {
       if (assignments) {
         // Group by content type
         const projectIds = assignments
-          .filter(a => a.content_type === 'project')
-          .map(a => a.content_id)
+          .filter((a: any) => a.content_type === 'project')
+          .map((a: any) => a.content_id)
         const recordingIds = assignments
-          .filter(a => a.content_type === 'recording')
-          .map(a => a.content_id)
+          .filter((a: any) => a.content_type === 'recording')
+          .map((a: any) => a.content_id)
         const courseIds = assignments
-          .filter(a => a.content_type === 'course')
-          .map(a => a.content_id)
+          .filter((a: any) => a.content_type === 'course')
+          .map((a: any) => a.content_id)
 
         // Load full content
         const [projectsRes, recordingsRes, coursesRes] = await Promise.all([

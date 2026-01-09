@@ -53,16 +53,16 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (type) {
-      resources = resources.filter(r => r.type === type);
+      resources = resources.filter((r: any) => r.type === type);
     }
 
     if (category) {
-      resources = resources.filter(r => r.category === category);
+      resources = resources.filter((r: any) => r.category === category);
     }
 
     if (search) {
       const lowerSearch = search.toLowerCase();
-      resources = resources.filter(r =>
+      resources = resources.filter((r: any) =>
         r.title?.toLowerCase().includes(lowerSearch) ||
         r.description?.toLowerCase().includes(lowerSearch) ||
         r.category?.toLowerCase().includes(lowerSearch)

@@ -374,21 +374,13 @@ export default function ProjectsPage() {
       }
     });
     
-    // Listen for auth state changes to reload data when user logs out/in
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (cancelled) return;
-      if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
-        // Clear cache and reload data when auth state changes
-        clearCache('profiles:all');
-        loadData();
-      }
-    });
+    // REMOVED: onAuthStateChange listener - Layout.tsx already handles this
+    // Having multiple listeners causes infinite loops and thousands of requests
 
     return () => {
       cancelled = true;
       // Don't mark as cancelled here - only timeout should do that
       // This prevents race conditions when dependencies change
-      subscription.unsubscribe();
     };
   }, [loadData]);
 

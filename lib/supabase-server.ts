@@ -11,6 +11,10 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 let anonClientInstance: ReturnType<typeof createClient> | null = null
 let serviceClientInstance: ReturnType<typeof createClient> | null = null
 
+// Track instance creation to detect multiple instances
+let instanceCreationCount = 0
+const MAX_INSTANCE_WARNINGS = 5
+
 export const createServerClient = (cookieStore?: ReadonlyRequestCookies) => {
   // If cookies are provided, use @supabase/ssr for proper cookie handling
   // This must create a new instance for each request with cookies
@@ -43,6 +47,10 @@ export const createServerClient = (cookieStore?: ReadonlyRequestCookies) => {
   // Use singleton to avoid multiple instances
   if (supabaseServiceKey) {
     if (!serviceClientInstance) {
+      instanceCreationCount++
+      if (instanceCreationCount > 1 && instanceCreationCount <= MAX_INSTANCE_WARNINGS) {
+        console.warn(`[Supabase] Service client instance #${instanceCreationCount} created. This may indicate a singleton bypass.`)
+      }
       serviceClientInstance = createClient(supabaseUrl, supabaseServiceKey, {
         auth: {
           autoRefreshToken: false,
@@ -55,6 +63,10 @@ export const createServerClient = (cookieStore?: ReadonlyRequestCookies) => {
   
   // Fallback to anon key - use singleton to avoid multiple instances
   if (!anonClientInstance) {
+    instanceCreationCount++
+    if (instanceCreationCount > 1 && instanceCreationCount <= MAX_INSTANCE_WARNINGS) {
+      console.warn(`[Supabase] Anon client instance #${instanceCreationCount} created. This may indicate a singleton bypass.`)
+    }
     anonClientInstance = createClient(supabaseUrl, supabaseAnonKey)
   }
   return anonClientInstance
@@ -68,8 +80,8 @@ export const createServerClient = (cookieStore?: ReadonlyRequestCookies) => {
 export async function getSupabaseClient() {
   if (typeof window !== 'undefined') {
     // Client-side: use browser client (singleton)
-    const { supabase } = await import('./supabase');
-    return supabase;
+    const { getSupabaseClient } = await import('./supabase');
+    return getSupabaseClient();
   } else {
     // Server-side: use server client
     return createServerClient();

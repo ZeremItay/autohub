@@ -116,9 +116,9 @@ function ResourceDetailPageContent() {
       if (related.length < 5 && currentResourceTagIds.length > 0) {
         // Load tags for all resources in parallel (optimized)
         const tagPromises = allResources
-          .filter(res => res.id !== currentResource.id && !related.find(r => r.id === res.id))
+          .filter((res: any) => res.id !== currentResource.id && !related.find((r: any) => r.id === res.id))
           .slice(0, 20) // Limit to first 20 to avoid too many requests
-          .map(async (res) => {
+          .map(async (res: any) => {
             const { data: resTagsData } = await getTagsByContent('resource', res.id);
             const resTags = (Array.isArray(resTagsData) ? resTagsData.map((t: any) => t.tag).filter(Boolean) : []) || [];
             const resTagIds = resTags.map((t: Tag) => t.id);

@@ -43,7 +43,7 @@ function LoginContent() {
           };
           
           // Set session using the tokens from hash
-          supabase.auth.setSession(sessionData).then(({ data, error }) => {
+          supabase.auth.setSession(sessionData).then(({ data, error }: any) => {
             if (error) {
               console.error('Error setting session from hash:', error);
               setError('שגיאה בהתחברות עם Google');

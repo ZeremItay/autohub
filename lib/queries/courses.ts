@@ -118,7 +118,7 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
     const finalData = allData;
     // Get user progress if userId provided
     if (userId) {
-      const courseIds = finalData.map(c => c.id);
+      const courseIds = finalData.map((c: any) => c.id);
       const { data: progressData } = await supabase
         .from('course_progress')
         .select('course_id, progress_percentage')
@@ -126,10 +126,10 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
         .in('course_id', courseIds);
       
       const progressMap = new Map(
-        progressData?.map(p => [p.course_id, p.progress_percentage]) || []
+        progressData?.map((p: any) => [p.course_id, p.progress_percentage]) || []
       );
       
-      const coursesWithProgress = finalData.map(course => ({
+      const coursesWithProgress = finalData.map((course: any) => ({
         ...course,
         progress: progressMap.get(course.id) || 0
       }));
@@ -144,7 +144,7 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
   
   // Get user progress if userId provided
   if (userId) {
-    const courseIds = data.map(c => c.id);
+    const courseIds = data.map((c: any) => c.id);
     const { data: progressData } = await supabase
       .from('course_progress')
       .select('course_id, progress_percentage')
@@ -152,10 +152,10 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
       .in('course_id', courseIds);
     
     const progressMap = new Map(
-      progressData?.map(p => [p.course_id, p.progress_percentage]) || []
+      progressData?.map((p: any) => [p.course_id, p.progress_percentage]) || []
     );
     
-    const coursesWithProgress = data.map(course => ({
+    const coursesWithProgress = data.map((course: any) => ({
       ...course,
       progress: progressMap.get(course.id) || 0
     }));
@@ -199,7 +199,7 @@ export async function getCoursesByCategory(category: string, userId?: string, in
     const finalData = allData;
     // Get user progress if userId provided
     if (userId) {
-      const courseIds = finalData.map(c => c.id);
+      const courseIds = finalData.map((c: any) => c.id);
       const { data: progressData } = await supabase
         .from('course_progress')
         .select('course_id, progress_percentage')
@@ -207,10 +207,10 @@ export async function getCoursesByCategory(category: string, userId?: string, in
         .in('course_id', courseIds);
       
       const progressMap = new Map(
-        progressData?.map(p => [p.course_id, p.progress_percentage]) || []
+        progressData?.map((p: any) => [p.course_id, p.progress_percentage]) || []
       );
       
-      const coursesWithProgress = finalData.map(course => ({
+      const coursesWithProgress = finalData.map((course: any) => ({
         ...course,
         progress: progressMap.get(course.id) || 0
       }));
@@ -225,7 +225,7 @@ export async function getCoursesByCategory(category: string, userId?: string, in
   
   // Get user progress if userId provided
   if (userId) {
-    const courseIds = data.map(c => c.id);
+    const courseIds = data.map((c: any) => c.id);
     const { data: progressData } = await supabase
       .from('course_progress')
       .select('course_id, progress_percentage')
@@ -233,10 +233,10 @@ export async function getCoursesByCategory(category: string, userId?: string, in
       .in('course_id', courseIds);
     
     const progressMap = new Map(
-      progressData?.map(p => [p.course_id, p.progress_percentage]) || []
+      progressData?.map((p: any) => [p.course_id, p.progress_percentage]) || []
     );
     
-    const coursesWithProgress = data.map(course => ({
+    const coursesWithProgress = data.map((course: any) => ({
       ...course,
       progress: progressMap.get(course.id) || 0
     }));
@@ -1431,7 +1431,7 @@ export async function getCompletedLessons(courseId: string, userId: string) {
   }
   
   // Return array of lesson IDs
-  const lessonIds = data?.map(item => item.lesson_id) || [];
+  const lessonIds = data?.map((item: any) => item.lesson_id) || [];
   return { data: Array.isArray(lessonIds) ? lessonIds : [], error: null };
 }
 
@@ -1494,7 +1494,7 @@ export async function canAccessLesson(lessonId: string, courseId: string, userId
   }
   
   // Find the index of the current lesson
-  const currentIndex = lessons.findIndex(l => l.id === lessonId);
+  const currentIndex = lessons.findIndex((l: any) => l.id === lessonId);
   
   // First lesson is always accessible
   if (currentIndex === 0) {
