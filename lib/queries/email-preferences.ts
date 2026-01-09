@@ -1,4 +1,4 @@
-import { createServerClient } from '../supabase-server';
+import { createServerClient, getSupabaseClient } from '../supabase-server';
 
 export interface EmailPreferences {
   id?: string;
@@ -12,7 +12,7 @@ export interface EmailPreferences {
 // Get email preferences for a user
 export async function getEmailPreferences(userId: string): Promise<{ data: EmailPreferences | null; error: any }> {
   try {
-    const supabase = createServerClient();
+    const supabase = await getSupabaseClient();
     
     const { data, error } = await supabase
       .from('email_notification_preferences')
@@ -50,7 +50,7 @@ export async function updateEmailPreferences(
   preferences: Partial<Pick<EmailPreferences, 'forum_reply' | 'new_project'>>
 ): Promise<{ data: EmailPreferences | null; error: any }> {
   try {
-    const supabase = createServerClient();
+    const supabase = await getSupabaseClient();
 
     // Check if preferences exist
     const { data: existing } = await supabase
@@ -127,7 +127,7 @@ export async function shouldSendEmail(
 // Get all users who want to receive new project notifications
 export async function getUsersForNewProjectNotifications(): Promise<{ data: string[]; error: any }> {
   try {
-    const supabase = createServerClient();
+    const supabase = await getSupabaseClient();
 
     const { data, error } = await supabase
       .from('email_notification_preferences')

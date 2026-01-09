@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { createServerClient } from '../supabase-server';
+import { createServerClient, getSupabaseClient } from '../supabase-server';
 
 export interface SystemSetting {
   id: string;
@@ -67,10 +67,8 @@ export async function updateRegistrationLimit(limit: number): Promise<{ data: Sy
   }
 
   try {
-    // Use server client for admin operations
-    const supabaseClient = typeof window !== 'undefined' 
-      ? supabase 
-      : createServerClient();
+    // Use appropriate client based on environment
+    const supabaseClient = await getSupabaseClient();
 
     // Check if setting exists
     const { data: existing } = await getSystemSetting('max_registered_users');

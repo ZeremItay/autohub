@@ -240,6 +240,8 @@ export default function ProjectsPage() {
 
   // Ref to prevent parallel calls to loadData
   const isLoadingDataRef = useRef(false);
+  // Ref to track if the operation was cancelled (timeout or unmount)
+  const isCancelledRef = useRef(false);
 
   const loadData = useCallback(async () => {
     // Prevent parallel calls
@@ -249,11 +251,13 @@ export default function ProjectsPage() {
     }
     
     isLoadingDataRef.current = true;
+    isCancelledRef.current = false; // Reset cancellation flag
     setLoading(true);
     
     // Add timeout to prevent hanging (Chrome-specific issue)
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
       console.warn('loadData taking too long, stopping loading state');
+      isCancelledRef.current = true; // Mark as cancelled
       setLoading(false);
       isLoadingDataRef.current = false; // CRITICAL: Reset ref on timeout
     }, 20000); // 20 seconds timeout
@@ -286,59 +290,76 @@ export default function ProjectsPage() {
         })
       ]);
       
+      // Check if operation was cancelled (timeout occurred)
+      if (isCancelledRef.current) {
+        console.log('loadData was cancelled, skipping state updates');
+        return;
+      }
+      
       // Extract results from Promise.allSettled
       const projectsRes = results[0].status === 'fulfilled' ? results[0].value : { data: null, error: results[0].reason };
       const eventsRes = results[1].status === 'fulfilled' ? results[1].value : { data: null, error: results[1].reason };
       const tagsRes = results[2].status === 'fulfilled' ? results[2].value : { data: null, error: results[2].reason };
       
-      if (tagsRes.data && Array.isArray(tagsRes.data)) {
-        setAvailableTags(tagsRes.data);
-      }
-
-      if (projectsRes.data) {
-        // Sort projects: closed projects go to the end
-        if (Array.isArray(projectsRes.data)) {
-          const sortedProjects = [...projectsRes.data].sort((a, b) => {
-            // If one is closed and the other is not, closed goes to the end
-            if (a.status === 'closed' && b.status !== 'closed') return 1;
-            if (a.status !== 'closed' && b.status === 'closed') return -1;
-            // Otherwise maintain original order (by created_at DESC from query)
-            return 0;
-          });
-          setProjects(sortedProjects);
-        } else {
-          setProjects([]);
+      if (!isCancelledRef.current) {
+        if (tagsRes.data && Array.isArray(tagsRes.data)) {
+          setAvailableTags(tagsRes.data);
         }
-      }
 
-      if (eventsRes.data) {
-        const now = new Date();
-        const upcoming = eventsRes.data
-          .filter((e: any) => {
-            if (!e.event_date) return false;
-            try {
-              const eventDate = new Date(e.event_date);
-              return !isNaN(eventDate.getTime()) && eventDate >= now;
-            } catch {
-              return false;
-            }
-          })
-          .slice(0, 3);
-        setUpcomingEvents(upcoming);
-      }
+        if (projectsRes.data) {
+          // Sort projects: closed projects go to the end
+          if (Array.isArray(projectsRes.data)) {
+            const sortedProjects = [...projectsRes.data].sort((a, b) => {
+              // If one is closed and the other is not, closed goes to the end
+              if (a.status === 'closed' && b.status !== 'closed') return 1;
+              if (a.status !== 'closed' && b.status === 'closed') return -1;
+              // Otherwise maintain original order (by created_at DESC from query)
+              return 0;
+            });
+            setProjects(sortedProjects);
+          } else {
+            setProjects([]);
+          }
+        }
 
-      // Mark loading as complete first, then load recent updates in background
-      setLoading(false);
-      
-      // Load recent updates in background (non-blocking)
-      loadRecentUpdates(eventsRes.data || []).catch(err => {
-        console.error('Error loading recent updates:', err);
-      });
+        if (eventsRes.data) {
+          const now = new Date();
+          const upcoming = eventsRes.data
+            .filter((e: any) => {
+              if (!e.event_date) return false;
+              try {
+                const eventDate = new Date(e.event_date);
+                return !isNaN(eventDate.getTime()) && eventDate >= now;
+              } catch {
+                return false;
+              }
+            })
+            .slice(0, 3);
+          setUpcomingEvents(upcoming);
+        }
+
+        // Mark loading as complete first, then load recent updates in background
+        setLoading(false);
+        
+        // Load recent updates in background (non-blocking)
+        loadRecentUpdates(eventsRes.data || []).catch(err => {
+          if (!isCancelledRef.current) {
+            console.error('Error loading recent updates:', err);
+          }
+        });
+      }
     } catch (error) {
-      console.error('Error loading data:', error);
-      setLoading(false);
+      // Only log error if not cancelled
+      if (!isCancelledRef.current) {
+        console.error('Error loading data:', error);
+        setLoading(false);
+      }
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
+      // Only update loading state if not cancelled
+      if (!isCancelledRef.current) {
+        setLoading(false);
+      }
       isLoadingDataRef.current = false;
     }
   }, []);
@@ -365,6 +386,8 @@ export default function ProjectsPage() {
 
     return () => {
       cancelled = true;
+      // Don't mark as cancelled here - only timeout should do that
+      // This prevents race conditions when dependencies change
       subscription.unsubscribe();
     };
   }, [loadData]);

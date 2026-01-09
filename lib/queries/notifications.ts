@@ -1,4 +1,4 @@
-import { createServerClient } from '../supabase-server';
+import { createServerClient, getSupabaseClient } from '../supabase-server';
 
 export interface Notification {
   id: string;
@@ -23,7 +23,7 @@ export async function getUserNotifications(
     maxNotifications?: number;
   }
 ) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   const limit = options?.limit || 50;
   const offset = options?.offset || 0;
   const maxNotifications = options?.maxNotifications || 60;
@@ -68,7 +68,7 @@ export async function getUserNotifications(
 
 // Get unread notifications count
 export async function getUnreadNotificationsCount(userId: string) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   
   const { count, error } = await supabase
     .from('notifications')
@@ -90,7 +90,7 @@ export async function getUnreadNotificationsCount(userId: string) {
 
 // Mark notification as read
 export async function markNotificationAsRead(notificationId: string) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   
   const { error } = await supabase
     .from('notifications')
@@ -107,7 +107,7 @@ export async function markNotificationAsRead(notificationId: string) {
 
 // Mark all notifications as read
 export async function markAllNotificationsAsRead(userId: string) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   
   const { error } = await supabase
     .from('notifications')
@@ -136,7 +136,7 @@ export async function createNotification(notification: Omit<Notification, 'id' |
   // Try to use API route if available (server-side), fallback to direct supabase call
   if (typeof window === 'undefined') {
     // Server-side: use direct supabase call
-    const supabase = createServerClient();
+    const supabase = await getSupabaseClient();
     const { data, error } = await supabase
       .from('notifications')
       .insert([notification])
@@ -273,7 +273,7 @@ export async function createNotification(notification: Omit<Notification, 'id' |
 
 // Delete a notification
 export async function deleteNotification(notificationId: string) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   
   const { error } = await supabase
     .from('notifications')
@@ -290,7 +290,7 @@ export async function deleteNotification(notificationId: string) {
 
 // Delete old notifications, keeping only the most recent ones
 export async function deleteOldNotifications(userId: string, keepCount: number = 60) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   
   try {
     // First, get all notification IDs ordered by created_at DESC

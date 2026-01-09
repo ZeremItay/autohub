@@ -80,6 +80,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const isLoadingUserRef = useRef(false);
+  // Ref to track if the operation was cancelled (timeout or unmount)
+  const isCancelledUserRef = useRef(false);
   const pathname = usePathname();
 
   const toggleProfileMenu = useCallback(() => {
@@ -220,16 +222,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       }
       
       isLoadingUserRef.current = true;
+      isCancelledUserRef.current = false; // Reset cancellation flag
       
       // Add timeout to prevent hanging
       let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
         console.warn('loadUser taking too long, checking session as fallback');
+        isCancelledUserRef.current = true; // Mark as cancelled
         // On timeout, check session and don't clear user if session exists
         supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session?.user) {
-            // Session exists - DON'T clear user, just keep current state or set minimal
-            // Only set minimal user if currentUser is null
-            if (!currentUser) {
+          // Check if operation was cancelled before updating state
+          if (isCancelledUserRef.current) {
+            // Only update if we don't have a user and session exists
+            if (session?.user && !currentUser) {
               const minimalUser = {
                 id: session.user.id,
                 user_id: session.user.id,
@@ -242,15 +246,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               if (typeof window !== 'undefined') {
                 localStorage.setItem('selectedUserId', session.user.id);
               }
-            }
-            // If currentUser already exists, don't touch it - just reset the ref
-          } else {
-            // No session - only then clear user
-            setCurrentUser(null);
-            setCurrentUserId(null);
-            setAvatarUrl(null);
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('selectedUserId');
+            } else if (!session?.user && !currentUser) {
+              // No session and no current user - only then clear
+              setCurrentUser(null);
+              setCurrentUserId(null);
+              setAvatarUrl(null);
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('selectedUserId');
+              }
             }
           }
           isLoadingUserRef.current = false;
@@ -265,6 +268,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         // Try to load user - simplified logic
         const { getCurrentUser } = await import('@/lib/utils/user');
         let user = await getCurrentUser();
+        
+        // Check if operation was cancelled (timeout occurred)
+        if (isCancelledUserRef.current) {
+          console.log('loadUser was cancelled, skipping state updates');
+          if (timeoutId) clearTimeout(timeoutId);
+          isLoadingUserRef.current = false;
+          return;
+        }
         
         if (timeoutId) clearTimeout(timeoutId);
         
@@ -282,12 +293,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }
         }
         
+        // Check again before processing user data
+        if (isCancelledUserRef.current) {
+          console.log('loadUser was cancelled before setting user, skipping');
+          return;
+        }
+        
         // CRITICAL: Only clear user state if there's no session
         // If session exists, keep the user (even if minimal)
         // NEVER clear user if currentUser already exists and session exists
         if (!user) {
           // Check session one more time before clearing
           const { data: { session } } = await supabase.auth.getSession();
+          
+          // Check if cancelled during session check
+          if (isCancelledUserRef.current) {
+            console.log('loadUser was cancelled during session check, skipping');
+            return;
+          }
+          
           if (!session?.user) {
             // No user and no session - only clear if currentUser is also null
             // This prevents clearing user state if we already have a user loaded
@@ -316,6 +340,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               return;
             }
           }
+        }
+
+        // Check again before setting user state
+        if (isCancelledUserRef.current) {
+          console.log('loadUser was cancelled before final state update, skipping');
+          return;
         }
 
         // Set user state
@@ -388,11 +418,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           localStorage.setItem('selectedUserId', user.user_id || user.id || '');
         }
       } catch (error: any) {
+        // Check if operation was cancelled before handling error
+        if (isCancelledUserRef.current) {
+          console.log('loadUser was cancelled, skipping error handling');
+          if (timeoutId) clearTimeout(timeoutId);
+          isLoadingUserRef.current = false;
+          return;
+        }
+        
         if (timeoutId) clearTimeout(timeoutId);
         
         // If error occurs, try to get user from session as fallback
         try {
           const { data: { session } } = await supabase.auth.getSession();
+          
+          // Check if cancelled during session check
+          if (isCancelledUserRef.current) {
+            console.log('loadUser was cancelled during error session check, skipping');
+            return;
+          }
+          
           if (session?.user) {
             // Use minimal user from session
             const minimalUser = {
@@ -412,8 +457,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }
         } catch (sessionError) {
           // Session check also failed - log error but don't block
-          const { logError } = await import('@/lib/utils/errorHandler');
-          logError(error, 'Layout:loadUser');
+          if (!isCancelledUserRef.current) {
+            const { logError } = await import('@/lib/utils/errorHandler');
+            logError(error, 'Layout:loadUser');
+          }
+        }
+        
+        // Check again before clearing user
+        if (isCancelledUserRef.current) {
+          console.log('loadUser was cancelled before clearing user, skipping');
+          return;
         }
         
         // CRITICAL: Only clear user state if there's no session
@@ -450,7 +503,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         }
       } finally {
         if (timeoutId) clearTimeout(timeoutId);
-        isLoadingUserRef.current = false;
+        // Only reset ref if not cancelled (timeout handler will reset it)
+        if (!isCancelledUserRef.current) {
+          isLoadingUserRef.current = false;
+        }
       }
     }
     loadUser();
@@ -515,6 +571,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
       window.removeEventListener('profileUpdated', handleProfileUpdate);
+      // Don't mark as cancelled here - only timeout should do that
+      // This prevents race conditions when component re-renders
     };
   }, []);
 

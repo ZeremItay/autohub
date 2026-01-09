@@ -42,6 +42,8 @@ export default function RecordingsPage() {
 
   // Ref to prevent parallel calls to loadRecordings
   const isLoadingRecordingsRef = useRef(false);
+  // Ref to track if the operation was cancelled (timeout or unmount)
+  const isCancelledRef = useRef(false);
 
   const loadRecordings = useCallback(async () => {
     // Prevent parallel calls
@@ -51,10 +53,12 @@ export default function RecordingsPage() {
     }
     
     isLoadingRecordingsRef.current = true;
+    isCancelledRef.current = false; // Reset cancellation flag
     
     // Add timeout to prevent hanging (Chrome-specific issue)
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
       console.warn('loadRecordings taking too long, stopping loading state');
+      isCancelledRef.current = true; // Mark as cancelled
       setLoading(false);
       setPaginationLoading(false);
       isLoadingRecordingsRef.current = false; // CRITICAL: Reset ref on timeout
@@ -76,6 +80,12 @@ export default function RecordingsPage() {
     
     try {
       const { data, totalCount: total, error: fetchError } = await getRecordingsPaginated(currentPage, itemsPerPage, sortBy)
+      
+      // Check if operation was cancelled (timeout occurred)
+      if (isCancelledRef.current) {
+        console.log('loadRecordings was cancelled, skipping state updates');
+        return;
+      }
       
       if (fetchError) {
         setError('שגיאה בטעינת ההקלטות. אנא נסה שוב.')
@@ -105,6 +115,12 @@ export default function RecordingsPage() {
           })
         }
         
+        // Check again before updating state
+        if (isCancelledRef.current) {
+          console.log('loadRecordings was cancelled before state update, skipping');
+          return;
+        }
+        
         setRecordings(processed)
         setTotalCount(total || 0)
         
@@ -112,6 +128,12 @@ export default function RecordingsPage() {
         if (processed.length > 0) {
           const recordingIds = processed.map((r: any) => r.id)
           const { data: tagsData } = await getTagsByContentBatch('recording', recordingIds)
+          
+          // Check again before updating tags
+          if (isCancelledRef.current) {
+            console.log('loadRecordings was cancelled before tags update, skipping');
+            return;
+          }
           
           // Group tags by recording ID
           const tagsMap: Record<string, Tag[]> = {}
@@ -136,13 +158,19 @@ export default function RecordingsPage() {
         setRecordingTags({})
       }
     } catch (err: any) {
-      setError('שגיאה בטעינת ההקלטות. אנא נסה שוב.')
-      console.error('Error loading recordings:', err)
+      // Only update error state if not cancelled
+      if (!isCancelledRef.current) {
+        setError('שגיאה בטעינת ההקלטות. אנא נסה שוב.')
+        console.error('Error loading recordings:', err)
+      }
       // Don't clear recordings on error - keep showing previous page
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
-      setLoading(false);
-      setPaginationLoading(false);
+      // Only update loading state if not cancelled
+      if (!isCancelledRef.current) {
+        setLoading(false);
+        setPaginationLoading(false);
+      }
       isLoadingRecordingsRef.current = false;
     }
   }, [currentPage, sortBy, itemsPerPage])
@@ -159,6 +187,8 @@ export default function RecordingsPage() {
     
     return () => {
       cancelled = true;
+      // Don't mark as cancelled here - only timeout should do that
+      // This prevents race conditions when dependencies change
     };
   }, [loadRecordings])
 

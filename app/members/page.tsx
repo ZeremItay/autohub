@@ -36,6 +36,8 @@ function MembersPageContent() {
 
   // Ref to prevent parallel calls to loadMembers
   const isLoadingMembersRef = useRef(false);
+  // Ref to track if the operation was cancelled (timeout or unmount)
+  const isCancelledRef = useRef(false);
 
   const loadMembers = useCallback(async () => {
     // Prevent parallel calls
@@ -45,16 +47,24 @@ function MembersPageContent() {
     }
     
     isLoadingMembersRef.current = true;
+    isCancelledRef.current = false; // Reset cancellation flag
     setLoading(true)
     // Add timeout to prevent hanging
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
       console.warn('loadMembers taking too long, stopping loading state');
+      isCancelledRef.current = true; // Mark as cancelled
       setLoading(false);
       isLoadingMembersRef.current = false; // CRITICAL: Reset ref on timeout
     }, 15000); // 15 seconds timeout
     
     try {
       const { data, error } = await getAllProfiles()
+      
+      // Check if operation was cancelled (timeout occurred)
+      if (isCancelledRef.current) {
+        console.log('loadMembers was cancelled, skipping state updates');
+        return;
+      }
       
       if (timeoutId) clearTimeout(timeoutId);
       
@@ -72,21 +82,46 @@ function MembersPageContent() {
         } else if (sortBy === 'rank') {
           sorted.sort((a, b) => (a.rank || 0) - (b.rank || 0))
         }
+        
+        // Check again before updating state
+        if (isCancelledRef.current) {
+          console.log('loadMembers was cancelled before state update, skipping');
+          return;
+        }
+        
         setMembers(sorted)
       }
     } catch (error) {
-      console.error('Error loading members:', error)
+      // Only log error if not cancelled
+      if (!isCancelledRef.current) {
+        console.error('Error loading members:', error)
+      }
       if (timeoutId) clearTimeout(timeoutId);
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
-      setLoading(false);
+      // Only update loading state if not cancelled
+      if (!isCancelledRef.current) {
+        setLoading(false);
+      }
       isLoadingMembersRef.current = false;
     }
   }, [sortBy])
 
   useEffect(() => {
-    loadMembers()
-    loadCurrentUser()
+    let cancelled = false;
+    
+    loadMembers().catch(error => {
+      if (!cancelled) {
+        console.error('Error in loadMembers effect:', error);
+      }
+    });
+    loadCurrentUser();
+    
+    return () => {
+      cancelled = true;
+      // Don't mark as cancelled here - only timeout should do that
+      // This prevents race conditions when dependencies change
+    };
   }, [loadMembers]) // loadMembers is now useCallback with sortBy dependency
 
   async function loadCurrentUser() {

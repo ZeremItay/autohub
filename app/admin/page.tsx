@@ -922,6 +922,9 @@ export default function AdminPanel() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
   const router = useRouter()
+  
+  // Ref to track if the operation was cancelled (timeout or unmount)
+  const isCancelledRef = useRef(false)
 
   useEffect(() => {
     let retryCount = 0
@@ -949,7 +952,18 @@ export default function AdminPanel() {
 
   useEffect(() => {
     if (isAuthorized === true) {
-      loadData()
+      let cancelled = false;
+      loadData().catch(error => {
+        if (!cancelled) {
+          console.error('Error in loadData effect:', error);
+        }
+      });
+      
+      return () => {
+        cancelled = true;
+        // Don't mark as cancelled here - only timeout should do that
+        // This prevents race conditions when dependencies change
+      };
     }
   }, [activeTab, isAuthorized])
 
@@ -1129,16 +1143,24 @@ export default function AdminPanel() {
   }
 
   async function loadData() {
+    isCancelledRef.current = false; // Reset cancellation flag
     setLoading(true)
     // Add timeout to prevent hanging
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
       console.warn('loadData taking too long, stopping loading state');
+      isCancelledRef.current = true; // Mark as cancelled
       setLoading(false);
     }, 30000); // 30 seconds timeout for data loading
     
     try {
       if (activeTab === 'users') {
         const { data } = await getAllProfiles()
+        
+        // Check if operation was cancelled (timeout occurred)
+        if (isCancelledRef.current) {
+          console.log('loadData was cancelled, skipping state updates');
+          return;
+        }
         // Data already includes roles from the query
         const usersData = Array.isArray(data) ? data : []
         setUsers(usersData)
@@ -1337,11 +1359,17 @@ export default function AdminPanel() {
         }
       }
     } catch (error) {
-      console.error('Error loading data:', error)
+      // Only log error if not cancelled
+      if (!isCancelledRef.current) {
+        console.error('Error loading data:', error)
+      }
       if (timeoutId) clearTimeout(timeoutId)
     } finally {
       if (timeoutId) clearTimeout(timeoutId)
-      setLoading(false)
+      // Only update loading state if not cancelled
+      if (!isCancelledRef.current) {
+        setLoading(false)
+      }
     }
   }
 

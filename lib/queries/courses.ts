@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase-server';
+import { createServerClient, getSupabaseClient } from '@/lib/supabase-server';
 import { supabase } from '@/lib/supabase';
 
 export interface Course {
@@ -87,7 +87,7 @@ export interface CourseLesson {
 
 // Get all courses
 export async function getAllCourses(userId?: string, includeDrafts: boolean = false) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   let query = supabase
     .from('courses')
     .select('*');
@@ -168,7 +168,7 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
 
 // Get courses by category
 export async function getCoursesByCategory(category: string, userId?: string, includeDrafts: boolean = false) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   let query = supabase
     .from('courses')
     .select('*')
@@ -249,7 +249,7 @@ export async function getCoursesByCategory(category: string, userId?: string, in
 
 // Get courses in progress (user has started)
 export async function getCoursesInProgress(userId: string) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   const { data: progressData, error: progressError } = await supabase
     .from('course_progress')
     .select(`
@@ -273,7 +273,7 @@ export async function getCoursesInProgress(userId: string) {
 
 // Get course by ID
 export async function getCourseById(courseId: string, userId?: string) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from('courses')
     .select('*')
@@ -654,24 +654,8 @@ export async function createCourseSection(section: Omit<CourseSection, 'id' | 'c
 
 // Get lessons for a course
 export async function getCourseLessons(courseId: string) {
-  // Try to use client-side supabase first (for client components)
-  // Fall back to server client if needed
-  let supabaseClient;
-  
-  try {
-    // Check if we're in a browser environment
-    if (typeof window !== 'undefined') {
-      supabaseClient = supabase;
-      console.log('Using client-side supabase for getCourseLessons');
-    } else {
-      supabaseClient = createServerClient();
-      console.log('Using server-side supabase for getCourseLessons');
-    }
-  } catch (e) {
-    console.error('Error initializing supabase client:', e);
-    // Fallback to server client
-    supabaseClient = createServerClient();
-  }
+  // Use getSupabaseClient which automatically chooses the right client
+  const supabaseClient = await getSupabaseClient();
   
   console.log('Loading lessons for course:', courseId);
   
@@ -967,7 +951,7 @@ export async function deleteCourse(id: string) {
 
 // Update course progress
 export async function updateCourseProgress(courseId: string, userId: string, progress: number) {
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   
   // Check if progress exists
   const { data: existing } = await supabase

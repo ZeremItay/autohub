@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { createServerClient } from '../supabase-server';
+import { createServerClient, getSupabaseClient } from '../supabase-server';
 
 export interface Resource {
   id: string;
@@ -76,8 +76,8 @@ export async function getResourcesWithDetails(userId?: string, cookieStore?: any
             const cookieStoreInstance = await cookies();
             supabaseClient = createServerClient(cookieStoreInstance);
           } catch (e) {
-            // Fallback to createServerClient without cookies (uses service role if available)
-            supabaseClient = createServerClient();
+            // Fallback to getSupabaseClient (uses singleton, service role if available)
+            supabaseClient = await getSupabaseClient();
           }
         }
       }
@@ -87,7 +87,7 @@ export async function getResourcesWithDetails(userId?: string, cookieStore?: any
       if (cookieStore) {
         supabaseClient = createServerClient(cookieStore);
       } else {
-        supabaseClient = createServerClient();
+        supabaseClient = await getSupabaseClient();
       }
     }
 

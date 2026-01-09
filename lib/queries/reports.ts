@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { createServerClient } from '../supabase-server';
+import { createServerClient, getSupabaseClient } from '../supabase-server';
 
 export interface Report {
   id: string;
@@ -169,8 +169,8 @@ export async function createReport(data: {
   created_at?: string;
 }) {
   try {
-    // Use server client for admin operations
-    const supabaseServer = createServerClient();
+    // Use appropriate client based on environment
+    const supabaseServer = await getSupabaseClient();
 
     const insertData: any = {
       title: data.title,
@@ -263,7 +263,7 @@ export async function updateReport(id: string, data: {
   is_published?: boolean;
 }) {
   try {
-    const supabaseServer = createServerClient();
+    const supabaseServer = await getSupabaseClient();
 
     const { data: reportData, error } = await supabaseServer
       .from('reports')
@@ -290,7 +290,7 @@ export async function updateReport(id: string, data: {
 // Delete a report (admin only)
 export async function deleteReport(id: string) {
   try {
-    const supabaseServer = createServerClient();
+    const supabaseServer = await getSupabaseClient();
 
     const { error } = await supabaseServer
       .from('reports')
@@ -312,7 +312,7 @@ export async function deleteReport(id: string) {
 // Get all reports for admin panel (including unpublished)
 export async function getAllReportsForAdmin() {
   try {
-    const supabaseServer = createServerClient();
+    const supabaseServer = await getSupabaseClient();
 
     // First get all reports
     const { data: reports, error: reportsError } = await supabaseServer

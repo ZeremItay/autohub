@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { createServerClient } from '../supabase-server';
+import { createServerClient, getSupabaseClient } from '../supabase-server';
 
 export interface BlogPost {
   id: string;
@@ -201,7 +201,7 @@ export async function getBlogPostById(id: string) {
 // Create blog post (admin only)
 export async function createBlogPost(post: Omit<BlogPost, 'id' | 'created_at' | 'updated_at' | 'views' | 'likes_count'>) {
   // Use server client to bypass RLS or use service role key
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   
   // Validate required fields
   if (!post.title || post.title.trim() === '') {
@@ -313,7 +313,7 @@ export async function createBlogPost(post: Omit<BlogPost, 'id' | 'created_at' | 
 // Update blog post (admin only)
 export async function updateBlogPost(id: string, updates: Partial<BlogPost>) {
   // Use server client to bypass RLS or use service role key
-  const supabase = createServerClient();
+  const supabase = await getSupabaseClient();
   
   const { data, error } = await supabase
     .from('blog_posts')

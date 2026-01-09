@@ -89,6 +89,8 @@ export default function Home() {
 
   // Ref to prevent parallel calls to loadData
   const isLoadingDataRef = useRef(false);
+  // Ref to track if the operation was cancelled (timeout or unmount)
+  const isCancelledRef = useRef(false);
 
   const loadData = useCallback(async () => {
     // Prevent parallel calls
@@ -98,11 +100,13 @@ export default function Home() {
     }
     
     isLoadingDataRef.current = true;
+    isCancelledRef.current = false; // Reset cancellation flag
     setLoading(true);
     
     // Add timeout to prevent hanging (Chrome-specific issue)
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
       console.warn('loadData taking too long, stopping loading state');
+      isCancelledRef.current = true; // Mark as cancelled
       setLoading(false);
       isLoadingDataRef.current = false; // CRITICAL: Reset ref on timeout
     }, 20000); // 20 seconds timeout
@@ -144,6 +148,12 @@ export default function Home() {
         })
       ]);
       
+      // Check if operation was cancelled (timeout occurred)
+      if (isCancelledRef.current) {
+        console.log('loadData was cancelled, skipping state updates');
+        return;
+      }
+      
       // Extract results from Promise.allSettled
       const postsResult = results[0].status === 'fulfilled' ? results[0].value : { data: null, error: results[0].reason };
       const profilesResult = results[1].status === 'fulfilled' ? results[1].value : { data: null, error: results[1].reason };
@@ -167,7 +177,9 @@ export default function Home() {
             try {
               const postIds = adminPosts.map((post: any) => post.id);
               const { likedMap, error } = await checkUserLikedPosts(postIds, userId);
-              if (!error && likedMap) {
+              
+              // Check if cancelled before updating state
+              if (!isCancelledRef.current && !error && likedMap) {
                 setLikedPosts(likedMap);
               }
             } catch (error) {
@@ -175,39 +187,54 @@ export default function Home() {
             }
           }
         }
+        
+        // Check again before updating announcements
+        if (!isCancelledRef.current) {
+          setAnnouncements(adminPosts);
+        }
       } else {
-        setAnnouncements([]);
+        if (!isCancelledRef.current) {
+          setAnnouncements([]);
+        }
       }
 
       // Process profiles
-      if (profilesResult?.data && Array.isArray(profilesResult.data)) {
-        setFriends(profilesResult.data);
-        setProfiles(profilesResult.data);
-      } else {
-        setProfiles([]);
-        setFriends([]);
+      if (!isCancelledRef.current) {
+        if (profilesResult?.data && Array.isArray(profilesResult.data)) {
+          setFriends(profilesResult.data);
+          setProfiles(profilesResult.data);
+        } else {
+          setProfiles([]);
+          setFriends([]);
+        }
       }
 
       // Process events
-      if (eventsResult?.data && Array.isArray(eventsResult.data)) {
-        setUpcomingEvents(eventsResult.data);
-      } else {
-        setUpcomingEvents([]);
+      if (!isCancelledRef.current) {
+        if (eventsResult?.data && Array.isArray(eventsResult.data)) {
+          setUpcomingEvents(eventsResult.data);
+        } else {
+          setUpcomingEvents([]);
+        }
       }
 
       // Load news
-      if (newsResult?.data && Array.isArray(newsResult.data)) {
-        setNews(newsResult.data);
-      } else {
-        setNews([]);
+      if (!isCancelledRef.current) {
+        if (newsResult?.data && Array.isArray(newsResult.data)) {
+          setNews(newsResult.data);
+        } else {
+          setNews([]);
+        }
       }
 
       // Load reports
-      if (reportsResult?.data && Array.isArray(reportsResult.data) && reportsResult.data.length > 0) {
-        const publishedReports = reportsResult.data.filter((r: any) => r.is_published === true);
-        setReports(publishedReports);
-      } else {
-        setReports([]);
+      if (!isCancelledRef.current) {
+        if (reportsResult?.data && Array.isArray(reportsResult.data) && reportsResult.data.length > 0) {
+          const publishedReports = reportsResult.data.filter((r: any) => r.is_published === true);
+          setReports(publishedReports);
+        } else {
+          setReports([]);
+        }
       }
 
       // Load recent updates in background
@@ -215,10 +242,16 @@ export default function Home() {
         // Silently fail
       });
     } catch (error) {
-      console.error('Error loading data:', error);
+      // Only log error if not cancelled
+      if (!isCancelledRef.current) {
+        console.error('Error loading data:', error);
+      }
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
-      setLoading(false);
+      // Only update loading state if not cancelled
+      if (!isCancelledRef.current) {
+        setLoading(false);
+      }
       isLoadingDataRef.current = false;
     }
   }, [currentUser]);
@@ -232,6 +265,12 @@ export default function Home() {
         console.error('Error in loadData effect:', error);
       }
     });
+    
+    return () => {
+      cancelled = true;
+      // Don't mark as cancelled here - only timeout should do that
+      // This prevents race conditions when dependencies change
+    };
     
     // Handle hash navigation (for notifications linking to posts)
     const handleHashChange = () => {

@@ -56,6 +56,8 @@ function ForumDetailPageContent() {
 
   // Ref to prevent parallel calls to loadPosts
   const isLoadingPostsRef = useRef(false);
+  // Ref to track if the operation was cancelled (timeout or unmount)
+  const isCancelledRef = useRef(false);
 
   // Memoize load functions to prevent unnecessary re-renders and race conditions
   const loadCurrentUser = useCallback(async () => {
@@ -116,25 +118,40 @@ function ForumDetailPageContent() {
     }
     
     isLoadingPostsRef.current = true;
+    isCancelledRef.current = false; // Reset cancellation flag
     setLoading(true);
     
     // Add timeout to prevent hanging (Chrome-specific issue)
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
       console.warn('loadPosts taking too long, stopping loading state');
+      isCancelledRef.current = true; // Mark as cancelled
       setLoading(false);
       isLoadingPostsRef.current = false; // CRITICAL: Reset ref on timeout
     }, 20000); // 20 seconds timeout
     
     try {
       const { data, error } = await getForumPosts(forumId);
+      
+      // Check if operation was cancelled (timeout occurred)
+      if (isCancelledRef.current) {
+        console.log('loadPosts was cancelled, skipping state updates');
+        return;
+      }
+      
       if (!error && data) {
         setPosts(data);
       }
     } catch (error) {
-      console.error('Error loading posts:', error);
+      // Only log error if not cancelled
+      if (!isCancelledRef.current) {
+        console.error('Error loading posts:', error);
+      }
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
-      setLoading(false);
+      // Only update loading state if not cancelled
+      if (!isCancelledRef.current) {
+        setLoading(false);
+      }
       isLoadingPostsRef.current = false;
     }
   }, [forumId]);
@@ -177,6 +194,8 @@ function ForumDetailPageContent() {
     
     return () => {
       cancelled = true;
+      // Don't mark as cancelled here - only timeout should do that
+      // This prevents race conditions when dependencies change
     };
   }, [forumId, loadForum, loadPosts, loadCurrentUser, loadAllForums]);
 
