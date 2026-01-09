@@ -108,14 +108,47 @@ export default function Home() {
     }, 20000); // 20 seconds timeout
     
     try {
-      // Load all data in parallel for better performance
-      const [postsResult, profilesResult, eventsResult, newsResult, reportsResult] = await Promise.all([
-        getPosts(),
-        getAllProfiles(),
-        getUpcomingEvents(5),
-        getActiveNews(),
-        getAllReports(10)
+      // Helper function to add timeout to promises
+      const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, name: string): Promise<T> => {
+        return Promise.race([
+          promise,
+          new Promise<T>((_, reject) => 
+            setTimeout(() => reject(new Error(`${name} timeout after ${timeoutMs}ms`)), timeoutMs)
+          )
+        ]);
+      };
+      
+      // Load all data in parallel with individual timeouts
+      // Use Promise.allSettled so one failure doesn't block others
+      const results = await Promise.allSettled([
+        withTimeout(getPosts(), 8000, 'getPosts').catch(err => {
+          console.error('getPosts failed:', err);
+          return { data: null, error: err };
+        }),
+        withTimeout(getAllProfiles(), 8000, 'getAllProfiles').catch(err => {
+          console.error('getAllProfiles failed:', err);
+          return { data: null, error: err };
+        }),
+        withTimeout(getUpcomingEvents(5), 8000, 'getUpcomingEvents').catch(err => {
+          console.error('getUpcomingEvents failed:', err);
+          return { data: null, error: err };
+        }),
+        withTimeout(getActiveNews(), 8000, 'getActiveNews').catch(err => {
+          console.error('getActiveNews failed:', err);
+          return { data: null, error: err };
+        }),
+        withTimeout(getAllReports(10), 8000, 'getAllReports').catch(err => {
+          console.error('getAllReports failed:', err);
+          return { data: null, error: err };
+        })
       ]);
+      
+      // Extract results from Promise.allSettled
+      const postsResult = results[0].status === 'fulfilled' ? results[0].value : { data: null, error: results[0].reason };
+      const profilesResult = results[1].status === 'fulfilled' ? results[1].value : { data: null, error: results[1].reason };
+      const eventsResult = results[2].status === 'fulfilled' ? results[2].value : { data: null, error: results[2].reason };
+      const newsResult = results[3].status === 'fulfilled' ? results[3].value : { data: null, error: results[3].reason };
+      const reportsResult = results[4].status === 'fulfilled' ? results[4].value : { data: null, error: results[4].reason };
 
       // Process announcements
       if (postsResult?.data && Array.isArray(postsResult.data)) {

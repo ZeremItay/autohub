@@ -259,12 +259,37 @@ export default function ProjectsPage() {
     }, 20000); // 20 seconds timeout
     
     try {
-      // Load only essential data first
-      const [projectsRes, eventsRes, tagsRes] = await Promise.all([
-        getAllProjects(),
-        getAllEvents(),
-        getAllTags(false) // Only approved tags
+      // Helper function to add timeout to promises
+      const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, name: string): Promise<T> => {
+        return Promise.race([
+          promise,
+          new Promise<T>((_, reject) => 
+            setTimeout(() => reject(new Error(`${name} timeout after ${timeoutMs}ms`)), timeoutMs)
+          )
+        ]);
+      };
+      
+      // Load only essential data first with individual timeouts
+      // Use Promise.allSettled so one failure doesn't block others
+      const results = await Promise.allSettled([
+        withTimeout(getAllProjects(), 8000, 'getAllProjects').catch(err => {
+          console.error('getAllProjects failed:', err);
+          return { data: null, error: err };
+        }),
+        withTimeout(getAllEvents(), 8000, 'getAllEvents').catch(err => {
+          console.error('getAllEvents failed:', err);
+          return { data: null, error: err };
+        }),
+        withTimeout(getAllTags(false), 8000, 'getAllTags').catch(err => {
+          console.error('getAllTags failed:', err);
+          return { data: null, error: err };
+        })
       ]);
+      
+      // Extract results from Promise.allSettled
+      const projectsRes = results[0].status === 'fulfilled' ? results[0].value : { data: null, error: results[0].reason };
+      const eventsRes = results[1].status === 'fulfilled' ? results[1].value : { data: null, error: results[1].reason };
+      const tagsRes = results[2].status === 'fulfilled' ? results[2].value : { data: null, error: results[2].reason };
       
       if (tagsRes.data && Array.isArray(tagsRes.data)) {
         setAvailableTags(tagsRes.data);

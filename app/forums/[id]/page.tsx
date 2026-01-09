@@ -144,12 +144,31 @@ function ForumDetailPageContent() {
     
     let cancelled = false;
     
-    // Load all data in parallel
-    Promise.all([
-      loadForum(),
-      loadPosts(),
-      loadCurrentUser(),
-      loadAllForums()
+    // Helper function to add timeout to promises
+    const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, name: string): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<T>((_, reject) => 
+          setTimeout(() => reject(new Error(`${name} timeout after ${timeoutMs}ms`)), timeoutMs)
+        )
+      ]);
+    };
+    
+    // Load all data in parallel with individual timeouts
+    // Use Promise.allSettled so one failure doesn't block others
+    Promise.allSettled([
+      withTimeout(loadForum(), 8000, 'loadForum').catch(err => {
+        if (!cancelled) console.error('loadForum failed:', err);
+      }),
+      withTimeout(loadPosts(), 8000, 'loadPosts').catch(err => {
+        if (!cancelled) console.error('loadPosts failed:', err);
+      }),
+      withTimeout(loadCurrentUser(), 8000, 'loadCurrentUser').catch(err => {
+        if (!cancelled) console.error('loadCurrentUser failed:', err);
+      }),
+      withTimeout(loadAllForums(), 8000, 'loadAllForums').catch(err => {
+        if (!cancelled) console.error('loadAllForums failed:', err);
+      })
     ]).catch(error => {
       if (!cancelled) {
         console.error('Error loading forum data:', error);
