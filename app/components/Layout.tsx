@@ -176,9 +176,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Load current user from Supabase session
   useEffect(() => {
     async function loadUser() {
+      let timeoutId: NodeJS.Timeout | null = null;
       try {
         // Add timeout to prevent hanging - increased to 15 seconds
-        let timeoutId: NodeJS.Timeout | null = null;
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutId = setTimeout(() => reject(new Error('Load user timeout')), 15000); // 15 seconds timeout
         });
