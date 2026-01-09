@@ -37,7 +37,21 @@ export interface ProfileWithRole extends Profile {
 
 // Get profile by user_id with role
 export async function getProfile(userId: string) {
-  const { data, error } = await supabase
+  // Check cache first
+  const cacheKey = `profile:${userId}`;
+  const cached = getCached(cacheKey);
+  if (cached) {
+    return { data: cached, error: null };
+  }
+
+  // Add timeout to prevent hanging
+  const timeoutPromise = new Promise<{ data: null, error: any }>((resolve) => {
+    setTimeout(() => {
+      resolve({ data: null, error: { message: 'Profile query timeout', code: 'TIMEOUT' } });
+    }, 5000); // 5 second timeout
+  });
+
+  const queryPromise = supabase
     .from('profiles')
     .select(`
       *,
@@ -50,15 +64,32 @@ export async function getProfile(userId: string) {
     `)
     .eq('user_id', userId)
     .single()
+    .then(({ data, error }: any) => {
+      if (error) {
+        if (!isNotFoundError(error)) {
+          logError(error, 'getProfileById');
+        }
+        return { data: null, error };
+      }
+      
+      // Cache the result
+      if (data) {
+        setCached(cacheKey, data, CACHE_TTL.MEDIUM);
+      }
+      
+      return { data, error: null };
+    });
+
+  // Race between query and timeout
+  const result = await Promise.race([queryPromise, timeoutPromise]);
   
-  if (error) {
-    if (!isNotFoundError(error)) {
-      logError(error, 'getProfileById');
-    }
-    return { data: null, error }
+  // If timeout, return minimal error (don't throw)
+  if (result.error?.code === 'TIMEOUT') {
+    console.warn('getProfile timeout for userId:', userId);
+    return { data: null, error: result.error };
   }
   
-  return { data, error: null }
+  return result;
 }
 
 // Get profile by id (primary key) with role

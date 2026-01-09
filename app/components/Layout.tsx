@@ -217,7 +217,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Load current user from Supabase session
+  // Only run once on mount - don't re-run on every render
   useEffect(() => {
+    let mounted = true;
+    
     async function loadUser() {
       // Prevent parallel calls
       if (isLoadingUserRef.current) {
@@ -266,7 +269,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           // On error, don't clear user - keep current state
           isLoadingUserRef.current = false;
         });
-      }, 15000); // 15 seconds timeout
+      }, 8000); // 8 seconds timeout - reduced from 15
       
       try {
         // Try to load user - simplified logic
@@ -521,7 +524,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         }
       }
     }
-    loadUser();
+    // Only load user if component is still mounted
+    if (mounted) {
+      loadUser();
+    }
 
     // Listen for auth state changes
     // CRITICAL: Add guard to prevent infinite loops
@@ -600,12 +606,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     window.addEventListener('profileUpdated', handleProfileUpdate);
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
       window.removeEventListener('profileUpdated', handleProfileUpdate);
       // Don't mark as cancelled here - only timeout should do that
       // This prevents race conditions when component re-renders
     };
-  }, []);
+  }, []); // Empty deps - only run once on mount
 
   // Load notifications - do this in background after initial load
   useEffect(() => {

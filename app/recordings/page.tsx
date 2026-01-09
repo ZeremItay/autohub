@@ -70,7 +70,10 @@ export default function RecordingsPage() {
     const timeoutStartTime = Date.now();
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
       const timeoutDuration = Date.now() - timeoutStartTime;
-      console.warn('loadRecordings taking too long, stopping loading state');
+      // Only log if not already cancelled (to reduce console spam)
+      if (!isCancelledRef.current) {
+        console.warn('loadRecordings taking too long, stopping loading state');
+      }
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:60',message:'TIMEOUT TRIGGERED',data:{timeoutDuration,isCancelled:isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
       // #endregion
