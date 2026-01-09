@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAllRecordings } from '@/lib/queries/recordings';
+import { getRecordingsPaginated } from '@/lib/queries/recordings';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { isPremiumUser } from '@/lib/utils/user';
 import { formatDate } from '@/lib/utils/date';
@@ -34,12 +34,13 @@ export default function RecordingsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [activeFilter, setActiveFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 6
 
   useEffect(() => {
     // Load recordings immediately, don't wait for user
     loadRecordings()
-  }, [sortBy])
+  }, [sortBy, currentPage])
 
   function handleRecordingClick(recordingId: string) {
     if (!userIsPremium) {
@@ -52,33 +53,29 @@ export default function RecordingsPage() {
   async function loadRecordings() {
     setLoading(true)
     try {
-      const { data, error } = await getAllRecordings()
+      const { data, totalCount: total, error } = await getRecordingsPaginated(currentPage, itemsPerPage, sortBy)
       if (!error && data) {
-        // Data is already sorted by created_at DESC from the query
-        // Just apply additional sorting if needed
-        let sorted = Array.isArray(data) ? [...data] : []
-        if (sortBy === 'views') {
-          sorted.sort((a, b) => (b.views || 0) - (a.views || 0))
-        }
-        // For 'recently-active', data is already sorted by created_at DESC from query
+        // Data is already sorted by the query
+        let processed = Array.isArray(data) ? [...data] : []
         
-        // Optimize: Find newest recording in one pass during sort
-        if (sorted.length > 0 && sortBy === 'recently-active') {
+        // Mark new recordings (within last 30 days)
+        if (processed.length > 0 && sortBy === 'recently-active') {
           const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000)
-          // First recording is already the newest (sorted by created_at DESC)
-          const newestRecording = sorted[0]
-          const newestDate = new Date(newestRecording.created_at || newestRecording.updated_at || 0).getTime()
-          
-          if (newestDate > thirtyDaysAgo) {
-            sorted[0] = { ...sorted[0], is_new: true }
-          }
+          processed = processed.map(recording => {
+            const date = new Date(recording.created_at || recording.updated_at || 0).getTime()
+            if (date > thirtyDaysAgo) {
+              return { ...recording, is_new: true }
+            }
+            return recording
+          })
         }
         
-        setRecordings(sorted)
+        setRecordings(processed)
+        setTotalCount(total || 0)
         
-        // Load tags for all recordings in batch (much faster than individual queries)
-        if (sorted.length > 0) {
-          const recordingIds = sorted.map((r: any) => r.id)
+        // Load tags only for current page recordings (much faster)
+        if (processed.length > 0) {
+          const recordingIds = processed.map((r: any) => r.id)
           const { data: tagsData } = await getTagsByContentBatch('recording', recordingIds)
           
           // Group tags by recording ID
@@ -103,7 +100,8 @@ export default function RecordingsPage() {
     }
   }
 
-  // Get unique tags from all recordings - memoized for performance
+  // Get unique tags from current page recordings - memoized for performance
+  // Note: With pagination, we only have tags for current page, so filter options are limited
   const allTags = useMemo(() => {
     const tagSet = new Set<string>()
     Object.values(recordingTags).forEach(tags => {
@@ -112,8 +110,9 @@ export default function RecordingsPage() {
     return ['all', ...Array.from(tagSet).sort()]
   }, [recordingTags])
 
-  // Filter recordings based on search and tags - memoized for performance
-  const filteredRecordings = useMemo(() => {
+  // Filter recordings on current page based on search and tags - memoized for performance
+  // Note: With server-side pagination, filtering is limited to current page
+  const filteredRecordingsOnPage = useMemo(() => {
     return recordings.filter(recording => {
       // Filter by tag
       if (activeFilter !== 'all') {
@@ -135,16 +134,14 @@ export default function RecordingsPage() {
     })
   }, [recordings, recordingTags, activeFilter, searchQuery])
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredRecordings.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const paginatedRecordings = filteredRecordings.slice(startIndex, endIndex)
+  // Pagination calculations - use totalCount from server for total pages
+  const totalPages = Math.ceil(totalCount / itemsPerPage)
+  const paginatedRecordings = filteredRecordingsOnPage
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters or sort change
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeFilter, searchQuery])
+  }, [activeFilter, searchQuery, sortBy])
 
 
   return (
@@ -186,8 +183,8 @@ export default function RecordingsPage() {
               onClick={() => handleRecordingClick(recording.id)}
               className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer group relative flex flex-col h-full"
             >
-              {/* Show lock overlay only when user loading is complete and user is not premium */}
-              {!userLoading && !userIsPremium ? (
+              {/* Show lock overlay only when user loading is complete, user is logged in, and user is not premium */}
+              {!userLoading && currentUser && !userIsPremium ? (
                 <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center rounded-xl">
                   <div className="text-center text-white p-4">
                     <Lock className="w-8 h-8 mx-auto mb-2" />
@@ -309,7 +306,7 @@ export default function RecordingsPage() {
         </div>
 
         {/* Empty State */}
-        {filteredRecordings.length === 0 && !loading && (
+        {paginatedRecordings.length === 0 && !loading && (
           <div className="text-center py-12">
             <Play className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">לא נמצאו הקלטות</p>
@@ -337,7 +334,7 @@ export default function RecordingsPage() {
         )}
 
         {/* Pagination */}
-        {filteredRecordings.length > itemsPerPage && !loading && (
+        {totalPages > 1 && !loading && (
           <div className="mt-8 flex flex-col items-center justify-center gap-4">
             <div className="flex items-center justify-center gap-4 w-full">
               <button
@@ -401,9 +398,9 @@ export default function RecordingsPage() {
         )}
 
         {/* Page Info */}
-        {filteredRecordings.length > 0 && !loading && (
+        {paginatedRecordings.length > 0 && !loading && (
           <div className="mt-4 text-center text-sm text-gray-600">
-            מציג {startIndex + 1}-{Math.min(endIndex, filteredRecordings.length)} מתוך {filteredRecordings.length} הקלטות
+            מציג {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} מתוך {totalCount} הקלטות
           </div>
         )}
       </div>

@@ -177,11 +177,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadUser() {
       try {
-        // Add timeout to prevent hanging
+        // Add timeout to prevent hanging - increased to 15 seconds
         let timeoutId: NodeJS.Timeout | null = null;
         const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('Load user timeout')), 8000) // 8 seconds timeout
-        })
+          timeoutId = setTimeout(() => reject(new Error('Load user timeout')), 15000); // 15 seconds timeout
+        });
 
         try {
           // Use getCurrentUser utility function
@@ -194,15 +194,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           if (timeoutId) clearTimeout(timeoutId);
         
           if (!user) {
-          // Clear user state when no user
-          setCurrentUser(null);
-          setCurrentUserId(null);
-          setAvatarUrl(null);
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('selectedUserId');
+            // Clear user state when no user
+            setCurrentUser(null);
+            setCurrentUserId(null);
+            setAvatarUrl(null);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('selectedUserId');
+            }
+            return;
           }
-          return;
-        }
 
         setCurrentUserId(user.user_id || user.id || null);
         setCurrentUser(user);
@@ -276,15 +276,53 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           if (timeoutId) clearTimeout(timeoutId);
           throw innerError;
         }
-      } catch (error) {
-        const { logError } = await import('@/lib/utils/errorHandler');
-        logError(error, 'Layout:loadUser');
-        // Clear user state on error
-        setCurrentUser(null);
-        setCurrentUserId(null);
-        setAvatarUrl(null);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('selectedUserId');
+      } catch (error: any) {
+        if (timeoutId) clearTimeout(timeoutId);
+        
+        // If timeout occurs, check if there's an active session before clearing user
+        // This prevents disconnecting users who are actually logged in
+        try {
+          const { supabase } = await import('@/lib/supabase');
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session?.user) {
+            // User has active session but loading timed out - don't clear user state
+            // Try to load user again in background (non-blocking)
+            console.warn('User loading timed out but session exists, retrying...');
+            const { getCurrentUser } = await import('@/lib/utils/user');
+            getCurrentUser()
+              .then(user => {
+                if (user) {
+                  setCurrentUserId(user.user_id || user.id || null);
+                  setCurrentUser(user);
+                  setAvatarUrl(user.avatar_url || null);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('selectedUserId', user.user_id || user.id || '');
+                  }
+                }
+              })
+              .catch(() => {
+                // Silently fail retry
+              });
+            
+            // Don't clear user state - keep previous state if exists
+            // This prevents disconnecting users during slow network
+            return;
+          } else {
+            // No session - user is actually not logged in
+            const { logError } = await import('@/lib/utils/errorHandler');
+            logError(error, 'Layout:loadUser');
+            setCurrentUser(null);
+            setCurrentUserId(null);
+            setAvatarUrl(null);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('selectedUserId');
+            }
+          }
+        } catch (sessionCheckError) {
+          // If session check also fails, don't clear user to be safe
+          console.error('Error checking session after timeout:', sessionCheckError);
+          // Keep previous user state to avoid false disconnection
         }
       }
     }

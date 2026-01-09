@@ -77,6 +77,54 @@ export async function getAllRecordings() {
   }
 }
 
+// Get recordings with pagination
+export async function getRecordingsPaginated(page: number = 1, limit: number = 6, sortBy: string = 'recently-active') {
+  const cacheKey = `recordings:paginated:${page}:${limit}:${sortBy}`;
+  const cached = getCached<{ data: Recording[], totalCount: number }>(cacheKey);
+  if (cached) {
+    return { data: cached.data, totalCount: cached.totalCount, error: null };
+  }
+
+  try {
+    // Calculate range for pagination
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    // Build query
+    let query = supabase
+      .from('recordings')
+      .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at', { count: 'exact' });
+
+    // Apply sorting
+    if (sortBy === 'recently-active') {
+      query = query.order('created_at', { ascending: false });
+    } else if (sortBy === 'views') {
+      query = query.order('views', { ascending: false });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    // Apply pagination
+    const { data, error, count } = await query.range(from, to);
+
+    if (error) {
+      logError(error, 'getRecordingsPaginated');
+      return { data: null, totalCount: 0, error };
+    }
+
+    const recordings = Array.isArray(data) ? data : [];
+    const totalCount = count || 0;
+
+    // Cache the result
+    setCached(cacheKey, { data: recordings, totalCount }, CACHE_TTL.SHORT);
+    
+    return { data: recordings, totalCount, error: null };
+  } catch (err: any) {
+    logError(err, 'getRecordingsPaginated:exception');
+    return { data: null, totalCount: 0, error: err };
+  }
+}
+
 // Get recording basic info (for fast initial load)
 export async function getRecordingBasicById(id: string) {
   const cacheKey = `recording:basic:${id}`;

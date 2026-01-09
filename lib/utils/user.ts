@@ -27,16 +27,55 @@ export interface UserWithRole {
 export async function getCurrentUser(): Promise<UserWithRole | null> {
   try {
     // Try to get user from session first (faster)
-    const { data: { session } } = await supabase.auth.getSession();
+    // Add timeout for session check to prevent hanging
+    let sessionTimeoutId: NodeJS.Timeout | null = null;
+    const sessionTimeoutPromise = new Promise<never>((_, reject) => {
+      sessionTimeoutId = setTimeout(() => reject(new Error('Session check timeout')), 5000); // 5 seconds for session check
+    });
+
+    const { data: { session } } = await Promise.race([
+      supabase.auth.getSession(),
+      sessionTimeoutPromise
+    ]);
+
+    if (sessionTimeoutId) clearTimeout(sessionTimeoutId);
+
     if (session?.user) {
       // Use getProfile query function instead of direct supabase call
-      const { data: profile, error } = await getProfile(session.user.id);
-      
-      if (profile && !error) {
-        return {
-          id: profile.user_id || profile.id,
-          ...profile
-        };
+      // Add timeout for profile loading to prevent hanging
+      let profileTimeoutId: NodeJS.Timeout | null = null;
+      const profileTimeoutPromise = new Promise<never>((_, reject) => {
+        profileTimeoutId = setTimeout(() => reject(new Error('Profile loading timeout')), 10000); // 10 seconds for profile
+      });
+
+      try {
+        const { data: profile, error } = await Promise.race([
+          getProfile(session.user.id),
+          profileTimeoutPromise
+        ]);
+
+        if (profileTimeoutId) clearTimeout(profileTimeoutId);
+        
+        if (profile && !error) {
+          return {
+            id: profile.user_id || profile.id,
+            ...profile
+          };
+        }
+      } catch (profileError: any) {
+        if (profileTimeoutId) clearTimeout(profileTimeoutId);
+        // If profile loading times out, log but don't fail completely
+        // Return a minimal user object based on session
+        if (profileError?.message?.includes('timeout')) {
+          console.warn('Profile loading timed out, using session data');
+          return {
+            id: session.user.id,
+            user_id: session.user.id,
+            display_name: session.user.email?.split('@')[0] || 'משתמש',
+            email: session.user.email
+          };
+        }
+        throw profileError;
       }
     }
     

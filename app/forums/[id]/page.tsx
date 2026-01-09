@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { MessageCircle, Eye, Pin, Lock, Edit, Image, Video, X, Smile, Code, Link as LinkIcon, Italic, Bold, ArrowRight } from 'lucide-react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { MessageCircle, Eye, Pin, Lock, Edit, Image, Video, X, Smile, Code, Link as LinkIcon, Italic, Bold, ArrowRight, Heart } from 'lucide-react';
 import Link from 'next/link';
-import { getForumById, getForumPosts, getAllForums, getForumPostById, deleteForumPostReply, type Forum, type ForumPost } from '@/lib/queries/forums';
+import { getForumById, getForumPosts, getAllForums, getForumPostById, deleteForumPostReply, toggleForumPostLike, type Forum, type ForumPost } from '@/lib/queries/forums';
 import { getAllProfiles } from '@/lib/queries/profiles';
 import AuthGuard from '@/app/components/AuthGuard';
 import dynamic from 'next/dynamic';
@@ -32,6 +32,7 @@ export default function ForumDetailPage() {
 function ForumDetailPageContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const forumId = params.id as string;
   
   const [forum, setForum] = useState<Forum | null>(null);
@@ -62,6 +63,19 @@ function ForumDetailPageContent() {
       loadAllForums();
     }
   }, [forumId]);
+
+  // Check if there's a postId in the URL (from redirect from /posts/[postId] page)
+  useEffect(() => {
+    const postIdFromUrl = searchParams?.get('postId');
+    if (postIdFromUrl && posts.length > 0 && !selectedPost) {
+      const postToOpen = posts.find(p => p.id === postIdFromUrl);
+      if (postToOpen) {
+        handlePostClick(postToOpen);
+        // Clean up URL
+        router.replace(`/forums/${forumId}`, { scroll: false });
+      }
+    }
+  }, [searchParams, posts, selectedPost, forumId, router]);
 
   // Listen for profile updates to reload posts and comments
   useEffect(() => {
@@ -882,6 +896,43 @@ function ForumDetailPageContent() {
                           </div>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-gray-500 mt-4">
+                          <button
+                            onClick={async () => {
+                              if (!currentUser || !selectedPost) return;
+                              try {
+                                const userId = currentUser.user_id || currentUser.id;
+                                if (!userId) return;
+                                const { data, error } = await toggleForumPostLike(selectedPost.id, userId);
+                                if (!error && data) {
+                                  // Reload post to get updated likes count
+                                  const { data: updatedPost, error: loadError } = await getForumPostById(selectedPost.id, userId);
+                                  if (!loadError && updatedPost) {
+                                    setSelectedPost(updatedPost);
+                                    setPostReplies(updatedPost.replies || []);
+                                    // Also update in posts list
+                                    setPosts(prevPosts => 
+                                      prevPosts.map(p => 
+                                        p.id === selectedPost.id 
+                                          ? { ...p, likes_count: updatedPost.likes_count || 0, user_liked: updatedPost.user_liked }
+                                          : p
+                                      )
+                                    );
+                                  }
+                                }
+                              } catch (error) {
+                                console.error('Error toggling like:', error);
+                              }
+                            }}
+                            disabled={!currentUser}
+                            className={`flex items-center gap-1 transition-colors ${
+                              selectedPost.user_liked
+                                ? 'text-[#F52F8E]'
+                                : 'text-gray-500 hover:text-[#F52F8E]'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            <Heart className={`w-4 h-4 ${selectedPost.user_liked ? 'fill-current' : ''}`} />
+                            <span>{selectedPost.likes_count || 0}</span>
+                          </button>
                           <div className="flex items-center gap-1">
                             <MessageCircle className="w-4 h-4" />
                             <span>{selectedPost.replies_count || postReplies.length} תגובות</span>

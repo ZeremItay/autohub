@@ -214,7 +214,7 @@ export async function getForumPostById(postId: string, userId?: string) {
     // Get the post
     const { data: postData, error: postError } = await supabase
       .from('forum_posts')
-      .select('id, forum_id, user_id, title, content, is_pinned, is_locked, views, replies_count, created_at, updated_at')
+      .select('id, forum_id, user_id, title, content, is_pinned, is_locked, views, replies_count, likes_count, created_at, updated_at')
       .eq('id', postId)
       .single();
     
@@ -850,15 +850,46 @@ export async function toggleForumPostLike(postId: string, userId: string) {
     
     if (error) return { error };
     
-    // Note: likes_count column may not exist, so we skip updating it
-    // The count can be calculated from forum_post_likes table if needed
+    // Update likes_count in forum_posts table
+    // First get current count
+    const { data: currentPost } = await supabase
+      .from('forum_posts')
+      .select('likes_count')
+      .eq('id', postId)
+      .single();
     
-    return { data: { liked: false }, error: null };
+    const newCount = Math.max(0, (currentPost?.likes_count || 0) - 1);
+    
+    // Update the count
+    await supabase
+      .from('forum_posts')
+      .update({ likes_count: newCount })
+      .eq('id', postId);
+    
+    return { data: { liked: false, likes_count: newCount }, error: null };
   } else {
     // Like - insert the like
     const { error } = await supabase
       .from('forum_post_likes')
       .insert([{ post_id: postId, user_id: userId }]);
+    
+    if (error) return { error, data: null };
+    
+    // Update likes_count in forum_posts table
+    // First get current count
+    const { data: currentPost } = await supabase
+      .from('forum_posts')
+      .select('likes_count')
+      .eq('id', postId)
+      .single();
+    
+    const newCount = (currentPost?.likes_count || 0) + 1;
+    
+    // Update the count
+    await supabase
+      .from('forum_posts')
+      .update({ likes_count: newCount })
+      .eq('id', postId);
     
     // Award points for liking a post (only when adding a like, not removing)
     try {
@@ -876,12 +907,7 @@ export async function toggleForumPostLike(postId: string, userId: string) {
       console.warn('Error awarding points for like:', error);
     }
     
-    if (error) return { error, data: null };
-    
-    // Note: likes_count column may not exist, so we skip updating it
-    // The count can be calculated from forum_post_likes table if needed
-    
-    return { data: { liked: true }, error: null };
+    return { data: { liked: true, likes_count: newCount }, error: null };
   }
 }
 
