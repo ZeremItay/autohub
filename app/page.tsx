@@ -1150,6 +1150,8 @@ export default function Home() {
                           alt={user.display_name || 'User'}
                           className="w-10 h-10 rounded-full border-2 border-green-500 cursor-pointer hover:scale-110 transition-transform"
                           key={`online-${user.id || user.user_id}-${user.avatar_url}`}
+                          crossOrigin="anonymous"
+                          referrerPolicy="no-referrer"
                         />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm border-2 border-green-500 cursor-pointer hover:scale-110 transition-transform">
@@ -1430,6 +1432,8 @@ export default function Home() {
                           alt={post.profile.display_name || 'User'}
                           className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover shadow-lg shadow-pink-500/30 ring-2 ring-white/50"
                           key={`post-${post.id}-${post.profile.avatar_url}`}
+                          crossOrigin="anonymous"
+                          referrerPolicy="no-referrer"
                           loading="lazy"
                           decoding="async"
                         />
@@ -1624,6 +1628,8 @@ export default function Home() {
                             alt={user.display_name || 'User'}
                             className="w-10 h-10 rounded-full border-2 border-green-500 cursor-pointer hover:scale-110 transition-transform"
                             key={`online-mobile-${user.id || user.user_id}-${user.avatar_url}`}
+                            crossOrigin="anonymous"
+                            referrerPolicy="no-referrer"
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm border-2 border-green-500 cursor-pointer hover:scale-110 transition-transform">
@@ -1753,6 +1759,8 @@ export default function Home() {
                               alt={friend.display_name || 'User'} 
                               className="w-10 h-10 rounded-full"
                               key={`friend-mobile-${friend.id || friend.user_id}-${friend.avatar_url}`}
+                              crossOrigin="anonymous"
+                              referrerPolicy="no-referrer"
                             />
                           ) : (
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">
@@ -1863,6 +1871,8 @@ export default function Home() {
                             alt={friend.display_name || 'User'} 
                             className="w-10 h-10 rounded-full"
                             key={`friend-${friend.id || friend.user_id}-${friend.avatar_url}`}
+                            crossOrigin="anonymous"
+                            referrerPolicy="no-referrer"
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">

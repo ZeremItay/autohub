@@ -906,6 +906,8 @@ function ForumDetailPageContent() {
                               alt={selectedPost.profile.display_name || selectedPost.profile.first_name || selectedPost.profile.nickname || 'משתמש'}
                               className="w-12 h-12 rounded-full object-cover"
                               key={`post-${selectedPost.id}`}
+                              crossOrigin="anonymous"
+                              referrerPolicy="no-referrer"
                             />
                           ) : (
                             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white font-semibold">
@@ -1059,6 +1061,8 @@ function ForumDetailPageContent() {
                                         alt={post.profile.display_name || 'משתמש'}
                                         className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                                         key={`post-${post.id}`}
+                                        crossOrigin="anonymous"
+                                        referrerPolicy="no-referrer"
                                       />
                                     ) : (
                                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
