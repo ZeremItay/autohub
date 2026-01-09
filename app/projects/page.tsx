@@ -233,6 +233,10 @@ export default function ProjectsPage() {
   const [submittingOffer, setSubmittingOffer] = useState(false);
   const [showProjectDetailsModal, setShowProjectDetailsModal] = useState(false);
   const [selectedProjectForDetails, setSelectedProjectForDetails] = useState<Project | null>(null);
+  const [showPointsConfirmationModal, setShowPointsConfirmationModal] = useState(false);
+  const [showInsufficientPointsModal, setShowInsufficientPointsModal] = useState(false);
+  const [userPoints, setUserPoints] = useState<number>(0);
+  const [pointsConfirmed, setPointsConfirmed] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -649,12 +653,6 @@ export default function ProjectsPage() {
       return; // ProtectedAction will show tooltip
     }
     
-    // Premium check - for future use (currently disabled per user request)
-    // if (!userIsPremium) {
-    //   alert('הגשת הצעות לפרויקטים זמינה למנויי פרימיום בלבד. אנא שדרג את המנוי שלך כדי להגיש הצעות לפרויקטים.');
-    //   return;
-    // }
-    
     // Find the project
     const project = projects.find(p => p.id === projectId);
     if (!project) {
@@ -668,9 +666,27 @@ export default function ProjectsPage() {
       return;
     }
     
-    setSelectedProject(project);
-    setOfferForm({ message: '', offer_amount: '' });
-    setShowOfferModal(true);
+    // If user is premium, proceed normally
+    if (userIsPremium) {
+      setSelectedProject(project);
+      setOfferForm({ message: '', offer_amount: '' });
+      setShowOfferModal(true);
+      return;
+    }
+    
+    // For free users, check points balance
+    const pointsCost = 50;
+    const currentPoints = userPoints || (currentUser as any)?.points || 0;
+    
+    if (currentPoints >= pointsCost) {
+      // User has enough points - show confirmation modal
+      setSelectedProject(project);
+      setShowPointsConfirmationModal(true);
+    } else {
+      // User doesn't have enough points - show insufficient points modal
+      setSelectedProject(project);
+      setShowInsufficientPointsModal(true);
+    }
   }
 
   async function submitOffer() {
@@ -692,12 +708,30 @@ export default function ProjectsPage() {
     setSubmittingOffer(true);
     try {
       const { createProjectOffer } = await import('@/lib/queries/projects');
+      const { deductPoints } = await import('@/lib/queries/gamification');
       const userId = currentUser.user_id || currentUser.id;
       
       if (!userId) {
         alert('שגיאה: לא נמצא מזהה משתמש');
         setSubmittingOffer(false);
         return;
+      }
+      
+      // For free users, deduct points before creating offer
+      if (!userIsPremium) {
+        const pointsCost = 50;
+        const deductionResult = await deductPoints(userId, pointsCost);
+        
+        if (!deductionResult.success) {
+          console.error('Error deducting points:', deductionResult.error);
+          alert(`שגיאה בהפחתת נקודות: ${deductionResult.error || 'שגיאה לא ידועה'}`);
+          setSubmittingOffer(false);
+          return;
+        }
+        
+        // Update local points state
+        setUserPoints(deductionResult.points || 0);
+        console.log(`✅ Deducted ${pointsCost} points. New balance: ${deductionResult.points}`);
       }
       
       const { data, error } = await createProjectOffer({
@@ -711,6 +745,21 @@ export default function ProjectsPage() {
 
       if (error) {
         console.error('Error submitting offer:', error);
+        // If offer creation failed, refund points (for free users)
+        if (!userIsPremium) {
+          try {
+            const { awardPoints } = await import('@/lib/queries/gamification');
+            await awardPoints(userId, 'הגשת הצעה', {}).catch(() => {
+              // If awardPoints fails, manually add points back
+              return supabase
+                .from('profiles')
+                .update({ points: (userPoints || 0) + 50 })
+                .eq('user_id', userId);
+            });
+          } catch (refundError) {
+            console.error('Error refunding points:', refundError);
+          }
+        }
         alert('שגיאה בשליחת ההצעה. נסה שוב.');
         return;
       }
@@ -738,24 +787,30 @@ export default function ProjectsPage() {
         }
       }
 
-      // Award points for submitting an offer
-      try {
-        const { awardPoints } = await import('@/lib/queries/gamification');
-        await awardPoints(userId, 'הגשת הצעה', {}).catch(() => {
-          return awardPoints(userId, 'submit_project_offer', {});
-        }).catch((error) => {
-          console.warn('Error awarding points:', error);
-        });
-      } catch (error) {
-        console.warn('Error in gamification:', error);
+      // Award points only for premium users (free users already paid with points)
+      if (userIsPremium) {
+        try {
+          const { awardPoints } = await import('@/lib/queries/gamification');
+          await awardPoints(userId, 'הגשת הצעה', {}).catch(() => {
+            return awardPoints(userId, 'submit_project_offer', {});
+          }).catch((error) => {
+            console.warn('Error awarding points:', error);
+          });
+        } catch (error) {
+          console.warn('Error in gamification:', error);
+        }
       }
 
-      // Close modal and refresh data
+      // Close modals and refresh data
       setShowOfferModal(false);
+      setShowPointsConfirmationModal(false);
+      setShowInsufficientPointsModal(false);
       setSelectedProject(null);
       setOfferForm({ message: '', offer_amount: '' });
+      setPointsConfirmed(false);
       // Clear cache and reload to get updated offers_count
       const { clearCache } = await import('@/lib/cache');
+      clearCache('profiles:all');
       clearCache('projects');
       await loadData();
       alert('ההצעה נשלחה בהצלחה!');
@@ -936,6 +991,8 @@ export default function ProjectsPage() {
                       ) : (
                         <ProtectedAction
                           requireAuth={true}
+                          requirePremium={true}
+                          pointsCost={50}
                           disabledMessage="התחבר כדי להגיש הצעה"
                         >
                           <button 
@@ -1034,6 +1091,8 @@ export default function ProjectsPage() {
                       ) : (
                         <ProtectedAction
                           requireAuth={true}
+                          requirePremium={true}
+                          pointsCost={50}
                           disabledMessage="התחבר כדי להגיש הצעה"
                         >
                           <button 
@@ -1671,6 +1730,8 @@ export default function ProjectsPage() {
                 </button>
                 <ProtectedAction
                   requireAuth={true}
+                  requirePremium={true}
+                  pointsCost={50}
                   disabledMessage="התחבר כדי להגיש הצעה"
                 >
                   <button 

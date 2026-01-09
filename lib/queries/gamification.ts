@@ -542,6 +542,63 @@ export async function awardPoints(userId: string, actionName: string, options?: 
   }
 }
 
+// Deduct points from user
+export async function deductPoints(userId: string, amount: number) {
+  try {
+    if (amount <= 0) {
+      return { success: false, error: 'Amount must be positive' };
+    }
+
+    console.log(`💸 Deducting ${amount} points from user: ${userId}`);
+
+    // Get current profile to check points balance
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('points, user_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('❌ Error fetching profile for points deduction:', profileError);
+      return { success: false, error: profileError?.message || 'Profile not found' };
+    }
+
+    const currentPoints = profile.points || 0;
+    
+    // Check if user has enough points
+    if (currentPoints < amount) {
+      console.warn(`⚠️ Insufficient points: ${currentPoints} < ${amount}`);
+      return { 
+        success: false, 
+        error: 'Insufficient points',
+        currentPoints,
+        requiredPoints: amount
+      };
+    }
+
+    // Calculate new points balance
+    const newPoints = currentPoints - amount;
+    console.log(`💰 Deducting points: ${currentPoints} - ${amount} = ${newPoints}`);
+
+    // Update points in database
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ points: newPoints })
+      .eq('user_id', userId);
+
+    if (updateError) {
+      console.error('❌ Error deducting points:', updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    console.log(`✅ Successfully deducted ${amount} points! New total: ${newPoints}`);
+    return { success: true, points: newPoints, previousPoints: currentPoints };
+  } catch (error: any) {
+    console.error('❌ Error in deductPoints:', error?.message || String(error));
+    return { success: false, error: error?.message || 'Unknown error' };
+  }
+}
+
 // Get user's points history
 export async function getUserPointsHistory(userId: string) {
   const { data, error } = await supabase

@@ -11,6 +11,7 @@ interface ProtectedActionProps {
   children: React.ReactNode;
   requireAuth?: boolean;
   requirePremium?: boolean;
+  pointsCost?: number; // Cost in points for free users
   onClick?: (e?: React.MouseEvent) => void;
   disabledMessage?: string;
   redirectTo?: string;
@@ -21,6 +22,7 @@ export default function ProtectedAction({
   children,
   requireAuth = false,
   requirePremium = false,
+  pointsCost,
   onClick,
   disabledMessage,
   redirectTo = '/auth/login',
@@ -29,6 +31,7 @@ export default function ProtectedAction({
   const router = useRouter();
   const { user, loading, isPremium } = useCurrentUser();
   const [showTooltip, setShowTooltip] = useState(false);
+  const userPoints = (user as any)?.points || 0;
 
   // Show loading state
   if (loading) {
@@ -178,7 +181,13 @@ export default function ProtectedAction({
   
   // User is logged in but not premium
   if (requirePremium && user && !isPremium) {
-    const message = disabledMessage || 'צריך לשדרג לפרימיום כדי לצפות בתוכן זה';
+    const hasEnoughPoints = pointsCost ? (userPoints >= pointsCost) : false;
+    const defaultMessage = pointsCost 
+      ? (hasEnoughPoints 
+          ? `פעולה זו עולה ${pointsCost} נקודות. יש לך ${userPoints} נקודות.` 
+          : `פעולה זו עולה ${pointsCost} נקודות. יש לך ${userPoints} נקודות בלבד.`)
+      : 'צריך לשדרג לפרימיום כדי לצפות בתוכן זה';
+    const message = disabledMessage || defaultMessage;
     
     return (
       <div 
@@ -225,13 +234,24 @@ export default function ProtectedAction({
               <Lock className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="font-medium mb-1.5 break-words text-xs leading-relaxed">{message}</p>
-                <Link
-                  href="/subscription"
-                  className="inline-flex items-center gap-1 text-yellow-400 hover:underline font-medium text-xs"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <span>שדרג לפרימיום</span>
-                </Link>
+                <div className="flex flex-col gap-1.5">
+                  <Link
+                    href="/subscription"
+                    className="inline-flex items-center gap-1 text-yellow-400 hover:underline font-medium text-xs"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span>שדרג לפרימיום</span>
+                  </Link>
+                  {pointsCost && !hasEnoughPoints && (
+                    <Link
+                      href="/profile"
+                      className="inline-flex items-center gap-1 text-blue-400 hover:underline font-medium text-xs"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span>הרוויח נקודות</span>
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
             <div className="absolute top-full right-4 sm:right-1/2 sm:translate-x-1/2 -mt-1">

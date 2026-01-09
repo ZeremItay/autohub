@@ -31,7 +31,8 @@ import {
   Download,
   BookOpen,
   Tag as TagIcon,
-  MessageCircleMore
+  MessageCircleMore,
+  Search
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -81,6 +82,154 @@ const ImageGalleryModal = dynamic(
 // Import date-fns locale separately (lightweight)
 import { he } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
+
+// User Selector Component with Search
+function UserSelector({
+  selectedUserId,
+  onSelectionChange,
+  availableUsers,
+  placeholder = "בחר משתמש *",
+  required = false
+}: {
+  selectedUserId: string;
+  onSelectionChange: (userId: string) => void;
+  availableUsers: any[];
+  placeholder?: string;
+  required?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return availableUsers;
+    const query = searchQuery.toLowerCase().trim();
+    return availableUsers.filter((user) => {
+      const displayName = (user.display_name || '').toLowerCase();
+      const nickname = (user.nickname || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      const firstName = (user.first_name || '').toLowerCase();
+      const lastName = (user.last_name || '').toLowerCase();
+      const userId = (user.user_id || user.id || '').toLowerCase();
+      
+      return displayName.includes(query) ||
+             nickname.includes(query) ||
+             email.includes(query) ||
+             firstName.includes(query) ||
+             lastName.includes(query) ||
+             `${firstName} ${lastName}`.trim().includes(query) ||
+             userId.includes(query);
+    });
+  }, [availableUsers, searchQuery]);
+
+  const selectedUser = useMemo(() => {
+    return availableUsers.find((u: any) => (u.user_id || u.id) === selectedUserId);
+  }, [availableUsers, selectedUserId]);
+
+  function handleSelect(userId: string) {
+    onSelectionChange(userId);
+    setIsOpen(false);
+    setSearchQuery('');
+  }
+
+  function handleClear() {
+    onSelectionChange('');
+    setIsOpen(false);
+    setSearchQuery('');
+  }
+
+  return (
+    <div className="relative">
+      <div 
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer min-h-[42px] flex items-center justify-between"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {selectedUser ? (
+          <span className="text-gray-800">
+            {selectedUser.display_name || selectedUser.first_name || selectedUser.email || selectedUser.user_id || selectedUser.id}
+          </span>
+        ) : (
+          <span className="text-gray-400">{placeholder}</span>
+        )}
+        {selectedUser && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClear();
+            }}
+            className="ml-2 p-1 hover:bg-gray-100 rounded"
+            title="נקה בחירה"
+          >
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        )}
+      </div>
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-[9998]" 
+            onClick={() => {
+              setIsOpen(false);
+              setSearchQuery('');
+            }}
+          />
+          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden" style={{ maxHeight: 'min(300px, calc(100vh - 200px))' }}>
+            <div className="p-2 border-b border-gray-200">
+              <div className="relative">
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="חפש משתמש לפי שם, כינוי או אימייל..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full px-3 py-2 pr-9 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                  dir="rtl"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="overflow-y-auto max-h-[240px]">
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((user) => {
+                  const userId = user.user_id || user.id;
+                  const displayName = user.display_name || user.first_name || user.email || userId;
+                  const isSelected = userId === selectedUserId;
+                  
+                  return (
+                    <div
+                      key={userId}
+                      className={`px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
+                        isSelected ? 'bg-[#F52F8E]/10' : ''
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelect(userId);
+                      }}
+                    >
+                      <span className={isSelected ? 'font-semibold' : ''}>
+                        {displayName}
+                        {user.email && (
+                          <span className="text-xs text-gray-500 mr-2"> ({user.email})</span>
+                        )}
+                      </span>
+                      {isSelected && (
+                        <span className="text-[#F52F8E]">✓</span>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="px-4 py-2 text-gray-500 text-sm text-center">
+                  {searchQuery ? 'לא נמצאו משתמשים' : 'אין משתמשים זמינים'}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // Tag Selector Component
 function TagSelector({ 
@@ -689,6 +838,7 @@ function ApiDocumentation() {
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks' | 'forums' | 'api-docs'>('users')
   const [users, setUsers] = useState<any[]>([])
+  const [usersSearchQuery, setUsersSearchQuery] = useState<string>('')
   const [posts, setPosts] = useState<any[]>([])
   const [roles, setRoles] = useState<any[]>([])
   const [recordings, setRecordings] = useState<any[]>([])
@@ -3303,6 +3453,23 @@ export default function AdminPanel() {
               </div>
             </div>
 
+            {/* Search Users - Users Tab */}
+            {activeTab === 'users' && !editing && (
+              <div className="mb-6">
+                <div className="relative">
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="חפש משתמש לפי שם, כינוי או אימייל..."
+                    value={usersSearchQuery}
+                    onChange={(e) => setUsersSearchQuery(e.target.value)}
+                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                    dir="rtl"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Registration Limit Management - Users Tab */}
             {activeTab === 'users' && !editing && (
               <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
@@ -4016,10 +4183,9 @@ export default function AdminPanel() {
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             בחר מנחה ממשתמשים קיימים (אופציונלי)
                           </label>
-                          <select
-                            value={formData.instructor_user_id || ''}
-                            onChange={(e) => {
-                              const selectedUserId = e.target.value;
+                          <UserSelector
+                            selectedUserId={formData.instructor_user_id || ''}
+                            onSelectionChange={(selectedUserId) => {
                               if (selectedUserId) {
                                 const selectedUser = users.find((u: any) => (u.user_id || u.id) === selectedUserId);
                                 if (selectedUser) {
@@ -4041,15 +4207,9 @@ export default function AdminPanel() {
                                 });
                               }
                             }}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                          >
-                            <option value="">-- בחר מנחה --</option>
-                            {users.map((user: any) => (
-                              <option key={user.user_id || user.id} value={user.user_id || user.id}>
-                                {user.display_name || user.first_name || user.nickname || 'משתמש'} {user.role?.name ? `(${user.role.name})` : ''}
-                              </option>
-                            ))}
-                          </select>
+                            availableUsers={users}
+                            placeholder="-- בחר מנחה --"
+                          />
                           <p className="text-xs text-gray-500 mt-1">
                             בחירת מנחה תמלא אוטומטית את השדות למטה ותעדכן את הפרופיל שלו
                           </p>
@@ -4217,19 +4377,13 @@ export default function AdminPanel() {
                 )}
                 {activeTab === 'subscriptions' && (
                   <div className="space-y-4">
-                    <select
-                      value={formData.user_id || ''}
-                      onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    <UserSelector
+                      selectedUserId={formData.user_id || ''}
+                      onSelectionChange={(userId) => setFormData({ ...formData, user_id: userId })}
+                      availableUsers={users}
+                      placeholder="בחר משתמש *"
                       required
-                    >
-                      <option value="">בחר משתמש *</option>
-                      {users.map(user => (
-                        <option key={user.user_id || user.id} value={user.user_id || user.id}>
-                          {user.display_name || user.first_name || user.email || user.user_id}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     <select
                       value={formData.role_id || ''}
                       onChange={(e) => setFormData({ ...formData, role_id: e.target.value })}
@@ -6334,7 +6488,27 @@ export default function AdminPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {activeTab === 'users' && users.map((user) => (
+                  {activeTab === 'users' && (() => {
+                    // Filter users based on search query
+                    const filteredUsers = usersSearchQuery.trim() 
+                      ? users.filter((user) => {
+                          const query = usersSearchQuery.toLowerCase().trim();
+                          const displayName = (user.display_name || '').toLowerCase();
+                          const nickname = (user.nickname || '').toLowerCase();
+                          const email = (user.email || '').toLowerCase();
+                          const firstName = (user.first_name || '').toLowerCase();
+                          const lastName = (user.last_name || '').toLowerCase();
+                          
+                          return displayName.includes(query) ||
+                                 nickname.includes(query) ||
+                                 email.includes(query) ||
+                                 firstName.includes(query) ||
+                                 lastName.includes(query) ||
+                                 `${firstName} ${lastName}`.trim().includes(query);
+                        })
+                      : users;
+                    
+                    return filteredUsers.map((user) => (
                     <tr key={user.id} className="border-b border-gray-100">
                       <td className="py-3 px-4">
                         <input
@@ -6419,7 +6593,8 @@ export default function AdminPanel() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    ));
+                  })()}
                   {activeTab === 'posts' && posts.map((post) => (
                     <tr key={post.id} className="border-b border-gray-100">
                       <td className="py-3 px-4">
