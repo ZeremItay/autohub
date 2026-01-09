@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getPosts, createPost } from '@/lib/queries/posts'
 import { getAllProfiles, getProfile, updateProfile } from '@/lib/queries/profiles'
