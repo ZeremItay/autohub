@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
@@ -34,42 +34,7 @@ function MembersPageContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadMembers()
-    loadCurrentUser()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy]) // loadMembers and loadCurrentUser are stable functions
-
-  async function loadCurrentUser() {
-    try {
-      const savedUserId = typeof window !== 'undefined' ? localStorage.getItem('selectedUserId') : null;
-      if (savedUserId) {
-        setCurrentUserId(savedUserId);
-      } else {
-        // Get first user as default
-        const { data: profiles } = await getAllProfiles();
-        if (Array.isArray(profiles) && profiles.length > 0) {
-          const userId = profiles[0].user_id || profiles[0].id;
-          setCurrentUserId(userId);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  }
-
-  function handleSendMessage(member: any) {
-    // Save the conversation partner to localStorage
-    const partnerId = member.user_id || member.id;
-    if (partnerId && typeof window !== 'undefined') {
-      localStorage.setItem('messagePartnerId', partnerId);
-      localStorage.setItem('messagePartnerName', member.display_name || member.nickname || 'משתמש');
-      // Navigate to messages page
-      router.push('/messages');
-    }
-  }
-
-  async function loadMembers() {
+  const loadMembers = useCallback(async () => {
     setLoading(true)
     // Add timeout to prevent hanging
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
@@ -104,6 +69,40 @@ function MembersPageContent() {
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
       setLoading(false)
+    }
+  }, [sortBy])
+
+  useEffect(() => {
+    loadMembers()
+    loadCurrentUser()
+  }, [loadMembers]) // loadMembers is now useCallback with sortBy dependency
+
+  async function loadCurrentUser() {
+    try {
+      const savedUserId = typeof window !== 'undefined' ? localStorage.getItem('selectedUserId') : null;
+      if (savedUserId) {
+        setCurrentUserId(savedUserId);
+      } else {
+        // Get first user as default
+        const { data: profiles } = await getAllProfiles();
+        if (Array.isArray(profiles) && profiles.length > 0) {
+          const userId = profiles[0].user_id || profiles[0].id;
+          setCurrentUserId(userId);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error);
+    }
+  }
+
+  function handleSendMessage(member: any) {
+    // Save the conversation partner to localStorage
+    const partnerId = member.user_id || member.id;
+    if (partnerId && typeof window !== 'undefined') {
+      localStorage.setItem('messagePartnerId', partnerId);
+      localStorage.setItem('messagePartnerName', member.display_name || member.nickname || 'משתמש');
+      // Navigate to messages page
+      router.push('/messages');
     }
   }
 

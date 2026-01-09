@@ -25,116 +25,58 @@ export function useCurrentUser(): UseCurrentUserReturn {
     setLoading(true);
     setError(null);
     
-    let timeoutId: NodeJS.Timeout | null = null;
-    
     try {
-      // Add timeout to prevent hanging - increased to 15 seconds
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Load user timeout')), 15000); // 15 seconds timeout
-      });
-
-      let currentUser;
-      try {
-        currentUser = await Promise.race([
-          getCurrentUser(),
-          timeoutPromise
-        ]);
-      } catch (raceError: any) {
-        // Suppress Chrome extension errors
-        if (raceError?.message?.includes('message channel') || 
-            raceError?.message?.includes('asynchronous response')) {
-          console.warn('Chrome extension error suppressed, retrying user load...');
-          // Retry without race to avoid extension interference
-          currentUser = await getCurrentUser();
-        } else {
-          throw raceError;
-        }
-      } finally {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
+      // Try to load user - simplified logic
+      const currentUser = await getCurrentUser();
+      
+      // If user loading failed, check session as fallback
+      if (!currentUser) {
+        try {
+          const { supabase } = await import('../supabase');
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            // Use minimal user from session
+            setUser({
+              id: session.user.id,
+              user_id: session.user.id,
+              display_name: session.user.email?.split('@')[0] || 'משתמש',
+              email: session.user.email
+            });
+            setLoading(false);
+            return;
+          }
+        } catch (sessionError) {
+          // Session check failed - user is not logged in
         }
       }
       
       setUser(currentUser);
     } catch (err: any) {
-      // Suppress Chrome extension errors - they don't affect functionality
-      if (err?.message?.includes('message channel') || 
-          err?.message?.includes('asynchronous response')) {
-        console.warn('Chrome extension error suppressed in useCurrentUser');
-        // Try to load user without race to avoid extension interference
-        try {
-          const user = await getCurrentUser();
-          if (user) {
-            setUser(user);
-            setError(null);
-          } else {
-            setUser(null);
-          }
-        } catch (retryError) {
-          // If retry also fails, check session
-          try {
-            const { supabase } = await import('../supabase');
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-              // Keep previous user state if exists, or set minimal user
-              if (!user) {
-                setUser({
-                  id: session.user.id,
-                  user_id: session.user.id,
-                  display_name: session.user.email?.split('@')[0] || 'משתמש',
-                  email: session.user.email
-                });
-              }
-            } else {
-              setUser(null);
-            }
-          } catch (sessionError) {
-            // Keep previous user state to avoid false disconnection
-            console.warn('Session check failed, keeping previous user state');
-          }
-        }
-        return;
-      }
-      
-      // If timeout occurs, check if there's an active session before clearing user
-      // This prevents disconnecting users who are actually logged in
+      // If error occurs, try to get user from session as fallback
       try {
         const { supabase } = await import('../supabase');
         const { data: { session } } = await supabase.auth.getSession();
-        
         if (session?.user) {
-          // User has active session but loading timed out - don't clear user state
-          // Try to load user again in background (non-blocking)
-          console.warn('User loading timed out but session exists, retrying...');
-          getCurrentUser()
-            .then(user => {
-              if (user) {
-                setUser(user);
-                setError(null);
-              }
-            })
-            .catch(() => {
-              // Silently fail retry
-            });
-          
-          // Don't clear user or set error - keep previous state if exists
-          // This prevents disconnecting users during slow network
+          // Use minimal user from session
+          setUser({
+            id: session.user.id,
+            user_id: session.user.id,
+            display_name: session.user.email?.split('@')[0] || 'משתמש',
+            email: session.user.email
+          });
+          setError(null);
+          setLoading(false);
           return;
-        } else {
-          // No session - user is actually not logged in
-          console.error('Error loading current user:', err);
-          setError(err);
-          setUser(null);
         }
-      } catch (sessionCheckError) {
-        // If session check also fails, don't clear user to be safe
-        console.error('Error checking session after timeout:', sessionCheckError);
-        // Keep previous user state to avoid false disconnection
+      } catch (sessionError) {
+        // Session check also failed
       }
+      
+      // No session - clear user state
+      console.error('Error loading current user:', err);
+      setError(err);
+      setUser(null);
     } finally {
-      // Ensure timeout is always cleared
-      if (timeoutId) clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);

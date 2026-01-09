@@ -268,7 +268,6 @@ export default function Home() {
     
     const pollReports = async () => {
       try {
-        const { getAllReports } = await import('@/lib/queries/reports');
         const reportsResult = await getAllReports(10);
         
         if (reportsResult?.data && Array.isArray(reportsResult.data) && reportsResult.data.length > 0) {

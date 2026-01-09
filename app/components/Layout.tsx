@@ -37,6 +37,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getAllProfiles, updateProfile } from '@/lib/queries/profiles';
+import { getNextLiveEvent, updateEventStatuses } from '@/lib/queries/events';
+import { deleteNotification } from '@/lib/queries/notifications';
 import { clearCache } from '@/lib/cache';
 import { awardPoints } from '@/lib/queries/gamification';
 
@@ -210,50 +212,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Load current user from Supabase session
   useEffect(() => {
     async function loadUser() {
-      let timeoutId: NodeJS.Timeout | null = null;
       try {
-        // Add timeout to prevent hanging - increased to 15 seconds
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('Load user timeout')), 15000); // 15 seconds timeout
-        });
-
-        try {
-          // Use getCurrentUser utility function
-          const { getCurrentUser } = await import('@/lib/utils/user');
-          let user;
-          try {
-            user = await Promise.race([
-              getCurrentUser(),
-              timeoutPromise
-            ]);
-          } catch (raceError: any) {
-            // Suppress Chrome extension errors
-            if (raceError?.message?.includes('message channel') || 
-                raceError?.message?.includes('asynchronous response')) {
-              console.warn('Chrome extension error suppressed in Layout, retrying user load...');
-              // Retry without race to avoid extension interference
-              user = await getCurrentUser();
-            } else {
-              throw raceError;
-            }
-          } finally {
-            if (timeoutId) {
-              clearTimeout(timeoutId);
-              timeoutId = null;
-            }
-          }
+        // Try to load user - simplified logic
+        const { getCurrentUser } = await import('@/lib/utils/user');
+        let user = await getCurrentUser();
         
-          if (!user) {
-            // Clear user state when no user
-            setCurrentUser(null);
-            setCurrentUserId(null);
-            setAvatarUrl(null);
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('selectedUserId');
-            }
-            return;
+        // If user loading failed, check session as fallback
+        if (!user) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            // Use minimal user from session
+            user = {
+              id: session.user.id,
+              user_id: session.user.id,
+              display_name: session.user.email?.split('@')[0] || 'משתמש',
+              email: session.user.email
+            };
           }
+        }
+        
+        if (!user) {
+          // No user and no session - clear state
+          setCurrentUser(null);
+          setCurrentUserId(null);
+          setAvatarUrl(null);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('selectedUserId');
+          }
+          return;
+        }
 
+        // Set user state
         setCurrentUserId(user.user_id || user.id || null);
         setCurrentUser(user);
         setAvatarUrl(user.avatar_url || null);
@@ -318,129 +307,42 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }
         }
         
-          // Save to localStorage
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('selectedUserId', user.user_id || user.id || '');
-          }
-        } catch (innerError: any) {
-          // Suppress Chrome extension errors
-          if (innerError?.message?.includes('message channel') || 
-              innerError?.message?.includes('asynchronous response')) {
-            console.warn('Chrome extension error suppressed in Layout inner catch');
-            // Try to load user without race
-            try {
-              const { getCurrentUser } = await import('@/lib/utils/user');
-              const user = await getCurrentUser();
-              if (user) {
-                setCurrentUserId(user.user_id || user.id || null);
-                setCurrentUser(user);
-                setAvatarUrl(user.avatar_url || null);
-                if (typeof window !== 'undefined') {
-                  localStorage.setItem('selectedUserId', user.user_id || user.id || '');
-                }
-                return;
-              }
-            } catch (retryError) {
-              // If retry fails, continue to outer catch
-            }
-          }
-          if (timeoutId) clearTimeout(timeoutId);
-          throw innerError;
+        // Save to localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('selectedUserId', user.user_id || user.id || '');
         }
       } catch (error: any) {
-        // Ensure timeout is always cleared
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        
-        // Suppress Chrome extension errors - they don't affect functionality
-        if (error?.message?.includes('message channel') || 
-            error?.message?.includes('asynchronous response')) {
-          console.warn('Chrome extension error suppressed in Layout, trying to load user without race...');
-          // Try to load user without race to avoid extension interference
-          try {
-            const { getCurrentUser } = await import('@/lib/utils/user');
-            const user = await getCurrentUser();
-            if (user) {
-              setCurrentUserId(user.user_id || user.id || null);
-              setCurrentUser(user);
-              setAvatarUrl(user.avatar_url || null);
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('selectedUserId', user.user_id || user.id || '');
-              }
-              return;
-            }
-          } catch (retryError) {
-            // If retry also fails, check session
-            try {
-              const { supabase } = await import('@/lib/supabase');
-              const { data: { session } } = await supabase.auth.getSession();
-              if (session?.user) {
-                // Keep previous user state if exists, or set minimal user
-                if (!currentUser) {
-                  setCurrentUser({
-                    id: session.user.id,
-                    user_id: session.user.id,
-                    display_name: session.user.email?.split('@')[0] || 'משתמש',
-                    email: session.user.email
-                  });
-                  setCurrentUserId(session.user.id);
-                }
-                return;
-              }
-            } catch (sessionError) {
-              // Keep previous user state to avoid false disconnection
-              console.warn('Session check failed, keeping previous user state');
-            }
-          }
-          return;
-        }
-        
-        // If timeout occurs, check if there's an active session before clearing user
-        // This prevents disconnecting users who are actually logged in
+        // If error occurs, try to get user from session as fallback
         try {
-          const { supabase } = await import('@/lib/supabase');
           const { data: { session } } = await supabase.auth.getSession();
-          
           if (session?.user) {
-            // User has active session but loading timed out - don't clear user state
-            // Try to load user again in background (non-blocking)
-            console.warn('User loading timed out but session exists, retrying...');
-            const { getCurrentUser } = await import('@/lib/utils/user');
-            getCurrentUser()
-              .then(user => {
-                if (user) {
-                  setCurrentUserId(user.user_id || user.id || null);
-                  setCurrentUser(user);
-                  setAvatarUrl(user.avatar_url || null);
-                  if (typeof window !== 'undefined') {
-                    localStorage.setItem('selectedUserId', user.user_id || user.id || '');
-                  }
-                }
-              })
-              .catch(() => {
-                // Silently fail retry
-              });
-            
-            // Don't clear user state - keep previous state if exists
-            // This prevents disconnecting users during slow network
-            return;
-          } else {
-            // No session - user is actually not logged in
-            const { logError } = await import('@/lib/utils/errorHandler');
-            logError(error, 'Layout:loadUser');
-            setCurrentUser(null);
-            setCurrentUserId(null);
+            // Use minimal user from session
+            const minimalUser = {
+              id: session.user.id,
+              user_id: session.user.id,
+              display_name: session.user.email?.split('@')[0] || 'משתמש',
+              email: session.user.email
+            };
+            setCurrentUserId(session.user.id);
+            setCurrentUser(minimalUser);
             setAvatarUrl(null);
             if (typeof window !== 'undefined') {
-              localStorage.removeItem('selectedUserId');
+              localStorage.setItem('selectedUserId', session.user.id);
             }
+            return;
           }
-        } catch (sessionCheckError) {
-          // If session check also fails, don't clear user to be safe
-          console.error('Error checking session after timeout:', sessionCheckError);
-          // Keep previous user state to avoid false disconnection
+        } catch (sessionError) {
+          // Session check also failed - log error but don't block
+          const { logError } = await import('@/lib/utils/errorHandler');
+          logError(error, 'Layout:loadUser');
+        }
+        
+        // No session - clear user state
+        setCurrentUser(null);
+        setCurrentUserId(null);
+        setAvatarUrl(null);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('selectedUserId');
         }
       }
     }
@@ -452,7 +354,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         // Update is_online only on actual sign-in or token refresh, not on every page load
         if (session?.user && !hasUpdatedOnlineStatusRef.current) {
           try {
-            const { updateProfile } = await import('@/lib/queries/profiles');
             await updateProfile(session.user.id, { is_online: true });
             hasUpdatedOnlineStatusRef.current = true;
           } catch (error) {
@@ -614,7 +515,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function checkNextLiveEvent() {
       try {
-        const { getNextLiveEvent, updateEventStatuses } = await import('@/lib/queries/events');
         // Auto-update event statuses before checking for live events
         await updateEventStatuses();
         const { data } = await getNextLiveEvent();
@@ -755,7 +655,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (!currentUserId) return;
     
     try {
-      const { deleteNotification } = await import('@/lib/queries/notifications');
       const { error } = await deleteNotification(notificationId);
       
       if (!error) {
