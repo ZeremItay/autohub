@@ -173,6 +173,40 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [mobileSearchOpen, searchResults, searchQuery, isSearching]);
 
+  // Global error handler to suppress Chrome extension errors
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      // Suppress Chrome extension errors
+      if (event.message?.includes('message channel') || 
+          event.message?.includes('asynchronous response') ||
+          event.message?.includes('A listener indicated an asynchronous response')) {
+        event.preventDefault();
+        event.stopPropagation();
+        console.warn('Chrome extension error suppressed:', event.message);
+        return false;
+      }
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      // Suppress Chrome extension errors in promises
+      if (event.reason?.message?.includes('message channel') || 
+          event.reason?.message?.includes('asynchronous response') ||
+          event.reason?.message?.includes('A listener indicated an asynchronous response')) {
+        event.preventDefault();
+        console.warn('Chrome extension promise error suppressed:', event.reason?.message);
+        return false;
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
   // Load current user from Supabase session
   useEffect(() => {
     async function loadUser() {
@@ -186,12 +220,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         try {
           // Use getCurrentUser utility function
           const { getCurrentUser } = await import('@/lib/utils/user');
-          const user = await Promise.race([
-            getCurrentUser(),
-            timeoutPromise
-          ]);
-
-          if (timeoutId) clearTimeout(timeoutId);
+          let user;
+          try {
+            user = await Promise.race([
+              getCurrentUser(),
+              timeoutPromise
+            ]);
+          } catch (raceError: any) {
+            // Suppress Chrome extension errors
+            if (raceError?.message?.includes('message channel') || 
+                raceError?.message?.includes('asynchronous response')) {
+              console.warn('Chrome extension error suppressed in Layout, retrying user load...');
+              // Retry without race to avoid extension interference
+              user = await getCurrentUser();
+            } else {
+              throw raceError;
+            }
+          } finally {
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
+            }
+          }
         
           if (!user) {
             // Clear user state when no user
@@ -272,12 +322,80 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           if (typeof window !== 'undefined') {
             localStorage.setItem('selectedUserId', user.user_id || user.id || '');
           }
-        } catch (innerError) {
+        } catch (innerError: any) {
+          // Suppress Chrome extension errors
+          if (innerError?.message?.includes('message channel') || 
+              innerError?.message?.includes('asynchronous response')) {
+            console.warn('Chrome extension error suppressed in Layout inner catch');
+            // Try to load user without race
+            try {
+              const { getCurrentUser } = await import('@/lib/utils/user');
+              const user = await getCurrentUser();
+              if (user) {
+                setCurrentUserId(user.user_id || user.id || null);
+                setCurrentUser(user);
+                setAvatarUrl(user.avatar_url || null);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('selectedUserId', user.user_id || user.id || '');
+                }
+                return;
+              }
+            } catch (retryError) {
+              // If retry fails, continue to outer catch
+            }
+          }
           if (timeoutId) clearTimeout(timeoutId);
           throw innerError;
         }
       } catch (error: any) {
-        if (timeoutId) clearTimeout(timeoutId);
+        // Ensure timeout is always cleared
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
+        // Suppress Chrome extension errors - they don't affect functionality
+        if (error?.message?.includes('message channel') || 
+            error?.message?.includes('asynchronous response')) {
+          console.warn('Chrome extension error suppressed in Layout, trying to load user without race...');
+          // Try to load user without race to avoid extension interference
+          try {
+            const { getCurrentUser } = await import('@/lib/utils/user');
+            const user = await getCurrentUser();
+            if (user) {
+              setCurrentUserId(user.user_id || user.id || null);
+              setCurrentUser(user);
+              setAvatarUrl(user.avatar_url || null);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('selectedUserId', user.user_id || user.id || '');
+              }
+              return;
+            }
+          } catch (retryError) {
+            // If retry also fails, check session
+            try {
+              const { supabase } = await import('@/lib/supabase');
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session?.user) {
+                // Keep previous user state if exists, or set minimal user
+                if (!currentUser) {
+                  setCurrentUser({
+                    id: session.user.id,
+                    user_id: session.user.id,
+                    display_name: session.user.email?.split('@')[0] || 'משתמש',
+                    email: session.user.email
+                  });
+                  setCurrentUserId(session.user.id);
+                }
+                return;
+              }
+            } catch (sessionError) {
+              // Keep previous user state to avoid false disconnection
+              console.warn('Session check failed, keeping previous user state');
+            }
+          }
+          return;
+        }
         
         // If timeout occurs, check if there's an active session before clearing user
         // This prevents disconnecting users who are actually logged in

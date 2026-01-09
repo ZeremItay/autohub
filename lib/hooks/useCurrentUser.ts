@@ -25,22 +25,78 @@ export function useCurrentUser(): UseCurrentUserReturn {
     setLoading(true);
     setError(null);
     
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     try {
       // Add timeout to prevent hanging - increased to 15 seconds
-      let timeoutId: NodeJS.Timeout | null = null;
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error('Load user timeout')), 15000); // 15 seconds timeout
       });
 
-      const currentUser = await Promise.race([
-        getCurrentUser(),
-        timeoutPromise
-      ]);
-
-      if (timeoutId) clearTimeout(timeoutId);
+      let currentUser;
+      try {
+        currentUser = await Promise.race([
+          getCurrentUser(),
+          timeoutPromise
+        ]);
+      } catch (raceError: any) {
+        // Suppress Chrome extension errors
+        if (raceError?.message?.includes('message channel') || 
+            raceError?.message?.includes('asynchronous response')) {
+          console.warn('Chrome extension error suppressed, retrying user load...');
+          // Retry without race to avoid extension interference
+          currentUser = await getCurrentUser();
+        } else {
+          throw raceError;
+        }
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      }
       
       setUser(currentUser);
     } catch (err: any) {
+      // Suppress Chrome extension errors - they don't affect functionality
+      if (err?.message?.includes('message channel') || 
+          err?.message?.includes('asynchronous response')) {
+        console.warn('Chrome extension error suppressed in useCurrentUser');
+        // Try to load user without race to avoid extension interference
+        try {
+          const user = await getCurrentUser();
+          if (user) {
+            setUser(user);
+            setError(null);
+          } else {
+            setUser(null);
+          }
+        } catch (retryError) {
+          // If retry also fails, check session
+          try {
+            const { supabase } = await import('../supabase');
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+              // Keep previous user state if exists, or set minimal user
+              if (!user) {
+                setUser({
+                  id: session.user.id,
+                  user_id: session.user.id,
+                  display_name: session.user.email?.split('@')[0] || 'משתמש',
+                  email: session.user.email
+                });
+              }
+            } else {
+              setUser(null);
+            }
+          } catch (sessionError) {
+            // Keep previous user state to avoid false disconnection
+            console.warn('Session check failed, keeping previous user state');
+          }
+        }
+        return;
+      }
+      
       // If timeout occurs, check if there's an active session before clearing user
       // This prevents disconnecting users who are actually logged in
       try {
@@ -77,6 +133,8 @@ export function useCurrentUser(): UseCurrentUserReturn {
         // Keep previous user state to avoid false disconnection
       }
     } finally {
+      // Ensure timeout is always cleared
+      if (timeoutId) clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);
