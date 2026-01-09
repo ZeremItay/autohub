@@ -151,19 +151,21 @@ export default function AccountSettingsPage() {
     
     // Also poll for profile updates every 30 seconds to catch changes from other users
     // But only if we have a current user
-    const pollInterval = setInterval(() => {
-      if (currentUser) {
+    let pollInterval: NodeJS.Timeout | null = null;
+    if (currentUser) {
+      pollInterval = setInterval(() => {
         const { clearCache } = require('@/lib/cache');
         clearCache('profiles:all');
         loadUser();
-      }
-    }, 30000); // Poll every 30 seconds
+      }, 30000); // Poll every 30 seconds
+    }
     
     return () => {
       window.removeEventListener('profileUpdated', handleProfileUpdate);
-      clearInterval(pollInterval);
+      if (pollInterval) clearInterval(pollInterval);
     };
-  }, [currentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.user_id || currentUser?.id]); // Only depend on user ID, not entire object
 
   async function handleAvatarUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];

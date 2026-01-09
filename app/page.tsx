@@ -26,7 +26,7 @@ import {
   FileText,
   GraduationCap,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getPosts, createPost, deletePost, updatePost, toggleLike, checkUserLikedPost, checkUserLikedPosts, type PostWithProfile } from '@/lib/queries/posts';
 import { getAllProfiles, type ProfileWithRole } from '@/lib/queries/profiles';
 import { getUpcomingEvents, type Event } from '@/lib/queries/events';
@@ -86,6 +86,88 @@ export default function Home() {
   const [editingPost, setEditingPost] = useState<string | null>(null);
   const [editPostContent, setEditPostContent] = useState<string>('');
   const [editPostImageUrl, setEditPostImageUrl] = useState<string>('');
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Load all data in parallel for better performance
+      const [postsResult, profilesResult, eventsResult, newsResult, reportsResult] = await Promise.all([
+        getPosts(),
+        getAllProfiles(),
+        getUpcomingEvents(5),
+        getActiveNews(),
+        getAllReports(10)
+      ]);
+
+      // Process announcements
+      if (postsResult?.data && Array.isArray(postsResult.data)) {
+        const adminPosts = postsResult.data.filter((post: any) => {
+          const role = post.profile?.roles || post.profile?.role;
+          const roleName = typeof role === 'object' ? role?.name : role;
+          return roleName === 'admin' || post.is_announcement === true;
+        });
+        setAnnouncements(adminPosts);
+        
+        // Load liked posts for current user - use batch query for better performance
+        if (currentUser) {
+          const userId = currentUser.user_id || currentUser.id;
+          if (userId && adminPosts.length > 0) {
+            try {
+              const postIds = adminPosts.map((post: any) => post.id);
+              const { likedMap, error } = await checkUserLikedPosts(postIds, userId);
+              if (!error && likedMap) {
+                setLikedPosts(likedMap);
+              }
+            } catch (error) {
+              // Silently fail
+            }
+          }
+        }
+      } else {
+        setAnnouncements([]);
+      }
+
+      // Process profiles
+      if (profilesResult?.data && Array.isArray(profilesResult.data)) {
+        setFriends(profilesResult.data);
+        setProfiles(profilesResult.data);
+      } else {
+        setProfiles([]);
+        setFriends([]);
+      }
+
+      // Process events
+      if (eventsResult?.data && Array.isArray(eventsResult.data)) {
+        setUpcomingEvents(eventsResult.data);
+      } else {
+        setUpcomingEvents([]);
+      }
+
+      // Load news
+      if (newsResult?.data && Array.isArray(newsResult.data)) {
+        setNews(newsResult.data);
+      } else {
+        setNews([]);
+      }
+
+      // Load reports
+      if (reportsResult?.data && Array.isArray(reportsResult.data) && reportsResult.data.length > 0) {
+        const publishedReports = reportsResult.data.filter((r: any) => r.is_published === true);
+        setReports(publishedReports);
+      } else {
+        setReports([]);
+      }
+
+      // Load recent updates in background
+      lazyLoad(() => loadRecentUpdates(eventsResult.data || []), 300).catch(() => {
+        // Silently fail
+      });
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     loadData(); // Load data on initial page load
@@ -164,7 +246,7 @@ export default function Home() {
       window.removeEventListener('profileUpdated', handleProfileUpdate);
       if (newsInterval) clearInterval(newsInterval);
     };
-  }, [refetchUser]);
+  }, [loadData]); // loadData is now useCallback with stable dependencies
 
   // Auto-rotate news carousel every 5 seconds
   useEffect(() => {
@@ -210,113 +292,6 @@ export default function Home() {
       clearTimeout(timeoutId);
     };
   }, []);
-
-
-
-  async function loadData() {
-    setLoading(true);
-    try {
-      // Load all data in parallel for better performance
-      const [postsResult, profilesResult, eventsResult, newsResult, reportsResult] = await Promise.all([
-        getPosts(),
-        getAllProfiles(),
-        getUpcomingEvents(5),
-        getActiveNews(),
-        getAllReports(10)
-      ]);
-
-      // Process announcements
-      if (postsResult?.data && Array.isArray(postsResult.data)) {
-        const adminPosts = postsResult.data.filter((post: any) => {
-          const role = post.profile?.roles || post.profile?.role;
-          const roleName = typeof role === 'object' ? role?.name : role;
-          return roleName === 'admin' || post.is_announcement === true;
-        });
-        setAnnouncements(adminPosts);
-        
-        // Load liked posts for current user - use batch query for better performance
-        if (currentUser) {
-          const userId = currentUser.user_id || currentUser.id;
-          if (userId && adminPosts.length > 0) {
-            // Load immediately - don't delay
-            try {
-              const postIds = adminPosts.map((post: any) => post.id);
-              const { likedMap, error } = await checkUserLikedPosts(postIds, userId);
-              if (!error && likedMap) {
-                setLikedPosts(likedMap);
-              }
-            } catch (error) {
-              // Silently fail
-            }
-          }
-        }
-      }
-
-      // Process profiles
-      if (profilesResult?.data && Array.isArray(profilesResult.data)) {
-        setFriends(profilesResult.data);
-        setProfiles(profilesResult.data); // Store profiles for useOnlineUsers hook
-        
-        // Load badges lazily after initial render - completely in background
-        // This will be done much later to not block anything - DISABLED FOR NOW TO IMPROVE PERFORMANCE
-        // setTimeout(async () => {
-        //   try {
-        //     const { getUserHighestBadge } = await import('@/lib/queries/badges');
-        //     const badgesMap: Record<string, any> = {};
-        //     // Only load badges for first 3 friends to avoid too many requests
-        //     await Promise.all(
-        //       profilesResult.data.slice(0, 3).map(async (friend: any) => {
-        //         const friendUserId = friend.user_id || friend.id;
-        //         if (friendUserId) {
-        //           try {
-        //             const { data: badgeData } = await getUserHighestBadge(friendUserId);
-        //             if (badgeData) {
-        //               badgesMap[friendUserId] = badgeData;
-        //             }
-        //           } catch (error) {
-        //             // Silently fail - badges are not critical
-        //           }
-        //         }
-        //       })
-        //     );
-        //     setFriendsBadges(badgesMap);
-        //   } catch (error) {
-        //     // Silently fail - badges are not critical
-        //   }
-        // }, 5000); // Load after 5 seconds - completely non-blocking
-      }
-
-      // Process events
-      if (eventsResult?.data && Array.isArray(eventsResult.data)) {
-        setUpcomingEvents(eventsResult.data);
-      }
-
-      // Load news
-      if (newsResult?.data && Array.isArray(newsResult.data)) {
-        setNews(newsResult.data);
-      }
-
-      // Load reports from database - only published reports, sorted by created_at DESC, limit 10
-      // Query already filters for is_published=true, orders by created_at DESC
-        if (reportsResult?.data && Array.isArray(reportsResult.data) && reportsResult.data.length > 0) {
-          // Filter to ensure all are published (query should already do this, but double-check)
-          const publishedReports = reportsResult.data.filter((r: any) => r.is_published === true);
-          setReports(publishedReports);
-        } else {
-          // No reports found in database
-          setReports([]);
-        }
-
-      // Load recent updates in background - defer slightly to not block initial render
-      lazyLoad(() => loadRecentUpdates(eventsResult.data || []), 300).catch(() => {
-        // Silently fail
-      });
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   // Format time from created_at to HH:MM
   function formatTimeFromDate(dateString: string): string {

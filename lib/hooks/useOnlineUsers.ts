@@ -75,7 +75,8 @@ export function useOnlineUsers(profiles?: ProfileWithRole[]): UseOnlineUsersRetu
       // Otherwise fetch them
       loadOnlineUsers();
     }
-  }, [profiles, loadOnlineUsers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profiles]); // loadOnlineUsers is stable (useCallback with no deps)
 
   return {
     users,
