@@ -446,11 +446,14 @@ export default function MessagesPage() {
     // Clean up previous typing channel
     if (typingChannelsRef.current[conversationId]) {
       supabase.removeChannel(typingChannelsRef.current[conversationId]);
+      delete typingChannelsRef.current[conversationId];
     }
 
     // Create typing channel for this conversation
+    // Use unique channel name to prevent duplicates
+    const typingChannelName = `typing:${conversationId}:${Date.now()}`;
     const typingChannel = supabase
-      .channel(`typing:${conversationId}`)
+      .channel(typingChannelName)
       .on('presence', { event: 'sync' }, () => {
         const state = typingChannel.presenceState();
         const partnerTyping = Object.values(state).some((presence: any) => {
