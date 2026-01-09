@@ -158,10 +158,18 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!currentUserId) return;
 
+    // Clean up any existing channel before creating a new one
+    if (messagesChannelRef.current) {
+      supabase.removeChannel(messagesChannelRef.current);
+      messagesChannelRef.current = null;
+    }
+
     // Create channel for listening to new messages
     // Listen to both messages you receive AND messages you send
+    // Use a unique channel name to prevent duplicates
+    const channelName = `messages:${currentUserId}:${Date.now()}`;
     const channel = supabase
-      .channel(`messages:${currentUserId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -202,13 +210,8 @@ export default function MessagesPage() {
           console.warn('⚠️ Messages will still work, but won\'t update in real-time. Refresh the page to see new messages.');
         } else if (status === 'TIMED_OUT') {
           console.warn('⏱️ Realtime subscription timed out');
-          // Try to resubscribe after a delay
-          setTimeout(() => {
-            if (messagesChannelRef.current) {
-              console.log('🔄 Retrying Realtime subscription...');
-              messagesChannelRef.current.subscribe();
-            }
-          }, 3000);
+          // Don't retry automatically - let the user refresh if needed
+          // Auto-retry can create subscription loops
         } else if (status === 'CLOSED') {
           console.warn('🔒 Realtime subscription closed');
         }
@@ -218,6 +221,7 @@ export default function MessagesPage() {
 
     return () => {
       if (messagesChannelRef.current) {
+        console.log('🧹 Cleaning up messages Realtime subscription');
         supabase.removeChannel(messagesChannelRef.current);
         messagesChannelRef.current = null;
       }
