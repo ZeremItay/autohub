@@ -118,6 +118,13 @@ function ForumDetailPageContent() {
     isLoadingPostsRef.current = true;
     setLoading(true);
     
+    // Add timeout to prevent hanging (Chrome-specific issue)
+    let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+      console.warn('loadPosts taking too long, stopping loading state');
+      setLoading(false);
+      isLoadingPostsRef.current = false; // CRITICAL: Reset ref on timeout
+    }, 20000); // 20 seconds timeout
+    
     try {
       const { data, error } = await getForumPosts(forumId);
       if (!error && data) {
@@ -126,6 +133,7 @@ function ForumDetailPageContent() {
     } catch (error) {
       console.error('Error loading posts:', error);
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       setLoading(false);
       isLoadingPostsRef.current = false;
     }

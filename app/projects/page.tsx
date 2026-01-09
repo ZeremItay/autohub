@@ -250,6 +250,14 @@ export default function ProjectsPage() {
     
     isLoadingDataRef.current = true;
     setLoading(true);
+    
+    // Add timeout to prevent hanging (Chrome-specific issue)
+    let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+      console.warn('loadData taking too long, stopping loading state');
+      setLoading(false);
+      isLoadingDataRef.current = false; // CRITICAL: Reset ref on timeout
+    }, 20000); // 20 seconds timeout
+    
     try {
       // Load only essential data first
       const [projectsRes, eventsRes, tagsRes] = await Promise.all([
@@ -305,6 +313,7 @@ export default function ProjectsPage() {
       console.error('Error loading data:', error);
       setLoading(false);
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       isLoadingDataRef.current = false;
     }
   }, []);

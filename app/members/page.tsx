@@ -50,6 +50,7 @@ function MembersPageContent() {
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
       console.warn('loadMembers taking too long, stopping loading state');
       setLoading(false);
+      isLoadingMembersRef.current = false; // CRITICAL: Reset ref on timeout
     }, 15000); // 15 seconds timeout
     
     try {

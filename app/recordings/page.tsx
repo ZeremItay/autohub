@@ -52,6 +52,14 @@ export default function RecordingsPage() {
     
     isLoadingRecordingsRef.current = true;
     
+    // Add timeout to prevent hanging (Chrome-specific issue)
+    let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+      console.warn('loadRecordings taking too long, stopping loading state');
+      setLoading(false);
+      setPaginationLoading(false);
+      isLoadingRecordingsRef.current = false; // CRITICAL: Reset ref on timeout
+    }, 20000); // 20 seconds timeout
+    
     // Clear previous recordings when loading new page to avoid showing stale data
     if (currentPage !== 1) {
       setPaginationLoading(true)
@@ -73,6 +81,11 @@ export default function RecordingsPage() {
         setError('שגיאה בטעינת ההקלטות. אנא נסה שוב.')
         console.error('Error loading recordings:', fetchError)
         // Don't clear recordings on error - keep showing previous page
+        // But still reset ref and clear timeout
+        if (timeoutId) clearTimeout(timeoutId);
+        setLoading(false);
+        setPaginationLoading(false);
+        isLoadingRecordingsRef.current = false;
         return
       }
       
@@ -127,6 +140,7 @@ export default function RecordingsPage() {
       console.error('Error loading recordings:', err)
       // Don't clear recordings on error - keep showing previous page
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       setLoading(false);
       setPaginationLoading(false);
       isLoadingRecordingsRef.current = false;

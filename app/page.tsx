@@ -99,6 +99,14 @@ export default function Home() {
     
     isLoadingDataRef.current = true;
     setLoading(true);
+    
+    // Add timeout to prevent hanging (Chrome-specific issue)
+    let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+      console.warn('loadData taking too long, stopping loading state');
+      setLoading(false);
+      isLoadingDataRef.current = false; // CRITICAL: Reset ref on timeout
+    }, 20000); // 20 seconds timeout
+    
     try {
       // Load all data in parallel for better performance
       const [postsResult, profilesResult, eventsResult, newsResult, reportsResult] = await Promise.all([
@@ -175,6 +183,7 @@ export default function Home() {
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       setLoading(false);
       isLoadingDataRef.current = false;
     }
