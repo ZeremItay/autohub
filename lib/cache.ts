@@ -15,7 +15,8 @@ export const CACHE_TTL = {
   SHORT: 60000,      // 1 minute
   MEDIUM: 300000,    // 5 minutes
   LONG: 600000,      // 10 minutes
-  VERY_LONG: 1800000 // 30 minutes
+  VERY_LONG: 1800000, // 30 minutes
+  EXTRA_LONG: 3600000 // 60 minutes - for profiles and posts that don't change often
 };
 
 // Cache statistics

@@ -204,7 +204,7 @@ export async function getPosts() {
   })
   
   // Cache the result
-  setCached(cacheKey, postsWithProfiles, CACHE_TTL.SHORT);
+  setCached(cacheKey, postsWithProfiles, CACHE_TTL.MEDIUM);
   return { data: Array.isArray(postsWithProfiles) ? postsWithProfiles : [], error: null }
 }
 

@@ -120,24 +120,25 @@ export default function Home() {
       
       // Load all data in parallel with individual timeouts
       // Use Promise.allSettled so one failure doesn't block others
+      // Increased timeout to 20 seconds to handle slow Supabase queries
       const results = await Promise.allSettled([
-        withTimeout(getPosts(), 8000, 'getPosts').catch(err => {
+        withTimeout(getPosts(), 20000, 'getPosts').catch(err => {
           console.error('getPosts failed:', err);
           return { data: null, error: err };
         }),
-        withTimeout(getAllProfiles(), 8000, 'getAllProfiles').catch(err => {
+        withTimeout(getAllProfiles(), 20000, 'getAllProfiles').catch(err => {
           console.error('getAllProfiles failed:', err);
           return { data: null, error: err };
         }),
-        withTimeout(getUpcomingEvents(5), 8000, 'getUpcomingEvents').catch(err => {
+        withTimeout(getUpcomingEvents(5), 20000, 'getUpcomingEvents').catch(err => {
           console.error('getUpcomingEvents failed:', err);
           return { data: null, error: err };
         }),
-        withTimeout(getActiveNews(), 8000, 'getActiveNews').catch(err => {
+        withTimeout(getActiveNews(), 20000, 'getActiveNews').catch(err => {
           console.error('getActiveNews failed:', err);
           return { data: null, error: err };
         }),
-        withTimeout(getAllReports(10), 8000, 'getAllReports').catch(err => {
+        withTimeout(getAllReports(10), 20000, 'getAllReports').catch(err => {
           console.error('getAllReports failed:', err);
           return { data: null, error: err };
         })

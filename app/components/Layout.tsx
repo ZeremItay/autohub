@@ -227,23 +227,39 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         // On timeout, check session and don't clear user if session exists
         supabase.auth.getSession().then(({ data: { session } }) => {
           if (session?.user) {
-            // Session exists but user not loaded - use minimal user
-            const minimalUser = {
-              id: session.user.id,
-              user_id: session.user.id,
-              display_name: session.user.email?.split('@')[0] || 'משתמש',
-              email: session.user.email
-            };
-            setCurrentUserId(session.user.id);
-            setCurrentUser(minimalUser);
+            // Session exists - DON'T clear user, just keep current state or set minimal
+            // Only set minimal user if currentUser is null
+            if (!currentUser) {
+              const minimalUser = {
+                id: session.user.id,
+                user_id: session.user.id,
+                display_name: session.user.email?.split('@')[0] || 'משתמש',
+                email: session.user.email
+              };
+              setCurrentUserId(session.user.id);
+              setCurrentUser(minimalUser);
+              setAvatarUrl(null);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('selectedUserId', session.user.id);
+              }
+            }
+            // If currentUser already exists, don't touch it - just reset the ref
+          } else {
+            // No session - only then clear user
+            setCurrentUser(null);
+            setCurrentUserId(null);
             setAvatarUrl(null);
             if (typeof window !== 'undefined') {
-              localStorage.setItem('selectedUserId', session.user.id);
+              localStorage.removeItem('selectedUserId');
             }
           }
+          isLoadingUserRef.current = false;
+        }).catch(err => {
+          console.error('Error checking session on loadUser timeout:', err);
+          // On error, don't clear user - keep current state
+          isLoadingUserRef.current = false;
         });
-        isLoadingUserRef.current = false;
-      }, 10000); // 10 seconds timeout
+      }, 15000); // 15 seconds timeout
       
       try {
         // Try to load user - simplified logic
@@ -268,27 +284,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         
         // CRITICAL: Only clear user state if there's no session
         // If session exists, keep the user (even if minimal)
+        // NEVER clear user if currentUser already exists and session exists
         if (!user) {
           // Check session one more time before clearing
           const { data: { session } } = await supabase.auth.getSession();
           if (!session?.user) {
-            // No user and no session - clear state
-            setCurrentUser(null);
-            setCurrentUserId(null);
-            setAvatarUrl(null);
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('selectedUserId');
+            // No user and no session - only clear if currentUser is also null
+            // This prevents clearing user state if we already have a user loaded
+            if (!currentUser) {
+              setCurrentUser(null);
+              setCurrentUserId(null);
+              setAvatarUrl(null);
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('selectedUserId');
+              }
             }
             isLoadingUserRef.current = false;
             return;
           } else {
-            // Session exists - use minimal user
-            user = {
-              id: session.user.id,
-              user_id: session.user.id,
-              display_name: session.user.email?.split('@')[0] || 'משתמש',
-              email: session.user.email
-            };
+            // Session exists - use minimal user only if we don't have one
+            if (!currentUser) {
+              user = {
+                id: session.user.id,
+                user_id: session.user.id,
+                display_name: session.user.email?.split('@')[0] || 'משתמש',
+                email: session.user.email
+              };
+            } else {
+              // We already have a user - don't overwrite it with minimal user
+              isLoadingUserRef.current = false;
+              return;
+            }
           }
         }
 
@@ -392,29 +418,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         
         // CRITICAL: Only clear user state if there's no session
         // Check session one more time before clearing
+        // NEVER clear user if currentUser already exists and session exists
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
-          // No session - clear user state
-          setCurrentUser(null);
-          setCurrentUserId(null);
-          setAvatarUrl(null);
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('selectedUserId');
+          // No session - only clear if we don't already have a user
+          if (!currentUser) {
+            setCurrentUser(null);
+            setCurrentUserId(null);
+            setAvatarUrl(null);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('selectedUserId');
+            }
           }
         } else {
-          // Session exists - keep minimal user
-          const minimalUser = {
-            id: session.user.id,
-            user_id: session.user.id,
-            display_name: session.user.email?.split('@')[0] || 'משתמש',
-            email: session.user.email
-          };
-          setCurrentUserId(session.user.id);
-          setCurrentUser(minimalUser);
-          setAvatarUrl(null);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('selectedUserId', session.user.id);
+          // Session exists - keep minimal user only if we don't have one
+          if (!currentUser) {
+            const minimalUser = {
+              id: session.user.id,
+              user_id: session.user.id,
+              display_name: session.user.email?.split('@')[0] || 'משתמש',
+              email: session.user.email
+            };
+            setCurrentUserId(session.user.id);
+            setCurrentUser(minimalUser);
+            setAvatarUrl(null);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('selectedUserId', session.user.id);
+            }
           }
+          // If currentUser already exists, don't overwrite it
         }
       } finally {
         if (timeoutId) clearTimeout(timeoutId);
@@ -425,8 +457,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        // Update is_online only on actual sign-in or token refresh, not on every page load
+      if (event === 'SIGNED_IN') {
+        // Only on actual sign-in, update is_online and reload user
         if (session?.user && !hasUpdatedOnlineStatusRef.current) {
           try {
             await updateProfile(session.user.id, { is_online: true });
@@ -437,6 +469,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }
         }
         loadUser();
+      } else if (event === 'TOKEN_REFRESHED') {
+        // On token refresh, only reload user if we don't have one
+        // This prevents clearing the user if loadUser fails
+        if (!currentUser && session?.user) {
+          loadUser();
+        }
+        // Don't update is_online on token refresh - it's not a new login
       } else if (event === 'SIGNED_OUT') {
         // Reset flag on logout
         hasUpdatedOnlineStatusRef.current = false;
