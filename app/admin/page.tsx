@@ -1063,62 +1063,67 @@ export default function AdminPanel() {
 
   async function checkAuthorization() {
     try {
-      // Add timeout to prevent hanging
-      const timeoutId = setTimeout(() => {
+      // Create timeout promise - shorter timeout for faster feedback
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Authorization check timeout')), 6000); // 6 seconds timeout
+      });
+
+      // Race between auth check and timeout
+      await Promise.race([
+        (async () => {
+          // Get current session with timeout
+          const sessionPromise = supabase.auth.getSession();
+          const sessionTimeout = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Session check timeout')), 3000); // 3 seconds for session
+          });
+          
+          const { data: { session }, error: sessionError } = await Promise.race([
+            sessionPromise,
+            sessionTimeout
+          ]);
+          
+          if (sessionError || !session) {
+            setIsAuthorized(false)
+            return
+          }
+
+          // Use getProfile with timeout
+          const profilePromise = getProfile(session.user.id);
+          const profileTimeout = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Profile check timeout')), 3000); // 3 seconds for profile
+          });
+          
+          const { data: profile, error: profileError } = await Promise.race([
+            profilePromise,
+            profileTimeout
+          ]);
+
+          if (profileError || !profile) {
+            setIsAuthorized(false)
+            return
+          }
+
+          setCurrentUser(profile)
+
+          // Check if user is admin
+          const role = profile.roles || profile.role
+          const roleName = typeof role === 'object' ? role?.name : role
+          
+          if (roleName === 'admin') {
+            setIsAuthorized(true)
+          } else {
+            setIsAuthorized(false)
+          }
+        })(),
+        timeoutPromise
+      ]);
+    } catch (error: any) {
+      // If timeout, log warning but don't show error
+      if (error?.message?.includes('timeout')) {
         console.warn('Authorization check taking too long, setting to false');
-        setIsAuthorized(false);
-      }, 10000); // 10 seconds timeout
-
-      try {
-        // Get current session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        
-        if (sessionError || !session) {
-          clearTimeout(timeoutId);
-          setIsAuthorized(false)
-          return
-        }
-
-        // Get user profile with role
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select(`
-            *,
-            roles:role_id (
-              id,
-              name,
-              display_name,
-              description
-            )
-          `)
-          .eq('user_id', session.user.id)
-          .single()
-
-        clearTimeout(timeoutId);
-
-        if (profileError || !profile) {
-          setIsAuthorized(false)
-          return
-        }
-
-        setCurrentUser(profile)
-
-        // Check if user is admin
-        const role = profile.roles || profile.role
-        const roleName = typeof role === 'object' ? role?.name : role
-        
-        if (roleName === 'admin') {
-          setIsAuthorized(true)
-        } else {
-          setIsAuthorized(false)
-        }
-      } catch (innerError) {
-        clearTimeout(timeoutId);
-        throw innerError;
+      } else {
+        console.error('Error checking authorization:', error);
       }
-    } catch (error) {
-      console.error('Error checking authorization:', error)
-      // If timeout or error, set to false
       setIsAuthorized(false)
     }
   }

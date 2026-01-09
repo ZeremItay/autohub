@@ -37,7 +37,8 @@ function MembersPageContent() {
   useEffect(() => {
     loadMembers()
     loadCurrentUser()
-  }, [sortBy])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortBy]) // loadMembers and loadCurrentUser are stable functions
 
   async function loadCurrentUser() {
     try {
@@ -70,8 +71,17 @@ function MembersPageContent() {
 
   async function loadMembers() {
     setLoading(true)
+    // Add timeout to prevent hanging
+    let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+      console.warn('loadMembers taking too long, stopping loading state');
+      setLoading(false);
+    }, 15000); // 15 seconds timeout
+    
     try {
       const { data, error } = await getAllProfiles()
+      
+      if (timeoutId) clearTimeout(timeoutId);
+      
       if (!error && data) {
         // Sort members based on sortBy
         let sorted = Array.isArray(data) ? [...data] : []
@@ -90,7 +100,9 @@ function MembersPageContent() {
       }
     } catch (error) {
       console.error('Error loading members:', error)
+      if (timeoutId) clearTimeout(timeoutId);
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       setLoading(false)
     }
   }

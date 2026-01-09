@@ -26,7 +26,16 @@ export function useCurrentUser(): UseCurrentUserReturn {
     setError(null);
     
     try {
-      const currentUser = await getCurrentUser();
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Load user timeout')), 8000); // 8 seconds timeout
+      });
+
+      const currentUser = await Promise.race([
+        getCurrentUser(),
+        timeoutPromise
+      ]);
+      
       setUser(currentUser);
     } catch (err: any) {
       console.error('Error loading current user:', err);
