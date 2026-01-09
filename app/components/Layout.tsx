@@ -524,51 +524,70 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     loadUser();
 
     // Listen for auth state changes
+    // CRITICAL: Add guard to prevent infinite loops
+    let isProcessingAuthChange = false;
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN') {
-        // Only on actual sign-in, update is_online and reload user
-        if (session?.user && !hasUpdatedOnlineStatusRef.current) {
-          try {
-            await updateProfile(session.user.id, { is_online: true });
-            hasUpdatedOnlineStatusRef.current = true;
-          } catch (error) {
-            const { logError } = await import('@/lib/utils/errorHandler');
-            logError(error, 'Layout:updateIsOnlineOnAuth');
+      // Prevent concurrent processing
+      if (isProcessingAuthChange) {
+        console.log('Auth state change already processing, skipping...');
+        return;
+      }
+      
+      isProcessingAuthChange = true;
+      
+      try {
+        if (event === 'SIGNED_IN') {
+          // Only on actual sign-in, update is_online and reload user
+          if (session?.user && !hasUpdatedOnlineStatusRef.current) {
+            try {
+              await updateProfile(session.user.id, { is_online: true });
+              hasUpdatedOnlineStatusRef.current = true;
+            } catch (error) {
+              const { logError } = await import('@/lib/utils/errorHandler');
+              logError(error, 'Layout:updateIsOnlineOnAuth');
+            }
+          }
+          // Only reload user if we don't have one or session changed
+          if (!currentUser || currentUser.id !== session?.user?.id) {
+            loadUser();
+          }
+        } else if (event === 'TOKEN_REFRESHED') {
+          // On token refresh, DON'T reload user - token refresh is automatic
+          // Reloading here causes infinite loops
+          // Only update if we don't have a user at all
+          if (!currentUser && session?.user) {
+            loadUser();
+          }
+          // Don't update is_online on token refresh - it's not a new login
+        } else if (event === 'SIGNED_OUT') {
+          // Reset flag on logout
+          hasUpdatedOnlineStatusRef.current = false;
+          // Update is_online to false when user logs out
+          const userIdToUpdate = currentUserId;
+          if (userIdToUpdate) {
+            try {
+              await supabase
+                .from('profiles')
+                .update({ is_online: false })
+                .eq('user_id', userIdToUpdate);
+            } catch (error) {
+              console.error('Error updating is_online on logout:', error);
+            }
+          }
+          
+          // Clear cache to force reload of data
+          clearCache('profiles:all');
+          
+          setCurrentUser(null);
+          setCurrentUserId(null);
+          setAvatarUrl(null);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('selectedUserId');
           }
         }
-        loadUser();
-      } else if (event === 'TOKEN_REFRESHED') {
-        // On token refresh, only reload user if we don't have one
-        // This prevents clearing the user if loadUser fails
-        if (!currentUser && session?.user) {
-          loadUser();
-        }
-        // Don't update is_online on token refresh - it's not a new login
-      } else if (event === 'SIGNED_OUT') {
-        // Reset flag on logout
-        hasUpdatedOnlineStatusRef.current = false;
-        // Update is_online to false when user logs out
-        const userIdToUpdate = currentUserId;
-        if (userIdToUpdate) {
-          try {
-            await supabase
-              .from('profiles')
-              .update({ is_online: false })
-              .eq('user_id', userIdToUpdate);
-          } catch (error) {
-            console.error('Error updating is_online on logout:', error);
-          }
-        }
-        
-        // Clear cache to force reload of data
-        clearCache('profiles:all');
-        
-        setCurrentUser(null);
-        setCurrentUserId(null);
-        setAvatarUrl(null);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('selectedUserId');
-        }
+      } finally {
+        // Reset flag after processing
+        isProcessingAuthChange = false;
       }
     });
 

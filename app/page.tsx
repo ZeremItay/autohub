@@ -331,33 +331,8 @@ export default function Home() {
     };
   }, [loadData, refetchUser]); // Removed 'news' - it causes infinite reloads
 
-  // Listen for auth state changes to reload data when user logs out/in
-  // Separate useEffect to prevent recreation on every render
-  useEffect(() => {
-    let isMounted = true;
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      // Only process if component is still mounted
-      if (!isMounted) return;
-      
-      if (event === 'SIGNED_OUT') {
-        // Clear cache and reload data when user logs out
-        clearCache('profiles:all');
-        loadData();
-        refetchUser();
-      } else if (event === 'SIGNED_IN') {
-        // Reload data when user logs in
-        clearCache('profiles:all');
-        refetchUser();
-        loadData();
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, [loadData, refetchUser]); // Only recreate if loadData or refetchUser change
+  // REMOVED: onAuthStateChange listener - Layout.tsx already handles this
+  // Having multiple listeners causes infinite loops
 
   // Auto-rotate news carousel every 5 seconds
   useEffect(() => {
