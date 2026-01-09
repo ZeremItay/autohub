@@ -33,6 +33,24 @@ export interface PostWithProfile extends Post {
   }
 }
 
+// Helper function to add timeout to Supabase queries
+async function withQueryTimeout<T>(
+  queryPromise: Promise<{ data: T | null; error: any }>,
+  timeoutMs: number = 10000
+): Promise<{ data: T | null; error: any }> {
+  const timeoutPromise = new Promise<{ data: null; error: any }>((resolve) => {
+    setTimeout(() => {
+      resolve({ data: null, error: { message: 'Query timeout', code: 'TIMEOUT' } });
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([queryPromise, timeoutPromise]);
+  } catch (error: any) {
+    return { data: null, error: error || { message: 'Query failed', code: 'UNKNOWN' } };
+  }
+}
+
 // Get all posts with user profiles and roles
 export async function getPosts() {
   const cacheKey = 'posts:all';
@@ -41,18 +59,24 @@ export async function getPosts() {
     return { data: Array.isArray(cached) ? cached : [], error: null };
   }
 
-  const { data: posts, error: postsError } = await supabase
-    .from('posts')
-    .select('id, user_id, content, media_url, media_type, is_announcement, likes_count, comments_count, created_at, updated_at')
-    .order('created_at', { ascending: false })
-    .limit(100) // Limit to improve performance
+  const postsResult = await withQueryTimeout(
+    supabase
+      .from('posts')
+      .select('id, user_id, content, media_url, media_type, is_announcement, likes_count, comments_count, created_at, updated_at')
+      .order('created_at', { ascending: false })
+      .limit(100), // Limit to improve performance
+    10000 // 10 second timeout
+  )
+  
+  const posts = postsResult.data as any[] | null;
+  const postsError = postsResult.error;
   
   if (postsError) {
     logError(postsError, 'getPosts');
     return { data: null, error: postsError }
   }
 
-  if (!posts || posts.length === 0) {
+  if (!posts || !Array.isArray(posts) || posts.length === 0) {
     return { data: [], error: null }
   }
 
@@ -69,29 +93,8 @@ export async function getPosts() {
   let profilesError: any = null
   
   // First attempt: get profiles with roles
-  const { data: profilesWithRoles, error: rolesError } = await supabase
-    .from('profiles')
-    .select(`
-      id,
-      user_id,
-      display_name,
-      avatar_url,
-      first_name,
-      last_name,
-      nickname,
-      role_id,
-      roles:role_id (
-        id,
-        name,
-        display_name
-      )
-    `)
-    .in('user_id', userIds)
-
-  if (rolesError) {
-    console.warn('Error fetching profiles with roles, trying without roles:', rolesError)
-    // Fallback: get profiles without roles join
-    const { data: profilesWithoutRoles, error: simpleError } = await supabase
+  const profilesWithRolesResult = await withQueryTimeout(
+    supabase
       .from('profiles')
       .select(`
         id,
@@ -101,9 +104,42 @@ export async function getPosts() {
         first_name,
         last_name,
         nickname,
-        role_id
+        role_id,
+        roles:role_id (
+          id,
+          name,
+          display_name
+        )
       `)
-      .in('user_id', userIds)
+      .in('user_id', userIds),
+    10000 // 10 second timeout
+  )
+
+  const profilesWithRoles = profilesWithRolesResult.data as any[] | null;
+  const rolesError = profilesWithRolesResult.error;
+
+  if (rolesError) {
+    console.warn('Error fetching profiles with roles, trying without roles:', rolesError)
+    // Fallback: get profiles without roles join
+    const profilesWithoutRolesResult = await withQueryTimeout(
+      supabase
+        .from('profiles')
+        .select(`
+          id,
+          user_id,
+          display_name,
+          avatar_url,
+          first_name,
+          last_name,
+          nickname,
+          role_id
+        `)
+        .in('user_id', userIds),
+      10000 // 10 second timeout
+    )
+    
+    const profilesWithoutRoles = profilesWithoutRolesResult.data as any[] | null;
+    const simpleError = profilesWithoutRolesResult.error;
     
     if (simpleError) {
       console.error('Error fetching profiles:', simpleError)
@@ -117,9 +153,9 @@ export async function getPosts() {
       return { data: Array.isArray(posts) ? posts.map((post: any) => ({ ...post, profile: null })) : [], error: null }
     }
     
-    profiles = profilesWithoutRoles || []
+    profiles = Array.isArray(profilesWithoutRoles) ? profilesWithoutRoles : []
   } else {
-    profiles = profilesWithRoles || []
+    profiles = Array.isArray(profilesWithRoles) ? profilesWithRoles : []
   }
 
   // Map profiles to posts

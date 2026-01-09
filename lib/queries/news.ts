@@ -1,5 +1,19 @@
 import { supabase } from '../supabase'
 
+// Helper function to add timeout to Supabase queries
+async function withQueryTimeout<T>(
+  queryPromise: Promise<{ data: T | null; error: any }>,
+  timeoutMs: number = 10000
+): Promise<{ data: T | null; error: any }> {
+  const timeoutPromise = new Promise<{ data: null; error: any }>((resolve) => {
+    setTimeout(() => {
+      resolve({ data: null, error: { message: 'Query timeout', code: 'TIMEOUT' } });
+    }, timeoutMs);
+  });
+
+  return Promise.race([queryPromise, timeoutPromise]);
+}
+
 export interface News {
   id: string
   title: string
@@ -14,12 +28,18 @@ export interface News {
 
 // Get all active news items for carousel
 export async function getActiveNews() {
-  const { data, error } = await supabase
-    .from('news')
-    .select('*')
-    .eq('is_active', true)
-    .order('display_order', { ascending: true })
-    .order('created_at', { ascending: false })
+  const result = await withQueryTimeout(
+    supabase
+      .from('news')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+      .order('created_at', { ascending: false }),
+    10000 // 10 second timeout
+  )
+  
+  const data = result.data as any[] | null;
+  const error = result.error;
   
   if (error) {
     console.error('Error fetching news:', error)

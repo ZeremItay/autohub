@@ -202,6 +202,20 @@ export async function updateUserRole(userId: string, roleName: 'free' | 'premium
 }
 
 // Get all profiles with their roles
+// Helper function to add timeout to Supabase queries
+async function withQueryTimeout<T>(
+  queryPromise: Promise<{ data: T | null; error: any }>,
+  timeoutMs: number = 10000
+): Promise<{ data: T | null; error: any }> {
+  const timeoutPromise = new Promise<{ data: null; error: any }>((resolve) => {
+    setTimeout(() => {
+      resolve({ data: null, error: { message: 'Query timeout', code: 'TIMEOUT' } });
+    }, timeoutMs);
+  });
+
+  return Promise.race([queryPromise, timeoutPromise]);
+}
+
 export async function getAllProfiles() {
   const cacheKey = 'profiles:all';
   const cached = getCached(cacheKey);
@@ -209,32 +223,38 @@ export async function getAllProfiles() {
     return { data: Array.isArray(cached) ? cached : (cached ?? null), error: null };
   }
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select(`
-      id,
-      user_id,
-      display_name,
-      avatar_url,
-      bio,
-      nickname,
-      experience_level,
-      points,
-      rank,
-      is_online,
-      email,
-      role_id,
-      created_at,
-      updated_at,
-      roles:role_id (
+  const result = await withQueryTimeout(
+    supabase
+      .from('profiles')
+      .select(`
         id,
-        name,
+        user_id,
         display_name,
-        description
-      )
-    `)
-    .order('created_at', { ascending: false })
-    .limit(100) // Limit to improve performance
+        avatar_url,
+        bio,
+        nickname,
+        experience_level,
+        points,
+        rank,
+        is_online,
+        email,
+        role_id,
+        created_at,
+        updated_at,
+        roles:role_id (
+          id,
+          name,
+          display_name,
+          description
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(100), // Limit to improve performance
+    10000 // 10 second timeout
+  )
+  
+  const data = result.data as any[] | null;
+  const error = result.error;
   
   if (error) {
     logError(error, 'getAllProfiles');
@@ -242,8 +262,12 @@ export async function getAllProfiles() {
   }
   
   // Use longer cache for profiles (10 minutes) since they don't change frequently
-  setCached(cacheKey, data, CACHE_TTL.EXTRA_LONG);
-  return { data, error: null }
+  if (data && Array.isArray(data)) {
+    setCached(cacheKey, data, CACHE_TTL.EXTRA_LONG);
+    return { data, error: null }
+  }
+  
+  return { data: [], error: null }
 }
 
 // Get profiles by user IDs (batch loading)

@@ -1,5 +1,23 @@
-import { supabase } from '../supabase';
+import { supabase } from '../supabase'
 import { createServerClient, getSupabaseClient } from '../supabase-server';
+
+// Helper function to add timeout to Supabase queries
+async function withQueryTimeout<T>(
+  queryPromise: Promise<{ data: T | null; error: any }>,
+  timeoutMs: number = 10000
+): Promise<{ data: T | null; error: any }> {
+  const timeoutPromise = new Promise<{ data: null; error: any }>((resolve) => {
+    setTimeout(() => {
+      resolve({ data: null, error: { message: 'Query timeout', code: 'TIMEOUT' } });
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([queryPromise, timeoutPromise]);
+  } catch (error: any) {
+    return { data: null, error: error || { message: 'Query failed', code: 'UNKNOWN' } };
+  }
+}
 
 export interface Report {
   id: string;
@@ -36,7 +54,9 @@ export async function getAllReports(limit?: number) {
     query = query.limit(limit);
   }
 
-  const { data, error } = await query;
+  const result = await withQueryTimeout(query, 10000);
+  const data = result.data as any[] | null;
+  const error = result.error;
 
   if (error) {
     const errorMessage = String(error.message || '');

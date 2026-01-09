@@ -1,5 +1,19 @@
 import { supabase } from '../supabase';
 
+// Helper function to add timeout to Supabase queries
+async function withQueryTimeout<T>(
+  queryPromise: Promise<{ data: T | null; error: any }>,
+  timeoutMs: number = 10000
+): Promise<{ data: T | null; error: any }> {
+  const timeoutPromise = new Promise<{ data: null; error: any }>((resolve) => {
+    setTimeout(() => {
+      resolve({ data: null, error: { message: 'Query timeout', code: 'TIMEOUT' } });
+    }, timeoutMs);
+  });
+
+  return Promise.race([queryPromise, timeoutPromise]);
+}
+
 export interface Event {
   id: string;
   title: string;
@@ -37,7 +51,9 @@ export async function getAllEvents(includeDeleted: boolean = false) {
     query = query.or('status.is.null,status.neq.deleted');
   }
   
-  const { data, error } = await query;
+  const result = await withQueryTimeout(query, 10000);
+  const data = result.data as any[] | null;
+  const error = result.error;
   return { data: Array.isArray(data) ? data : [], error };
 }
 
@@ -57,7 +73,9 @@ export async function getUpcomingEvents(limit?: number) {
     query = query.limit(limit);
   }
   
-  const { data, error } = await query;
+  const result = await withQueryTimeout(query, 10000);
+  const data = result.data as any[] | null;
+  const error = result.error;
   return { data: Array.isArray(data) ? data : [], error };
 }
 
@@ -76,7 +94,9 @@ export async function getEventsByDateRange(startDate: string, endDate: string, i
     query = query.or('status.is.null,status.neq.deleted');
   }
   
-  const { data, error } = await query;
+  const result = await withQueryTimeout(query, 10000);
+  const data = result.data as any[] | null;
+  const error = result.error;
   return { data: Array.isArray(data) ? data : [], error };
 }
 
