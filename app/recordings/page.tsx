@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getRecordingsPaginated } from '@/lib/queries/recordings';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
@@ -20,7 +20,8 @@ import {
   Clock,
   Lock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertCircle
 } from 'lucide-react';
 
 export default function RecordingsPage() {
@@ -29,6 +30,8 @@ export default function RecordingsPage() {
   const [recordings, setRecordings] = useState<any[]>([])
   const [recordingTags, setRecordingTags] = useState<Record<string, Tag[]>>({})
   const [loading, setLoading] = useState(true)
+  const [paginationLoading, setPaginationLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('recently-active')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
@@ -37,24 +40,32 @@ export default function RecordingsPage() {
   const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 6
 
-  useEffect(() => {
-    // Load recordings immediately, don't wait for user
-    loadRecordings()
-  }, [sortBy, currentPage])
-
-  function handleRecordingClick(recordingId: string) {
-    if (!userIsPremium) {
-      alert('גישה להקלטות זמינה למנויי פרימיום בלבד. אנא שדרג את המנוי שלך כדי לצפות בהקלטות.');
-      return;
+  const loadRecordings = useCallback(async () => {
+    // Clear previous recordings when loading new page to avoid showing stale data
+    if (currentPage !== 1) {
+      setPaginationLoading(true)
+      // Clear recordings immediately when changing pages to avoid showing stale data
+      setRecordings([])
+      setRecordingTags({})
+    } else {
+      setLoading(true)
+      // Clear recordings on initial load too
+      setRecordings([])
+      setRecordingTags({})
     }
-    router.push(`/recordings/${recordingId}`);
-  }
-
-  async function loadRecordings() {
-    setLoading(true)
+    setError(null)
+    
     try {
-      const { data, totalCount: total, error } = await getRecordingsPaginated(currentPage, itemsPerPage, sortBy)
-      if (!error && data) {
+      const { data, totalCount: total, error: fetchError } = await getRecordingsPaginated(currentPage, itemsPerPage, sortBy)
+      
+      if (fetchError) {
+        setError('שגיאה בטעינת ההקלטות. אנא נסה שוב.')
+        console.error('Error loading recordings:', fetchError)
+        // Don't clear recordings on error - keep showing previous page
+        return
+      }
+      
+      if (data) {
         // Data is already sorted by the query
         let processed = Array.isArray(data) ? [...data] : []
         
@@ -91,13 +102,36 @@ export default function RecordingsPage() {
             })
           }
           setRecordingTags(tagsMap)
+        } else {
+          // No recordings found for this page
+          setRecordingTags({})
         }
+      } else {
+        setError('לא נמצאו הקלטות')
+        setRecordings([])
+        setRecordingTags({})
       }
-    } catch (error) {
-      console.error('Error loading recordings:', error)
+    } catch (err: any) {
+      setError('שגיאה בטעינת ההקלטות. אנא נסה שוב.')
+      console.error('Error loading recordings:', err)
+      // Don't clear recordings on error - keep showing previous page
     } finally {
       setLoading(false)
+      setPaginationLoading(false)
     }
+  }, [currentPage, sortBy, itemsPerPage])
+
+  useEffect(() => {
+    // Load recordings when page or sort changes
+    loadRecordings()
+  }, [loadRecordings])
+
+  function handleRecordingClick(recordingId: string) {
+    if (!userIsPremium) {
+      alert('גישה להקלטות זמינה למנויי פרימיום בלבד. אנא שדרג את המנוי שלך כדי לצפות בהקלטות.');
+      return;
+    }
+    router.push(`/recordings/${recordingId}`);
   }
 
   // Get unique tags from current page recordings - memoized for performance
@@ -138,9 +172,11 @@ export default function RecordingsPage() {
   const totalPages = Math.ceil(totalCount / itemsPerPage)
   const paginatedRecordings = filteredRecordingsOnPage
 
-  // Reset to page 1 when filters or sort change
+  // Reset to page 1 when filters or sort change (only if not already on page 1)
   useEffect(() => {
-    setCurrentPage(1)
+    if (currentPage !== 1) {
+      setCurrentPage(1)
+    }
   }, [activeFilter, searchQuery, sortBy])
 
 
@@ -175,9 +211,23 @@ export default function RecordingsPage() {
           ))}
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <p className="text-red-800 text-sm">{error}</p>
+            <button
+              onClick={() => loadRecordings()}
+              className="mr-auto text-red-600 hover:text-red-800 text-sm font-medium underline"
+            >
+              נסה שוב
+            </button>
+          </div>
+        )}
+
         {/* Recordings Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {paginatedRecordings.map((recording) => (
+          {!loading && !paginationLoading && paginatedRecordings.length > 0 && paginatedRecordings.map((recording) => (
             <div
               key={recording.id}
               onClick={() => handleRecordingClick(recording.id)}
@@ -306,7 +356,7 @@ export default function RecordingsPage() {
         </div>
 
         {/* Empty State */}
-        {paginatedRecordings.length === 0 && !loading && (
+        {paginatedRecordings.length === 0 && !loading && !paginationLoading && (
           <div className="text-center py-12">
             <Play className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">לא נמצאו הקלטות</p>
@@ -339,14 +389,18 @@ export default function RecordingsPage() {
             <div className="flex items-center justify-center gap-4 w-full">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
+                disabled={currentPage === 1 || paginationLoading}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentPage === 1
+                  currentPage === 1 || paginationLoading
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
                 }`}
               >
-                <ChevronRight className="w-4 h-4" />
+                {paginationLoading ? (
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
                 קודם
               </button>
               
@@ -362,9 +416,12 @@ export default function RecordingsPage() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
+                        disabled={paginationLoading}
                         className={`w-10 h-10 rounded-lg font-medium transition-colors flex items-center justify-center ${
                           currentPage === page
                             ? 'bg-[#F52F8E] text-white'
+                            : paginationLoading
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
                         }`}
                       >
@@ -383,22 +440,26 @@ export default function RecordingsPage() {
 
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || paginationLoading}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentPage === totalPages
+                  currentPage === totalPages || paginationLoading
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
                 }`}
               >
                 הבא
-                <ChevronLeft className="w-4 h-4" />
+                {paginationLoading ? (
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <ChevronLeft className="w-4 h-4" />
+                )}
               </button>
             </div>
           </div>
         )}
 
         {/* Page Info */}
-        {paginatedRecordings.length > 0 && !loading && (
+        {paginatedRecordings.length > 0 && !loading && !paginationLoading && (
           <div className="mt-4 text-center text-sm text-gray-600">
             מציג {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} מתוך {totalCount} הקלטות
           </div>
