@@ -924,7 +924,27 @@ export default function AdminPanel() {
   const router = useRouter()
 
   useEffect(() => {
-    checkAuthorization()
+    let retryCount = 0
+    const maxRetries = 2
+    
+    async function checkAuthWithRetry() {
+      try {
+        await checkAuthorization()
+      } catch (error) {
+        if (retryCount < maxRetries) {
+          retryCount++
+          // Retry after 2 seconds
+          setTimeout(() => {
+            checkAuthWithRetry()
+          }, 2000)
+        } else {
+          console.error('Failed to check authorization after retries:', error)
+          setIsAuthorized(false)
+        }
+      }
+    }
+    
+    checkAuthWithRetry()
   }, [])
 
   useEffect(() => {
@@ -1043,53 +1063,74 @@ export default function AdminPanel() {
 
   async function checkAuthorization() {
     try {
-      // Get current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session) {
-        setIsAuthorized(false)
-        return
-      }
+      // Add timeout to prevent hanging
+      const timeoutId = setTimeout(() => {
+        console.warn('Authorization check taking too long, setting to false');
+        setIsAuthorized(false);
+      }, 10000); // 10 seconds timeout
 
-      // Get user profile with role
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          roles:role_id (
-            id,
-            name,
-            display_name,
-            description
-          )
-        `)
-        .eq('user_id', session.user.id)
-        .single()
+      try {
+        // Get current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError || !session) {
+          clearTimeout(timeoutId);
+          setIsAuthorized(false)
+          return
+        }
 
-      if (profileError || !profile) {
-        setIsAuthorized(false)
-        return
-      }
+        // Get user profile with role
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select(`
+            *,
+            roles:role_id (
+              id,
+              name,
+              display_name,
+              description
+            )
+          `)
+          .eq('user_id', session.user.id)
+          .single()
 
-      setCurrentUser(profile)
+        clearTimeout(timeoutId);
 
-      // Check if user is admin
-      const role = profile.roles || profile.role
-      const roleName = typeof role === 'object' ? role?.name : role
-      
-      if (roleName === 'admin') {
-        setIsAuthorized(true)
-      } else {
-        setIsAuthorized(false)
+        if (profileError || !profile) {
+          setIsAuthorized(false)
+          return
+        }
+
+        setCurrentUser(profile)
+
+        // Check if user is admin
+        const role = profile.roles || profile.role
+        const roleName = typeof role === 'object' ? role?.name : role
+        
+        if (roleName === 'admin') {
+          setIsAuthorized(true)
+        } else {
+          setIsAuthorized(false)
+        }
+      } catch (innerError) {
+        clearTimeout(timeoutId);
+        throw innerError;
       }
     } catch (error) {
       console.error('Error checking authorization:', error)
+      // If timeout or error, set to false
       setIsAuthorized(false)
     }
   }
 
   async function loadData() {
     setLoading(true)
+    // Add timeout to prevent hanging
+    let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+      console.warn('loadData taking too long, stopping loading state');
+      setLoading(false);
+    }, 30000); // 30 seconds timeout for data loading
+    
     try {
       if (activeTab === 'users') {
         const { data } = await getAllProfiles()
@@ -1292,7 +1333,9 @@ export default function AdminPanel() {
       }
     } catch (error) {
       console.error('Error loading data:', error)
+      if (timeoutId) clearTimeout(timeoutId)
     } finally {
+      if (timeoutId) clearTimeout(timeoutId)
       setLoading(false)
     }
   }

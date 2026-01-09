@@ -177,11 +177,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadUser() {
       try {
-        // Use getCurrentUser utility function
-        const { getCurrentUser } = await import('@/lib/utils/user');
-        const user = await getCurrentUser();
+        // Add timeout to prevent hanging
+        let timeoutId: NodeJS.Timeout | null = null;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Load user timeout')), 8000) // 8 seconds timeout
+        })
+
+        try {
+          // Use getCurrentUser utility function
+          const { getCurrentUser } = await import('@/lib/utils/user');
+          const user = await Promise.race([
+            getCurrentUser(),
+            timeoutPromise
+          ]);
+
+          if (timeoutId) clearTimeout(timeoutId);
         
-        if (!user) {
+          if (!user) {
           // Clear user state when no user
           setCurrentUser(null);
           setCurrentUserId(null);
@@ -256,9 +268,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }
         }
         
-        // Save to localStorage
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('selectedUserId', user.user_id || user.id || '');
+          // Save to localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('selectedUserId', user.user_id || user.id || '');
+          }
+        } catch (innerError) {
+          if (timeoutId) clearTimeout(timeoutId);
+          throw innerError;
         }
       } catch (error) {
         const { logError } = await import('@/lib/utils/errorHandler');
