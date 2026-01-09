@@ -82,6 +82,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const isLoadingUserRef = useRef(false);
   // Ref to track if the operation was cancelled (timeout or unmount)
   const isCancelledUserRef = useRef(false);
+  // Ref to track previous userId to prevent unnecessary useEffect re-runs
+  const prevUserIdRef = useRef<string | null>(null);
+  // Ref to track if we already redirected to prevent infinite redirect loops
+  const hasRedirectedRef = useRef(false);
   const pathname = usePathname();
 
   const toggleProfileMenu = useCallback(() => {
@@ -362,9 +366,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         const isAuthPage = authPages.some(page => pathname?.startsWith(page));
         
         // If profile is not complete and user is not on an auth page, redirect to complete-profile
-        if (needsCompletion && !isAuthPage && typeof window !== 'undefined') {
-          router.push('/auth/complete-profile');
-          return;
+        // BUT only if we haven't already redirected (prevents infinite loops)
+        if (needsCompletion && !isAuthPage && typeof window !== 'undefined' && !hasRedirectedRef.current) {
+          // Check if we're already on the target page to prevent redirect loops
+          if (pathname !== '/auth/complete-profile') {
+            hasRedirectedRef.current = true;
+            router.push('/auth/complete-profile');
+            return;
+          }
+        } else if (!needsCompletion || isAuthPage) {
+          // Reset redirect flag if profile is complete or we're on auth page
+          hasRedirectedRef.current = false;
         }
         
         // Don't update is_online here - it will be updated in onAuthStateChange
@@ -578,7 +590,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Load notifications - do this in background after initial load
   useEffect(() => {
-    if (!currentUserId) return;
+    // Only run if currentUserId actually changed (not just reference)
+    if (!currentUserId || prevUserIdRef.current === currentUserId) {
+      return;
+    }
+
+    // Update ref to track current value
+    prevUserIdRef.current = currentUserId;
 
     // Load notifications after a short delay to not block initial page load
     const timeoutId = setTimeout(async () => {

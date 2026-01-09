@@ -46,23 +46,39 @@ export default function RecordingsPage() {
   const isCancelledRef = useRef(false);
 
   const loadRecordings = useCallback(async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:48',message:'loadRecordings START',data:{currentPage,sortBy,isLoading:isLoadingRecordingsRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     // Prevent parallel calls
     if (isLoadingRecordingsRef.current) {
       console.log('loadRecordings already running, skipping...');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:51',message:'loadRecordings SKIPPED - already running',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       return;
     }
     
     isLoadingRecordingsRef.current = true;
     isCancelledRef.current = false; // Reset cancellation flag
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:56',message:'loadRecordings INIT',data:{isCancelled:isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     // Add timeout to prevent hanging (Chrome-specific issue)
+    const timeoutStartTime = Date.now();
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+      const timeoutDuration = Date.now() - timeoutStartTime;
       console.warn('loadRecordings taking too long, stopping loading state');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:60',message:'TIMEOUT TRIGGERED',data:{timeoutDuration,isCancelled:isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       isCancelledRef.current = true; // Mark as cancelled
       setLoading(false);
       setPaginationLoading(false);
       isLoadingRecordingsRef.current = false; // CRITICAL: Reset ref on timeout
-    }, 20000); // 20 seconds timeout
+    }, 30000); // 30 seconds timeout - increased for slow DB queries
     
     // Clear previous recordings when loading new page to avoid showing stale data
     if (currentPage !== 1) {
@@ -79,11 +95,24 @@ export default function RecordingsPage() {
     setError(null)
     
     try {
+      const queryStartTime = Date.now();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:82',message:'BEFORE getRecordingsPaginated',data:{currentPage,itemsPerPage,sortBy,isCancelled:isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
       const { data, totalCount: total, error: fetchError } = await getRecordingsPaginated(currentPage, itemsPerPage, sortBy)
+      
+      const queryDuration = Date.now() - queryStartTime;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:85',message:'AFTER getRecordingsPaginated',data:{queryDuration,hasData:!!data,dataLength:data?.length||0,totalCount:total,hasError:!!fetchError,isCancelled:isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       
       // Check if operation was cancelled (timeout occurred)
       if (isCancelledRef.current) {
         console.log('loadRecordings was cancelled, skipping state updates');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:88',message:'CANCELLED after query',data:{queryDuration},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         return;
       }
       
@@ -118,9 +147,15 @@ export default function RecordingsPage() {
         // Check again before updating state
         if (isCancelledRef.current) {
           console.log('loadRecordings was cancelled before state update, skipping');
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:122',message:'CANCELLED before setRecordings',data:{processedLength:processed.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
           return;
         }
         
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:125',message:'SETTING recordings state',data:{processedLength:processed.length,totalCount:total},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         setRecordings(processed)
         setTotalCount(total || 0)
         
@@ -167,6 +202,9 @@ export default function RecordingsPage() {
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
       // Only update loading state if not cancelled
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:167',message:'loadRecordings FINALLY',data:{isCancelled:isCancelledRef.current,willUpdateLoading:!isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       if (!isCancelledRef.current) {
         setLoading(false);
         setPaginationLoading(false);

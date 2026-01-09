@@ -79,44 +79,71 @@ export async function getAllRecordings() {
 
 // Get recordings with pagination
 export async function getRecordingsPaginated(page: number = 1, limit: number = 6, sortBy: string = 'recently-active') {
+  const funcStartTime = Date.now();
   const cacheKey = `recordings:paginated:${page}:${limit}:${sortBy}`;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:81',message:'getRecordingsPaginated START',data:{page,limit,sortBy,cacheKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  
   const cached = getCached<{ data: Recording[], totalCount: number }>(cacheKey);
   if (cached) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:85',message:'CACHE HIT',data:{cacheKey,dataLength:cached.data?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     return { data: cached.data, totalCount: cached.totalCount, error: null };
   }
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:88',message:'CACHE MISS - querying DB',data:{cacheKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   try {
     // Calculate range for pagination
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    // Build query
+    // Build query - use 'planned' count for better performance (much faster than 'exact')
+    // 'planned' uses table statistics and is good enough for pagination
     let query = supabase
       .from('recordings')
-      .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at', { count: 'exact' });
+      .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at', { count: 'planned' });
 
     // Apply sorting
     if (sortBy === 'recently-active') {
       query = query.order('created_at', { ascending: false });
     } else if (sortBy === 'views') {
-      query = query.order('views', { ascending: false });
+      query = query.order('views', { ascending: false, nullsFirst: false });
     } else {
       query = query.order('created_at', { ascending: false });
     }
 
     // Apply pagination
+    const dbQueryStartTime = Date.now();
     const { data, error, count } = await query.range(from, to);
+    const dbQueryDuration = Date.now() - dbQueryStartTime;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:109',message:'DB QUERY RESULT',data:{dbQueryDuration,hasData:!!data,dataLength:data?.length||0,count,hasError:!!error,errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     if (error) {
       logError(error, 'getRecordingsPaginated');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:112',message:'DB QUERY ERROR',data:{error:error.message,dbQueryDuration},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       return { data: null, totalCount: 0, error };
     }
 
     const recordings = Array.isArray(data) ? data : [];
     const totalCount = count || 0;
+    const totalDuration = Date.now() - funcStartTime;
 
     // Cache the result
     setCached(cacheKey, { data: recordings, totalCount }, CACHE_TTL.SHORT);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:122',message:'getRecordingsPaginated SUCCESS',data:{totalDuration,dbQueryDuration,recordingsLength:recordings.length,totalCount},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     
     return { data: recordings, totalCount, error: null };
   } catch (err: any) {

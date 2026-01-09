@@ -91,6 +91,13 @@ export default function Home() {
   const isLoadingDataRef = useRef(false);
   // Ref to track if the operation was cancelled (timeout or unmount)
   const isCancelledRef = useRef(false);
+  // Ref to store currentUser to avoid adding it to loadData dependencies
+  const currentUserRef = useRef(currentUser);
+  
+  // Update ref when currentUser changes
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
 
   const loadData = useCallback(async () => {
     // Prevent parallel calls
@@ -171,8 +178,8 @@ export default function Home() {
         setAnnouncements(adminPosts);
         
         // Load liked posts for current user - use batch query for better performance
-        if (currentUser) {
-          const userId = currentUser.user_id || currentUser.id;
+        if (currentUserRef.current) {
+          const userId = currentUserRef.current.user_id || currentUserRef.current.id;
           if (userId && adminPosts.length > 0) {
             try {
               const postIds = adminPosts.map((post: any) => post.id);
@@ -254,7 +261,7 @@ export default function Home() {
       }
       isLoadingDataRef.current = false;
     }
-  }, [currentUser]);
+  }, []); // Remove currentUser from dependencies - use ref instead
 
   useEffect(() => {
     let cancelled = false;
@@ -306,31 +313,6 @@ export default function Home() {
     
     // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
-    
-    // Auto-rotate news carousel every 5 seconds
-    let newsInterval: NodeJS.Timeout | null = null;
-    if (news.length > 1) {
-      newsInterval = setInterval(() => {
-        if (cancelled) return;
-        setCurrentNewsIndex((prev) => (prev === news.length - 1 ? 0 : prev + 1));
-      }, 5000);
-    }
-    
-    // Listen for auth state changes to reload data when user logs out
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (cancelled) return;
-      if (event === 'SIGNED_OUT') {
-        // Clear cache and reload data when user logs out
-        clearCache('profiles:all');
-        loadData();
-        refetchUser();
-      } else if (event === 'SIGNED_IN') {
-        // Reload data when user logs in
-        clearCache('profiles:all');
-        refetchUser();
-        loadData();
-      }
-    });
 
     // Listen for profile updates
     const handleProfileUpdate = () => {
@@ -345,11 +327,37 @@ export default function Home() {
     return () => {
       cancelled = true;
       window.removeEventListener('hashchange', handleHashChange);
-      subscription.unsubscribe();
       window.removeEventListener('profileUpdated', handleProfileUpdate);
-      if (newsInterval) clearInterval(newsInterval);
     };
-  }, [loadData]); // loadData is now useCallback with stable dependencies
+  }, [loadData, refetchUser]); // Removed 'news' - it causes infinite reloads
+
+  // Listen for auth state changes to reload data when user logs out/in
+  // Separate useEffect to prevent recreation on every render
+  useEffect(() => {
+    let isMounted = true;
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // Only process if component is still mounted
+      if (!isMounted) return;
+      
+      if (event === 'SIGNED_OUT') {
+        // Clear cache and reload data when user logs out
+        clearCache('profiles:all');
+        loadData();
+        refetchUser();
+      } else if (event === 'SIGNED_IN') {
+        // Reload data when user logs in
+        clearCache('profiles:all');
+        refetchUser();
+        loadData();
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [loadData, refetchUser]); // Only recreate if loadData or refetchUser change
 
   // Auto-rotate news carousel every 5 seconds
   useEffect(() => {
