@@ -40,7 +40,6 @@ export function OnlineUsers({ users, badges = {} }: OnlineUsersProps) {
                     src={`${user.avatar_url}?t=${Date.now()}`}
                     alt={user.display_name || 'User'}
                     className="w-10 h-10 rounded-full border-2 border-green-500 cursor-pointer hover:scale-110 transition-transform"
-                    crossOrigin="anonymous"
                     referrerPolicy="no-referrer"
                   />
                 ) : (

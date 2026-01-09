@@ -906,7 +906,6 @@ function ForumDetailPageContent() {
                               alt={selectedPost.profile.display_name || selectedPost.profile.first_name || selectedPost.profile.nickname || 'משתמש'}
                               className="w-12 h-12 rounded-full object-cover"
                               key={`post-${selectedPost.id}`}
-                              crossOrigin="anonymous"
                               referrerPolicy="no-referrer"
                             />
                           ) : (
@@ -1061,7 +1060,6 @@ function ForumDetailPageContent() {
                                         alt={post.profile.display_name || 'משתמש'}
                                         className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                                         key={`post-${post.id}`}
-                                        crossOrigin="anonymous"
                                         referrerPolicy="no-referrer"
                                       />
                                     ) : (
