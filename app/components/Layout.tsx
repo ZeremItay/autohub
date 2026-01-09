@@ -79,6 +79,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const notificationsMenuRef = useRef<HTMLDivElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const isLoadingUserRef = useRef(false);
   const pathname = usePathname();
 
   const toggleProfileMenu = useCallback(() => {
@@ -212,10 +213,44 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Load current user from Supabase session
   useEffect(() => {
     async function loadUser() {
+      // Prevent parallel calls
+      if (isLoadingUserRef.current) {
+        console.log('loadUser already running, skipping...');
+        return;
+      }
+      
+      isLoadingUserRef.current = true;
+      
+      // Add timeout to prevent hanging
+      let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
+        console.warn('loadUser taking too long, checking session as fallback');
+        // On timeout, check session and don't clear user if session exists
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user) {
+            // Session exists but user not loaded - use minimal user
+            const minimalUser = {
+              id: session.user.id,
+              user_id: session.user.id,
+              display_name: session.user.email?.split('@')[0] || 'משתמש',
+              email: session.user.email
+            };
+            setCurrentUserId(session.user.id);
+            setCurrentUser(minimalUser);
+            setAvatarUrl(null);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('selectedUserId', session.user.id);
+            }
+          }
+        });
+        isLoadingUserRef.current = false;
+      }, 10000); // 10 seconds timeout
+      
       try {
         // Try to load user - simplified logic
         const { getCurrentUser } = await import('@/lib/utils/user');
         let user = await getCurrentUser();
+        
+        if (timeoutId) clearTimeout(timeoutId);
         
         // If user loading failed, check session as fallback
         if (!user) {
@@ -231,15 +266,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }
         }
         
+        // CRITICAL: Only clear user state if there's no session
+        // If session exists, keep the user (even if minimal)
         if (!user) {
-          // No user and no session - clear state
-          setCurrentUser(null);
-          setCurrentUserId(null);
-          setAvatarUrl(null);
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('selectedUserId');
+          // Check session one more time before clearing
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user) {
+            // No user and no session - clear state
+            setCurrentUser(null);
+            setCurrentUserId(null);
+            setAvatarUrl(null);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('selectedUserId');
+            }
+            isLoadingUserRef.current = false;
+            return;
+          } else {
+            // Session exists - use minimal user
+            user = {
+              id: session.user.id,
+              user_id: session.user.id,
+              display_name: session.user.email?.split('@')[0] || 'משתמש',
+              email: session.user.email
+            };
           }
-          return;
         }
 
         // Set user state
@@ -312,6 +362,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           localStorage.setItem('selectedUserId', user.user_id || user.id || '');
         }
       } catch (error: any) {
+        if (timeoutId) clearTimeout(timeoutId);
+        
         // If error occurs, try to get user from session as fallback
         try {
           const { data: { session } } = await supabase.auth.getSession();
@@ -329,6 +381,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             if (typeof window !== 'undefined') {
               localStorage.setItem('selectedUserId', session.user.id);
             }
+            isLoadingUserRef.current = false;
             return;
           }
         } catch (sessionError) {
@@ -337,13 +390,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           logError(error, 'Layout:loadUser');
         }
         
-        // No session - clear user state
-        setCurrentUser(null);
-        setCurrentUserId(null);
-        setAvatarUrl(null);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('selectedUserId');
+        // CRITICAL: Only clear user state if there's no session
+        // Check session one more time before clearing
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          // No session - clear user state
+          setCurrentUser(null);
+          setCurrentUserId(null);
+          setAvatarUrl(null);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('selectedUserId');
+          }
+        } else {
+          // Session exists - keep minimal user
+          const minimalUser = {
+            id: session.user.id,
+            user_id: session.user.id,
+            display_name: session.user.email?.split('@')[0] || 'משתמש',
+            email: session.user.email
+          };
+          setCurrentUserId(session.user.id);
+          setCurrentUser(minimalUser);
+          setAvatarUrl(null);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('selectedUserId', session.user.id);
+          }
         }
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+        isLoadingUserRef.current = false;
       }
     }
     loadUser();
