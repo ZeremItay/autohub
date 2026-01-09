@@ -26,7 +26,7 @@ import {
   FileText,
   GraduationCap,
 } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getPosts, createPost, deletePost, updatePost, toggleLike, checkUserLikedPost, checkUserLikedPosts, type PostWithProfile } from '@/lib/queries/posts';
 import { getAllProfiles, type ProfileWithRole } from '@/lib/queries/profiles';
 import { getUpcomingEvents, type Event } from '@/lib/queries/events';
@@ -87,7 +87,17 @@ export default function Home() {
   const [editPostContent, setEditPostContent] = useState<string>('');
   const [editPostImageUrl, setEditPostImageUrl] = useState<string>('');
 
+  // Ref to prevent parallel calls to loadData
+  const isLoadingDataRef = useRef(false);
+
   const loadData = useCallback(async () => {
+    // Prevent parallel calls
+    if (isLoadingDataRef.current) {
+      console.log('loadData already running, skipping...');
+      return;
+    }
+    
+    isLoadingDataRef.current = true;
     setLoading(true);
     try {
       // Load all data in parallel for better performance
@@ -166,14 +176,23 @@ export default function Home() {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+      isLoadingDataRef.current = false;
     }
   }, [currentUser]);
 
   useEffect(() => {
-    loadData(); // Load data on initial page load
+    let cancelled = false;
+    
+    // Load data on initial page load
+    loadData().catch(error => {
+      if (!cancelled) {
+        console.error('Error in loadData effect:', error);
+      }
+    });
     
     // Handle hash navigation (for notifications linking to posts)
     const handleHashChange = () => {
+      if (cancelled) return;
       const hash = window.location.hash;
       if (hash && hash.startsWith('#post-')) {
         const postId = hash.replace('#post-', '');
@@ -181,6 +200,7 @@ export default function Home() {
         let attempts = 0;
         const maxAttempts = 10;
         const tryScroll = () => {
+          if (cancelled) return;
           attempts++;
           const element = document.getElementById(`post-${postId}`);
           if (element) {
@@ -205,20 +225,18 @@ export default function Home() {
     // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
     
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-    
     // Auto-rotate news carousel every 5 seconds
     let newsInterval: NodeJS.Timeout | null = null;
     if (news.length > 1) {
       newsInterval = setInterval(() => {
+        if (cancelled) return;
         setCurrentNewsIndex((prev) => (prev === news.length - 1 ? 0 : prev + 1));
       }, 5000);
     }
     
     // Listen for auth state changes to reload data when user logs out
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (cancelled) return;
       if (event === 'SIGNED_OUT') {
         // Clear cache and reload data when user logs out
         clearCache('profiles:all');
@@ -234,6 +252,7 @@ export default function Home() {
 
     // Listen for profile updates
     const handleProfileUpdate = () => {
+      if (cancelled) return;
       clearCache('profiles:all');
       loadData();
       refetchUser();
@@ -242,6 +261,8 @@ export default function Home() {
     window.addEventListener('profileUpdated', handleProfileUpdate);
 
     return () => {
+      cancelled = true;
+      window.removeEventListener('hashchange', handleHashChange);
       subscription.unsubscribe();
       window.removeEventListener('profileUpdated', handleProfileUpdate);
       if (newsInterval) clearInterval(newsInterval);

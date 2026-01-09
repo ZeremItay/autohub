@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { MessageCircle, Eye, Pin, Lock, Edit, Image, Video, X, Smile, Code, Link as LinkIcon, Italic, Bold, ArrowRight, Heart } from 'lucide-react';
 import Link from 'next/link';
@@ -54,53 +54,11 @@ function ForumDetailPageContent() {
   const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(new Set());
   const { isAdmin, loading: userLoading } = useCurrentUser();
 
+  // Ref to prevent parallel calls to loadPosts
+  const isLoadingPostsRef = useRef(false);
 
-  useEffect(() => {
-    if (forumId) {
-      loadForum();
-      loadPosts();
-      loadCurrentUser();
-      loadAllForums();
-    }
-  }, [forumId]);
-
-  // Check if there's a postId in the URL (from redirect from /posts/[postId] page)
-  useEffect(() => {
-    const postIdFromUrl = searchParams?.get('postId');
-    if (postIdFromUrl && posts.length > 0 && !selectedPost) {
-      const postToOpen = posts.find(p => p.id === postIdFromUrl);
-      if (postToOpen) {
-        handlePostClick(postToOpen);
-        // Clean up URL
-        router.replace(`/forums/${forumId}`, { scroll: false });
-      }
-    }
-  }, [searchParams, posts, selectedPost, forumId, router]);
-
-  // Listen for profile updates to reload posts and comments
-  useEffect(() => {
-    const handleProfileUpdate = () => {
-      if (forumId) {
-        loadPosts();
-        loadCurrentUser();
-        if (selectedPost) {
-          // Reload selected post to update avatars
-          const { getForumPostById } = require('@/lib/queries/forums');
-          getForumPostById(selectedPost.id, currentUser?.id).then(({ data, error }: any) => {
-            if (!error && data) {
-              setSelectedPost(data);
-              setPostReplies(data.replies || []);
-            }
-          });
-        }
-      }
-    };
-
-    window.addEventListener('profileUpdated', handleProfileUpdate);
-    return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
-  }, [forumId, selectedPost, currentUser]);
-
-  async function loadCurrentUser() {
+  // Memoize load functions to prevent unnecessary re-renders and race conditions
+  const loadCurrentUser = useCallback(async () => {
     try {
       const { data: profiles } = await getAllProfiles();
       if (Array.isArray(profiles) && profiles.length > 0) {
@@ -123,9 +81,10 @@ function ForumDetailPageContent() {
     } catch (error) {
       console.error('Error loading current user:', error);
     }
-  }
+  }, []);
 
-  async function loadForum() {
+  const loadForum = useCallback(async () => {
+    if (!forumId) return;
     try {
       const { data, error } = await getForumById(forumId);
       if (!error && data) {
@@ -134,9 +93,9 @@ function ForumDetailPageContent() {
     } catch (error) {
       console.error('Error loading forum:', error);
     }
-  }
+  }, [forumId]);
 
-  async function loadAllForums() {
+  const loadAllForums = useCallback(async () => {
     try {
       const { data, error } = await getAllForums();
       if (!error && data) {
@@ -145,10 +104,20 @@ function ForumDetailPageContent() {
     } catch (error) {
       console.error('Error loading all forums:', error);
     }
-  }
+  }, []);
 
-  async function loadPosts() {
+  const loadPosts = useCallback(async () => {
+    if (!forumId) return;
+    
+    // Prevent parallel calls
+    if (isLoadingPostsRef.current) {
+      console.log('loadPosts already running, skipping...');
+      return;
+    }
+    
+    isLoadingPostsRef.current = true;
     setLoading(true);
+    
     try {
       const { data, error } = await getForumPosts(forumId);
       if (!error && data) {
@@ -158,8 +127,67 @@ function ForumDetailPageContent() {
       console.error('Error loading posts:', error);
     } finally {
       setLoading(false);
+      isLoadingPostsRef.current = false;
     }
-  }
+  }, [forumId]);
+
+  useEffect(() => {
+    if (!forumId) return;
+    
+    let cancelled = false;
+    
+    // Load all data in parallel
+    Promise.all([
+      loadForum(),
+      loadPosts(),
+      loadCurrentUser(),
+      loadAllForums()
+    ]).catch(error => {
+      if (!cancelled) {
+        console.error('Error loading forum data:', error);
+      }
+    });
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [forumId, loadForum, loadPosts, loadCurrentUser, loadAllForums]);
+
+  // Check if there's a postId in the URL (from redirect from /posts/[postId] page)
+  useEffect(() => {
+    const postIdFromUrl = searchParams?.get('postId');
+    if (postIdFromUrl && posts.length > 0 && !selectedPost) {
+      const postToOpen = posts.find(p => p.id === postIdFromUrl);
+      if (postToOpen) {
+        handlePostClick(postToOpen);
+        // Clean up URL
+        router.replace(`/forums/${forumId}`, { scroll: false });
+      }
+    }
+  }, [searchParams, posts, selectedPost, forumId, router]);
+
+  // Listen for profile updates to reload posts and comments
+  useEffect(() => {
+    if (!forumId) return;
+    
+    const handleProfileUpdate = () => {
+      loadPosts();
+      loadCurrentUser();
+      if (selectedPost) {
+        // Reload selected post to update avatars
+        const { getForumPostById } = require('@/lib/queries/forums');
+        getForumPostById(selectedPost.id, currentUser?.id).then(({ data, error }: any) => {
+          if (!error && data) {
+            setSelectedPost(data);
+            setPostReplies(data.replies || []);
+          }
+        });
+      }
+    };
+
+    window.addEventListener('profileUpdated', handleProfileUpdate);
+    return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
+  }, [forumId, selectedPost, currentUser, loadPosts, loadCurrentUser]);
 
   async function handleCreatePost() {
     // Check if content is empty (strip HTML tags for validation)

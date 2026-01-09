@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
@@ -34,7 +34,17 @@ function MembersPageContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
+  // Ref to prevent parallel calls to loadMembers
+  const isLoadingMembersRef = useRef(false);
+
   const loadMembers = useCallback(async () => {
+    // Prevent parallel calls
+    if (isLoadingMembersRef.current) {
+      console.log('loadMembers already running, skipping...');
+      return;
+    }
+    
+    isLoadingMembersRef.current = true;
     setLoading(true)
     // Add timeout to prevent hanging
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
@@ -68,7 +78,8 @@ function MembersPageContent() {
       if (timeoutId) clearTimeout(timeoutId);
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
-      setLoading(false)
+      setLoading(false);
+      isLoadingMembersRef.current = false;
     }
   }, [sortBy])
 

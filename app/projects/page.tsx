@@ -238,7 +238,17 @@ export default function ProjectsPage() {
   const [userPoints, setUserPoints] = useState<number>(0);
   const [pointsConfirmed, setPointsConfirmed] = useState(false);
 
+  // Ref to prevent parallel calls to loadData
+  const isLoadingDataRef = useRef(false);
+
   const loadData = useCallback(async () => {
+    // Prevent parallel calls
+    if (isLoadingDataRef.current) {
+      console.log('loadData already running, skipping...');
+      return;
+    }
+    
+    isLoadingDataRef.current = true;
     setLoading(true);
     try {
       // Load only essential data first
@@ -294,15 +304,24 @@ export default function ProjectsPage() {
     } catch (error) {
       console.error('Error loading data:', error);
       setLoading(false);
+    } finally {
+      isLoadingDataRef.current = false;
     }
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    
     setMounted(true);
-    loadData();
+    loadData().catch(error => {
+      if (!cancelled) {
+        console.error('Error in loadData effect:', error);
+      }
+    });
     
     // Listen for auth state changes to reload data when user logs out/in
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (cancelled) return;
       if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
         // Clear cache and reload data when auth state changes
         clearCache('profiles:all');
@@ -311,6 +330,7 @@ export default function ProjectsPage() {
     });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
   }, [loadData]);

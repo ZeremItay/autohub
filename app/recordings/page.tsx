@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getRecordingsPaginated } from '@/lib/queries/recordings';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
@@ -40,7 +40,18 @@ export default function RecordingsPage() {
   const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 6
 
+  // Ref to prevent parallel calls to loadRecordings
+  const isLoadingRecordingsRef = useRef(false);
+
   const loadRecordings = useCallback(async () => {
+    // Prevent parallel calls
+    if (isLoadingRecordingsRef.current) {
+      console.log('loadRecordings already running, skipping...');
+      return;
+    }
+    
+    isLoadingRecordingsRef.current = true;
+    
     // Clear previous recordings when loading new page to avoid showing stale data
     if (currentPage !== 1) {
       setPaginationLoading(true)
@@ -116,14 +127,25 @@ export default function RecordingsPage() {
       console.error('Error loading recordings:', err)
       // Don't clear recordings on error - keep showing previous page
     } finally {
-      setLoading(false)
-      setPaginationLoading(false)
+      setLoading(false);
+      setPaginationLoading(false);
+      isLoadingRecordingsRef.current = false;
     }
   }, [currentPage, sortBy, itemsPerPage])
 
   useEffect(() => {
     // Load recordings when page or sort changes
-    loadRecordings()
+    let cancelled = false;
+    
+    loadRecordings().catch(error => {
+      if (!cancelled) {
+        console.error('Error in loadRecordings effect:', error);
+      }
+    });
+    
+    return () => {
+      cancelled = true;
+    };
   }, [loadRecordings])
 
   function handleRecordingClick(recordingId: string) {
