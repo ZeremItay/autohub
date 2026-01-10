@@ -479,7 +479,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             .then(() => {
               console.log('[onAuthStateChange] Updated is_online to false');
             })
-            .catch((error) => {
+            .catch((error: unknown) => {
               console.error('Error updating is_online on logout:', error);
             });
         }
