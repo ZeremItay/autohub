@@ -80,8 +80,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const isLoadingUserRef = useRef(false);
-  // Ref to track if the operation was cancelled (timeout or unmount)
-  const isCancelledUserRef = useRef(false);
   // Ref to track previous userId to prevent unnecessary useEffect re-runs
   const prevUserIdRef = useRef<string | null>(null);
   // Ref to track if we already redirected to prevent infinite redirect loops
@@ -229,63 +227,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       }
       
       isLoadingUserRef.current = true;
-      isCancelledUserRef.current = false; // Reset cancellation flag
-      
-      // Add timeout to prevent hanging
-      let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
-        console.warn('loadUser taking too long, checking session as fallback');
-        isCancelledUserRef.current = true; // Mark as cancelled
-        // On timeout, check session and don't clear user if session exists
-        supabase.auth.getSession().then(({ data: { session } }: any) => {
-          // Check if operation was cancelled before updating state
-          if (isCancelledUserRef.current) {
-            // Only update if we don't have a user and session exists
-            if (session?.user && !currentUser) {
-              const minimalUser = {
-                id: session.user.id,
-                user_id: session.user.id,
-                display_name: session.user.email?.split('@')[0] || 'משתמש',
-                email: session.user.email
-              };
-              setCurrentUserId(session.user.id);
-              setCurrentUser(minimalUser);
-              setAvatarUrl(null);
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('selectedUserId', session.user.id);
-              }
-            } else if (!session?.user && !currentUser) {
-              // No session and no current user - only then clear
-              setCurrentUser(null);
-              setCurrentUserId(null);
-              setAvatarUrl(null);
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem('selectedUserId');
-              }
-            }
-          }
-          isLoadingUserRef.current = false;
-        }).catch((err: any) => {
-          console.error('Error checking session on loadUser timeout:', err);
-          // On error, don't clear user - keep current state
-          isLoadingUserRef.current = false;
-        });
-      }, 8000); // 8 seconds timeout - reduced from 15
-      
+
       try {
         // Try to load user - simplified logic
         const { getCurrentUser } = await import('@/lib/utils/user');
         let user = await getCurrentUser();
-        
-        // Check if operation was cancelled (timeout occurred)
-        if (isCancelledUserRef.current) {
-          console.log('loadUser was cancelled, skipping state updates');
-          if (timeoutId) clearTimeout(timeoutId);
-          isLoadingUserRef.current = false;
-          return;
-        }
-        
-        if (timeoutId) clearTimeout(timeoutId);
-        
+
         // If user loading failed, check session as fallback
         if (!user) {
           const { data: { session } } = await supabase.auth.getSession();
@@ -299,26 +246,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             };
           }
         }
-        
-        // Check again before processing user data
-        if (isCancelledUserRef.current) {
-          console.log('loadUser was cancelled before setting user, skipping');
-          return;
-        }
-        
+
         // CRITICAL: Only clear user state if there's no session
         // If session exists, keep the user (even if minimal)
         // NEVER clear user if currentUser already exists and session exists
         if (!user) {
           // Check session one more time before clearing
           const { data: { session } } = await supabase.auth.getSession();
-          
-          // Check if cancelled during session check
-          if (isCancelledUserRef.current) {
-            console.log('loadUser was cancelled during session check, skipping');
-            return;
-          }
-          
+
           if (!session?.user) {
             // No user and no session - only clear if currentUser is also null
             // This prevents clearing user state if we already have a user loaded
@@ -347,12 +282,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               return;
             }
           }
-        }
-
-        // Check again before setting user state
-        if (isCancelledUserRef.current) {
-          console.log('loadUser was cancelled before final state update, skipping');
-          return;
         }
 
         // Set user state
@@ -433,26 +362,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           localStorage.setItem('selectedUserId', user.user_id || user.id || '');
         }
       } catch (error: any) {
-        // Check if operation was cancelled before handling error
-        if (isCancelledUserRef.current) {
-          console.log('loadUser was cancelled, skipping error handling');
-          if (timeoutId) clearTimeout(timeoutId);
-          isLoadingUserRef.current = false;
-          return;
-        }
-        
-        if (timeoutId) clearTimeout(timeoutId);
-        
         // If error occurs, try to get user from session as fallback
         try {
           const { data: { session } } = await supabase.auth.getSession();
-          
-          // Check if cancelled during session check
-          if (isCancelledUserRef.current) {
-            console.log('loadUser was cancelled during error session check, skipping');
-            return;
-          }
-          
+
           if (session?.user) {
             // Use minimal user from session
             const minimalUser = {
@@ -472,18 +385,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }
         } catch (sessionError) {
           // Session check also failed - log error but don't block
-          if (!isCancelledUserRef.current) {
-            const { logError } = await import('@/lib/utils/errorHandler');
-            logError(error, 'Layout:loadUser');
-          }
+          const { logError } = await import('@/lib/utils/errorHandler');
+          logError(error, 'Layout:loadUser');
         }
-        
-        // Check again before clearing user
-        if (isCancelledUserRef.current) {
-          console.log('loadUser was cancelled before clearing user, skipping');
-          return;
-        }
-        
+
         // CRITICAL: Only clear user state if there's no session
         // Check session one more time before clearing
         // NEVER clear user if currentUser already exists and session exists
@@ -517,11 +422,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           // If currentUser already exists, don't overwrite it
         }
       } finally {
-        if (timeoutId) clearTimeout(timeoutId);
-        // Only reset ref if not cancelled (timeout handler will reset it)
-        if (!isCancelledUserRef.current) {
-          isLoadingUserRef.current = false;
-        }
+        isLoadingUserRef.current = false;
       }
     }
     // Only load user if component is still mounted
@@ -530,70 +431,68 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
 
     // Listen for auth state changes
-    // CRITICAL: Add guard to prevent infinite loops
-    let isProcessingAuthChange = false;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
-      // Prevent concurrent processing
-      if (isProcessingAuthChange) {
-        console.log('Auth state change already processing, skipping...');
-        return;
-      }
-      
-      isProcessingAuthChange = true;
-      
-      try {
-        if (event === 'SIGNED_IN') {
-          // Only on actual sign-in, update is_online and reload user
-          if (session?.user && !hasUpdatedOnlineStatusRef.current) {
-            try {
-              await updateProfile(session.user.id, { is_online: true });
+    // IMPORTANT: This callback must NOT use async/await to prevent blocking
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
+      console.log('[onAuthStateChange] Event:', event);
+
+      if (event === 'SIGNED_IN') {
+        const shouldReloadUser = !currentUser || currentUser.id !== session?.user?.id;
+
+        // Only on actual sign-in, update is_online and reload user
+        if (session?.user && !hasUpdatedOnlineStatusRef.current) {
+          // Update profile first, then reload user to get fresh data
+          updateProfile(session.user.id, { is_online: true })
+            .then(() => {
               hasUpdatedOnlineStatusRef.current = true;
-            } catch (error) {
-              const { logError } = await import('@/lib/utils/errorHandler');
-              logError(error, 'Layout:updateIsOnlineOnAuth');
-            }
-          }
-          // Only reload user if we don't have one or session changed
-          if (!currentUser || currentUser.id !== session?.user?.id) {
-            loadUser();
-          }
-        } else if (event === 'TOKEN_REFRESHED') {
-          // On token refresh, DON'T reload user - token refresh is automatic
-          // Reloading here causes infinite loops
-          // Only update if we don't have a user at all
-          if (!currentUser && session?.user) {
-            loadUser();
-          }
-          // Don't update is_online on token refresh - it's not a new login
-        } else if (event === 'SIGNED_OUT') {
-          // Reset flag on logout
-          hasUpdatedOnlineStatusRef.current = false;
-          // Update is_online to false when user logs out
-          const userIdToUpdate = currentUserId;
-          if (userIdToUpdate) {
-            try {
-              await supabase
-                .from('profiles')
-                .update({ is_online: false })
-                .eq('user_id', userIdToUpdate);
-            } catch (error) {
-              console.error('Error updating is_online on logout:', error);
-            }
-          }
-          
-          // Clear cache to force reload of data
-          clearCache('profiles:all');
-          
-          setCurrentUser(null);
-          setCurrentUserId(null);
-          setAvatarUrl(null);
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('selectedUserId');
-          }
+              // Reload user after profile is updated
+              if (shouldReloadUser) {
+                loadUser();
+              }
+            })
+            .catch((error) => {
+              console.error('Error updating is_online on auth:', error);
+              // Still reload user even if update failed
+              if (shouldReloadUser) {
+                loadUser();
+              }
+            });
+        } else if (shouldReloadUser) {
+          // No profile update needed, just reload user
+          loadUser();
         }
-      } finally {
-        // Reset flag after processing
-        isProcessingAuthChange = false;
+      } else if (event === 'TOKEN_REFRESHED') {
+        // On token refresh, DON'T reload user - token refresh is automatic
+        // Only update if we don't have a user at all
+        if (!currentUser && session?.user) {
+          loadUser();
+        }
+      } else if (event === 'SIGNED_OUT') {
+        // Reset flag on logout
+        hasUpdatedOnlineStatusRef.current = false;
+        // Update is_online to false when user logs out (fire-and-forget)
+        const userIdToUpdate = currentUserId;
+        if (userIdToUpdate) {
+          supabase
+            .from('profiles')
+            .update({ is_online: false })
+            .eq('user_id', userIdToUpdate)
+            .then(() => {
+              console.log('[onAuthStateChange] Updated is_online to false');
+            })
+            .catch((error) => {
+              console.error('Error updating is_online on logout:', error);
+            });
+        }
+
+        // Clear cache to force reload of data
+        clearCache('profiles:all');
+
+        setCurrentUser(null);
+        setCurrentUserId(null);
+        setAvatarUrl(null);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('selectedUserId');
+        }
       }
     });
 
@@ -609,8 +508,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
       window.removeEventListener('profileUpdated', handleProfileUpdate);
-      // Don't mark as cancelled here - only timeout should do that
-      // This prevents race conditions when component re-renders
     };
   }, []); // Empty deps - only run once on mount
 

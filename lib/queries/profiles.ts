@@ -44,52 +44,40 @@ export async function getProfile(userId: string) {
     return { data: cached, error: null };
   }
 
-  // Add timeout to prevent hanging
-  const timeoutPromise = new Promise<{ data: null, error: any }>((resolve) => {
-    setTimeout(() => {
-      resolve({ data: null, error: { message: 'Profile query timeout', code: 'TIMEOUT' } });
-    }, 5000); // 5 second timeout
-  });
 
-  const queryPromise = supabase
-    .from('profiles')
-    .select(`
-      *,
-      roles:role_id (
-        id,
-        name,
-        display_name,
-        description
-      )
-    `)
-    .eq('user_id', userId)
-    .single()
-    .then(({ data, error }: any) => {
-      if (error) {
-        if (!isNotFoundError(error)) {
-          logError(error, 'getProfileById');
-        }
-        return { data: null, error };
-      }
-      
-      // Cache the result
-      if (data) {
-        setCached(cacheKey, data, CACHE_TTL.MEDIUM);
-      }
-      
-      return { data, error: null };
-    });
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        roles:role_id (
+          id,
+          name,
+          display_name,
+          description
+        )
+      `)
+      .eq('user_id', userId)
+      .single();
 
-  // Race between query and timeout
-  const result = await Promise.race([queryPromise, timeoutPromise]);
-  
-  // If timeout, return minimal error (don't throw)
-  if (result.error?.code === 'TIMEOUT') {
-    console.warn('getProfile timeout for userId:', userId);
-    return { data: null, error: result.error };
+    if (error) {
+      console.error('[getProfile] Query error:', error);
+      if (!isNotFoundError(error)) {
+        logError(error, 'getProfileById');
+      }
+      return { data: null, error };
+    }
+
+    // Cache the result
+    if (data) {
+      setCached(cacheKey, data, CACHE_TTL.MEDIUM);
+    }
+
+    return { data, error: null };
+  } catch (err: any) {
+    console.error('[getProfile] Exception:', err);
+    return { data: null, error: err };
   }
-  
-  return result;
 }
 
 // Get profile by id (primary key) with role

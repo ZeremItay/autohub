@@ -26,41 +26,56 @@ export interface UserWithRole {
  * Returns minimal user object if profile loading fails but session exists
  */
 export async function getCurrentUser(): Promise<UserWithRole | null> {
+  console.log('[getCurrentUser] Starting...');
   try {
-    // Get session
+    // Get session directly
+    console.log('[getCurrentUser] Calling getSession()...');
+    const startTime = Date.now();
+
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
+
+    console.log('[getCurrentUser] getSession() completed in', Date.now() - startTime, 'ms', { hasSession: !!session, sessionError });
+
     if (sessionError) {
-      logError(sessionError, 'getCurrentUser:session');
+      console.error('[getCurrentUser] Session error:', sessionError);
       return null;
     }
 
     if (!session?.user) {
       // No session - user is not authenticated
+      console.log('[getCurrentUser] No session/user, returning null');
       return null;
     }
 
+    console.log('[getCurrentUser] Session found, userId:', session.user.id);
+
     // Try to load full profile
     try {
+      console.log('[getCurrentUser] Calling getProfile()...');
       const { data: profile, error: profileError } = await getProfile(session.user.id);
-      
+      console.log('[getCurrentUser] getProfile() completed', { hasProfile: !!profile, profileError });
+
       if (profile && !profileError) {
+        console.log('[getCurrentUser] Returning full profile');
         return {
           id: profile.user_id || profile.id,
           ...profile
         };
       }
-      
+
       // If profile loading failed, return minimal user from session
       if (profileError) {
+        console.error('[getCurrentUser] Profile error:', profileError);
         logError(profileError, 'getCurrentUser:profile');
       }
     } catch (profileError: any) {
       // Profile loading failed - log but return minimal user
+      console.error('[getCurrentUser] Profile exception:', profileError);
       logError(profileError, 'getCurrentUser:profile:exception');
     }
-    
+
     // Return minimal user object from session as fallback
+    console.log('[getCurrentUser] Returning minimal user from session');
     return {
       id: session.user.id,
       user_id: session.user.id,
@@ -68,6 +83,7 @@ export async function getCurrentUser(): Promise<UserWithRole | null> {
       email: session.user.email
     };
   } catch (error: any) {
+    console.error('[getCurrentUser] Top-level error:', error);
     logError(error, 'getCurrentUser');
     return null;
   }
