@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Calendar, Clock, MapPin, ArrowRight, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
-import { getEventById } from '@/lib/queries/events';
+import { getEventById, isUserRegisteredForEvent } from '@/lib/queries/events';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 const eventTypeLabels: Record<string, string> = {
   'live': 'לייב',
@@ -17,24 +18,44 @@ const eventTypeLabels: Record<string, string> = {
 export default function LiveEventPage() {
   const params = useParams();
   const eventId = params.id as string;
+  const { user: currentUser } = useCurrentUser();
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [registered, setRegistered] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   useEffect(() => {
     if (eventId) {
       loadEvent();
     }
-  }, [eventId]);
+  }, [eventId, currentUser]);
 
   async function loadEvent() {
     setLoading(true);
+    setAvatarError(false); // Reset avatar error when loading new event
     try {
       const { data, error } = await getEventById(eventId);
       if (error) {
         console.error('Error loading event:', error);
       } else {
+        console.log('Event loaded:', { 
+          id: data?.id, 
+          instructor_name: data?.instructor_name,
+          instructor_avatar_url: data?.instructor_avatar_url 
+        });
         setEvent(data);
+        // Reset avatar error when event data changes
+        setAvatarError(false);
+
+        // Check if user is already registered
+        if (currentUser) {
+          const userId = currentUser.user_id || currentUser.id;
+          if (userId) {
+            const { isRegistered } = await isUserRegisteredForEvent(userId, eventId);
+            setRegistered(isRegistered);
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading event:', error);
@@ -71,9 +92,46 @@ export default function LiveEventPage() {
   }
 
   async function handleRegister() {
-    // TODO: Implement registration logic
-    setRegistered(true);
-    alert('נרשמת בהצלחה לאירוע!');
+    if (!currentUser) {
+      alert('אנא התחבר כדי להירשם לאירוע');
+      return;
+    }
+
+    if (registered) {
+      return; // Already registered
+    }
+
+    setRegistering(true);
+    try {
+      const response = await fetch('/api/events/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          eventId: eventId
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.alreadyRegistered) {
+          setRegistered(true);
+          alert('אתה כבר נרשמת לאירוע זה');
+        } else {
+          throw new Error(data.error || 'שגיאה בהרשמה לאירוע');
+        }
+      } else {
+        setRegistered(true);
+        alert('נרשמת בהצלחה לאירוע! תקבל מייל אישור בקרוב.');
+      }
+    } catch (error: any) {
+      console.error('Error registering for event:', error);
+      alert('שגיאה בהרשמה לאירוע. אנא נסה שוב.');
+    } finally {
+      setRegistering(false);
+    }
   }
 
   // Check if the event has already started
@@ -212,18 +270,29 @@ export default function LiveEventPage() {
                 ) : (
                   <button
                     onClick={handleRegister}
-                    disabled={registered}
+                    disabled={registered || registering || !currentUser}
                     className={`w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-colors text-sm sm:text-base ${
                       registered
                         ? 'bg-green-500 text-white cursor-not-allowed'
+                        : registering
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : !currentUser
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-[#F52F8E] text-white hover:bg-[#E01E7A]'
                     }`}
                   >
-                    {registered ? (
+                    {registering ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        נרשם...
+                      </span>
+                    ) : registered ? (
                       <span className="flex items-center justify-center gap-2">
                         <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                         נרשמת לאירוע
                       </span>
+                    ) : !currentUser ? (
+                      'התחבר כדי להירשם'
                     ) : (
                       'הרשמה לאירוע'
                     )}
@@ -268,11 +337,16 @@ export default function LiveEventPage() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">מנחים</h2>
                   <div className="flex items-center gap-3 sm:gap-4">
-                    {event.instructor_avatar_url ? (
+                    {event.instructor_avatar_url && !avatarError ? (
                       <img
-                        src={event.instructor_avatar_url}
+                        src={`${event.instructor_avatar_url}${event.instructor_avatar_url.includes('?') ? '&' : '?'}t=${Date.now()}`}
                         alt={event.instructor_name}
                         className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0"
+                        onError={() => {
+                          // If image fails to load, set error state to show fallback
+                          setAvatarError(true);
+                        }}
+                        referrerPolicy="no-referrer"
                       />
                     ) : (
                       <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-400 flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0">

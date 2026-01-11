@@ -198,16 +198,20 @@ export async function createPostComment(
   if (!parentId) {
     try {
       const { awardPoints } = await import('./gamification');
-      // Try both Hebrew and English action names
-      await awardPoints(userId, 'תגובה לפוסט', {}).catch(() => {
+      // Try Hebrew first (primary), then English as fallback
+      const result = await awardPoints(userId, 'תגובה לפוסט', {}).catch(async () => {
         // If Hebrew doesn't work, try English
-        return awardPoints(userId, 'reply_to_post', {});
-      }).catch((error) => {
-        // Silently fail - gamification is not critical
-        console.warn('Error awarding points for comment:', error);
+        return await awardPoints(userId, 'reply_to_post', {});
       });
+      
+      if (!result.success) {
+        console.error('❌ Failed to award points for comment:', result.error);
+        // Don't fail the comment operation, but log the error for debugging
+      } else {
+        console.log(`✅ Awarded ${result.points || 0} points for comment`);
+      }
     } catch (error) {
-      // Silently fail - gamification is not critical
+      // Silently fail - gamification is not critical, but log for debugging
       console.warn('Error awarding points for comment:', error);
     }
   }

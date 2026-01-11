@@ -544,16 +544,21 @@ export async function toggleLike(postId: string, userId: string) {
     // Award points for liking a post (only when adding a like, not removing)
     try {
       const { awardPoints } = await import('./gamification');
-      // Try both Hebrew and English action names
-      await awardPoints(userId, 'לייק לפוסט', {}).catch(() => {
+      // Try Hebrew first (primary), then English as fallback
+      const result = await awardPoints(userId, 'לייק לפוסט', {}).catch(async () => {
         // If Hebrew doesn't work, try English
-        return awardPoints(userId, 'like_post', {});
-      }).catch((error) => {
-        // Silently fail - gamification is not critical
-        logError(error, 'toggleLike:points');
+        return await awardPoints(userId, 'like_post', {});
       });
+      
+      if (!result.success) {
+        console.error('❌ Failed to award points for like:', result.error);
+        // Don't fail the like operation, but log the error for debugging
+        logError(new Error(result.error || 'Failed to award points'), 'toggleLike:points');
+      } else {
+        console.log(`✅ Awarded ${result.points || 0} points for like`);
+      }
     } catch (error) {
-      // Silently fail - gamification is not critical
+      // Silently fail - gamification is not critical, but log for debugging
       logError(error, 'toggleLike:points:catch');
     }
     

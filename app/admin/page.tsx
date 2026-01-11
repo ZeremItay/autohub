@@ -4348,50 +4348,51 @@ export default function AdminPanel() {
                                       
                                       setUploadingFile(true);
                                       try {
-                                        const fileExt = file.name.split('.').pop();
-                                        const fileName = `instructor-avatar-${Date.now()}.${fileExt}`;
+                                        const { uploadAndOptimizeImage } = await import('@/lib/utils/image-upload');
+                                        const fileName = `instructor-avatar-${Date.now()}`;
                                         const filePath = `instructors/${fileName}`;
 
-                                        // Try to upload to Supabase Storage
-                                        const { error: uploadError } = await supabase.storage
-                                          .from('avatars')
-                                          .upload(filePath, file, {
-                                            cacheControl: '3600',
-                                            upsert: true
-                                          });
-
-                                        if (uploadError) {
-                                          // If avatars bucket fails, try thumbnails bucket
-                                          const { error: uploadError2 } = await supabase.storage
-                                            .from('thumbnails')
-                                            .upload(filePath, file, {
-                                              cacheControl: '3600',
-                                              upsert: true
-                                            });
+                                        // Try to upload to avatars bucket with optimization
+                                        try {
+                                          const result = await uploadAndOptimizeImage(
+                                            supabase,
+                                            file,
+                                            'avatars',
+                                            filePath,
+                                            {
+                                              optimize: true,
+                                              convertToWebP: true,
+                                              quality: 85,
+                                              maxWidth: 800, // Avatars don't need to be huge
+                                              maxHeight: 800,
+                                            }
+                                          );
                                           
-                                          if (uploadError2) {
-                                            // If both fail, use base64 as fallback
-                                            const reader = new FileReader();
-                                            reader.onloadend = () => {
-                                              const base64 = reader.result as string;
-                                              setFormData({ ...formData, instructor_avatar_url: base64 });
-                                            };
-                                            reader.readAsDataURL(file);
-                                            setUploadingFile(false);
-                                            return;
-                                          } else {
-                                            // Get public URL from thumbnails bucket
-                                            const { data: { publicUrl } } = supabase.storage
-                                              .from('thumbnails')
-                                              .getPublicUrl(filePath);
-                                            setFormData({ ...formData, instructor_avatar_url: publicUrl });
+                                          setFormData({ ...formData, instructor_avatar_url: result.url });
+                                          console.log(`✅ Image uploaded and optimized! Saved ${(result.savings / 1024).toFixed(2)} KB`);
+                                        } catch (uploadError: any) {
+                                          // If avatars bucket fails, try thumbnails bucket
+                                          try {
+                                            const result = await uploadAndOptimizeImage(
+                                              supabase,
+                                              file,
+                                              'thumbnails',
+                                              filePath,
+                                              {
+                                                optimize: true,
+                                                convertToWebP: true,
+                                                quality: 85,
+                                                maxWidth: 800,
+                                                maxHeight: 800,
+                                              }
+                                            );
+                                            
+                                            setFormData({ ...formData, instructor_avatar_url: result.url });
+                                            console.log(`✅ Image uploaded and optimized! Saved ${(result.savings / 1024).toFixed(2)} KB`);
+                                          } catch (uploadError2: any) {
+                                            console.error('Upload error:', uploadError2);
+                                            alert('שגיאה בהעלאת התמונה. אנא נסה שוב.');
                                           }
-                                        } else {
-                                          // Get public URL from avatars bucket
-                                          const { data: { publicUrl } } = supabase.storage
-                                            .from('avatars')
-                                            .getPublicUrl(filePath);
-                                          setFormData({ ...formData, instructor_avatar_url: publicUrl });
                                         }
                                       } catch (error) {
                                         console.error('Error uploading instructor avatar:', error);

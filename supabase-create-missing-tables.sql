@@ -57,11 +57,16 @@ INSERT INTO gamification_rules (action_name, point_value, status, description) V
   ('כניסה יומית', 5, 'active', 'כניסה יומית לאתר'),
   ('פוסט חדש', 10, 'active', 'יצירת פוסט חדש בפורום'),
   ('תגובה לנושא', 5, 'active', 'תגובה בפורום'),
+  ('תגובה לפוסט', 5, 'active', 'תגובה לפוסט'),
   ('לייק לפוסט', 1, 'active', 'לייק לפוסט'),
   ('שיתוף פוסט', 3, 'active', 'שיתוף פוסט'),
   ('השלמת קורס', 50, 'active', 'השלמת קורס מלא'),
   ('העלאת פרויקט', 25, 'active', 'העלאת פרויקט חדש')
-ON CONFLICT (action_name) DO NOTHING;
+ON CONFLICT (action_name) DO UPDATE SET 
+  point_value = EXCLUDED.point_value,
+  status = 'active',
+  description = EXCLUDED.description,
+  updated_at = NOW();
 
 -- 7. Create function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

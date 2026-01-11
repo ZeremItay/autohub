@@ -291,3 +291,100 @@ export async function updateEventStatuses() {
   return { updated: updates.length, error: null };
 }
 
+// Register user for an event
+export async function registerForEvent(userId: string, eventId: string) {
+  const { data, error } = await supabase
+    .from('event_registrations')
+    .insert([{
+      event_id: eventId,
+      user_id: userId
+    }])
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+// Get all event registrations for a user
+export async function getUserEventRegistrations(userId: string) {
+  const { data, error } = await supabase
+    .from('event_registrations')
+    .select(`
+      id,
+      event_id,
+      created_at,
+      events (
+        id,
+        title,
+        description,
+        event_date,
+        event_time,
+        event_type,
+        location,
+        instructor_name,
+        instructor_title,
+        instructor_avatar_url,
+        learning_points,
+        about_text,
+        status,
+        zoom_meeting_id,
+        recording_id
+      )
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching user event registrations:', error);
+    return { data: null, error };
+  }
+
+  return { data: data || [], error: null };
+}
+
+// Check if user is registered for an event
+// This function checks if a user has registered for a specific event
+export async function isUserRegisteredForEvent(
+  userId: string,
+  eventId: string
+): Promise<{ isRegistered: boolean; error: any }> {
+  const { data, error } = await supabase
+    .from('event_registrations')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('event_id', eventId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error checking event registration:', error);
+    return { isRegistered: false, error };
+  }
+
+  return { isRegistered: !!data, error: null };
+}
+
+// Get all registrations for an event (for admins)
+export async function getEventRegistrations(eventId: string) {
+  const { data, error } = await supabase
+    .from('event_registrations')
+    .select(`
+      id,
+      user_id,
+      created_at,
+      profiles (
+        user_id,
+        display_name,
+        avatar_url,
+        email
+      )
+    `)
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching event registrations:', error);
+    return { data: null, error };
+  }
+
+  return { data: data || [], error: null };
+}

@@ -45,8 +45,9 @@ import { getUserForumPosts, getUserForumReplies } from '@/lib/queries/forums'
 import { getUserPointsHistory } from '@/lib/queries/gamification'
 import { getEnrolledCourses, getCompletedLessons, getCourseLessons } from '@/lib/queries/courses'
 import { getUserProjects, getProjectOffersByUser, getProjectOffers, updateProject } from '@/lib/queries/projects'
-import { BookOpen } from 'lucide-react'
-import { formatTimeAgo as formatTimeAgoUtil } from '@/lib/utils/date'
+import { getUserEventRegistrations } from '@/lib/queries/events'
+import { BookOpen, Calendar } from 'lucide-react'
+import { formatTimeAgo as formatTimeAgoUtil, formatDate as formatDateUtil } from '@/lib/utils/date'
 import { isAdmin } from '@/lib/utils/user'
 
 function ProfilePageContent() {
@@ -54,7 +55,7 @@ function ProfilePageContent() {
   const searchParams = useSearchParams()
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'forums' | 'points' | 'courses' | 'notifications' | 'projects'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'forums' | 'points' | 'courses' | 'notifications' | 'projects' | 'events'>('profile')
   const [editingDetails, setEditingDetails] = useState(false)
   const [editingPersonal, setEditingPersonal] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -76,6 +77,8 @@ function ProfilePageContent() {
   const [mySubmissions, setMySubmissions] = useState<any[]>([])
   const [projectOffers, setProjectOffers] = useState<Record<string, any[]>>({})
   const [loadingProjects, setLoadingProjects] = useState(false)
+  const [myEventRegistrations, setMyEventRegistrations] = useState<any[]>([])
+  const [loadingEvents, setLoadingEvents] = useState(false)
   const [userBadges, setUserBadges] = useState<any[]>([])
   const [highestBadge, setHighestBadge] = useState<any>(null)
   const [currentLoggedInUserId, setCurrentLoggedInUserId] = useState<string | null>(null)
@@ -194,6 +197,9 @@ function ProfilePageContent() {
     }
     if (profile && activeTab === 'projects' && isOwnerOrAdmin()) {
       loadProjectsData()
+    }
+    if (profile && activeTab === 'events' && isOwnerOrAdmin()) {
+      loadMyEvents()
     }
   }, [profile, activeTab])
 
@@ -664,6 +670,58 @@ function ProfilePageContent() {
       const userId = profile.user_id || profile.id
       const { data } = await getUserPointsHistory(userId)
       
+      // Check if user has points but no history - this indicates a sync issue
+      const currentPoints = profile.points || 0
+      const hasHistory = data && data.length > 0
+      
+      if (currentPoints > 0 && !hasHistory) {
+        console.warn(`⚠️ User ${userId} has ${currentPoints} points but no history. Creating a generic history entry.`)
+        // Create a generic history entry to explain the points
+        try {
+          const { supabase } = await import('@/lib/supabase')
+          // Try to insert a history entry with a generic action
+          // Check which column name exists in points_history
+          const { error: insertError } = await supabase
+            .from('points_history')
+            .insert([{
+              user_id: userId,
+              points: currentPoints,
+              action_name: 'נקודות קודמות',
+              description: `נקודות שנוספו לפני יצירת מערכת ההיסטוריה (${currentPoints} נקודות)`,
+              created_at: new Date().toISOString()
+            }])
+            .select()
+          
+          if (insertError) {
+            // Try with 'action' column instead of 'action_name'
+            const { error: insertError2 } = await supabase
+              .from('points_history')
+              .insert([{
+                user_id: userId,
+                points: currentPoints,
+                action: 'נקודות קודמות',
+                description: `נקודות שנוספו לפני יצירת מערכת ההיסטוריה (${currentPoints} נקודות)`,
+                created_at: new Date().toISOString()
+              }])
+              .select()
+            
+            if (insertError2) {
+              console.error('Error creating history entry:', insertError2)
+            } else {
+              // Reload history after creating entry
+              const { data: newData } = await getUserPointsHistory(userId)
+              setPointsHistory(newData || [])
+            }
+          } else {
+            // Reload history after creating entry
+            const { data: newData } = await getUserPointsHistory(userId)
+            setPointsHistory(newData || [])
+          }
+        } catch (createError) {
+          console.error('Error creating history entry:', createError)
+        }
+      }
+      
       // Load gamification rules to get descriptions
       let rulesMap = new Map()
       try {
@@ -784,6 +842,26 @@ function ProfilePageContent() {
       setMyOffers([])
     } finally {
       setLoadingOffers(false)
+    }
+  }
+
+  async function loadMyEvents() {
+    if (!profile?.user_id || !isOwnerOrAdmin()) return
+    setLoadingEvents(true)
+    try {
+      const userId = profile.user_id || profile.id
+      const { data, error } = await getUserEventRegistrations(userId)
+      if (error) {
+        console.error('Error loading event registrations:', error)
+        setMyEventRegistrations([])
+      } else {
+        setMyEventRegistrations(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error loading event registrations:', error)
+      setMyEventRegistrations([])
+    } finally {
+      setLoadingEvents(false)
     }
   }
 
@@ -1221,6 +1299,7 @@ function ProfilePageContent() {
                 {activeTab === 'points' && 'נקודות'}
                 {isOwnerOrAdmin() && activeTab === 'courses' && 'קורסים שלי'}
                 {isOwnerOrAdmin() && activeTab === 'notifications' && 'התראות'}
+                {isOwnerOrAdmin() && activeTab === 'events' && 'אירועים שלי'}
                 {isOwnerOrAdmin() && activeTab === 'projects' && 'פרויקטים'}
               </span>
               <Menu className="w-5 h-5" />
@@ -1297,6 +1376,19 @@ function ProfilePageContent() {
                   >
                     <Bell className="w-5 h-5" />
                     <span className="font-medium">התראות</span>
+                  </button>
+                )}
+                {isOwnerOrAdmin() && (
+                  <button
+                    onClick={() => { setActiveTab('events'); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      activeTab === 'events'
+                        ? 'bg-[#F52F8E] text-white'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                    }`}
+                  >
+                    <Calendar className="w-5 h-5" />
+                    <span className="font-medium">אירועים שלי</span>
                   </button>
                 )}
                 {isOwnerOrAdmin() && (
@@ -1389,6 +1481,19 @@ function ProfilePageContent() {
                 >
                   <Bell className="w-5 h-5" />
                   <span className="font-medium">התראות</span>
+                </button>
+              )}
+              {isOwnerOrAdmin() && (
+                <button
+                  onClick={() => setActiveTab('events')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    activeTab === 'events'
+                      ? 'bg-[#F52F8E] text-white'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-[#F52F8E]'
+                  }`}
+                >
+                  <Calendar className="w-5 h-5" />
+                  <span className="font-medium">אירועים שלי</span>
                 </button>
               )}
               {isOwnerOrAdmin() && (
@@ -1819,6 +1924,11 @@ function ProfilePageContent() {
                     <div className="text-center py-12 text-gray-500">
                       <Trophy className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                       <p>אין היסטוריית נקודות</p>
+                      {(profile?.points || 0) > 0 && (
+                        <p className="text-sm text-amber-600 mt-2">
+                          יש נקודות בפרופיל אבל אין היסטוריה. הנקודות יסונכרנו אוטומטית.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -2293,6 +2403,97 @@ function ProfilePageContent() {
                 ) : (
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
                     <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">פרויקטים</h2>
+                    <p className="text-sm sm:text-base text-gray-500">אין גישה למידע זה</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 'events' && (
+              <>
+                {isOwnerOrAdmin() ? (
+                  <div className="space-y-6">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                      <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">אירועים שנרשמתי אליהם</h2>
+                      {loadingEvents ? (
+                        <div className="text-center py-12">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F52F8E] mx-auto mb-4"></div>
+                          <p className="text-gray-600">טוען אירועים...</p>
+                        </div>
+                      ) : myEventRegistrations.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                          <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                          <p className="text-lg mb-2">אין אירועים שנרשמת אליהם</p>
+                          <p className="text-sm">כשתירשם לאירועים, הם יופיעו כאן</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {myEventRegistrations.map((registration: any) => {
+                            const event = registration.events;
+                            if (!event) return null;
+
+                            const eventDate = new Date(event.event_date);
+                            const now = new Date();
+                            const isPast = eventDate < now;
+                            const isToday = eventDate.toDateString() === now.toDateString();
+                            
+                            function formatTime(timeString: string): string {
+                              if (!timeString) return '';
+                              return timeString.substring(0, 5);
+                            }
+
+                            return (
+                              <div key={registration.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex-1">
+                                    <Link href={`/live/${event.id}`} className="block">
+                                      <h3 className="font-semibold text-gray-800 mb-1 hover:text-[#F52F8E] transition-colors">
+                                        {event.title}
+                                      </h3>
+                                    </Link>
+                                    <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                                      <span className="flex items-center gap-1">
+                                        <Calendar className="w-3 h-3" />
+                                        {formatDateUtil(event.event_date)}
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        {formatTime(event.event_time)}
+                                      </span>
+                                      <span className={`px-2 py-1 rounded ${
+                                        isPast
+                                          ? 'bg-gray-100 text-gray-600'
+                                          : isToday
+                                          ? 'bg-green-100 text-green-700'
+                                          : 'bg-blue-100 text-blue-700'
+                                      }`}>
+                                        {isPast ? 'עבר' : isToday ? 'היום' : 'קרוב'}
+                                      </span>
+                                    </div>
+                                    {event.instructor_name && (
+                                      <p className="text-sm text-gray-600">
+                                        מנחה: {event.instructor_name}
+                                        {event.instructor_title && ` - ${event.instructor_title}`}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <Link
+                                    href={`/live/${event.id}`}
+                                    className="px-4 py-2 text-sm bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                                  >
+                                    צפייה באירוע
+                                  </Link>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">אירועים</h2>
                     <p className="text-sm sm:text-base text-gray-500">אין גישה למידע זה</p>
                   </div>
                 )}

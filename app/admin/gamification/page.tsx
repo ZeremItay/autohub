@@ -30,6 +30,14 @@ export default function GamificationAdmin() {
   async function loadRules() {
     setLoading(true)
     try {
+      // Ensure required rules exist before loading
+      try {
+        const { ensureGamificationRules } = await import('@/lib/queries/gamification');
+        await ensureGamificationRules();
+      } catch (ensureError) {
+        console.warn('Error ensuring rules (non-critical):', ensureError);
+      }
+      
       // Try to load from gamification_rules table
       const { data, error } = await supabase
         .from('gamification_rules')

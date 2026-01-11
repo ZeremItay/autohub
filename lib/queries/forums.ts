@@ -681,16 +681,20 @@ export async function createForumPostReply(postId: string, userId: string, conte
   if (!parentId) {
     try {
       const { awardPoints } = await import('./gamification');
-      // Try both Hebrew and English action names
-      await awardPoints(userId, 'תגובה לפוסט', {}).catch(() => {
+      // Try Hebrew first (primary), then English as fallback
+      const result = await awardPoints(userId, 'תגובה לפוסט', {}).catch(async () => {
         // If Hebrew doesn't work, try English
-        return awardPoints(userId, 'reply_to_post', {});
-      }).catch((error) => {
-        // Silently fail - gamification is not critical
-        console.warn('Error awarding points for forum reply:', error);
+        return await awardPoints(userId, 'reply_to_post', {});
       });
+      
+      if (!result.success) {
+        console.error('❌ Failed to award points for forum reply:', result.error);
+        // Don't fail the reply operation, but log the error for debugging
+      } else {
+        console.log(`✅ Awarded ${result.points || 0} points for forum reply`);
+      }
     } catch (error) {
-      // Silently fail - gamification is not critical
+      // Silently fail - gamification is not critical, but log for debugging
       console.warn('Error awarding points for forum reply:', error);
     }
   }
@@ -894,17 +898,21 @@ export async function toggleForumPostLike(postId: string, userId: string) {
     // Award points for liking a post (only when adding a like, not removing)
     try {
       const { awardPoints } = await import('./gamification');
-      // Try both Hebrew and English action names
-      await awardPoints(userId, 'לייק לפוסט', {}).catch(() => {
+      // Try Hebrew first (primary), then English as fallback
+      const result = await awardPoints(userId, 'לייק לפוסט', {}).catch(async () => {
         // If Hebrew doesn't work, try English
-        return awardPoints(userId, 'like_post', {});
-      }).catch((error) => {
-        // Silently fail - gamification is not critical
-        console.warn('Error awarding points for like:', error);
+        return await awardPoints(userId, 'like_post', {});
       });
+      
+      if (!result.success) {
+        console.error('❌ Failed to award points for forum like:', result.error);
+        // Don't fail the like operation, but log the error for debugging
+      } else {
+        console.log(`✅ Awarded ${result.points || 0} points for forum like`);
+      }
     } catch (error) {
-      // Silently fail - gamification is not critical
-      console.warn('Error awarding points for like:', error);
+      // Silently fail - gamification is not critical, but log for debugging
+      console.warn('Error awarding points for forum like:', error);
     }
     
     return { data: { liked: true, likes_count: newCount }, error: null };
