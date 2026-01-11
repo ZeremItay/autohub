@@ -542,18 +542,30 @@ export async function toggleLike(postId: string, userId: string) {
     }
     
     // Award points for liking a post (only when adding a like, not removing)
+    // Check if user already got points for this post to prevent duplicate points
     try {
       const { awardPoints } = await import('./gamification');
       // Try Hebrew first (primary), then English as fallback
-      const result = await awardPoints(userId, 'לייק לפוסט', {}).catch(async () => {
+      // Pass postId as relatedId to prevent duplicate points for same post
+      const result = await awardPoints(userId, 'לייק לפוסט', { 
+        checkRelatedId: true, 
+        relatedId: postId 
+      }).catch(async () => {
         // If Hebrew doesn't work, try English
-        return await awardPoints(userId, 'like_post', {});
+        return await awardPoints(userId, 'like_post', { 
+          checkRelatedId: true, 
+          relatedId: postId 
+        });
       });
       
       if (!result.success) {
-        console.error('❌ Failed to award points for like:', result.error);
-        // Don't fail the like operation, but log the error for debugging
-        logError(new Error(result.error || 'Failed to award points'), 'toggleLike:points');
+        if (result.alreadyAwarded) {
+          console.log(`ℹ️ Points already awarded for like on post ${postId}`);
+        } else {
+          console.error('❌ Failed to award points for like:', result.error);
+          // Don't fail the like operation, but log the error for debugging
+          logError(new Error(result.error || 'Failed to award points'), 'toggleLike:points');
+        }
       } else {
         console.log(`✅ Awarded ${result.points || 0} points for like`);
       }
@@ -632,3 +644,67 @@ export async function checkUserLikedPosts(postIds: string[], userId: string) {
   return { likedMap, error: null };
 }
 
+// Get list of users who liked a post
+export async function getPostLikes(postId: string) {
+  // First, get all likes for the post
+  const { data: likesData, error: likesError } = await supabase
+    .from('post_likes')
+    .select('user_id, created_at')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false });
+
+  if (likesError) {
+    logError(likesError, 'getPostLikes');
+    console.error('Error fetching post likes:', likesError);
+    return { data: null, error: likesError };
+  }
+
+  if (!likesData || likesData.length === 0) {
+    return { data: [], error: null };
+  }
+
+  // Get user IDs
+  const userIds = likesData.map((like: any) => like.user_id).filter(Boolean);
+  
+  if (userIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  // Fetch profiles for all users
+  const { data: profilesData, error: profilesError } = await supabase
+    .from('profiles')
+    .select('user_id, display_name, avatar_url, first_name, last_name, nickname')
+    .in('user_id', userIds);
+
+  if (profilesError) {
+    console.error('Error fetching profiles for likes:', profilesError);
+    // Return likes without profile data if profiles fetch fails
+    return { 
+      data: likesData.map((like: any) => ({
+        user_id: like.user_id,
+        display_name: 'משתמש',
+        avatar_url: null,
+        created_at: like.created_at
+      })), 
+      error: null 
+    };
+  }
+
+  // Create a map of user_id to profile
+  const profileMap = new Map(
+    (profilesData || []).map((profile: any) => [profile.user_id, profile])
+  );
+
+  // Combine likes with profile data
+  const likes = likesData.map((like: any) => {
+    const profile = profileMap.get(like.user_id);
+    return {
+      user_id: like.user_id,
+      display_name: (profile as any)?.display_name || (profile as any)?.first_name || (profile as any)?.nickname || 'משתמש',
+      avatar_url: (profile as any)?.avatar_url || null,
+      created_at: like.created_at
+    };
+  });
+
+  return { data: likes, error: null };
+}

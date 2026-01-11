@@ -17,8 +17,6 @@ import {
   Trash2,
   Edit,
   Save,
-  ChevronDown,
-  ChevronUp,
   ChevronLeft,
   ChevronRight,
   Radio,
@@ -27,7 +25,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getPosts, createPost, deletePost, updatePost, toggleLike, checkUserLikedPost, checkUserLikedPosts, type PostWithProfile } from '@/lib/queries/posts';
+import { getPosts, createPost, deletePost, updatePost, toggleLike, checkUserLikedPost, checkUserLikedPosts, getPostLikes, type PostWithProfile } from '@/lib/queries/posts';
 import { getAllProfiles, type ProfileWithRole } from '@/lib/queries/profiles';
 import { getUpcomingEvents, type Event } from '@/lib/queries/events';
 import { getAllRecordings } from '@/lib/queries/recordings';
@@ -78,7 +76,6 @@ export default function Home() {
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<Record<string, string | null>>({});
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
-  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [news, setNews] = useState<News[]>([]);
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [reports, setReports] = useState<Report[]>([]);
@@ -86,6 +83,10 @@ export default function Home() {
   const [editingPost, setEditingPost] = useState<string | null>(null);
   const [editPostContent, setEditPostContent] = useState<string>('');
   const [editPostImageUrl, setEditPostImageUrl] = useState<string>('');
+  const [showLikesModal, setShowLikesModal] = useState(false);
+  const [selectedPostForLikes, setSelectedPostForLikes] = useState<string | null>(null);
+  const [postLikes, setPostLikes] = useState<Record<string, Array<{user_id: string, display_name: string, avatar_url: string | null, created_at: string}>>>({});
+  const [loadingLikes, setLoadingLikes] = useState<Record<string, boolean>>({});
 
   // Ref to prevent parallel calls to loadData
   const isLoadingDataRef = useRef(false);
@@ -98,6 +99,17 @@ export default function Home() {
   useEffect(() => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
+
+  // Load comments for all posts automatically
+  useEffect(() => {
+    if (announcements.length > 0) {
+      announcements.forEach(post => {
+        if (!postComments[post.id]) {
+          loadPostComments(post.id);
+        }
+      });
+    }
+  }, [announcements]);
 
   const loadData = useCallback(async () => {
     // Prevent parallel calls
@@ -841,14 +853,6 @@ export default function Home() {
     }
   }
 
-  async function handleToggleComments(postId: string) {
-    const isExpanded = expandedComments[postId];
-    setExpandedComments(prev => ({ ...prev, [postId]: !isExpanded }));
-    
-    if (!isExpanded && !postComments[postId]) {
-      await loadPostComments(postId);
-    }
-  }
 
   async function handleSubmitComment(postId: string, text?: string) {
     const commentText = text || commentTexts[postId];
@@ -951,6 +955,124 @@ export default function Home() {
     }
   }
 
+  async function handleShowLikes(postId: string) {
+    setSelectedPostForLikes(postId);
+    setShowLikesModal(true);
+    
+    // Always reload likes when opening modal to ensure fresh data
+    setLoadingLikes(prev => ({ ...prev, [postId]: true }));
+    try {
+      const { data, error } = await getPostLikes(postId);
+      if (error) {
+        console.error('Error loading likes:', error);
+      }
+      if (data) {
+        setPostLikes(prev => ({ ...prev, [postId]: data }));
+      } else {
+        // If no data, set empty array
+        setPostLikes(prev => ({ ...prev, [postId]: [] }));
+      }
+    } catch (error) {
+      console.error('Error loading likes:', error);
+      setPostLikes(prev => ({ ...prev, [postId]: [] }));
+    } finally {
+      setLoadingLikes(prev => ({ ...prev, [postId]: false }));
+    }
+  }
+
+  async function handleToggleLikeFromModal(postId: string) {
+    if (!currentUser) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Cannot toggle like: no current user');
+      }
+      return;
+    }
+    
+    const userId = currentUser.user_id || currentUser.id;
+    if (!userId) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Cannot toggle like: no user ID');
+      }
+      return;
+    }
+    
+    try {
+      // Optimistically update UI
+      const wasLiked = likedPosts[postId] || false;
+      
+      setLikedPosts(prev => ({ ...prev, [postId]: !wasLiked }));
+      
+      // Update likes count optimistically
+      setAnnouncements(prev => prev.map(post => 
+        post.id === postId 
+          ? { 
+              ...post, 
+              likes_count: wasLiked 
+                ? Math.max(0, (post.likes_count || 0) - 1)
+                : (post.likes_count || 0) + 1
+            }
+          : post
+      ));
+      
+      // Toggle like in database
+      const result = await toggleLike(postId, userId);
+      
+      const { data, error } = result;
+      
+      // If we have data, the operation succeeded - update state
+      if (data) {
+        setLikedPosts(prev => ({ ...prev, [postId]: data.liked }));
+        
+        // Reload likes list in modal
+        setLoadingLikes(prev => ({ ...prev, [postId]: true }));
+        try {
+          const { data: likesData, error: likesError } = await getPostLikes(postId);
+          if (!likesError && likesData) {
+            setPostLikes(prev => ({ ...prev, [postId]: likesData }));
+          }
+        } catch (error) {
+          console.error('Error reloading likes:', error);
+        } finally {
+          setLoadingLikes(prev => ({ ...prev, [postId]: false }));
+        }
+        
+        // Reload posts to get updated likes_count
+        await loadData();
+      } else if (error) {
+        // Check if error is meaningful
+        const errorKeys = error && typeof error === 'object' ? Object.keys(error) : [];
+        const isEmptyError = errorKeys.length === 0;
+        const errorObj = error as any;
+        const hasErrorDetails = errorObj?.message || errorObj?.code || errorObj?.details || errorObj?.hint;
+        
+        if (!isEmptyError && hasErrorDetails) {
+          // Real error - revert optimistic update
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error toggling like:', error);
+          }
+          setLikedPosts(prev => ({ ...prev, [postId]: wasLiked }));
+          setAnnouncements(prev => prev.map(post => 
+            post.id === postId 
+              ? { 
+                  ...post, 
+                  likes_count: wasLiked 
+                    ? (post.likes_count || 0) + 1
+                    : Math.max(0, (post.likes_count || 0) - 1)
+                }
+              : post
+          ));
+        }
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Exception in handleToggleLikeFromModal:', error);
+      }
+      // Revert on exception
+      const wasLiked = likedPosts[postId] || false;
+      setLikedPosts(prev => ({ ...prev, [postId]: wasLiked }));
+    }
+  }
+
   async function handleToggleLike(postId: string) {
     if (!currentUser) {
       if (process.env.NODE_ENV === 'development') {
@@ -1046,12 +1168,6 @@ export default function Home() {
           const newComments = { ...prev };
           delete newComments[postId];
           return newComments;
-        });
-        // Clear expanded comments
-        setExpandedComments(prev => {
-          const newExpanded = { ...prev };
-          delete newExpanded[postId];
-          return newExpanded;
         });
         // Clear liked status
         setLikedPosts(prev => {
@@ -1565,33 +1681,46 @@ export default function Home() {
                           />
                         </div>
                       )}
-                      <div className="flex items-center gap-3 sm:gap-6 pt-3 sm:pt-4 border-t border-gray-100 flex-wrap">
-                        <button 
-                          onClick={() => handleToggleLike(post.id)}
-                          className={`flex items-center gap-1.5 sm:gap-2 transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-pink-50 ${
-                            likedPosts[post.id] 
-                              ? 'text-pink-500' 
-                              : 'text-gray-600 hover:text-pink-500'
-                          }`}
-                        >
-                          <Heart 
-                            className={`w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform ${
-                              likedPosts[post.id] ? 'fill-current' : ''
-                            }`} 
-                          />
-                          <span className="text-xs sm:text-sm font-medium">{post.likes_count || 0}</span>
-                        </button>
-                        <button 
-                          onClick={() => handleToggleComments(post.id)}
-                          className="flex items-center gap-1.5 sm:gap-2 text-gray-600 hover:text-pink-500 transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-pink-50"
-                        >
-                          <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
-                          <span className="text-xs sm:text-sm font-medium">{post.comments_count || 0} תגובות</span>
-                          {expandedComments[post.id] ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4" />
+                      {/* Likes and Comments Count */}
+                      {((post.likes_count || 0) > 0 || (post.comments_count || 0) > 0) && (
+                        <div className="flex items-center gap-4 text-xs sm:text-sm text-gray-600 pt-2 pb-1">
+                          {(post.comments_count || 0) > 0 && (
+                            <span className="font-medium">
+                              {post.comments_count || 0} תגובות
+                            </span>
                           )}
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-3 sm:gap-6 pt-3 sm:pt-4 border-t border-gray-100 flex-wrap">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <button 
+                            onClick={() => handleToggleLike(post.id)}
+                            className={`transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-pink-50 ${
+                              likedPosts[post.id] 
+                                ? 'text-pink-500' 
+                                : 'text-gray-600 hover:text-pink-500'
+                            }`}
+                          >
+                            <Heart 
+                              className={`w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform ${
+                                likedPosts[post.id] ? 'fill-current' : ''
+                              }`} 
+                            />
+                          </button>
+                          {(post.likes_count || 0) > 0 && (
+                            <button
+                              onClick={() => handleShowLikes(post.id)}
+                              className="text-xs sm:text-sm font-medium text-gray-600 hover:text-pink-500 hover:underline cursor-pointer transition-colors"
+                            >
+                              {post.likes_count || 0}
+                            </button>
+                          )}
+                        </div>
+                        <button className="flex items-center gap-1.5 sm:gap-2 text-gray-600 hover:text-pink-500 transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-pink-50">
+                          <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs sm:text-sm font-medium">תגובה</span>
                         </button>
                         <button className="flex items-center gap-1.5 sm:gap-2 text-gray-600 hover:text-pink-500 transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-pink-50">
                           <Share2 className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
@@ -1599,25 +1728,23 @@ export default function Home() {
                         </button>
                       </div>
 
-                      {/* Comments Section */}
-                      {expandedComments[post.id] && (
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <CommentsList
-                            comments={postComments[post.id] || []}
-                            currentUser={currentUser || undefined}
-                            onSubmitComment={async (text) => {
-                              await handleSubmitComment(post.id, text);
-                            }}
-                            onSubmitReply={async (commentId, text) => {
-                              await handleSubmitReply(post.id, commentId, text);
-                            }}
-                            onDeleteComment={(commentId) => handleDeleteComment(post.id, commentId)}
-                            badges={friendsBadges}
-                            emptyMessage="אין תגובות עדיין. היה הראשון להגיב!"
-                            showForm={true}
-                          />
-                        </div>
-                      )}
+                      {/* Comments Section - Always Visible */}
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <CommentsList
+                          comments={postComments[post.id] || []}
+                          currentUser={currentUser || undefined}
+                          onSubmitComment={async (text) => {
+                            await handleSubmitComment(post.id, text);
+                          }}
+                          onSubmitReply={async (commentId, text) => {
+                            await handleSubmitReply(post.id, commentId, text);
+                          }}
+                          onDeleteComment={(commentId) => handleDeleteComment(post.id, commentId)}
+                          badges={friendsBadges}
+                          emptyMessage="אין תגובות עדיין. היה הראשון להגיב!"
+                          showForm={true}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1942,6 +2069,93 @@ export default function Home() {
           </div>
         </aside>
       </div>
+
+      {/* Likes Modal */}
+      {showLikesModal && selectedPostForLikes && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowLikesModal(false);
+            setSelectedPostForLikes(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+              <h2 className="text-xl font-bold text-gray-800">אנשים שעשו לייק</h2>
+              <button
+                onClick={() => {
+                  setShowLikesModal(false);
+                  setSelectedPostForLikes(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingLikes[selectedPostForLikes] ? (
+                <div className="text-center py-8 text-gray-500">טוען...</div>
+              ) : !postLikes[selectedPostForLikes] || postLikes[selectedPostForLikes].length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Heart className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg">אין לייקים עדיין</p>
+                  <p className="text-sm mt-2">תהיה הראשון לעשות לייק!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {postLikes[selectedPostForLikes].map((like) => {
+                    const userId = like.user_id;
+                    const displayName = like.display_name || 'משתמש';
+                    const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                    
+                    return (
+                      <Link
+                        key={userId}
+                        href={`/profile?userId=${userId}`}
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                        onClick={(e) => {
+                          // Don't close modal when clicking on profile link
+                          e.stopPropagation();
+                        }}
+                      >
+                        {like.avatar_url ? (
+                          <img
+                            src={`${like.avatar_url}?t=${Date.now()}`}
+                            alt={displayName}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white font-semibold text-sm">
+                            {initials}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-800 truncate">{displayName}</p>
+                          {like.created_at && (
+                            <p className="text-xs text-gray-500">
+                              {new Date(like.created_at).toLocaleDateString('he-IL', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -62,7 +62,7 @@ export async function getActiveRules() {
 }
 
 // Award points to user
-export async function awardPoints(userId: string, actionName: string, options?: { checkDaily?: boolean }) {
+export async function awardPoints(userId: string, actionName: string, options?: { checkDaily?: boolean; relatedId?: string; checkRelatedId?: boolean }) {
   try {
     console.log(`🎯 Awarding points for action: "${actionName}" to user: ${userId}`);
     
@@ -192,6 +192,54 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       point_value: rule.point_value,
       description: rule.description
     });
+    
+    // Check if user already got points for this specific action with relatedId (e.g., like on same post)
+    if (options?.checkRelatedId && options?.relatedId) {
+      // Check if user already got points for this action with this relatedId
+      // Try both 'action' and 'action_name' columns
+      const historyActionName = rule.trigger_action || rule.action_name || actionName;
+      
+      // First check if related_id column exists
+      const { data: sampleWithRelatedId, error: relatedIdCheckError } = await supabase
+        .from('points_history')
+        .select('related_id')
+        .limit(1);
+      
+      if (!relatedIdCheckError && sampleWithRelatedId !== null) {
+        // related_id column exists, check for duplicate
+        // Try 'action' column first
+        const { data: historyWithAction, error: actionError } = await supabase
+          .from('points_history')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('action', historyActionName)
+          .eq('related_id', options.relatedId)
+          .limit(1);
+        
+        if (!actionError && historyWithAction && historyWithAction.length > 0) {
+          console.log(`⚠️ User already got points for ${actionName} with relatedId ${options.relatedId}`);
+          return { success: false, error: 'Points already awarded for this action', alreadyAwarded: true };
+        }
+        
+        // Try 'action_name' column as fallback
+        const { data: historyWithActionName, error: actionNameError } = await supabase
+          .from('points_history')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('action_name', historyActionName)
+          .eq('related_id', options.relatedId)
+          .limit(1);
+        
+        if (!actionNameError && historyWithActionName && historyWithActionName.length > 0) {
+          console.log(`⚠️ User already got points for ${actionName} with relatedId ${options.relatedId}`);
+          return { success: false, error: 'Points already awarded for this action', alreadyAwarded: true };
+        }
+      } else {
+        // related_id column doesn't exist - fallback to checking without related_id
+        // This is a less precise check, but prevents duplicate points if column doesn't exist
+        console.log(`ℹ️ related_id column doesn't exist, skipping duplicate check for ${actionName}`);
+      }
+    }
     
     // For daily actions (like daily login), check if user already got points today
     if (options?.checkDaily || actionName === 'כניסה יומית') {

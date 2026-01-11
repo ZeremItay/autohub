@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { MessageCircle, Eye, Pin, Lock, Edit, Image, Video, X, Smile, Code, Link as LinkIcon, Italic, Bold, ArrowRight, Heart } from 'lucide-react';
 import Link from 'next/link';
-import { getForumById, getForumPosts, getAllForums, getForumPostById, deleteForumPostReply, toggleForumPostLike, type Forum, type ForumPost } from '@/lib/queries/forums';
+import { getForumById, getForumPosts, getAllForums, getForumPostById, deleteForumPostReply, toggleForumPostLike, getForumPostLikes, type Forum, type ForumPost } from '@/lib/queries/forums';
 import { getAllProfiles } from '@/lib/queries/profiles';
 import AuthGuard from '@/app/components/AuthGuard';
 import dynamic from 'next/dynamic';
@@ -52,6 +52,11 @@ function ForumDetailPageContent() {
   const [postReplies, setPostReplies] = useState<any[]>([]);
   const [loadingPost, setLoadingPost] = useState(false);
   const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(new Set());
+  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+  const [showLikesModal, setShowLikesModal] = useState(false);
+  const [selectedPostForLikes, setSelectedPostForLikes] = useState<string | null>(null);
+  const [postLikes, setPostLikes] = useState<Record<string, Array<{user_id: string, display_name: string, avatar_url: string | null, created_at: string}>>>({});
+  const [loadingLikes, setLoadingLikes] = useState<Record<string, boolean>>({});
   const { isAdmin, loading: userLoading } = useCurrentUser();
 
   // Ref to prevent parallel calls to loadPosts
@@ -130,7 +135,8 @@ function ForumDetailPageContent() {
     }, 20000); // 20 seconds timeout
     
     try {
-      const { data, error } = await getForumPosts(forumId);
+      const userId = currentUser?.id || currentUser?.user_id || undefined;
+      const { data, error } = await getForumPosts(forumId, userId);
       
       // Check if operation was cancelled (timeout occurred)
       if (isCancelledRef.current) {
@@ -139,7 +145,18 @@ function ForumDetailPageContent() {
       }
       
       if (!error && data) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:147',message:'loadPosts - posts loaded',data:{postsCount:data.length,firstPostLikesCount:data[0]?.likes_count,firstPostId:data[0]?.id,allLikesCounts:data.map((p:any)=>({id:p.id,likes_count:p.likes_count}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'G'})}).catch(()=>{});
+        // #endregion
         setPosts(data);
+        // Initialize liked posts state
+        const likedMap: Record<string, boolean> = {};
+        data.forEach((post: any) => {
+          if (post.user_liked !== undefined) {
+            likedMap[post.id] = post.user_liked;
+          }
+        });
+        setLikedPosts(prev => ({ ...prev, ...likedMap }));
       }
     } catch (error) {
       // Only log error if not cancelled
@@ -625,6 +642,120 @@ function ForumDetailPageContent() {
     return plainText;
   }
 
+  async function handleToggleLike(postId: string) {
+    if (!currentUser) return;
+    
+    const userId = currentUser.user_id || currentUser.id;
+    if (!userId) return;
+    
+    try {
+      // Optimistically update UI
+      const wasLiked = likedPosts[postId] || false;
+      setLikedPosts(prev => ({ ...prev, [postId]: !wasLiked }));
+      
+      // Update likes count optimistically
+      if (selectedPost && selectedPost.id === postId) {
+        setSelectedPost((prev: any) => prev ? {
+          ...prev,
+          likes_count: wasLiked 
+            ? Math.max(0, (prev.likes_count || 0) - 1)
+            : (prev.likes_count || 0) + 1,
+          user_liked: !wasLiked
+        } : prev);
+      }
+      setPosts(prevPosts => prevPosts.map(p => 
+        p.id === postId 
+          ? { 
+              ...p, 
+              likes_count: wasLiked 
+                ? Math.max(0, (p.likes_count || 0) - 1)
+                : (p.likes_count || 0) + 1,
+              user_liked: !wasLiked
+            }
+          : p
+      ));
+      
+      // Toggle like in database
+      const { data, error } = await toggleForumPostLike(postId, userId);
+      
+      if (error) {
+        // Revert optimistic update
+        setLikedPosts(prev => ({ ...prev, [postId]: wasLiked }));
+        if (selectedPost && selectedPost.id === postId) {
+          setSelectedPost((prev: any) => prev ? {
+            ...prev,
+            likes_count: wasLiked 
+              ? (prev.likes_count || 0) + 1
+              : Math.max(0, (prev.likes_count || 0) - 1),
+            user_liked: wasLiked
+          } : prev);
+        }
+        setPosts(prevPosts => prevPosts.map(p => 
+          p.id === postId 
+            ? { 
+                ...p, 
+                likes_count: wasLiked 
+                  ? (p.likes_count || 0) + 1
+                  : Math.max(0, (p.likes_count || 0) - 1),
+                user_liked: wasLiked
+              }
+            : p
+        ));
+      } else if (data) {
+        // Update with actual data
+        setLikedPosts(prev => ({ ...prev, [postId]: data.liked }));
+        if (selectedPost && selectedPost.id === postId) {
+          setSelectedPost((prev: any) => prev ? {
+            ...prev,
+            likes_count: data.likes_count || prev.likes_count || 0,
+            user_liked: data.liked
+          } : prev);
+        }
+        setPosts(prevPosts => prevPosts.map(p => 
+          p.id === postId 
+            ? { 
+                ...p, 
+                likes_count: data.likes_count || p.likes_count || 0,
+                user_liked: data.liked
+              }
+            : p
+        ));
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      // Revert optimistic update
+      const wasLiked = likedPosts[postId] || false;
+      setLikedPosts(prev => ({ ...prev, [postId]: wasLiked }));
+    }
+  }
+
+  async function handleShowLikes(postId: string) {
+    setSelectedPostForLikes(postId);
+    setShowLikesModal(true);
+    
+    // Always reload likes when opening modal to ensure fresh data
+    setLoadingLikes(prev => ({ ...prev, [postId]: true }));
+    try {
+      const { data, error } = await getForumPostLikes(postId);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:739',message:'handleShowLikes - after getForumPostLikes',data:{postId,hasData:!!data,dataLength:data?.length,hasError:!!error,likes:data?.map((l:any)=>({user_id:l.user_id,display_name:l.display_name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'K'})}).catch(()=>{});
+      // #endregion
+      if (error) {
+        console.error('Error loading likes:', error);
+      }
+      if (data) {
+        setPostLikes(prev => ({ ...prev, [postId]: data }));
+      } else {
+        setPostLikes(prev => ({ ...prev, [postId]: [] }));
+      }
+    } catch (error) {
+      console.error('Error loading likes:', error);
+      setPostLikes(prev => ({ ...prev, [postId]: [] }));
+    } finally {
+      setLoadingLikes(prev => ({ ...prev, [postId]: false }));
+    }
+  }
+
   async function handlePostClick(post: ForumPost) {
     setLoadingPost(true);
     setSelectedPost(post);
@@ -633,35 +764,73 @@ function ForumDetailPageContent() {
       const userId = currentUser?.id || currentUser?.user_id || undefined;
       const { data, error } = await getForumPostById(post.id, userId);
       
-      if (error) {
-        console.error('Error loading post:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          fullError: error
-        });
-        // If it's just a permission/RLS issue, still show the post with limited data
-        if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('row-level security')) {
-          console.warn('RLS permission issue - showing post with limited data');
-          setSelectedPost(post);
-          setPostReplies([]);
-        } else {
-          setPostReplies([]);
-          alert('שגיאה בטעינת הפוסט. אנא נסה שוב.');
-        }
-      } else if (data) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:759',message:'handlePostClick - after getForumPostById',data:{postId:post.id,hasData:!!data,hasError:!!error,errorType:typeof error,errorKeys:error?Object.keys(error):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+      
+      // If we have data, use it regardless of error (error might be non-critical)
+      if (data) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:763',message:'handlePostClick - has data, using it',data:{postId:post.id,hasError:!!error,likesCount:data.likes_count,repliesCount:data.replies_count},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H'})}).catch(()=>{});
+        // #endregion
         setSelectedPost(data);
         setPostReplies(data.replies || []);
+        
+        // Update liked state
+        if (data.user_liked !== undefined) {
+          setLikedPosts(prev => ({ ...prev, [post.id]: data.user_liked }));
+        }
         
         // Update the post in the posts list with the updated views count
         setPosts(prevPosts => 
           prevPosts.map(p => 
             p.id === post.id 
-              ? { ...p, views: data.views || p.views }
+              ? { ...p, views: data.views || p.views, user_liked: data.user_liked }
               : p
           )
         );
+        
+        // If we have data, don't log errors at all - data is what matters
+      } else if (error) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:784',message:'handlePostClick - no data, has error',data:{postId:post.id,errorCode:error.code,errorMessage:error.message,errorKeys:Object.keys(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
+        // No data and there's an error
+        const isNonCriticalError = error.code === '42501' || 
+          error.message?.includes('permission') || 
+          error.message?.includes('row-level security') ||
+          (error && typeof error === 'object' && Object.keys(error).length === 0);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:789',message:'handlePostClick - error analysis',data:{postId:post.id,isNonCriticalError,errorCode:error.code,errorKeys:Object.keys(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        
+        if (isNonCriticalError) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:792',message:'handlePostClick - non-critical error, logging as warning',data:{postId:post.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          // Non-critical error - show post with limited data
+          console.warn('Non-critical error loading post, showing with limited data:', {
+            code: error.code,
+            message: error.message
+          });
+          setSelectedPost(post);
+          setPostReplies([]);
+        } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:801',message:'handlePostClick - critical error, logging as error',data:{postId:post.id,errorCode:error.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          // Critical error - show error message
+          console.error('Error loading post:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            fullError: error
+          });
+          setPostReplies([]);
+          alert('שגיאה בטעינת הפוסט. אנא נסה שוב.');
+        }
       } else {
         // No error but no data - use the post we already have
         setSelectedPost(post);
@@ -970,49 +1139,49 @@ function ForumDetailPageContent() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-500 mt-4">
-                          <button
-                            onClick={async () => {
-                              if (!currentUser || !selectedPost) return;
-                              try {
-                                const userId = currentUser.user_id || currentUser.id;
-                                if (!userId) return;
-                                const { data, error } = await toggleForumPostLike(selectedPost.id, userId);
-                                if (!error && data) {
-                                  // Reload post to get updated likes count
-                                  const { data: updatedPost, error: loadError } = await getForumPostById(selectedPost.id, userId);
-                                  if (!loadError && updatedPost) {
-                                    setSelectedPost(updatedPost);
-                                    setPostReplies(updatedPost.replies || []);
-                                    // Also update in posts list
-                                    setPosts(prevPosts => 
-                                      prevPosts.map(p => 
-                                        p.id === selectedPost.id 
-                                          ? { ...p, likes_count: updatedPost.likes_count || 0, user_liked: updatedPost.user_liked }
-                                          : p
-                                      )
-                                    );
-                                  }
-                                }
-                              } catch (error) {
-                                console.error('Error toggling like:', error);
-                              }
-                            }}
-                            disabled={!currentUser}
-                            className={`flex items-center gap-1 transition-colors ${
-                              selectedPost.user_liked
-                                ? 'text-[#F52F8E]'
-                                : 'text-gray-500 hover:text-[#F52F8E]'
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                          >
-                            <Heart className={`w-4 h-4 ${selectedPost.user_liked ? 'fill-current' : ''}`} />
-                            <span>{selectedPost.likes_count || 0}</span>
-                          </button>
-                          <div className="flex items-center gap-1">
-                            <MessageCircle className="w-4 h-4" />
-                            <span>{selectedPost.replies_count || postReplies.length} תגובות</span>
+                        {/* Likes and Comments Count */}
+                        {(selectedPost.likes_count > 0 || selectedPost.replies_count > 0) && (
+                          <div className="flex items-center gap-4 text-xs sm:text-sm text-gray-600 pt-2 pb-1">
+                            {selectedPost.replies_count > 0 && (
+                              <span className="font-medium">
+                                {selectedPost.replies_count || postReplies.length} תגובות
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1">
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-3 sm:gap-6 pt-3 sm:pt-4 border-t border-gray-100 flex-wrap">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <button 
+                              onClick={() => handleToggleLike(selectedPost.id)}
+                              disabled={!currentUser}
+                              className={`transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-pink-50 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                (likedPosts[selectedPost.id] || selectedPost.user_liked)
+                                  ? 'text-pink-500' 
+                                  : 'text-gray-600 hover:text-pink-500'
+                              }`}
+                            >
+                              <Heart 
+                                className={`w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform ${
+                                  (likedPosts[selectedPost.id] || selectedPost.user_liked) ? 'fill-current' : ''
+                                }`} 
+                              />
+                            </button>
+                            {selectedPost.likes_count > 0 && (
+                              <button
+                                onClick={() => handleShowLikes(selectedPost.id)}
+                                className="text-xs sm:text-sm font-medium text-gray-600 hover:text-pink-500 hover:underline cursor-pointer transition-colors"
+                              >
+                                {selectedPost.likes_count}
+                              </button>
+                            )}
+                          </div>
+                          <button className="flex items-center gap-1.5 sm:gap-2 text-gray-600 hover:text-pink-500 transition-all group rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-pink-50">
+                            <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
+                            <span className="text-xs sm:text-sm font-medium">תגובה</span>
+                          </button>
+                          <div className="flex items-center gap-1 text-sm text-gray-500">
                             <Eye className="w-4 h-4" />
                             <span>{selectedPost.views} צפיות</span>
                           </div>
@@ -1051,9 +1220,9 @@ function ForumDetailPageContent() {
                             key={post.id}
                             className="relative w-full text-right p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] hover:shadow-md transition-all group"
                           >
-                            <button
+                            <div
                               onClick={() => handlePostClick(post)}
-                              className="w-full text-right"
+                              className="w-full text-right cursor-pointer"
                             >
                               <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1">
@@ -1091,7 +1260,24 @@ function ForumDetailPageContent() {
                                     <span>{new Date(post.created_at).toLocaleDateString('he-IL')}</span>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                <div className="flex items-center gap-3 sm:gap-4 text-sm text-gray-500">
+                                  <div className="flex items-center gap-1">
+                                    <Heart className={`w-4 h-4 ${(post.likes_count || 0) > 0 ? 'text-pink-500 fill-current' : 'text-gray-400'}`} />
+                                    {(post.likes_count || 0) > 0 ? (
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleShowLikes(post.id);
+                                        }}
+                                        className="text-xs sm:text-sm font-medium text-gray-500 hover:text-pink-500 hover:underline cursor-pointer transition-colors"
+                                      >
+                                        {post.likes_count || 0}
+                                      </button>
+                                    ) : (
+                                      <span className="text-xs sm:text-sm text-gray-400">{post.likes_count || 0}</span>
+                                    )}
+                                  </div>
                                   <div className="flex items-center gap-1">
                                     <MessageCircle className="w-4 h-4" />
                                     <span>{post.replies_count}</span>
@@ -1102,7 +1288,7 @@ function ForumDetailPageContent() {
                                   </div>
                                 </div>
                               </div>
-                            </button>
+                            </div>
                             {!userLoading && isAdmin && (
                               <button
                                 type="button"
@@ -1134,6 +1320,92 @@ function ForumDetailPageContent() {
         </div>
       </div>
 
+      {/* Likes Modal */}
+      {showLikesModal && selectedPostForLikes && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowLikesModal(false);
+            setSelectedPostForLikes(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+              <h2 className="text-xl font-bold text-gray-800">אנשים שעשו לייק</h2>
+              <button
+                onClick={() => {
+                  setShowLikesModal(false);
+                  setSelectedPostForLikes(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingLikes[selectedPostForLikes] ? (
+                <div className="text-center py-8 text-gray-500">טוען...</div>
+              ) : !postLikes[selectedPostForLikes] || postLikes[selectedPostForLikes].length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Heart className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg">אין לייקים עדיין</p>
+                  <p className="text-sm mt-2">תהיה הראשון לעשות לייק!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {postLikes[selectedPostForLikes].map((like) => {
+                    const userId = like.user_id;
+                    const displayName = like.display_name || 'משתמש';
+                    const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                    
+                    return (
+                      <Link
+                        key={userId}
+                        href={`/profile?userId=${userId}`}
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                        onClick={(e) => {
+                          // Don't close modal when clicking on profile link
+                          e.stopPropagation();
+                        }}
+                      >
+                        {like.avatar_url ? (
+                          <img
+                            src={`${like.avatar_url}?t=${Date.now()}`}
+                            alt={displayName}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white font-semibold text-sm">
+                            {initials}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-800 truncate">{displayName}</p>
+                          {like.created_at && (
+                            <p className="text-xs text-gray-500">
+                              {new Date(like.created_at).toLocaleDateString('he-IL', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

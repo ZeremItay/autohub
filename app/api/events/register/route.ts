@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     // Award 1 point for registration
     try {
-      const pointsResult = await awardPoints(userId, 'הרשמה לאירוע', { ensureRule: true });
+      const pointsResult = await awardPoints(userId, 'הרשמה לאירוע', {});
       
       if (!pointsResult.success) {
         console.warn('Failed to award points for event registration:', pointsResult.error);

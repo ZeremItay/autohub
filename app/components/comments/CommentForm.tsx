@@ -46,6 +46,8 @@ export default function CommentForm({
   // Use lazy initialization to prevent useState from resetting on every render
   const [text, setText] = useState(() => initialText);
   const [loading, setLoading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const prevInitialTextRef = useRef<string | undefined>(initialText);
   
   // Update text ONLY when initialText actually changes (e.g., when @mention is added)
@@ -58,6 +60,25 @@ export default function CommentForm({
     }
   }, [initialText]);
 
+  // Auto-expand if replying or if there's initial text
+  useEffect(() => {
+    if (isReplying || (initialText && initialText.trim())) {
+      setIsExpanded(true);
+    }
+  }, [initialText, isReplying]);
+
+  const handleInputFocus = () => {
+    setIsExpanded(true);
+  };
+
+  const handleInputClick = () => {
+    setIsExpanded(true);
+    // Focus the input after expanding
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Check if text has meaningful content (not just empty HTML tags)
@@ -68,10 +89,28 @@ export default function CommentForm({
     try {
       await onSubmit(text);
       setText('');
+      setIsExpanded(false); // Collapse after successful submit
     } catch (error) {
       console.error('Error submitting comment:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSimpleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setText(value);
+    if (value.trim()) {
+      setIsExpanded(true);
+    }
+  };
+
+  const handleSimpleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (text.trim()) {
+        handleSubmit(e as any);
+      }
     }
   };
 
@@ -108,34 +147,69 @@ export default function CommentForm({
         </div>
       )}
       <form onSubmit={handleSubmit} className="flex-1">
-        <div className="relative" dir="rtl">
-          <RichTextEditor
-            content={text}
-            onChange={setText}
+        {!isExpanded && !isReplying ? (
+          // Simple input field (Facebook-style) - only show when not replying
+          <input
+            ref={inputRef}
+            type="text"
+            value={text.replace(/<[^>]*>/g, '')} // Strip HTML for simple input
+            onChange={handleSimpleInputChange}
+            onFocus={handleInputFocus}
+            onClick={handleInputClick}
             placeholder={placeholder}
-            userId={currentUser?.user_id || currentUser?.id}
+            className={`w-full ${paddingSize} ${textSize} border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent`}
+            dir="rtl"
           />
-        </div>
-        <div className={`flex items-center justify-end gap-2 ${size === 'sm' ? 'mt-1' : 'mt-2'}`}>
-          {isReplying && onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className={`${paddingSize} ${textSize} text-gray-600 hover:text-gray-800`}
-              disabled={loading}
-            >
-              בטל
-            </button>
-          )}
-          <button
-            type="submit"
-            disabled={!text.replace(/<[^>]*>/g, '').trim() || loading}
-            className={`flex items-center gap-1 ${paddingSize} ${textSize} bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            <Send className={size === 'sm' ? 'w-3 h-3' : 'w-3 h-3'} />
-            <span>{buttonText}</span>
-          </button>
-        </div>
+        ) : (
+          // Expanded RichTextEditor
+          <>
+            <div className="relative" dir="rtl">
+              <RichTextEditor
+                content={text}
+                onChange={setText}
+                placeholder={placeholder}
+                userId={currentUser?.user_id || currentUser?.id}
+              />
+            </div>
+            <div className={`flex items-center justify-end gap-2 ${size === 'sm' ? 'mt-1' : 'mt-2'}`}>
+              {isReplying && onCancel && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExpanded(false);
+                    setText('');
+                    if (onCancel) onCancel();
+                  }}
+                  className={`${paddingSize} ${textSize} text-gray-600 hover:text-gray-800`}
+                  disabled={loading}
+                >
+                  בטל
+                </button>
+              )}
+              {!isReplying && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExpanded(false);
+                    setText('');
+                  }}
+                  className={`${paddingSize} ${textSize} text-gray-600 hover:text-gray-800`}
+                  disabled={loading}
+                >
+                  בטל
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={!text.replace(/<[^>]*>/g, '').trim() || loading}
+                className={`flex items-center gap-1 ${paddingSize} ${textSize} bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <Send className={size === 'sm' ? 'w-3 h-3' : 'w-3 h-3'} />
+                <span>{buttonText}</span>
+              </button>
+            </div>
+          </>
+        )}
       </form>
     </div>
   );

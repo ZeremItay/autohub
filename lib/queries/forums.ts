@@ -150,7 +150,7 @@ export async function getForumByName(name: string) {
 }
 
 // Get posts in a forum
-export async function getForumPosts(forumId: string) {
+export async function getForumPosts(forumId: string, userId?: string) {
   // Use client-side supabase for client components
   const { data, error } = await supabase
     .from('forum_posts')
@@ -163,6 +163,38 @@ export async function getForumPosts(forumId: string) {
   
   // Get profiles for all posts
   const userIds = [...new Set(data.map((post: any) => post.user_id).filter(Boolean))];
+  
+  // Get user likes if userId provided
+  let userLikedMap = new Map<string, boolean>();
+  if (userId && data.length > 0) {
+    const postIds = data.map((post: any) => post.id);
+    const { data: likes } = await supabase
+      .from('forum_post_likes')
+      .select('post_id')
+      .eq('user_id', userId)
+      .in('post_id', postIds);
+    
+    if (likes) {
+      likes.forEach((like: any) => {
+        userLikedMap.set(like.post_id, true);
+      });
+    }
+  }
+  
+  // Get likes_count for all posts (fallback if column doesn't exist)
+  const postIds = data.map((post: any) => post.id);
+  const { data: likesCounts } = await supabase
+    .from('forum_post_likes')
+    .select('post_id')
+    .in('post_id', postIds);
+  
+  const likesCountMap = new Map<string, number>();
+  if (likesCounts) {
+    likesCounts.forEach((like: any) => {
+      const currentCount = likesCountMap.get(like.post_id) || 0;
+      likesCountMap.set(like.post_id, currentCount + 1);
+    });
+  }
   
   if (userIds.length > 0) {
     const query = supabase
@@ -182,8 +214,13 @@ export async function getForumPosts(forumId: string) {
         ? ((profile as any).display_name || (profile as any).first_name || (profile as any).nickname || 'משתמש')
         : 'משתמש';
       
+      // Use likes_count from post if available, otherwise calculate from map
+      const likesCount = post.likes_count ?? likesCountMap.get(post.id) ?? 0;
+      
       return {
         ...post,
+        likes_count: likesCount,
+        user_liked: userLikedMap.get(post.id) || false,
         profile: profile ? {
           user_id: (profile as any).user_id,
           display_name: displayName,
@@ -203,7 +240,18 @@ export async function getForumPosts(forumId: string) {
   }
   
   // If no user IDs, return posts without profiles
-  return { data: Array.isArray(data) ? data.map((post: any) => ({ ...post, profile: null })) : [], error: null };
+  return { 
+    data: Array.isArray(data) ? data.map((post: any) => {
+      const likesCount = post.likes_count ?? likesCountMap.get(post.id) ?? 0;
+      return {
+        ...post,
+        likes_count: likesCount,
+        user_liked: userLikedMap.get(post.id) || false,
+        profile: null 
+      };
+    }) : [], 
+    error: null 
+  };
 }
 
 // Get single forum post with replies
@@ -212,55 +260,87 @@ export async function getForumPostById(postId: string, userId?: string) {
     // Use client-side supabase for client components
     
     // Get the post
+    // Use select('*') to avoid issues if likes_count column doesn't exist yet
     const { data: postData, error: postError } = await supabase
       .from('forum_posts')
-      .select('id, forum_id, user_id, title, content, is_pinned, is_locked, views, replies_count, likes_count, created_at, updated_at')
+      .select('*')
       .eq('id', postId)
       .single();
     
-    if (postError) {
-      // Enhanced error logging - check if error is actually an object with properties
-      const errorDetails: any = {
-        postId,
-        userId,
-        hasError: !!postError,
-        errorType: typeof postError,
-        errorKeys: postError ? Object.keys(postError) : [],
-        errorString: String(postError),
-      };
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:244',message:'getForumPostById - after query',data:{postId,userId,hasPostData:!!postData,hasPostError:!!postError,postErrorType:typeof postError,postErrorKeys:postError?Object.keys(postError):[],postDataId:postData?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
+    // If we have postData, continue with it regardless of error - don't log errors
+    if (postData) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:248',message:'getForumPostById - has postData, continuing',data:{postId,hasPostError:!!postError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      // If there was an error but we have data, silently continue (don't log at all)
+      // The data is what matters, not the error
+      // Continue with postData below - don't return error
+    } else {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:252',message:'getForumPostById - no postData, handling error',data:{postId,hasPostError:!!postError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      // No postData - need to handle error
+      let isNonCriticalError = false;
+      let errorDetails: any = null;
       
-      // Try to extract error properties safely
-      if (postError && typeof postError === 'object') {
-        errorDetails.code = (postError as any).code;
-        errorDetails.message = (postError as any).message;
-        errorDetails.details = (postError as any).details;
-        errorDetails.hint = (postError as any).hint;
+      if (postError) {
+        // Enhanced error logging - check if error is actually an object with properties
+        errorDetails = {
+          postId,
+          userId,
+          hasError: !!postError,
+          errorType: typeof postError,
+          errorKeys: postError ? Object.keys(postError) : [],
+          errorString: String(postError),
+        };
         
-        // Try to stringify the error
-        try {
-          errorDetails.fullError = JSON.stringify(postError, Object.getOwnPropertyNames(postError));
-        } catch (e) {
+        // Try to extract error properties safely
+        if (postError && typeof postError === 'object') {
+          errorDetails.code = (postError as any).code;
+          errorDetails.message = (postError as any).message;
+          errorDetails.details = (postError as any).details;
+          errorDetails.hint = (postError as any).hint;
+          
+          // Try to stringify the error
+          try {
+            errorDetails.fullError = JSON.stringify(postError, Object.getOwnPropertyNames(postError));
+          } catch (e) {
+            errorDetails.fullError = String(postError);
+          }
+        } else {
           errorDetails.fullError = String(postError);
         }
-      } else {
-        errorDetails.fullError = String(postError);
-      }
-      
-      // Check if error is empty object or non-critical
-      const isEmptyError = postError && typeof postError === 'object' && Object.keys(postError).length === 0;
-      const isNonCriticalError = isEmptyError || 
-        (errorDetails.code === '42501') || 
-        (errorDetails.message && (errorDetails.message.includes('permission') || errorDetails.message.includes('row-level security')));
-      
-      if (isNonCriticalError && postData) {
-        // If we have data despite the error, continue with the data
-        console.warn('Non-critical error fetching forum post, continuing with data:', errorDetails);
-        // Continue with postData below
-      } else {
-        // Critical error - log and return
-        console.error('Error fetching forum post:', errorDetails);
         
-        // Return error with all details
+        // Check if error is empty object or non-critical
+        const isEmptyError = postError && typeof postError === 'object' && Object.keys(postError).length === 0;
+        isNonCriticalError = isEmptyError || 
+          (errorDetails.code === '42501') || 
+          (errorDetails.message && (errorDetails.message.includes('permission') || errorDetails.message.includes('row-level security')));
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:288',message:'getForumPostById - error analysis',data:{postId,isEmptyError,isNonCriticalError,errorCode:errorDetails.code,errorMessage:errorDetails.message,errorKeys:errorDetails.errorKeys},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+      }
+      // No postData - return error
+      if (postError) {
+        if (isNonCriticalError) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:295',message:'getForumPostById - non-critical error, logging as warning',data:{postId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          // Non-critical error but no data - still return error but log as warning
+          console.warn('Non-critical error and no data for forum post:', errorDetails);
+        } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:300',message:'getForumPostById - critical error, logging as error',data:{postId,errorDetails},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          // Critical error - log as error
+          console.error('Error fetching forum post:', errorDetails);
+        }
+        
         return { 
           data: null, 
           error: {
@@ -271,12 +351,11 @@ export async function getForumPostById(postId: string, userId?: string) {
             ...errorDetails
           }
         };
+      } else {
+        // No error but no data either
+        console.warn('No post data returned for postId:', postId);
+        return { data: null, error: { message: 'Post not found', code: 'PGRST116' } as any };
       }
-    }
-    
-    if (!postData) {
-      console.warn('No post data returned for postId:', postId);
-      return { data: null, error: { message: 'Post not found', code: 'PGRST116' } as any };
     }
     
     // Get profile for post author
@@ -297,6 +376,16 @@ export async function getForumPostById(postId: string, userId?: string) {
       const { data: liked } = await checkUserLikedPost(postId, userId);
       userLiked = liked || false;
     }
+    
+    // Count actual likes from forum_post_likes table
+    const { count: actualLikesCount } = await supabase
+      .from('forum_post_likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postId);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:357',message:'getForumPostById - before building post object',data:{postId,postDataLikesCount:postData?.likes_count,actualLikesCount:actualLikesCount || 0,userLiked},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'L'})}).catch(()=>{});
+    // #endregion
     
     // Clean placeholder images from content
     const cleanedContent = cleanPlaceholderImagesFromContent(postData.content || '');
@@ -323,8 +412,13 @@ export async function getForumPostById(postId: string, userId?: string) {
         display_name: 'משתמש',
         avatar_url: null
       },
-      user_liked: userLiked
+      user_liked: userLiked,
+      likes_count: actualLikesCount || postData.likes_count || 0
     };
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:395',message:'getForumPostById - built post object',data:{postId,likesCount:post.likes_count,repliesCount:post.replies_count,actualLikesCount,postDataLikesCount:postData.likes_count},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'L'})}).catch(()=>{});
+    // #endregion
     
     // Get all replies (including nested ones)
     const { data: repliesData, error: repliesError } = await supabase
@@ -858,17 +952,24 @@ export async function toggleForumPostLike(postId: string, userId: string) {
     // First get current count
     const { data: currentPost } = await supabase
       .from('forum_posts')
-      .select('likes_count')
+      .select('*')
       .eq('id', postId)
       .single();
     
     const newCount = Math.max(0, (currentPost?.likes_count || 0) - 1);
     
-    // Update the count
-    await supabase
-      .from('forum_posts')
-      .update({ likes_count: newCount })
-      .eq('id', postId);
+    // Update the count (only if likes_count column exists)
+    try {
+      await supabase
+        .from('forum_posts')
+        .update({ likes_count: newCount })
+        .eq('id', postId);
+    } catch (updateError: any) {
+      // If column doesn't exist, silently fail - migration script will add it
+      if (updateError?.code !== '42703') {
+        console.warn('Error updating likes_count (column may not exist yet):', updateError);
+      }
+    }
     
     return { data: { liked: false, likes_count: newCount }, error: null };
   } else {
@@ -883,30 +984,49 @@ export async function toggleForumPostLike(postId: string, userId: string) {
     // First get current count
     const { data: currentPost } = await supabase
       .from('forum_posts')
-      .select('likes_count')
+      .select('*')
       .eq('id', postId)
       .single();
     
     const newCount = (currentPost?.likes_count || 0) + 1;
     
-    // Update the count
-    await supabase
-      .from('forum_posts')
-      .update({ likes_count: newCount })
-      .eq('id', postId);
+    // Update the count (only if likes_count column exists)
+    try {
+      await supabase
+        .from('forum_posts')
+        .update({ likes_count: newCount })
+        .eq('id', postId);
+    } catch (updateError: any) {
+      // If column doesn't exist, silently fail - migration script will add it
+      if (updateError?.code !== '42703') {
+        console.warn('Error updating likes_count (column may not exist yet):', updateError);
+      }
+    }
     
     // Award points for liking a post (only when adding a like, not removing)
+    // Check if user already got points for this post to prevent duplicate points
     try {
       const { awardPoints } = await import('./gamification');
       // Try Hebrew first (primary), then English as fallback
-      const result = await awardPoints(userId, 'לייק לפוסט', {}).catch(async () => {
+      // Pass postId as relatedId to prevent duplicate points for same post
+      const result = await awardPoints(userId, 'לייק לפוסט', { 
+        checkRelatedId: true, 
+        relatedId: postId 
+      }).catch(async () => {
         // If Hebrew doesn't work, try English
-        return await awardPoints(userId, 'like_post', {});
+        return await awardPoints(userId, 'like_post', { 
+          checkRelatedId: true, 
+          relatedId: postId 
+        });
       });
       
       if (!result.success) {
-        console.error('❌ Failed to award points for forum like:', result.error);
-        // Don't fail the like operation, but log the error for debugging
+        if (result.alreadyAwarded) {
+          console.log(`ℹ️ Points already awarded for like on forum post ${postId}`);
+        } else {
+          console.error('❌ Failed to award points for forum like:', result.error);
+          // Don't fail the like operation, but log the error for debugging
+        }
       } else {
         console.log(`✅ Awarded ${result.points || 0} points for forum like`);
       }
@@ -917,6 +1037,106 @@ export async function toggleForumPostLike(postId: string, userId: string) {
     
     return { data: { liked: true, likes_count: newCount }, error: null };
   }
+}
+
+// Get list of users who liked a forum post
+export async function getForumPostLikes(postId: string) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:993',message:'getForumPostLikes - start',data:{postId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'I'})}).catch(()=>{});
+  // #endregion
+  
+  // First, get all likes for the post
+  const { data: likesData, error: likesError } = await supabase
+    .from('forum_post_likes')
+    .select('user_id, created_at')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false });
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:1000',message:'getForumPostLikes - after likes query',data:{postId,hasLikesData:!!likesData,likesCount:likesData?.length,hasLikesError:!!likesError,userIds:likesData?.map((l:any)=>l.user_id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'I'})}).catch(()=>{});
+  // #endregion
+
+  if (likesError) {
+    console.error('Error fetching forum post likes:', likesError);
+    return { data: null, error: likesError };
+  }
+
+  if (!likesData || likesData.length === 0) {
+    return { data: [], error: null };
+  }
+
+  // Get user IDs
+  const userIds = likesData.map((like: any) => like.user_id).filter(Boolean);
+  
+  if (userIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  // Fetch profiles using server-side API to bypass RLS
+  let profilesData: any[] = [];
+  let profilesError: any = null;
+  
+  try {
+    const response = await fetch('/api/forums/get-likes-profiles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      profilesData = result.data || [];
+      profilesError = result.error;
+    } else {
+      profilesError = new Error(`HTTP ${response.status}`);
+    }
+  } catch (err: any) {
+    profilesError = err;
+  }
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:1045',message:'getForumPostLikes - after server-side profiles API',data:{postId,userIdsCount:userIds.length,hasProfilesData:!!profilesData,profilesCount:profilesData?.length,hasProfilesError:!!profilesError,profiles:profilesData?.map((p:any)=>({user_id:p.user_id,display_name:p.display_name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'J'})}).catch(()=>{});
+  // #endregion
+
+  if (profilesError) {
+    console.error('Error fetching profiles for forum post likes:', profilesError);
+    // Return likes without profile data if profiles fetch fails
+    return { 
+      data: likesData.map((like: any) => ({
+        user_id: like.user_id,
+        display_name: 'משתמש',
+        avatar_url: null,
+        created_at: like.created_at
+      })), 
+      error: null 
+    };
+  }
+
+  // Create a map of user_id to profile
+  const profileMap = new Map(
+    (profilesData || []).map((profile: any) => [profile.user_id, profile])
+  );
+
+  // Combine likes with profile data
+  const likes = likesData.map((like: any) => {
+    const profile = profileMap.get(like.user_id);
+    const displayName = profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:1045',message:'getForumPostLikes - mapping like',data:{postId,userId:like.user_id,hasProfile:!!profile,displayName,profileDisplayName:profile?.display_name},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'J'})}).catch(()=>{});
+    // #endregion
+    return {
+      user_id: like.user_id,
+      display_name: displayName,
+      avatar_url: profile?.avatar_url || null,
+      created_at: like.created_at
+    };
+  });
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'forums.ts:1056',message:'getForumPostLikes - returning',data:{postId,likesCount:likes.length,likes:likes.map((l:any)=>({user_id:l.user_id,display_name:l.display_name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'I'})}).catch(()=>{});
+  // #endregion
+
+  return { data: likes, error: null };
 }
 
 // Like/Unlike a forum post reply
