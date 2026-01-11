@@ -44,7 +44,7 @@ import { useRef } from 'react'
 import { getUserForumPosts, getUserForumReplies } from '@/lib/queries/forums'
 import { getUserPointsHistory } from '@/lib/queries/gamification'
 import { getEnrolledCourses, getCompletedLessons, getCourseLessons } from '@/lib/queries/courses'
-import { getUserProjects, getProjectOffersByUser, getProjectOffers } from '@/lib/queries/projects'
+import { getUserProjects, getProjectOffersByUser, getProjectOffers, updateProject } from '@/lib/queries/projects'
 import { BookOpen } from 'lucide-react'
 import { formatTimeAgo as formatTimeAgoUtil } from '@/lib/utils/date'
 import { isAdmin } from '@/lib/utils/user'
@@ -92,6 +92,16 @@ function ProfilePageContent() {
   const [selectedOfferProject, setSelectedOfferProject] = useState<any | null>(null)
   const [selectedOfferUser, setSelectedOfferUser] = useState<any | null>(null)
   const [loadingOfferUser, setLoadingOfferUser] = useState(false)
+  const [editingProject, setEditingProject] = useState<any | null>(null)
+  const [editProjectForm, setEditProjectForm] = useState({
+    title: '',
+    description: '',
+    budget_min: '',
+    budget_max: '',
+    budget_currency: 'ILS',
+    status: 'open' as 'open' | 'in_progress' | 'completed' | 'closed'
+  })
+  const [savingProject, setSavingProject] = useState(false)
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -2109,22 +2119,42 @@ function ProfilePageContent() {
                                   )}
                                 </div>
                               </div>
-                              <button
-                                onClick={() => {
-                                  setExpandedProjects(prev => {
-                                    const next = new Set(prev)
-                                    if (next.has(project.id)) {
-                                      next.delete(project.id)
-                                    } else {
-                                      next.add(project.id)
-                                    }
-                                    return next
-                                  })
-                                }}
-                                className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                              >
-                                {showOffers ? 'הסתר' : 'הצג'} הגשות
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingProject(project)
+                                    setEditProjectForm({
+                                      title: project.title || '',
+                                      description: project.description || '',
+                                      budget_min: project.budget_min?.toString() || '',
+                                      budget_max: project.budget_max?.toString() || '',
+                                      budget_currency: project.budget_currency || 'ILS',
+                                      status: project.status || 'open'
+                                    })
+                                  }}
+                                  className="px-3 py-1 text-sm bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors flex items-center gap-1"
+                                  title="ערוך פרויקט"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  ערוך
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setExpandedProjects(prev => {
+                                      const next = new Set(prev)
+                                      if (next.has(project.id)) {
+                                        next.delete(project.id)
+                                      } else {
+                                        next.add(project.id)
+                                      }
+                                      return next
+                                    })
+                                  }}
+                                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                >
+                                  {showOffers ? 'הסתר' : 'הצג'} הגשות
+                                </button>
+                              </div>
                             </div>
                             {showOffers && offers.length > 0 && (
                               <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
@@ -2562,6 +2592,208 @@ function ProfilePageContent() {
                     </p>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* מודל עריכת פרויקט */}
+      {editingProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-800">ערוך פרויקט</h2>
+              <button
+                onClick={() => {
+                  setEditingProject(null)
+                  setEditProjectForm({
+                    title: '',
+                    description: '',
+                    budget_min: '',
+                    budget_max: '',
+                    budget_currency: 'ILS',
+                    status: 'open'
+                  })
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  כותרת הפרויקט *
+                </label>
+                <input
+                  type="text"
+                  value={editProjectForm.title}
+                  onChange={(e) => setEditProjectForm({ ...editProjectForm, title: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent"
+                  placeholder="כותרת הפרויקט"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  תיאור הפרויקט *
+                </label>
+                <textarea
+                  value={editProjectForm.description}
+                  onChange={(e) => setEditProjectForm({ ...editProjectForm, description: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent"
+                  rows={6}
+                  placeholder="תאר את הפרויקט בפירוט..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    תקציב מינימלי
+                  </label>
+                  <input
+                    type="number"
+                    value={editProjectForm.budget_min}
+                    onChange={(e) => setEditProjectForm({ ...editProjectForm, budget_min: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    תקציב מקסימלי
+                  </label>
+                  <input
+                    type="number"
+                    value={editProjectForm.budget_max}
+                    onChange={(e) => setEditProjectForm({ ...editProjectForm, budget_max: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    מטבע
+                  </label>
+                  <select
+                    value={editProjectForm.budget_currency}
+                    onChange={(e) => setEditProjectForm({ ...editProjectForm, budget_currency: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent"
+                  >
+                    <option value="ILS">₪ ILS</option>
+                    <option value="USD">$ USD</option>
+                    <option value="EUR">€ EUR</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    סטטוס
+                  </label>
+                  <select
+                    value={editProjectForm.status}
+                    onChange={(e) => setEditProjectForm({ ...editProjectForm, status: e.target.value as any })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F52F8E] focus:border-transparent"
+                  >
+                    <option value="open">פתוח</option>
+                    <option value="in_progress">בביצוע</option>
+                    <option value="completed">הושלם</option>
+                    <option value="closed">סגור</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setEditingProject(null)
+                    setEditProjectForm({
+                      title: '',
+                      description: '',
+                      budget_min: '',
+                      budget_max: '',
+                      budget_currency: 'ILS',
+                      status: 'open'
+                    })
+                  }}
+                  className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={savingProject}
+                >
+                  ביטול
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!editProjectForm.title || !editProjectForm.description) {
+                      alert('אנא מלא את כל השדות הנדרשים')
+                      return
+                    }
+
+                    setSavingProject(true)
+                    try {
+                      const updateData: any = {
+                        title: editProjectForm.title,
+                        description: editProjectForm.description,
+                        status: editProjectForm.status,
+                        budget_currency: editProjectForm.budget_currency
+                      }
+
+                      if (editProjectForm.budget_min) {
+                        updateData.budget_min = parseFloat(editProjectForm.budget_min)
+                      }
+                      if (editProjectForm.budget_max) {
+                        updateData.budget_max = parseFloat(editProjectForm.budget_max)
+                      }
+
+                      const { data, error } = await updateProject(editingProject.id, updateData)
+
+                      if (error) {
+                        console.error('Error updating project:', error)
+                        alert('שגיאה בעדכון הפרויקט. אנא נסה שוב.')
+                      } else {
+                        // Refresh projects list
+                        const { data: updatedProjects } = await getUserProjects(profile.user_id)
+                        if (updatedProjects) {
+                          setMyProjects(updatedProjects)
+                        }
+                        
+                        setEditingProject(null)
+                        setEditProjectForm({
+                          title: '',
+                          description: '',
+                          budget_min: '',
+                          budget_max: '',
+                          budget_currency: 'ILS',
+                          status: 'open'
+                        })
+                        alert('הפרויקט עודכן בהצלחה!')
+                      }
+                    } catch (error) {
+                      console.error('Error updating project:', error)
+                      alert('שגיאה בעדכון הפרויקט. אנא נסה שוב.')
+                    } finally {
+                      setSavingProject(false)
+                    }
+                  }}
+                  className="px-6 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors flex items-center gap-2"
+                  disabled={savingProject}
+                >
+                  {savingProject ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>שומר...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>שמור שינויים</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

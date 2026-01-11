@@ -36,11 +36,12 @@ export async function POST(request: NextRequest) {
     const imageBuffer = Buffer.from(arrayBuffer);
 
     // Optimize image using Sharp (local optimization - much faster!)
+    // Convert to WebP by default for better compression
     const result = await optimizeImageWithSharp(imageBuffer, {
-      quality: 82,
+      quality: 85, // Good quality with good compression
       maxWidth: 1920,
       maxHeight: 1080,
-      convertToWebP: false, // Keep original format for now
+      convertToWebP: true, // Convert to WebP for better compression
     });
 
     if (!result.success || !result.data?.buffer) {

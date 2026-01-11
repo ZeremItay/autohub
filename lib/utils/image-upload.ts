@@ -22,8 +22,10 @@ export async function uploadAndOptimizeImage(
   filePath: string,
   options?: {
     optimize?: boolean; // Whether to optimize the image (default: true)
-    quality?: number; // Image quality 0-100 (default: 82)
-    convertToWebP?: boolean; // Convert to WebP (default: false)
+    quality?: number; // Image quality 0-100 (default: 85)
+    convertToWebP?: boolean; // Convert to WebP (default: true)
+    maxWidth?: number; // Maximum width (default: 1920)
+    maxHeight?: number; // Maximum height (default: 1080)
     cacheControl?: string; // Cache control header (default: '3600')
     upsert?: boolean; // Whether to overwrite existing file (default: true)
   }
@@ -55,11 +57,18 @@ export async function uploadAndOptimizeImage(
         const optimizedSizeHeader = optimizeResponse.headers.get('X-Optimized-Size');
         optimizedSize = optimizedSizeHeader ? parseInt(optimizedSizeHeader) : optimizedBlob.size;
         
-        fileToUpload = new File([optimizedBlob], file.name, { type: file.type });
+        // Get the format from response headers
+        const format = optimizeResponse.headers.get('X-Format') || 'webp';
+        const newFileName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
+        
+        // Create new file with WebP type
+        fileToUpload = new File([optimizedBlob], newFileName, { 
+          type: format === 'webp' ? 'image/webp' : file.type 
+        });
         
         const reduction = Math.round((1 - optimizedSize / originalSize) * 100);
         const savings = originalSize - optimizedSize;
-        console.log(`✅ Image optimized! Original: ${originalSize} bytes, Optimized: ${optimizedSize} bytes, Saved: ${savings} bytes (${reduction}% reduction)`);
+        console.log(`✅ Image optimized! Original: ${(originalSize / 1024).toFixed(2)} KB, Optimized: ${(optimizedSize / 1024).toFixed(2)} KB, Saved: ${(savings / 1024).toFixed(2)} KB (${reduction}% reduction), Format: ${format}`);
       } else {
         const errorText = await optimizeResponse.text();
         console.warn('⚠️ Image optimization failed, uploading original:', errorText);
@@ -69,10 +78,16 @@ export async function uploadAndOptimizeImage(
     }
   }
 
+  // Update filePath to use .webp extension if converted
+  let finalFilePath = filePath;
+  if (options?.convertToWebP !== false && fileToUpload.type === 'image/webp') {
+    finalFilePath = filePath.replace(/\.[^/.]+$/, '') + '.webp';
+  }
+  
   // Upload to Supabase Storage
   const { error: uploadError } = await supabase.storage
     .from(bucketName)
-    .upload(filePath, fileToUpload, {
+    .upload(finalFilePath, fileToUpload, {
       cacheControl: options?.cacheControl || '3600',
       upsert: options?.upsert !== false,
     });
@@ -81,10 +96,10 @@ export async function uploadAndOptimizeImage(
     throw new Error(`Failed to upload image: ${uploadError.message}`);
   }
 
-  // Get public URL
+  // Get public URL (use finalFilePath if it was changed)
   const { data: { publicUrl } } = supabase.storage
     .from(bucketName)
-    .getPublicUrl(filePath);
+    .getPublicUrl(finalFilePath);
 
   return {
     url: publicUrl,
