@@ -11,9 +11,34 @@ export async function POST(request: NextRequest) {
     const userId = session?.user?.id || null;
     
     const body = await request.json();
-    const { name, email, subject, message, rating, feedback_type, image_url } = body;
+    let { name, email, subject, message, rating, feedback_type, image_url } = body;
+
+    // If user is logged in but name/email are not provided, get them from profile
+    if (userId && (!name || !email)) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('display_name, first_name, nickname, email')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!profileError && profile) {
+        // Use profile data if name/email are missing
+        if (!name) {
+          name = profile.display_name || profile.first_name || profile.nickname || session?.user?.email?.split('@')[0] || 'משתמש';
+        }
+        if (!email) {
+          email = profile.email || session?.user?.email || null;
+        }
+      } else if (!name) {
+        // Fallback to email username if profile not found
+        name = session?.user?.email?.split('@')[0] || 'משתמש';
+        email = email || session?.user?.email || null;
+      }
+    }
 
     // Validate required fields
+    // If user is logged in, name will be set from profile above
+    // If user is not logged in, name is required
     if (!name || !subject || !message || !rating || !feedback_type) {
       return NextResponse.json(
         { error: 'כל השדות המסומנים ב-* הם חובה' },

@@ -105,15 +105,24 @@ export default function FeedbackPage() {
         imageUrl = publicUrl;
       }
 
+      // If user is logged in, ensure name and email are sent (even if empty, API will fill from profile)
+      const submitData = {
+        ...formData,
+        image_url: imageUrl
+      };
+
+      // If logged in but name/email are empty, send empty strings (API will fill from profile)
+      if (isLoggedIn) {
+        if (!submitData.name) submitData.name = '';
+        if (!submitData.email) submitData.email = '';
+      }
+
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          image_url: imageUrl
-        }),
+        body: JSON.stringify(submitData),
       });
 
       const result = await response.json();
