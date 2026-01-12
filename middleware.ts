@@ -60,21 +60,31 @@ export async function middleware(request: NextRequest) {
         }
       } else {
         // User exists - check if profile is complete (user is fully registered)
-        // Profile needs: first_name, how_to_address, nocode_experience
+        // Profile needs: how_to_address, nocode_experience (first_name is optional)
+        // Only redirect to complete-profile if user came from OAuth (Google) and missing required fields
         const { data: fullProfile, error: fullProfileError } = await supabase
           .from('profiles')
-          .select('first_name, how_to_address, nocode_experience')
+          .select('first_name, how_to_address, nocode_experience, display_name')
           .eq('user_id', user.id)
           .single()
 
-        const needsCompletion = !fullProfile?.first_name || !fullProfile?.how_to_address || !fullProfile?.nocode_experience
+        // Only needs completion if missing required fields (how_to_address, nocode_experience)
+        // first_name is optional, so don't require it
+        const needsCompletion = !fullProfile?.how_to_address || !fullProfile?.nocode_experience
+        
+        // Check if user has display_name - if not, they probably came from OAuth
+        // Regular signup users always have display_name, OAuth users might not
+        const isOAuthUser = !fullProfile?.display_name || !fullProfile?.display_name.trim()
         
         // Allow access to auth pages and complete-profile page
         const authPages = ['/auth/login', '/auth/signup', '/auth/complete-profile', '/auth/forgot-password', '/auth/reset-password']
         const isAuthPage = authPages.some(page => request.nextUrl.pathname.startsWith(page))
         
-        // If profile is not complete and user is not on an auth page, redirect to complete-profile
-        if (needsCompletion && !isAuthPage) {
+        // Only redirect to complete-profile if:
+        // 1. Profile needs completion (missing required fields)
+        // 2. User came from OAuth (doesn't have display_name) - regular signup users already filled everything
+        // 3. User is not already on an auth page
+        if (needsCompletion && isOAuthUser && !isAuthPage) {
           return NextResponse.redirect(new URL('/auth/complete-profile', request.url))
         }
         

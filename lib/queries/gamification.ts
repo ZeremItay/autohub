@@ -79,7 +79,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       .limit(100); // Get all rules (shouldn't be more than 100)
     
     if (allRulesError) {
-      console.error('❌ Error fetching gamification rules:', allRulesError?.message || String(allRulesError));
+      console.warn('⚠️ Error fetching gamification rules:', allRulesError?.message || String(allRulesError));
       // If we can't get all rules, silently fail
       return { success: false, error: 'Rule not found', alreadyAwarded: false };
     }
@@ -125,11 +125,19 @@ export async function awardPoints(userId: string, actionName: string, options?: 
     }
     
     if (!rule) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/gamification.ts:127',message:'Rule not found, ensuring rules',data:{actionName,allRulesCount:allRules?.length||0,allRuleNames:allRules?.map((r:any)=>({action_name:r.action_name,trigger_action:r.trigger_action}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
+      
       // Rule not found - try to ensure rules exist and retry
       console.warn(`⚠️ Rule not found for action: "${actionName}", ensuring rules exist...`);
       
       // Ensure rules exist
       const ensureResult = await ensureGamificationRules();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/gamification.ts:133',message:'After ensureGamificationRules',data:{success:ensureResult.success,created:ensureResult.created,updated:ensureResult.updated,error:ensureResult.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
       
       if (ensureResult.success) {
         // Retry finding the rule after ensuring
@@ -170,14 +178,39 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       }
       
       if (!rule) {
-        // Still not found after ensuring - log available rules for debugging
-        console.error(`❌ Rule still not found for action: "${actionName}"`);
-        if (allRules && allRules.length > 0) {
-          console.log('Available rules:', allRules.map((r: any) => ({
-            action_name: r.action_name,
-            trigger_action: r.trigger_action,
-            description: r.description
-          })));
+        // Still not found after ensuring - try alternative names
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/gamification.ts:180',message:'Rule still not found, trying alternatives',data:{actionName,allRulesCount:allRules?.length||0,allRuleNames:allRules?.map((r:any)=>({action_name:r.action_name,trigger_action:r.trigger_action}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
+        
+        // Try alternative names for registration
+        if (actionName === 'הרשמה') {
+          const alternativeNames = ['registration', 'signup', 'הרשמה למערכת', 'הרשמה למערכת', 'user_registration'];
+          for (const altName of alternativeNames) {
+            rule = allRules?.find((r: any) => {
+              const actionMatch = r.action_name && r.action_name.toLowerCase() === altName.toLowerCase();
+              const triggerMatch = r.trigger_action && r.trigger_action.toLowerCase() === altName.toLowerCase();
+              return actionMatch || triggerMatch;
+            });
+            // #region agent log
+            if (rule) {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/gamification.ts:192',message:'Found rule with alternative name',data:{altName,ruleId:rule.id,ruleName:rule.action_name||rule.trigger_action},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H3'})}).catch(()=>{});
+            }
+            // #endregion
+            if (rule) {
+              console.log(`✅ Found rule with alternative name: "${altName}"`);
+              break;
+            }
+          }
+        }
+        
+        if (!rule) {
+          // Still not found - this is not critical, just log and continue
+          // Don't fail the operation if gamification rule doesn't exist
+          console.warn(`⚠️ Rule not found for action: "${actionName}" - continuing without points`);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/gamification.ts:203',message:'Rule not found, returning success=false but not blocking',data:{actionName},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H3'})}).catch(()=>{});
+          // #endregion
         }
         // Rule not found - return error (but don't fail the app operation)
         return { success: false, error: `Rule not found for action: ${actionName}`, alreadyAwarded: false }
@@ -471,14 +504,31 @@ export async function awardPoints(userId: string, actionName: string, options?: 
             fullError: notificationError
           };
           
+          // Try to extract more info from the error object
+          try {
+            if (typeof notificationError === 'object') {
+              // Try to get all properties
+              const errorKeys = Object.keys(notificationError);
+              if (errorKeys.length > 0) {
+                errorInfo.allKeys = errorKeys;
+                errorInfo.stringified = JSON.stringify(notificationError, Object.getOwnPropertyNames(notificationError));
+              }
+            }
+          } catch (stringifyErr) {
+            // Ignore stringify errors
+          }
+          
           // Always log in development, log important errors in production
           if (process.env.NODE_ENV === 'development' || notificationError.code || notificationError.message) {
-            if (Object.keys(errorInfo).filter(k => errorInfo[k] !== null).length > 0) {
+            const hasInfo = Object.keys(errorInfo).filter(k => errorInfo[k] !== null && k !== 'fullError').length > 0;
+            if (hasInfo) {
               console.error('❌ Notification error details:', errorInfo);
             } else {
               console.warn('⚠️ Notification creation failed (no error details available)', {
                 userId,
                 actionName,
+                errorType: typeof notificationError,
+                errorString: String(notificationError),
                 rawError: notificationError
               });
             }
@@ -682,6 +732,7 @@ export async function ensureGamificationRules() {
       { name: 'כניסה יומית', point_value: 5, description: 'כניסה יומית לאתר' },
       { name: 'פוסט חדש', point_value: 10, description: 'יצירת פוסט חדש' },
       { name: 'תגובה לנושא', point_value: 5, description: 'תגובה בפורום' },
+      { name: 'הרשמה', point_value: 10, description: 'הרשמה למערכת' },
     ];
     
     // Try to detect which column structure is used
@@ -729,7 +780,7 @@ export async function ensureGamificationRules() {
       .select(selectFields);
     
     if (fetchError) {
-      console.error('❌ Error fetching rules:', fetchError);
+      console.warn('⚠️ Error fetching rules:', fetchError);
       return { success: false, error: fetchError.message };
     }
     
@@ -765,7 +816,8 @@ export async function ensureGamificationRules() {
         .insert(rulesToInsert);
       
       if (insertError) {
-        console.error('❌ Error inserting missing rules:', insertError);
+        // RLS policy might block insertion - this is not critical, just log as warning
+        console.warn('⚠️ Could not insert missing gamification rules (RLS policy):', insertError.message || insertError);
         return { success: false, error: insertError.message };
       }
       
@@ -816,7 +868,7 @@ export async function ensureGamificationRules() {
     
     return { success: true, created: missingRules.length, updated: updatedCount };
   } catch (error: any) {
-    console.error('❌ Error ensuring rules:', error);
+    console.warn('⚠️ Error ensuring rules:', error);
     return { success: false, error: error.message };
   }
 }

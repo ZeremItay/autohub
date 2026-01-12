@@ -41,10 +41,18 @@ export default function CompleteProfilePage() {
           return;
         }
 
-        // Check if profile needs completion (missing first_name, how_to_address, or nocode_experience)
-        const needsCompletion = !profile.first_name || !profile.how_to_address || !profile.nocode_experience;
+        // Check if profile needs completion (missing how_to_address or nocode_experience)
+        // first_name is optional, so don't require it
+        // Only show this page if user came from OAuth (missing display_name) or missing required fields
+        const needsCompletion = !profile.how_to_address || !profile.nocode_experience;
+        const isOAuthUser = !profile.display_name || !profile.display_name.trim();
         
-        if (!needsCompletion) {
+        // Only show completion page if:
+        // 1. Missing required fields (how_to_address, nocode_experience)
+        // 2. OR user came from OAuth (doesn't have display_name)
+        const shouldShowCompletion = needsCompletion || isOAuthUser;
+        
+        if (!shouldShowCompletion) {
           // Profile is complete, redirect to home
           router.push('/');
           return;

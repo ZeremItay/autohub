@@ -311,6 +311,10 @@ export default function AccountSettingsPage() {
         await loadUser();
         // Dispatch event for profile completion modal if social links were updated
         if (activeTab === 'social' && typeof window !== 'undefined') {
+          console.log('🔗 Dispatching profileSocialLinksUpdated event');
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/account/page.tsx:314',message:'Dispatching profileSocialLinksUpdated event',data:{activeTab},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+          // #endregion
           window.dispatchEvent(new Event('profileSocialLinksUpdated'));
         }
       } else {

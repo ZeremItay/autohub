@@ -17,25 +17,103 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(true);
   const [showCompletion, setShowCompletion] = useState(false);
+  
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:18',message:'ProfileCompletionModal mounted',data:{userId,isOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+  }, []);
+  // #endregion
 
   // Check completion status for each task
   const hasHeadline = profile?.headline && profile.headline.trim().length > 0;
-  // Check if user has uploaded a custom avatar (not empty and not just initials)
+  
+  // Check if user has uploaded a custom avatar
+  // Exclude: empty, SVG data URLs (dicebear default), and dicebear API URLs
   const hasCustomAvatar = profile?.avatar_url && 
     profile.avatar_url.trim().length > 0 &&
-    !profile.avatar_url.startsWith('data:image/svg+xml'); // Exclude SVG avatars (dicebear default)
-  const hasSocialLinks = profile?.social_links && 
+    !profile.avatar_url.startsWith('data:image/svg+xml') &&
+    !profile.avatar_url.includes('dicebear.com') &&
+    !profile.avatar_url.includes('api.dicebear');
+  
+  const hasSocialLinks = (profile?.social_links && 
     Array.isArray(profile.social_links) && 
-    profile.social_links.length > 0;
+    profile.social_links.length > 0) ||
+    (profile?.instagram_url && profile.instagram_url.trim().length > 0) ||
+    (profile?.facebook_url && profile.facebook_url.trim().length > 0);
+  
+  // Debug logging for completion status
+  useEffect(() => {
+    if (profile) {
+      console.log('🔍 ProfileCompletionModal - Current completion status:', {
+        hasHeadline,
+        hasCustomAvatar,
+        hasSocialLinks,
+        headline: profile.headline,
+        avatarUrl: profile.avatar_url,
+        instagramUrl: profile.instagram_url,
+        facebookUrl: profile.facebook_url,
+        socialLinks: profile.social_links
+      });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:50',message:'Completion status check',data:{hasHeadline,hasCustomAvatar,hasSocialLinks,headline:profile.headline,avatarUrl:profile.avatar_url,instagramUrl:profile.instagram_url,facebookUrl:profile.facebook_url,socialLinksCount:profile.social_links?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+      // #endregion
+    }
+  }, [profile, hasHeadline, hasCustomAvatar, hasSocialLinks]);
 
   const allTasksComplete = hasHeadline && hasCustomAvatar && hasSocialLinks;
   const completedTasksCount = [hasHeadline, hasCustomAvatar, hasSocialLinks].filter(Boolean).length;
+  
+  // Debug logging for completion status - log whenever profile or completion status changes
+  useEffect(() => {
+    if (profile) {
+      console.log('🔍 ProfileCompletionModal - Completion status:', {
+        hasHeadline,
+        hasCustomAvatar,
+        hasSocialLinks,
+        allTasksComplete,
+        headline: profile.headline || '(empty)',
+        avatarUrl: profile.avatar_url ? (profile.avatar_url.substring(0, 50) + '...') : '(empty)',
+        instagramUrl: profile.instagram_url || '(empty)',
+        facebookUrl: profile.facebook_url || '(empty)',
+        socialLinksCount: profile.social_links?.length || 0
+      });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:50',message:'Completion status check',data:{hasHeadline,hasCustomAvatar,hasSocialLinks,allTasksComplete,headline:profile.headline,avatarUrl:profile.avatar_url,instagramUrl:profile.instagram_url,facebookUrl:profile.facebook_url,socialLinksCount:profile.social_links?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+      // #endregion
+    }
+  }, [profile, hasHeadline, hasCustomAvatar, hasSocialLinks, allTasksComplete]);
 
   // Load profile data
   useEffect(() => {
     async function loadProfile() {
       try {
-        const profileData = await getProfileWithRole(userId);
+        // Clear cache first to ensure fresh data
+        const { clearCache } = await import('@/lib/cache');
+        clearCache(`profile:${userId}`);
+        
+        const { data: profileData, error: profileError } = await getProfileWithRole(userId);
+        if (profileError || !profileData) {
+          console.error('Error loading profile:', profileError);
+          setLoading(false);
+          return;
+        }
+        console.log('📋 Profile loaded for completion check:', {
+          userId,
+          hasHeadline: !!(profileData?.headline && profileData.headline.trim().length > 0),
+          hasAvatar: !!(profileData?.avatar_url && 
+            profileData.avatar_url.trim().length > 0 &&
+            !profileData.avatar_url.startsWith('data:image/svg+xml') &&
+            !profileData.avatar_url.includes('dicebear.com') &&
+            !profileData.avatar_url.includes('api.dicebear')),
+          hasSocialLinks: !!(profileData?.social_links && 
+            Array.isArray(profileData.social_links) && 
+            profileData.social_links.length > 0) ||
+            !!(profileData?.instagram_url && profileData.instagram_url.trim().length > 0) ||
+            !!(profileData?.facebook_url && profileData.facebook_url.trim().length > 0),
+          avatarUrl: profileData?.avatar_url,
+          instagramUrl: profileData?.instagram_url,
+          facebookUrl: profileData?.facebook_url
+        });
         setProfile(profileData);
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -46,26 +124,109 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
 
     if (userId) {
       loadProfile();
+      
+      // Also reload when page becomes visible (user returns from profile/account page)
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          loadProfile();
+        }
+      };
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
     }
   }, [userId]);
 
-  // Listen for profile update events
+  // Listen for profile update events and poll for changes (only while tasks are incomplete)
   useEffect(() => {
     if (!userId) return;
 
     const handleProfileUpdate = async () => {
       try {
-        const profileData = await getProfileWithRole(userId);
+        console.log('🔄 Profile update event received, reloading profile...');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:89',message:'handleProfileUpdate called',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+        // #endregion
+        
+        // Clear cache first to ensure fresh data
+        const { clearCache } = await import('@/lib/cache');
+        clearCache(`profile:${userId}`);
+        
+        const { data: profileData, error: profileError } = await getProfileWithRole(userId);
+        
+        if (profileError || !profileData) {
+          console.error('Error loading profile in handleProfileUpdate:', profileError);
+          return false;
+        }
+        
+        // Check completion status
+        const headlineComplete = !!(profileData?.headline && profileData.headline.trim().length > 0);
+        const avatarComplete = !!(profileData?.avatar_url && 
+          profileData.avatar_url.trim().length > 0 &&
+          !profileData.avatar_url.startsWith('data:image/svg+xml') &&
+          !profileData.avatar_url.includes('dicebear.com') &&
+          !profileData.avatar_url.includes('api.dicebear'));
+        const socialLinksComplete = !!(profileData?.social_links && 
+          Array.isArray(profileData.social_links) && 
+          profileData.social_links.length > 0) ||
+          !!(profileData?.instagram_url && profileData.instagram_url.trim().length > 0) ||
+          !!(profileData?.facebook_url && profileData.facebook_url.trim().length > 0);
+        const allComplete = headlineComplete && avatarComplete && socialLinksComplete;
+        
+        console.log('✅ Profile reloaded:', {
+          hasHeadline: headlineComplete,
+          hasAvatar: avatarComplete,
+          hasSocialLinks: socialLinksComplete,
+          allComplete
+        });
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:111',message:'Profile state updated',data:{userId,hasHeadline:headlineComplete,hasAvatar:avatarComplete,hasSocialLinks:socialLinksComplete,allComplete,headline:profileData?.headline,avatarUrl:profileData?.avatar_url,instagramUrl:profileData?.instagram_url,facebookUrl:profileData?.facebook_url,socialLinksCount:profileData?.social_links?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+        // #endregion
+        
+        // Force state update - always update to trigger re-render
         setProfile(profileData);
+        
+        // Return completion status for polling logic
+        return allComplete;
       } catch (error) {
         console.error('Error reloading profile:', error);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:120',message:'Error in handleProfileUpdate',data:{userId,error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+        // #endregion
+        return false;
       }
     };
 
-    const handleHeadlineUpdate = () => handleProfileUpdate();
-    const handleAvatarUpdate = () => handleProfileUpdate();
-    const handleSocialLinksUpdate = () => handleProfileUpdate();
+    const handleHeadlineUpdate = async (event?: Event) => {
+      console.log('📝 Headline update event received', event);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:140',message:'Headline update event received',data:{userId,eventType:event?.type,hasEvent:!!event},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
+      await handleProfileUpdate();
+    };
+    const handleAvatarUpdate = async () => {
+      console.log('🖼️ Avatar update event received');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:127',message:'Avatar update event received',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
+      await handleProfileUpdate();
+    };
+    const handleSocialLinksUpdate = async () => {
+      console.log('🔗 Social links update event received');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:133',message:'Social links update event received',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
+      await handleProfileUpdate();
+    };
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:150',message:'Adding event listeners',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+    // #endregion
+    
     window.addEventListener('profileHeadlineUpdated', handleHeadlineUpdate);
     window.addEventListener('profileAvatarUpdated', handleAvatarUpdate);
     window.addEventListener('profileSocialLinksUpdated', handleSocialLinksUpdate);
@@ -73,13 +234,43 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
     // Also listen to general profile update event
     window.addEventListener('profileUpdated', handleProfileUpdate);
 
+    // Poll for profile changes every 5 seconds ONLY if tasks are incomplete
+    // This reduces server load and stops polling once user completes all tasks
+    let pollInterval: NodeJS.Timeout | null = null;
+    
+    const startPolling = async () => {
+      // Check current completion status first
+      const isComplete = await handleProfileUpdate();
+      
+      // Only start polling if tasks are incomplete
+      if (!isComplete && document.visibilityState === 'visible') {
+        pollInterval = setInterval(async () => {
+          if (document.visibilityState === 'visible') {
+            const completed = await handleProfileUpdate();
+            // Stop polling if all tasks are now complete
+            if (completed && pollInterval) {
+              console.log('✅ All tasks completed, stopping polling');
+              clearInterval(pollInterval);
+              pollInterval = null;
+            }
+          }
+        }, 5000); // Poll every 5 seconds instead of 2
+      }
+    };
+    
+    // Start polling after initial check
+    startPolling();
+
     return () => {
       window.removeEventListener('profileHeadlineUpdated', handleHeadlineUpdate);
       window.removeEventListener('profileAvatarUpdated', handleAvatarUpdate);
       window.removeEventListener('profileSocialLinksUpdated', handleSocialLinksUpdate);
       window.removeEventListener('profileUpdated', handleProfileUpdate);
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
     };
-  }, [userId]);
+  }, [userId]); // Only depend on userId, not on profile or other state
 
   // Check if all tasks are complete and show completion message
   useEffect(() => {
@@ -130,8 +321,8 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
   // Don't show if all tasks are complete and user has seen completion message
   if (allTasksComplete && showCompletion) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 animate-fade-in">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-x-hidden">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 animate-fade-in overflow-x-hidden">
           <div className="text-center">
             <div className="mx-auto w-20 h-20 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center mb-4 animate-bounce">
               <Sparkles className="w-10 h-10 text-white" />
@@ -146,8 +337,8 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-x-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 animate-fade-in overflow-x-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-800">השלמת פרטים</h2>
@@ -252,13 +443,15 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
               </div>
               <p className="text-sm text-gray-600 mb-3">
                 שתף את הפרופילים שלך ברשתות החברתיות
+                <br />
+                <span className="text-xs text-gray-500">(תחת עריכת פרטים בפרופיל)</span>
               </p>
               {!hasSocialLinks && (
                 <button
-                  onClick={handleNavigateToAccount}
+                  onClick={handleNavigateToProfile}
                   className="text-sm text-[#F52F8E] hover:underline font-medium"
                 >
-                  עבור להגדרות ←
+                  עבור לפרופיל ←
                 </button>
               )}
             </div>

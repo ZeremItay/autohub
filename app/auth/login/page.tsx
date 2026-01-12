@@ -66,8 +66,9 @@ function LoginContent() {
                     .eq('user_id', data.user.id)
                     .single();
                   
-                  // Profile needs completion if missing first_name, how_to_address, or nocode_experience
-                  const needsCompletion = !profile?.first_name || !profile?.how_to_address || !profile?.nocode_experience;
+                  // Profile needs completion if missing how_to_address or nocode_experience
+                  // first_name is optional, so don't require it
+                  const needsCompletion = !profile?.how_to_address || !profile?.nocode_experience;
                   
                   if (needsCompletion) {
                     router.push('/auth/complete-profile');

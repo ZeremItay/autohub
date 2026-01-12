@@ -140,7 +140,11 @@ export default function SignupPage() {
         return;
       }
 
-      const { error: profileError } = await supabase
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:143',message:'Before profile insert',data:{userId:authData.user.id,email:formData.email,displayName:formData.displayName,roleId:freeRoleId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
+      
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .insert({
           user_id: authData.user.id,
@@ -154,13 +158,60 @@ export default function SignupPage() {
           role_id: freeRoleId, // Now guaranteed to have a value
           points: 0,
           is_online: true
-        });
+        })
+        .select()
+        .single();
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:161',message:'After profile insert',data:{hasProfileData:!!profileData,hasError:!!profileError,errorType:typeof profileError,errorKeys:profileError?Object.keys(profileError):[],errorMessage:profileError?.message,errorCode:profileError?.code,profileId:profileData?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2'})}).catch(()=>{});
+      // #endregion
 
       if (profileError) {
-        console.error('Error creating profile:', profileError);
-        setError('שגיאה ביצירת הפרופיל. נסה שוב.');
-        setLoading(false);
-        return;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:161',message:'Profile error detected',data:{errorMessage:profileError?.message,errorCode:profileError?.code,errorDetails:profileError?.details,errorHint:profileError?.hint,errorStringified:JSON.stringify(profileError,Object.getOwnPropertyNames(profileError))},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-2',hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
+        
+        // Check if profile already exists (duplicate key error)
+        if (profileError.code === '23505' || profileError.message?.includes('duplicate') || profileError.message?.includes('unique')) {
+          // This is a duplicate key error - don't log as error, just check if profile exists
+          console.log('ℹ️ Profile already exists (duplicate key), checking...');
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:183',message:'Duplicate key error, checking if profile exists',data:{userId:authData.user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
+          
+          // Profile might already exist, check if it does
+          const { data: existingProfile, error: checkError } = await supabase
+            .from('profiles')
+            .select('id, user_id, email, display_name')
+            .eq('user_id', authData.user.id)
+            .single();
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:189',message:'Profile check result',data:{hasExistingProfile:!!existingProfile,checkError:checkError?.message,profileId:existingProfile?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
+          
+          if (existingProfile) {
+            // Profile exists, continue with signup (user might be retrying)
+            console.log('✅ Profile already exists, continuing with signup');
+            // Don't set error, just continue - profile was already created
+          } else {
+            // Real duplicate key error but profile doesn't exist - this is unusual
+            // Might be a race condition, try to get the profile one more time
+            console.warn('⚠️ Duplicate key error but profile not found, continuing anyway');
+            // Continue with signup - profile might have been created in a race condition
+          }
+        } else {
+          // Other error - only show if it's not a duplicate
+          let errorMessage = 'שגיאה ביצירת הפרופיל. נסה שוב.';
+          if (profileError.message) {
+            errorMessage = `שגיאה ביצירת הפרופיל: ${profileError.message}`;
+          }
+          setError(errorMessage);
+          setLoading(false);
+          return;
+        }
+      } else if (profileData) {
+        console.log('✅ Profile created successfully:', profileData.id);
       }
 
       // Save user to localStorage
@@ -187,9 +238,30 @@ export default function SignupPage() {
         });
 
         if (!emailResponse.ok) {
-          const errorData = await emailResponse.json().catch(() => ({}));
+          // Check if response is JSON or HTML
+          const contentType = emailResponse.headers.get('content-type');
+          let errorData: any = {};
+          
+          if (contentType?.includes('application/json')) {
+            try {
+              errorData = await emailResponse.json();
+            } catch (jsonErr) {
+              console.warn('Failed to parse JSON error response:', jsonErr);
+            }
+          } else {
+            // Response is HTML (probably an error page)
+            const text = await emailResponse.text().catch(() => '');
+            console.warn('API returned HTML instead of JSON:', {
+              status: emailResponse.status,
+              statusText: emailResponse.statusText,
+              preview: text.substring(0, 200)
+            });
+            errorData = { message: `Server returned ${emailResponse.status} ${emailResponse.statusText}` };
+          }
+          
           console.warn('Failed to send welcome email:', {
             status: emailResponse.status,
+            statusText: emailResponse.statusText,
             error: errorData
           });
         } else {
@@ -199,13 +271,61 @@ export default function SignupPage() {
         // Silently fail - don't block user if email fails
         console.warn('Failed to send welcome email:', err);
       }
+      
+      // Award points for registration (don't block if it fails)
+      try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:260',message:'Before awardPoints call',data:{userId:authData.user.id,actionName:'הרשמה'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
+        
+        const { awardPoints } = await import('@/lib/queries/gamification');
+        const pointsResult = await awardPoints(authData.user.id, 'הרשמה', {});
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:263',message:'After awardPoints call',data:{success:pointsResult.success,points:pointsResult.points,error:pointsResult.error,alreadyAwarded:pointsResult.alreadyAwarded},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
+        
+        if (pointsResult.success) {
+          console.log('✅ Points awarded for registration:', pointsResult.points);
+        } else {
+          // Don't log as error - gamification is optional
+          if (pointsResult.error && !pointsResult.error.includes('Rule not found')) {
+            console.warn('Failed to award points for registration:', pointsResult.error);
+          }
+        }
+      } catch (pointsErr) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:270',message:'Exception in awardPoints',data:{errorMessage:pointsErr instanceof Error?pointsErr.message:String(pointsErr)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
+        
+        // Silently fail - don't block user if points award fails
+        console.warn('Error awarding points for registration:', pointsErr);
+      }
 
+      // Show success message
+      console.log('✅ Signup completed successfully for user:', authData.user.id);
+      
       // Redirect to home page
       router.push('/');
       router.refresh();
     } catch (err: any) {
       console.error('Signup error:', err);
-      setError(err.message || 'שגיאה ביצירת המשתמש');
+      
+      // Only show error if it's a critical error (auth or profile creation)
+      // Don't block signup for email/notification failures
+      const isCriticalError = err.message?.includes('auth') || 
+                             err.message?.includes('profile') ||
+                             err.message?.includes('user') ||
+                             (!err.message?.includes('email') && !err.message?.includes('notification'));
+      
+      if (isCriticalError) {
+        setError(err.message || 'שגיאה ביצירת המשתמש');
+      } else {
+        // Non-critical error, continue with signup
+        console.warn('Non-critical error during signup, continuing:', err.message);
+        router.push('/');
+        router.refresh();
+      }
     } finally {
       setLoading(false);
     }

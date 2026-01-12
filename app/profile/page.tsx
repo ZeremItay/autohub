@@ -579,6 +579,17 @@ function ProfilePageContent() {
           // Trigger a custom event to notify other components
           const avatarUrl = formData.avatar_url || additionalUpdates?.avatar_url || '';
           window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: avatarUrl } }));
+          
+          // Check if social links were updated
+          const hasInstagram = formData.instagram_url && formData.instagram_url.trim().length > 0;
+          const hasFacebook = formData.facebook_url && formData.facebook_url.trim().length > 0;
+          if (hasInstagram || hasFacebook) {
+            console.log('🔗 Dispatching profileSocialLinksUpdated event');
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/profile/page.tsx:590',message:'Dispatching profileSocialLinksUpdated event',data:{hasInstagram,hasFacebook},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+            // #endregion
+            window.dispatchEvent(new Event('profileSocialLinksUpdated'));
+          }
         }
       } else {
         // Safely log error
@@ -644,6 +655,10 @@ function ProfilePageContent() {
         await loadProfile()
         // Dispatch event for profile completion modal
         if (typeof window !== 'undefined') {
+          console.log('📝 Dispatching profileHeadlineUpdated event');
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/profile/page.tsx:647',message:'Dispatching profileHeadlineUpdated event',data:{headline:formData.headline},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
           window.dispatchEvent(new Event('profileHeadlineUpdated'));
         }
       } else {
@@ -670,6 +685,10 @@ function ProfilePageContent() {
         setEditingPersonal(false)
         // Dispatch event for profile completion modal
         if (typeof window !== 'undefined') {
+          console.log('🖼️ Dispatching profileAvatarUpdated event');
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/profile/page.tsx:673',message:'Dispatching profileAvatarUpdated event',data:{avatarUrl:formData.avatar_url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
           window.dispatchEvent(new Event('profileAvatarUpdated'));
         }
       }

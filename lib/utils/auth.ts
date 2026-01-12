@@ -115,7 +115,24 @@ export async function ensureUserProfile(user: User) {
       .single();
 
     if (profileError) {
-      console.error('Error creating profile:', profileError);
+      // Check if profile already exists (duplicate key error)
+      if (profileError.code === '23505' || profileError.message?.includes('duplicate') || profileError.message?.includes('unique')) {
+        // Profile already exists, try to get it
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (existingProfile) {
+          // Profile exists, return it - don't log as error
+          console.log('Profile already exists, returning existing profile');
+          return existingProfile;
+        }
+      }
+      
+      // Real error - log as warning (not error) since this is not critical
+      console.warn('Warning: Could not create profile:', profileError.message || profileError);
       return null;
     }
 

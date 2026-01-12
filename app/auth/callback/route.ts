@@ -52,8 +52,9 @@ export async function GET(request: Request) {
         const forwardedHost = request.headers.get('x-forwarded-host'); // original origin before load balancer
         const isLocalEnv = process.env.NODE_ENV === 'development';
         
-        // Check if profile needs completion (missing first_name, how_to_address, or nocode_experience)
-        const needsCompletion = !profile?.first_name || !profile?.how_to_address || !profile?.nocode_experience;
+        // Check if profile needs completion (missing how_to_address or nocode_experience)
+        // first_name is optional, so don't require it
+        const needsCompletion = !profile?.how_to_address || !profile?.nocode_experience;
         
         if (process.env.NODE_ENV === 'development') {
           console.log('Code exchange successful, profile check:', { 

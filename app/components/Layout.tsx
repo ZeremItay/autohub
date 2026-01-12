@@ -1079,7 +1079,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20 overflow-x-hidden">
       {/* Top Header - Minimal (Mobile & Desktop) */}
       <header className="sticky top-0 z-50 glass border-b border-white/20 shadow-lg backdrop-blur-xl">
         <div className={`px-2 sm:px-4 lg:px-6 xl:px-8 transition-all duration-300 ease-in-out ${
@@ -2313,7 +2313,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main Content */}
-      <main className={`transition-all duration-300 ease-in-out ${
+      <main className={`transition-all duration-300 ease-in-out overflow-x-hidden ${
         pathname === '/live-room'
           ? 'lg:mr-0 mr-0' // No sidebar margin for live room to allow full screen
           : sidebarOpen 
