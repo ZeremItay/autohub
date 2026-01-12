@@ -11,6 +11,7 @@ import { getAllCourses, createCourse, type Course } from '@/lib/queries/courses'
 import { getAllEvents, createEvent, updateEvent, deleteEvent, type Event } from '@/lib/queries/events'
 import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, getAllProjectOffers, getProjectOffers, updateProjectOffer, deleteProjectOffer, type Project, type ProjectOffer } from '@/lib/queries/projects'
 import { getAllTags, getTagById, createTag, updateTag, deleteTag, getUnapprovedTags, suggestTag, type Tag } from '@/lib/queries/tags'
+import { getAllMenuItems, updateMenuItem, updateMenuItemsOrder, toggleMenuItemVisibility, type MenuItem } from '@/lib/queries/menu-items'
 import { 
   Users, 
   FileText, 
@@ -32,7 +33,11 @@ import {
   BookOpen,
   Tag as TagIcon,
   MessageCircleMore,
-  Search
+  Search,
+  Menu,
+  GripVertical,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -836,7 +841,7 @@ function ApiDocumentation() {
 }
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks' | 'forums' | 'api-docs'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks' | 'forums' | 'api-docs' | 'menu'>('users')
   const [users, setUsers] = useState<any[]>([])
   const [usersSearchQuery, setUsersSearchQuery] = useState<string>('')
   const [posts, setPosts] = useState<any[]>([])
@@ -879,6 +884,10 @@ export default function AdminPanel() {
   const [imageGalleryField, setImageGalleryField] = useState<string | null>(null)
   const [showBulkEditModal, setShowBulkEditModal] = useState(false)
   const [bulkEditData, setBulkEditData] = useState<any>({})
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [editingMenuItem, setEditingMenuItem] = useState<string | null>(null)
+  const [menuItemFormData, setMenuItemFormData] = useState<Partial<MenuItem>>({})
+  const [draggedMenuItem, setDraggedMenuItem] = useState<string | null>(null)
   
   // Calculate selected date for events DatePicker
   const eventSelectedDate = useMemo(() => {
@@ -1286,6 +1295,11 @@ export default function AdminPanel() {
         const { data: unapprovedData, error: unapprovedError } = await getUnapprovedTags()
         if (!unapprovedError && unapprovedData && Array.isArray(unapprovedData)) {
           setUnapprovedTags(unapprovedData)
+        }
+      } else if (activeTab === 'menu') {
+        const { data, error } = await getAllMenuItems()
+        if (!error && data && Array.isArray(data)) {
+          setMenuItems(data)
         }
       }
       
@@ -3408,6 +3422,17 @@ export default function AdminPanel() {
             <HelpCircle className="w-5 h-5 inline-block ml-2" />
             דוקומנטציה API
           </button>
+          <button
+            onClick={() => setActiveTab('menu')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'menu'
+                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
+                : 'text-gray-600 hover:text-[#F52F8E]'
+            }`}
+          >
+            <Menu className="w-5 h-5 inline-block ml-2" />
+            ניהול תפריט
+          </button>
         </div>
 
         {/* Content */}
@@ -3441,6 +3466,7 @@ export default function AdminPanel() {
                 {activeTab === 'feedbacks' && 'פידבקים'}
                 {activeTab === 'forums' && 'פורומים'}
                 {activeTab === 'api-docs' && 'דוקומנטציה API'}
+                {activeTab === 'menu' && 'ניהול תפריט'}
               </h2>
               {selectedItems.size > 0 && (
                 <div className="flex gap-2">
@@ -8079,6 +8105,194 @@ export default function AdminPanel() {
                 <ApiDocumentation />
           </div>
         )}
+            {activeTab === 'menu' && (
+              <div className="mt-6">
+                <div className="space-y-4">
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      כאן תוכל לנהל את פריטי התפריט: להציג/להסתיר, לשנות סדר, לערוך שמות ואייקונים.
+                    </p>
+                  </div>
+                  
+                  {/* Menu Items List */}
+                  <div className="space-y-2">
+                    {menuItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        draggable
+                        onDragStart={() => setDraggedMenuItem(item.id)}
+                        onDragOver={(e) => {
+                          e.preventDefault()
+                          if (draggedMenuItem && draggedMenuItem !== item.id) {
+                            const draggedIndex = menuItems.findIndex(m => m.id === draggedMenuItem)
+                            const targetIndex = index
+                            if (draggedIndex !== targetIndex) {
+                              const newItems = [...menuItems]
+                              const [removed] = newItems.splice(draggedIndex, 1)
+                              newItems.splice(targetIndex, 0, removed)
+                              // Update order values
+                              const updatedItems = newItems.map((it, idx) => ({
+                                ...it,
+                                order: idx + 1
+                              }))
+                              setMenuItems(updatedItems)
+                            }
+                          }
+                        }}
+                        onDragEnd={async () => {
+                          if (draggedMenuItem) {
+                            const updatedItems = menuItems.map((it, idx) => ({
+                              ...it,
+                              order: idx + 1
+                            }))
+                            const { error } = await updateMenuItemsOrder(updatedItems.map(({ id, order }) => ({ id, order })))
+                            if (!error) {
+                              loadData()
+                              // Dispatch event to update menu in Layout
+                              if (typeof window !== 'undefined') {
+                                window.dispatchEvent(new Event('menuItemsUpdated'))
+                              }
+                            }
+                            setDraggedMenuItem(null)
+                          }
+                        }}
+                        className={`flex items-center gap-4 p-4 border rounded-lg transition-all ${
+                          editingMenuItem === item.id ? 'border-[#F52F8E] bg-pink-50' : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <GripVertical className="w-5 h-5 text-gray-400 cursor-move" />
+                        
+                        {editingMenuItem === item.id ? (
+                          <>
+                            <div className="flex-1 grid grid-cols-3 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">נתיב</label>
+                                <input
+                                  type="text"
+                                  value={menuItemFormData.path || item.path}
+                                  onChange={(e) => setMenuItemFormData({ ...menuItemFormData, path: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                  dir="ltr"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">שם</label>
+                                <input
+                                  type="text"
+                                  value={menuItemFormData.label || item.label}
+                                  onChange={(e) => setMenuItemFormData({ ...menuItemFormData, label: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">אייקון (lucide-react)</label>
+                                <input
+                                  type="text"
+                                  value={menuItemFormData.icon || item.icon}
+                                  onChange={(e) => setMenuItemFormData({ ...menuItemFormData, icon: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                  placeholder="Home, Users, etc."
+                                  dir="ltr"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={async () => {
+                                  const { error } = await updateMenuItem(item.id, menuItemFormData)
+                                  if (!error) {
+                                    setEditingMenuItem(null)
+                                    setMenuItemFormData({})
+                                    loadData()
+                                    // Dispatch event to update menu in Layout
+                                    if (typeof window !== 'undefined') {
+                                      window.dispatchEvent(new Event('menuItemsUpdated'))
+                                    }
+                                  } else {
+                                    alert('שגיאה בעדכון פריט התפריט')
+                                  }
+                                }}
+                                className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors flex items-center gap-2"
+                              >
+                                <Save className="w-4 h-4" />
+                                שמור
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingMenuItem(null)
+                                  setMenuItemFormData({})
+                                }}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2"
+                              >
+                                <X className="w-4 h-4" />
+                                ביטול
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex-1 flex items-center gap-4">
+                              <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded-lg">
+                                <span className="text-xs text-gray-500">{item.order}</span>
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-medium">{item.label}</div>
+                                <div className="text-sm text-gray-500">{item.path}</div>
+                                <div className="text-xs text-gray-400">אייקון: {item.icon}</div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={async () => {
+                                    const { error } = await toggleMenuItemVisibility(item.id, !item.is_visible)
+                                    if (!error) {
+                                      loadData()
+                                      // Dispatch event to update menu in Layout
+                                      if (typeof window !== 'undefined') {
+                                        window.dispatchEvent(new Event('menuItemsUpdated'))
+                                      }
+                                    } else {
+                                      alert('שגיאה בעדכון נראות פריט התפריט')
+                                    }
+                                  }}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    item.is_visible
+                                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                  }`}
+                                  title={item.is_visible ? 'מוצג בתפריט' : 'מוסתר מהתפריט'}
+                                >
+                                  {item.is_visible ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingMenuItem(item.id)
+                                    setMenuItemFormData({
+                                      path: item.path,
+                                      label: item.label,
+                                      icon: item.icon
+                                    })
+                                  }}
+                                  className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                                  title="ערוך"
+                                >
+                                  <Edit className="w-5 h-5" />
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {menuItems.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      אין פריטי תפריט להצגה
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
       </div>
         )}
       </div>

@@ -41,6 +41,7 @@ import { getNextLiveEvent, updateEventStatuses } from '@/lib/queries/events';
 import { deleteNotification } from '@/lib/queries/notifications';
 import { clearCache } from '@/lib/cache';
 import { awardPoints } from '@/lib/queries/gamification';
+import { getVisibleMenuItems, type MenuItem } from '@/lib/queries/menu-items';
 
 interface SearchResult {
   recordings: any[];
@@ -71,6 +72,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasLiveEvent, setHasLiveEvent] = useState(false);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
@@ -511,6 +513,49 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     };
   }, []); // Empty deps - only run once on mount
 
+  // Load menu items and subscribe to changes
+  useEffect(() => {
+    async function loadMenuItems() {
+      const { data, error } = await getVisibleMenuItems();
+      if (!error && data) {
+        setMenuItems(data);
+      }
+    }
+    
+    // Load initial menu items
+    loadMenuItems();
+    
+    // Subscribe to realtime changes in menu_items table
+    const channel = supabase
+      .channel('menu_items_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'menu_items'
+        },
+        (payload: any) => {
+          console.log('Menu items changed, reloading...', payload);
+          // Reload menu items when changes occur
+          loadMenuItems();
+        }
+      )
+      .subscribe();
+    
+    // Also listen for custom events (when admin panel updates menu)
+    const handleMenuUpdate = () => {
+      loadMenuItems();
+    };
+    
+    window.addEventListener('menuItemsUpdated', handleMenuUpdate);
+    
+    return () => {
+      channel.unsubscribe();
+      window.removeEventListener('menuItemsUpdated', handleMenuUpdate);
+    };
+  }, []);
+
   // Load notifications - do this in background after initial load
   useEffect(() => {
     // Only run if currentUserId actually changed (not just reference)
@@ -937,6 +982,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const activeNav = getActiveNav();
   const activeTopMenu = getActiveTopMenu();
 
+  // Function to get icon component by name
+  const getIconComponent = (iconName: string) => {
+    const iconMap: Record<string, React.ComponentType<any>> = {
+      'Home': HomeIcon,
+      'Users': Users,
+      'MessageSquare': MessageSquare,
+      'Video': Video,
+      'FileText': FileText,
+      'Briefcase': Briefcase,
+      'GraduationCap': GraduationCap,
+      'Calendar': Calendar,
+      'BookOpen': BookOpen,
+      'MessageCircleMore': MessageCircleMore,
+      'Shield': Shield,
+      'Radio': Radio,
+    };
+    return iconMap[iconName] || HomeIcon;
+  };
+
+  // Function to get active nav key from path
+  const getActiveNavFromPath = (path: string) => {
+    if (path === '/') return 'home';
+    return path.replace('/', '').replace('-', '') || 'home';
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-pink-50/30 to-purple-50/20">
@@ -2024,94 +2093,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {/* Navigation Items */}
           {sidebarOpen && (
           <div className="flex-1 p-4 space-y-2 overflow-y-auto">
-            <Link
-              href="/"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeNav === 'home' 
-                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-              }`}
-            >
-              <HomeIcon className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">בית</span>
-            </Link>
-            <Link
-              href="/members"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeNav === 'members' 
-                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-              }`}
-            >
-              <Users className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">חברים</span>
-            </Link>
-            <Link
-              href="/forums"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeNav === 'forums' 
-                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-              }`}
-            >
-              <MessageSquare className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">פורומים</span>
-            </Link>
-            <Link
-              href="/recordings"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeNav === 'recordings' 
-                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-              }`}
-            >
-              <Video className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">הקלטות</span>
-            </Link>
-            <Link
-              href="/resources"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeNav === 'resources' 
-                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-              }`}
-            >
-              <FileText className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">משאבים</span>
-            </Link>
-            <Link
-              href="/projects"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeNav === 'projects' 
-                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-              }`}
-            >
-              <Briefcase className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">פרויקטים</span>
-            </Link>
-            <Link
-              href="/courses"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeNav === 'courses' 
-                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-              }`}
-            >
-              <GraduationCap className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">קורסים</span>
-            </Link>
-            <Link
-              href="/live-log"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeNav === 'live-log' 
-                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-              }`}
-            >
-              <Calendar className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">יומן לייבים</span>
-            </Link>
+            {/* Dynamic Menu Items from Database */}
+            {menuItems.map((item) => {
+              const IconComponent = getIconComponent(item.icon);
+              const itemActiveNav = getActiveNavFromPath(item.path);
+              const isActive = activeNav === itemActiveNav || pathname === item.path;
+              
+              return (
+                <Link
+                  key={item.id}
+                  href={item.path}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                    isActive
+                      ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                      : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
+                  }`}
+                >
+                  <IconComponent className="w-5 h-5 flex-shrink-0" />
+                  <span className="font-medium">{item.label}</span>
+                </Link>
+              );
+            })}
+            
             {/* Live Room - Dynamic Menu Item (only shows when there's a live event within 1 hour) */}
             {hasLiveEvent && (
               <Link
@@ -2127,28 +2130,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <span className="ml-auto w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
               </Link>
             )}
-            <Link
-              href="/blog"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeNav === 'blog' 
-                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-              }`}
-            >
-              <BookOpen className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">בלוג</span>
-            </Link>
-            <Link
-              href="/feedback"
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeNav === 'feedback' 
-                  ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                  : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-              }`}
-            >
-              <MessageCircleMore className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">פידבקים</span>
-            </Link>
+            
             {/* Admin Panel Link - Only for admins */}
             {currentUser && (() => {
               const role = currentUser.roles || currentUser.role;
@@ -2193,102 +2175,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </button>
             </div>
             <div className="p-4 space-y-2">
-              <Link
-                href="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeNav === 'home' 
-                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-                }`}
-              >
-                <HomeIcon className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">בית</span>
-              </Link>
-              <Link
-                href="/members"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeNav === 'members' 
-                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-                }`}
-              >
-                <Users className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">חברים</span>
-              </Link>
-              <Link
-                href="/forums"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeNav === 'forums' 
-                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-                }`}
-              >
-                <MessageSquare className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">פורומים</span>
-              </Link>
-              <Link
-                href="/recordings"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeNav === 'recordings' 
-                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-                }`}
-              >
-                <Video className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">הקלטות</span>
-              </Link>
-              <Link
-                href="/resources"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeNav === 'resources' 
-                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-                }`}
-              >
-                <FileText className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">משאבים</span>
-              </Link>
-              <Link
-                href="/projects"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeNav === 'projects' 
-                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-                }`}
-              >
-                <Briefcase className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">פרויקטים</span>
-              </Link>
-              <Link
-                href="/courses"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeNav === 'courses' 
-                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-                }`}
-              >
-                <GraduationCap className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">קורסים</span>
-              </Link>
-              <Link
-                href="/live-log"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeNav === 'live-log' 
-                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-                }`}
-              >
-                <Calendar className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">יומן לייבים</span>
-              </Link>
+              {/* Dynamic Menu Items from Database */}
+              {menuItems.map((item) => {
+                const IconComponent = getIconComponent(item.icon);
+                const itemActiveNav = getActiveNavFromPath(item.path);
+                const isActive = activeNav === itemActiveNav || pathname === item.path;
+                
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                      isActive
+                        ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
+                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
+                    }`}
+                  >
+                    <IconComponent className="w-5 h-5 flex-shrink-0" />
+                    <span className="font-medium">{item.label}</span>
+                  </Link>
+                );
+              })}
+              
               {/* Live Room - Dynamic Menu Item (only shows when there's a live event within 1 hour) */}
               {hasLiveEvent && (
                 <Link
@@ -2305,30 +2214,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <span className="ml-auto w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                 </Link>
               )}
-              <Link
-                href="/blog"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeNav === 'blog' 
-                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-                }`}
-              >
-                <BookOpen className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">בלוג</span>
-              </Link>
-              <Link
-                href="/feedback"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeNav === 'feedback' 
-                    ? 'bg-[#F52F8E] text-white shadow-lg shadow-pink-500/30 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-pink-600 hover:scale-105'
-                }`}
-              >
-                <MessageCircleMore className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">פידבקים</span>
-              </Link>
+              
               {/* Admin Panel Link - Only for admins */}
               {currentUser && (() => {
                 const role = currentUser.roles || currentUser.role;
