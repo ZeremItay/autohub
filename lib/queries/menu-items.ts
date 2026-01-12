@@ -37,7 +37,7 @@ export async function getAllMenuItems() {
     }
 
     // Cache the result
-    setCached(cacheKey, data, CACHE_TTL)
+    setCached(cacheKey, data, CACHE_TTL.MEDIUM)
     return { data: data as MenuItem[], error: null }
   } catch (error: any) {
     logError('getAllMenuItems', error)
@@ -67,7 +67,7 @@ export async function getVisibleMenuItems() {
     }
 
     // Cache the result
-    setCached(cacheKey, data, CACHE_TTL)
+    setCached(cacheKey, data, CACHE_TTL.MEDIUM)
     return { data: data as MenuItem[], error: null }
   } catch (error: any) {
     logError('getVisibleMenuItems', error)
@@ -126,8 +126,8 @@ export async function updateMenuItemsOrder(items: { id: string; order: number }[
     invalidateCache(CACHE_KEY_VISIBLE)
 
     // Fetch updated items
-    const { data: allItems } = await getAllMenuItems()
-    return { data: allItems?.data || null, error: null }
+    const result = await getAllMenuItems()
+    return { data: result.data || null, error: null }
   } catch (error: any) {
     logError('updateMenuItemsOrder', error)
     return { data: null, error }

@@ -58,6 +58,8 @@ function ProfilePageContent() {
   const [activeTab, setActiveTab] = useState<'profile' | 'messages' | 'forums' | 'points' | 'courses' | 'notifications' | 'projects' | 'events'>('profile')
   const [editingDetails, setEditingDetails] = useState(false)
   const [editingPersonal, setEditingPersonal] = useState(false)
+  const [editingHeadline, setEditingHeadline] = useState(false)
+  const [headlineValue, setHeadlineValue] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -109,6 +111,7 @@ function ProfilePageContent() {
     first_name: '',
     last_name: '',
     nickname: '',
+    headline: '',
     how_to_address: '',
     nocode_experience: '',
     display_name: '',
@@ -295,6 +298,7 @@ function ProfilePageContent() {
           first_name: profile.first_name || '',
           last_name: profile.last_name || '',
           nickname: profile.nickname || '',
+          headline: profile.headline || '',
           how_to_address: profile.how_to_address || '',
           nocode_experience: profile.nocode_experience || '',
           display_name: profile.display_name || '',
@@ -304,6 +308,7 @@ function ProfilePageContent() {
           instagram_url: profile.instagram_url || '',
           facebook_url: profile.facebook_url || ''
         })
+        setHeadlineValue(profile.headline || '')
         
         // Save to localStorage
         if (typeof window !== 'undefined' && profile.user_id) {
@@ -522,6 +527,7 @@ function ProfilePageContent() {
         first_name: formData.first_name,
         last_name: formData.last_name,
         nickname: formData.nickname,
+        headline: formData.headline,
         how_to_address: formData.how_to_address,
         nocode_experience: formData.nocode_experience,
         display_name: formData.display_name,
@@ -609,6 +615,36 @@ function ProfilePageContent() {
       }
       
       alert('שגיאה בשמירת הפרופיל. נסה שוב.');
+    }
+  }
+
+  async function handleSaveHeadline() {
+    if (!profile || !currentLoggedInUserId) {
+      return
+    }
+
+    const profileUserId = profile.user_id || profile.id
+    if (currentLoggedInUserId !== profileUserId) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ headline: headlineValue || null })
+        .eq('user_id', currentLoggedInUserId)
+
+      if (!error) {
+        setEditingHeadline(false)
+        const { clearCache } = await import('@/lib/cache')
+        clearCache()
+        await loadProfile()
+      } else {
+        alert('שגיאה בשמירת הכותרת')
+      }
+    } catch (error: any) {
+      console.error('Error saving headline:', error)
+      alert('שגיאה בשמירת הכותרת')
     }
   }
 
@@ -1104,7 +1140,83 @@ function ProfilePageContent() {
         <div className="bg-white border-b border-gray-200 pb-4 sm:pb-6 mb-4 sm:mb-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 w-full sm:w-auto flex-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{fullName}</h1>
+              <div className="flex flex-col gap-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{fullName}</h1>
+                {editingHeadline && isOwnerOrAdmin() ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={headlineValue}
+                      onChange={(e) => setHeadlineValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSaveHeadline()
+                        } else if (e.key === 'Escape') {
+                          setEditingHeadline(false)
+                          setHeadlineValue(profile.headline || '')
+                        }
+                      }}
+                      placeholder="כתוב משפט קצר על עצמך..."
+                      maxLength={150}
+                      autoFocus
+                      className="text-sm sm:text-base text-gray-700 px-2 py-1 border border-[#F52F8E] rounded focus:outline-none focus:ring-2 focus:ring-[#F52F8E] w-full max-w-md"
+                    />
+                    <button
+                      onClick={handleSaveHeadline}
+                      className="p-1.5 bg-[#F52F8E] text-white rounded hover:bg-[#E01E7A] transition-colors"
+                      title="שמור"
+                    >
+                      <Save className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingHeadline(false)
+                        setHeadlineValue(profile.headline || '')
+                      }}
+                      className="p-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                      title="ביטול"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {profile.headline ? (
+                      <div 
+                        onClick={() => {
+                          if (isOwnerOrAdmin()) {
+                            setEditingHeadline(true)
+                            setHeadlineValue(profile.headline || '')
+                          }
+                        }}
+                        className={`${isOwnerOrAdmin() ? 'cursor-pointer hover:text-gray-700 transition-colors group' : ''}`}
+                      >
+                        <p className="text-sm sm:text-base text-gray-500 italic group-hover:text-gray-700">
+                          {profile.headline}
+                          {isOwnerOrAdmin() && (
+                            <Edit className="w-3 h-3 inline-block mr-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          )}
+                        </p>
+                      </div>
+                    ) : (
+                      isOwnerOrAdmin() && (
+                        <div 
+                          onClick={() => {
+                            setEditingHeadline(true)
+                            setHeadlineValue('')
+                          }}
+                          className="cursor-pointer hover:text-gray-500 transition-colors group"
+                        >
+                          <p className="text-sm sm:text-base text-gray-400 italic group-hover:text-gray-500">
+                            השלם משפט מפתח עליך או אינטרו קצר
+                            <Edit className="w-3 h-3 inline-block mr-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </p>
+                        </div>
+                      )
+                    )}
+                  </>
+                )}
+              </div>
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm sm:text-base">
                   {points} נקודות

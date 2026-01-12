@@ -13,6 +13,7 @@ export interface Profile {
   display_name?: string
   avatar_url?: string
   bio?: string
+  headline?: string
   nickname?: string
   experience_level?: string
   points?: number
@@ -220,6 +221,7 @@ export async function getAllProfiles() {
         display_name,
         avatar_url,
         bio,
+        headline,
         nickname,
         experience_level,
         points,
