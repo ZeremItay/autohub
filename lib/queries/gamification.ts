@@ -193,6 +193,22 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       description: rule.description
     });
     
+    // Get profile ID (points_history.user_id references profiles.id, not profiles.user_id)
+    // First try to get profile by user_id
+    let profileIdForHistory = userId;
+    const { data: profileForHistory } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+    
+    if (profileForHistory) {
+      profileIdForHistory = profileForHistory.id;
+    } else {
+      // If not found by user_id, assume userId is already the profile id
+      profileIdForHistory = userId;
+    }
+    
     // Check if user already got points for this specific action with relatedId (e.g., like on same post)
     if (options?.checkRelatedId && options?.relatedId) {
       // Check if user already got points for this action with this relatedId
@@ -211,7 +227,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
         const { data: historyWithAction, error: actionError } = await supabase
           .from('points_history')
           .select('id')
-          .eq('user_id', userId)
+          .eq('user_id', profileIdForHistory) // Use profile.id, not profile.user_id
           .eq('action', historyActionName)
           .eq('related_id', options.relatedId)
           .limit(1);
@@ -225,7 +241,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
         const { data: historyWithActionName, error: actionNameError } = await supabase
           .from('points_history')
           .select('id')
-          .eq('user_id', userId)
+          .eq('user_id', profileIdForHistory) // Use profile.id, not profile.user_id
           .eq('action_name', historyActionName)
           .eq('related_id', options.relatedId)
           .limit(1);
@@ -263,7 +279,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
         const { data: historyWithAction, error: actionError } = await supabase
           .from('points_history')
           .select('id')
-          .eq('user_id', userId)
+          .eq('user_id', profileIdForHistory) // Use profile.id, not profile.user_id
           .eq('action', nameToCheck)
           .gte('created_at', todayStart)
           .lt('created_at', tomorrowStart)
@@ -277,7 +293,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
           const { data: historyWithActionName, error: actionNameError } = await supabase
             .from('points_history')
             .select('id')
-            .eq('user_id', userId)
+            .eq('user_id', profileIdForHistory) // Use profile.id, not profile.user_id
             .eq('action_name', nameToCheck)
             .gte('created_at', todayStart)
             .lt('created_at', tomorrowStart)
@@ -306,7 +322,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
     
     // Try 'action' column first (most common), then fallback to 'action_name'
     const historyData: any = {
-      user_id: userId,
+      user_id: profileIdForHistory, // Use profile.id, not profile.user_id
       points: rule.point_value
     };
     
@@ -353,7 +369,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       if (insertError.code === 'PGRST204' || insertError.message?.includes('action') || insertError.message?.includes('column')) {
         console.log('⚠️ "action" column not found, trying "action_name" instead');
         const historyDataWithActionName: any = {
-          user_id: userId,
+          user_id: profileIdForHistory, // Use profile.id, not profile.user_id
           points: rule.point_value,
           action_name: historyActionName
         };
@@ -602,10 +618,26 @@ export async function deductPoints(userId: string, amount: number) {
 
 // Get user's points history
 export async function getUserPointsHistory(userId: string) {
+  // Get profile ID (points_history.user_id references profiles.id, not profiles.user_id)
+  // First try to get profile by user_id
+  let profileIdForHistory = userId;
+  const { data: profileForHistory } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('user_id', userId)
+    .single();
+  
+  if (profileForHistory) {
+    profileIdForHistory = profileForHistory.id;
+  } else {
+    // If not found by user_id, assume userId is already the profile id
+    profileIdForHistory = userId;
+  }
+  
   const { data, error } = await supabase
     .from('points_history')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', profileIdForHistory) // Use profile.id, not profile.user_id
     .order('created_at', { ascending: false })
   
   if (error) {
@@ -794,6 +826,21 @@ export async function syncUserPoints(userId: string) {
   try {
     console.log(`🔄 Syncing points for user: ${userId}`);
     
+    // Get profile ID (points_history.user_id references profiles.id, not profiles.user_id)
+    let profileIdForHistory = userId;
+    const { data: profileForHistory } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+    
+    if (profileForHistory) {
+      profileIdForHistory = profileForHistory.id;
+    } else {
+      // If not found by user_id, assume userId is already the profile id
+      profileIdForHistory = userId;
+    }
+    
     // Calculate total points from history
     // Try both 'action' and 'action_name' columns
     let history: any[] = [];
@@ -803,7 +850,7 @@ export async function syncUserPoints(userId: string) {
     const { data: historyWithActionName, error: error1 } = await supabase
       .from('points_history')
       .select('points')
-      .eq('user_id', userId);
+      .eq('user_id', profileIdForHistory); // Use profile.id, not profile.user_id
     
     if (!error1 && historyWithActionName) {
       history = historyWithActionName;
@@ -812,7 +859,7 @@ export async function syncUserPoints(userId: string) {
       const { data: historyWithAction, error: error2 } = await supabase
         .from('points_history')
         .select('points')
-        .eq('user_id', userId);
+        .eq('user_id', profileIdForHistory); // Use profile.id, not profile.user_id
       
       if (!error2 && historyWithAction) {
         history = historyWithAction;

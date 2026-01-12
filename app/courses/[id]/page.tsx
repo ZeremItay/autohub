@@ -103,13 +103,20 @@ export default function CourseDetailPage() {
       const { data: courseData, error: courseError } = courseResult;
       const { data: enrollment } = enrollmentResult;
       
+      // Check if course is draft - non-admins cannot access draft courses
+      if (!courseError && courseData) {
+        const isDraft = courseData.status === 'draft';
+        if (isDraft && !isUserAdmin) {
+          // Redirect non-admin users away from draft courses
+          router.push('/courses');
+          return;
+        }
+        setCourse(courseData);
+      }
+      
       userIsEnrolled = isUserAdmin || !!enrollment;
       setIsEnrolled(userIsEnrolled);
       setCheckingEnrollment(false);
-      
-      if (!courseError && courseData) {
-        setCourse(courseData);
-      }
 
       // Only load lessons if enrolled or admin
       if (userIsEnrolled) {

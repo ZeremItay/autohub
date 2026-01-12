@@ -412,6 +412,7 @@ function ProfilePageContent() {
         // Notify other components
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: result.url } }));
+          window.dispatchEvent(new Event('profileAvatarUpdated'));
         }
         setUploadingAvatar(false);
         return;
@@ -446,6 +447,7 @@ function ProfilePageContent() {
       // Notify other components
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: base64 } }));
+        window.dispatchEvent(new Event('profileAvatarUpdated'));
       }
           };
           reader.readAsDataURL(file);
@@ -473,6 +475,7 @@ function ProfilePageContent() {
       // Notify other components
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { avatar_url: publicUrl } }));
+        window.dispatchEvent(new Event('profileAvatarUpdated'));
       }
     } catch (error: any) {
       console.error('Error uploading avatar:', error?.message || String(error));
@@ -639,6 +642,10 @@ function ProfilePageContent() {
         const { clearCache } = await import('@/lib/cache')
         clearCache()
         await loadProfile()
+        // Dispatch event for profile completion modal
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('profileHeadlineUpdated'));
+        }
       } else {
         alert('שגיאה בשמירת הכותרת')
       }
@@ -661,6 +668,10 @@ function ProfilePageContent() {
       if (!error) {
         await loadProfile()
         setEditingPersonal(false)
+        // Dispatch event for profile completion modal
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('profileAvatarUpdated'));
+        }
       }
     } catch (error: any) {
       // Safely extract error message to avoid circular reference issues
@@ -706,55 +717,60 @@ function ProfilePageContent() {
       const userId = profile.user_id || profile.id
       const { data } = await getUserPointsHistory(userId)
       
-      // Check if user has points but no history - this indicates a sync issue
+      // Check if user has points but no history - create a backfill entry
       const currentPoints = profile.points || 0
       const hasHistory = data && data.length > 0
+      let historyToProcess = data || []
       
       if (currentPoints > 0 && !hasHistory) {
-        console.warn(`⚠️ User ${userId} has ${currentPoints} points but no history. Creating a generic history entry.`)
-        // Create a generic history entry to explain the points
+        console.log(`⚠️ User ${userId} has ${currentPoints} points but no history. Creating backfill entry.`)
+        // Create a backfill history entry to explain the points
         try {
           const { supabase } = await import('@/lib/supabase')
-          // Try to insert a history entry with a generic action
-          // Check which column name exists in points_history
+          
+          // Get profile ID (points_history.user_id references profiles.id, not profiles.user_id)
+          const profileIdForHistory = profile.id || userId;
+          
+          // Try to insert with action_name first (most common)
+          const historyData: any = {
+            user_id: profileIdForHistory, // Use profile.id, not profile.user_id
+            points: currentPoints,
+            action_name: 'נקודות קודמות',
+            created_at: new Date().toISOString()
+          }
+          
           const { error: insertError } = await supabase
             .from('points_history')
-            .insert([{
-              user_id: userId,
-              points: currentPoints,
-              action_name: 'נקודות קודמות',
-              description: `נקודות שנוספו לפני יצירת מערכת ההיסטוריה (${currentPoints} נקודות)`,
-              created_at: new Date().toISOString()
-            }])
+            .insert([historyData])
             .select()
           
           if (insertError) {
-            // Try with 'action' column instead of 'action_name'
+            // Try with 'action' column instead
+            const profileIdForHistory = profile.id || userId;
+            const historyDataWithAction: any = {
+              user_id: profileIdForHistory, // Use profile.id, not profile.user_id
+              points: currentPoints,
+              action: 'נקודות קודמות',
+              created_at: new Date().toISOString()
+            }
+            
             const { error: insertError2 } = await supabase
               .from('points_history')
-              .insert([{
-                user_id: userId,
-                points: currentPoints,
-                action: 'נקודות קודמות',
-                description: `נקודות שנוספו לפני יצירת מערכת ההיסטוריה (${currentPoints} נקודות)`,
-                created_at: new Date().toISOString()
-              }])
+              .insert([historyDataWithAction])
               .select()
             
-            if (insertError2) {
-              console.error('Error creating history entry:', insertError2)
-            } else {
-              // Reload history after creating entry
+            if (!insertError2) {
+              // Success with 'action' column - reload history
               const { data: newData } = await getUserPointsHistory(userId)
-              setPointsHistory(newData || [])
+              historyToProcess = newData || []
             }
           } else {
-            // Reload history after creating entry
+            // Success with 'action_name' column - reload history
             const { data: newData } = await getUserPointsHistory(userId)
-            setPointsHistory(newData || [])
+            historyToProcess = newData || []
           }
         } catch (createError) {
-          console.error('Error creating history entry:', createError)
+          console.error('❌ Error creating history entry:', createError)
         }
       }
       
@@ -813,7 +829,7 @@ function ProfilePageContent() {
       }
       
       // Enhance points history with descriptions
-      const enhancedHistory = (data || []).map((entry: any) => {
+      const enhancedHistory = historyToProcess.map((entry: any) => {
         const actionName = entry.action_name || entry.action || ''
         const actionKey = actionName.toLowerCase()
         
@@ -2035,12 +2051,10 @@ function ProfilePageContent() {
                   ) : pointsHistory.length === 0 ? (
                     <div className="text-center py-12 text-gray-500">
                       <Trophy className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                      <p>אין היסטוריית נקודות</p>
-                      {(profile?.points || 0) > 0 && (
-                        <p className="text-sm text-amber-600 mt-2">
-                          יש נקודות בפרופיל אבל אין היסטוריה. הנקודות יסונכרנו אוטומטית.
-                        </p>
-                      )}
+                      <p className="text-lg">אין היסטוריית נקודות</p>
+                      <p className="text-sm text-gray-400 mt-2">
+                        פעילויות שלך יופיעו כאן
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-3">

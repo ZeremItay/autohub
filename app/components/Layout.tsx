@@ -641,25 +641,96 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     };
   }, [currentUserId]);
 
-  // Load unread messages count
+  // Listen for message updates to refresh unread count
   useEffect(() => {
     if (!currentUserId || typeof window === 'undefined') return;
 
-    function loadUnreadMessagesCount() {
+    const handleMessageUpdate = () => {
+      // Reload unread messages count when a new message arrives
+      fetch('/api/messages', {
+        credentials: 'include'
+      })
+        .then(response => response.json())
+        .then(result => {
+          if (result.success && result.data) {
+            const conversations = result.data.conversations || [];
+            const conversationsWithUnread = conversations.filter((conv: any) => 
+              (conv.unread_count || 0) > 0
+            ).length;
+            setUnreadMessagesCount(conversationsWithUnread);
+          }
+        })
+        .catch(() => {
+          // Silently fail
+        });
+    };
+
+    window.addEventListener('messageReceived', handleMessageUpdate);
+    window.addEventListener('messageSent', handleMessageUpdate);
+    
+    return () => {
+      window.removeEventListener('messageReceived', handleMessageUpdate);
+      window.removeEventListener('messageSent', handleMessageUpdate);
+    };
+  }, [currentUserId]);
+
+  // Load unread messages count (number of conversations with unread messages)
+  useEffect(() => {
+    if (!currentUserId || typeof window === 'undefined') return;
+
+    async function loadUnreadMessagesCount() {
       try {
-        const savedConversations = localStorage.getItem(`conversations_${currentUserId}`);
-        if (savedConversations) {
-          const conversations = JSON.parse(savedConversations);
-          const totalUnread = conversations.reduce((sum: number, conv: any) => {
-            return sum + (conv.unreadCount || 0);
-          }, 0);
-          setUnreadMessagesCount(totalUnread);
+        // Load from API to get accurate count
+        const response = await fetch('/api/messages', {
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            const conversations = result.data.conversations || [];
+            // Count number of conversations with unread messages (not total message count)
+            const conversationsWithUnread = conversations.filter((conv: any) => 
+              (conv.unread_count || 0) > 0
+            ).length;
+            setUnreadMessagesCount(conversationsWithUnread);
+          } else {
+            setUnreadMessagesCount(0);
+          }
         } else {
-          setUnreadMessagesCount(0);
+          // Fallback to localStorage if API fails
+          try {
+            const savedConversations = localStorage.getItem(`conversations_${currentUserId}`);
+            if (savedConversations) {
+              const conversations = JSON.parse(savedConversations);
+              const conversationsWithUnread = conversations.filter((conv: any) => 
+                (conv.unreadCount || 0) > 0
+              ).length;
+              setUnreadMessagesCount(conversationsWithUnread);
+            } else {
+              setUnreadMessagesCount(0);
+            }
+          } catch (error) {
+            setUnreadMessagesCount(0);
+          }
         }
       } catch (error) {
         console.error('Error loading unread messages count:', error);
-        setUnreadMessagesCount(0);
+        // Fallback to localStorage
+        try {
+          const savedConversations = localStorage.getItem(`conversations_${currentUserId}`);
+          if (savedConversations) {
+            const conversations = JSON.parse(savedConversations);
+            const conversationsWithUnread = conversations.filter((conv: any) => 
+              (conv.unreadCount || 0) > 0
+            ).length;
+            setUnreadMessagesCount(conversationsWithUnread);
+          } else {
+            setUnreadMessagesCount(0);
+          }
+        } catch (e) {
+          setUnreadMessagesCount(0);
+        }
       }
     }
 
@@ -1874,7 +1945,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link href="/messages" className="relative p-2.5 text-gray-600 hover:text-pink-500 cursor-pointer transition-all rounded-lg hover:bg-pink-50/50 group">
                 <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
                 {unreadMessagesCount > 0 && (
-                  <span className="absolute top-1 left-1 w-2.5 h-2.5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full animate-pulse-glow"></span>
+                  <span className="absolute top-1 left-1 w-5 h-5 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-pulse-glow">
+                    {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                  </span>
                 )}
               </Link>
 

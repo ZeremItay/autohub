@@ -93,15 +93,9 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
     .select('*');
   
   // Only show published courses unless includeDrafts is true (for admins)
-  // Check if status column exists by trying to filter (if column doesn't exist, this will fail gracefully)
+  // Always filter out draft courses for non-admins
   if (!includeDrafts) {
-    try {
-      query = query.eq('status', 'published');
-    } catch (e) {
-      // If status column doesn't exist yet, just return all courses
-      // This allows the system to work before running the migration
-      console.warn('Status column not found, returning all courses. Please run supabase-add-course-status.sql');
-    }
+    query = query.or('status.eq.published,status.is.null');
   }
   
   const { data, error } = await query.order('created_at', { ascending: false });
@@ -114,8 +108,12 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
       .select('*')
       .order('created_at', { ascending: false });
     if (allError || !allData) return { data: [], error: allError };
-    // Continue with allData instead of data
-    const finalData = allData;
+    // Filter out draft courses manually if status column doesn't exist
+    const finalData = allData.filter((course: any) => {
+      // Only show published courses or courses with no status (backward compatibility)
+      // Explicitly exclude draft courses
+      return course.status !== 'draft' && (!course.status || course.status === 'published');
+    });
     // Get user progress if userId provided
     if (userId) {
       const courseIds = finalData.map((c: any) => c.id);
@@ -142,9 +140,18 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
   
   if (error || !data) return { data: [], error };
   
+  // Additional client-side filter to ensure no draft courses slip through
+  const filteredData = !includeDrafts 
+    ? data.filter((course: any) => {
+        // Only show published courses or courses with no status (backward compatibility)
+        // Explicitly exclude draft courses
+        return course.status !== 'draft' && (!course.status || course.status === 'published');
+      })
+    : data;
+  
   // Get user progress if userId provided
   if (userId) {
-    const courseIds = data.map((c: any) => c.id);
+    const courseIds = filteredData.map((c: any) => c.id);
     const { data: progressData } = await supabase
       .from('course_progress')
       .select('course_id, progress_percentage')
@@ -155,7 +162,7 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
       progressData?.map((p: any) => [p.course_id, p.progress_percentage]) || []
     );
     
-    const coursesWithProgress = data.map((course: any) => ({
+    const coursesWithProgress = filteredData.map((course: any) => ({
       ...course,
       progress: progressMap.get(course.id) || 0
     }));
@@ -163,7 +170,7 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
     return { data: Array.isArray(coursesWithProgress) ? coursesWithProgress : [], error: null };
   }
   
-  return { data: Array.isArray(data) ? data : [], error: null };
+  return { data: Array.isArray(filteredData) ? filteredData : [], error: null };
 }
 
 // Get courses by category
@@ -175,13 +182,9 @@ export async function getCoursesByCategory(category: string, userId?: string, in
     .eq('category', category);
   
   // Only show published courses unless includeDrafts is true (for admins)
+  // Always filter out draft courses for non-admins
   if (!includeDrafts) {
-    try {
-      query = query.eq('status', 'published');
-    } catch (e) {
-      // If status column doesn't exist yet, just return all courses
-      console.warn('Status column not found, returning all courses. Please run supabase-add-course-status.sql');
-    }
+    query = query.or('status.eq.published,status.is.null');
   }
   
   const { data, error } = await query.order('created_at', { ascending: false });
@@ -195,8 +198,12 @@ export async function getCoursesByCategory(category: string, userId?: string, in
       .eq('category', category)
       .order('created_at', { ascending: false });
     if (allError || !allData) return { data: [], error: allError };
-    // Continue with allData instead of data
-    const finalData = allData;
+    // Filter out draft courses manually if status column doesn't exist
+    const finalData = allData.filter((course: any) => {
+      // Only show published courses or courses with no status (backward compatibility)
+      // Explicitly exclude draft courses
+      return course.status !== 'draft' && (!course.status || course.status === 'published');
+    });
     // Get user progress if userId provided
     if (userId) {
       const courseIds = finalData.map((c: any) => c.id);
@@ -223,9 +230,18 @@ export async function getCoursesByCategory(category: string, userId?: string, in
   
   if (error || !data) return { data: [], error };
   
+  // Additional client-side filter to ensure no draft courses slip through
+  const filteredData = !includeDrafts 
+    ? data.filter((course: any) => {
+        // Only show published courses or courses with no status (backward compatibility)
+        // Explicitly exclude draft courses
+        return course.status !== 'draft' && (!course.status || course.status === 'published');
+      })
+    : data;
+  
   // Get user progress if userId provided
   if (userId) {
-    const courseIds = data.map((c: any) => c.id);
+    const courseIds = filteredData.map((c: any) => c.id);
     const { data: progressData } = await supabase
       .from('course_progress')
       .select('course_id, progress_percentage')
@@ -236,7 +252,7 @@ export async function getCoursesByCategory(category: string, userId?: string, in
       progressData?.map((p: any) => [p.course_id, p.progress_percentage]) || []
     );
     
-    const coursesWithProgress = data.map((course: any) => ({
+    const coursesWithProgress = filteredData.map((course: any) => ({
       ...course,
       progress: progressMap.get(course.id) || 0
     }));
@@ -244,7 +260,7 @@ export async function getCoursesByCategory(category: string, userId?: string, in
     return { data: Array.isArray(coursesWithProgress) ? coursesWithProgress : [], error: null };
   }
   
-  return { data: Array.isArray(data) ? data : [], error: null };
+  return { data: Array.isArray(filteredData) ? filteredData : [], error: null };
 }
 
 // Get courses in progress (user has started)
@@ -263,10 +279,17 @@ export async function getCoursesInProgress(userId: string) {
   
   if (progressError || !progressData) return { data: [], error: progressError };
   
-  const courses = progressData.map((item: any) => ({
-    ...item.courses,
-    progress: item.progress_percentage
-  }));
+  const courses = progressData
+    .map((item: any) => ({
+      ...item.courses,
+      progress: item.progress_percentage
+    }))
+    // Filter out draft courses - users shouldn't see courses in progress if they're drafts
+    .filter((course: any) => {
+      // Only show published courses or courses with no status (backward compatibility)
+      // Explicitly exclude draft courses
+      return course.status !== 'draft' && (!course.status || course.status === 'published');
+    });
   
   return { data: Array.isArray(courses) ? courses : [], error: null };
 }

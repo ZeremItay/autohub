@@ -830,13 +830,12 @@ export default function ProjectsPage() {
         if (!userIsPremium) {
           try {
             const { awardPoints } = await import('@/lib/queries/gamification');
-            await awardPoints(userId, 'הגשת הצעה', {}).catch(() => {
-              // If awardPoints fails, manually add points back
-              return supabase
-                .from('profiles')
-                .update({ points: (userPoints || 0) + 50 })
-                .eq('user_id', userId);
-            });
+            const awardResult = await awardPoints(userId, 'הגשת הצעה', {});
+            if (!awardResult.success) {
+              console.error('Failed to award points:', awardResult.error);
+              // Don't manually update points - let the user know there was an issue
+              // The points will be synced later via syncUserPoints if needed
+            }
           } catch (refundError) {
             console.error('Error refunding points:', refundError);
           }

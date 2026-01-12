@@ -2409,112 +2409,122 @@ export default function AdminPanel() {
         
         if (!error && data) {
           try {
-            // Delete existing lessons
+            // Update or create sections and lessons
+            // Note: We no longer delete all existing lessons - we update them instead
             console.log('Updating lessons for course:', id)
-            const { data: existingLessons, error: loadError } = await getCourseLessons(id)
-            
-            if (loadError) {
-              console.error('Error loading existing lessons:', loadError)
-            } else {
-              console.log(`Found ${existingLessons?.length || 0} existing lessons to delete`)
-            }
-            
-            if (existingLessons && existingLessons.length > 0) {
-              const { deleteLesson } = await import('@/lib/queries/courses')
-              let deletedCount = 0
-              let failedCount = 0
-              
-              for (const lesson of existingLessons) {
-                try {
-                  const { error: deleteError } = await deleteLesson(lesson.id)
-                  if (deleteError) {
-                    console.error('Error deleting lesson:', lesson.id, deleteError)
-                    failedCount++
-                  } else {
-                    console.log('Deleted lesson:', lesson.id)
-                    deletedCount++
-                  }
-                } catch (deleteErr) {
-                  console.error('Exception deleting lesson:', deleteErr)
-                  failedCount++
-                }
-              }
-              
-              console.log(`Deleted ${deletedCount} lessons, ${failedCount} failed`)
-            }
-            
-            // Delete existing sections
             const { getCourseSections } = await import('@/lib/queries/courses')
             const { data: existingSections } = await getCourseSections(id)
-            
-            if (existingSections && existingSections.length > 0) {
-              // Delete sections (lessons will be deleted via CASCADE or we delete them separately)
-              for (const section of existingSections) {
-                try {
-                  const { error: deleteError } = await supabase
-                    .from('course_sections')
-                    .delete()
-                    .eq('id', section.id)
-                    
-                  if (deleteError) {
-                    console.error('Error deleting section:', section.id, deleteError)
-                  } else {
-                    console.log('Deleted section:', section.id)
-                  }
-                } catch (deleteErr) {
-                  console.error('Exception deleting section:', deleteErr)
-                }
-              }
-            }
-            
-            // Create new sections and lessons
             const { createLesson, createCourseSection } = await import('@/lib/queries/courses')
             let lessonOrder = 1
             let lessonsCreated = 0
+            let lessonsUpdated = 0
             let lessonsFailed = 0
             const sectionMap = new Map<string, string>() // Map from section id to database section id
             
-            console.log('Creating new lessons from sections:', courseSections)
+            console.log('Updating sections and lessons from:', courseSections)
+            console.log('Existing sections:', existingSections)
             
-            // First, create all sections
+            // First, update or create sections
             for (let i = 0; i < courseSections.length; i++) {
               const section = courseSections[i]
-              if (section.title.trim()) {
+              if (section.title.trim() && section.id !== 'no-section') {
                 try {
-                  const { data: createdSection, error: sectionError } = await createCourseSection({
-                    course_id: id,
-                    title: section.title,
-                    section_order: i + 1
-                  })
+                  // Check if section already exists (has a real database ID)
+                  const isExistingSection = section.id && section.id.length > 20 && section.id.includes('-')
+                  const existingSection = existingSections?.find((s: any) => s.id === section.id)
                   
-                  if (sectionError) {
-                    console.error('Error creating section:', sectionError)
-                    console.error('Section error details:', {
-                      message: sectionError?.message || 'No message',
-                      code: (sectionError as any)?.code || 'No code',
-                      details: (sectionError as any)?.details || 'No details',
-                      hint: (sectionError as any)?.hint || 'No hint',
-                      fullError: JSON.stringify(sectionError, Object.getOwnPropertyNames(sectionError))
+                  if (isExistingSection && existingSection) {
+                    // Update existing section
+                    const { error: updateError } = await supabase
+                      .from('course_sections')
+                      .update({
+                        title: section.title,
+                        section_order: i + 1,
+                        updated_at: new Date().toISOString()
+                      })
+                      .eq('id', section.id)
+                    
+                    if (updateError) {
+                      console.error('Error updating section:', section.id, updateError)
+                    } else {
+                      sectionMap.set(section.id, section.id)
+                      console.log('Section updated successfully:', section.id)
+                    }
+                  } else {
+                    // Create new section
+                    const { data: createdSection, error: sectionError } = await createCourseSection({
+                      course_id: id,
+                      title: section.title,
+                      section_order: i + 1
                     })
-                  } else if (createdSection) {
-                    sectionMap.set(section.id, createdSection.id)
-                    console.log('Section created successfully:', createdSection.id)
+                    
+                    if (sectionError) {
+                      console.error('Error creating section:', sectionError)
+                      console.error('Section error details:', {
+                        message: sectionError?.message || 'No message',
+                        code: (sectionError as any)?.code || 'No code',
+                        details: (sectionError as any)?.details || 'No details',
+                        hint: (sectionError as any)?.hint || 'No hint',
+                        fullError: JSON.stringify(sectionError, Object.getOwnPropertyNames(sectionError))
+                      })
+                    } else if (createdSection) {
+                      sectionMap.set(section.id, createdSection.id)
+                      console.log('Section created successfully:', createdSection.id)
+                    }
                   }
                 } catch (sectionErr) {
-                  console.error('Exception creating section:', sectionErr)
+                  console.error('Exception processing section:', sectionErr)
                 }
               }
             }
             
-            // Then, create lessons and link them to sections
+            // Delete sections that are no longer in the courseSections array
+            if (existingSections && existingSections.length > 0) {
+              const currentSectionIds = new Set(
+                courseSections
+                  .filter(s => s.id !== 'no-section' && s.id && s.id.length > 20 && s.id.includes('-'))
+                  .map(s => s.id)
+              )
+              
+              for (const existingSection of existingSections) {
+                if (!currentSectionIds.has(existingSection.id)) {
+                  try {
+                    const { error: deleteError } = await supabase
+                      .from('course_sections')
+                      .delete()
+                      .eq('id', existingSection.id)
+                      
+                    if (deleteError) {
+                      console.error('Error deleting section:', existingSection.id, deleteError)
+                    } else {
+                      console.log('Deleted section:', existingSection.id)
+                    }
+                  } catch (deleteErr) {
+                    console.error('Exception deleting section:', deleteErr)
+                  }
+                }
+              }
+            }
+            
+            // Then, update existing lessons or create new ones and link them to sections
+            const { updateLesson, getCourseLessons } = await import('@/lib/queries/courses')
+            
+            // Get all existing lessons for this course to track which ones to delete
+            const { data: existingLessons } = await getCourseLessons(id)
+            const currentLessonIds = new Set<string>()
+            
             for (const section of courseSections) {
-              const sectionDbId = sectionMap.get(section.id)
+              // Skip the "no-section" virtual section - we'll handle those lessons separately
+              if (section.id === 'no-section') {
+                continue
+              }
+              
+              const sectionDbId = sectionMap.get(section.id) || section.id
               
               for (const lesson of section.lessons) {
                 if (lesson.title.trim()) {
                   try {
                     const lessonData: any = {
-                      course_id: id,
                       title: lesson.title,
                       description: lesson.description || undefined,
                       video_url: lesson.video_url || undefined,
@@ -2525,37 +2535,85 @@ export default function AdminPanel() {
                       key_points: lesson.key_points || []
                     }
                     
-                    // Link lesson to section if section was created
+                    // Link lesson to section
                     if (sectionDbId) {
                       lessonData.section_id = sectionDbId
                     }
                     
-                    console.log('Creating lesson:', lessonData)
-                    const { data: createdLesson, error: lessonError } = await createLesson(lessonData)
+                    // Check if lesson already exists (has an ID that looks like a UUID)
+                    const isExistingLesson = lesson.id && 
+                      typeof lesson.id === 'string' && 
+                      lesson.id.length > 20 && 
+                      lesson.id.includes('-')
                     
-                    if (lessonError) {
-                      console.error('Error creating lesson:', lessonError)
-                      console.error('Lesson error details:', {
-                        message: lessonError?.message || 'No message',
-                        code: (lessonError as any)?.code || 'No code',
-                        details: (lessonError as any)?.details || 'No details',
-                        hint: (lessonError as any)?.hint || 'No hint',
-                        fullError: JSON.stringify(lessonError, Object.getOwnPropertyNames(lessonError))
-                      })
-                      lessonsFailed++
+                    if (isExistingLesson) {
+                      // Update existing lesson
+                      currentLessonIds.add(lesson.id)
+                      console.log('Updating existing lesson:', lesson.id, lessonData)
+                      const { error: updateError } = await updateLesson(lesson.id, lessonData)
+                      
+                      if (updateError) {
+                        console.error('Error updating lesson:', updateError)
+                        lessonsFailed++
+                      } else {
+                        console.log('Lesson updated successfully:', lesson.id)
+                        lessonsUpdated++
+                      }
                     } else {
-                      console.log('Lesson created successfully:', createdLesson?.id)
-                      lessonsCreated++
+                      // Create new lesson
+                      lessonData.course_id = id
+                      console.log('Creating new lesson:', lessonData)
+                      const { data: createdLesson, error: lessonError } = await createLesson(lessonData)
+                      
+                      if (lessonError) {
+                        console.error('Error creating lesson:', lessonError)
+                        console.error('Lesson error details:', {
+                          message: lessonError?.message || 'No message',
+                          code: (lessonError as any)?.code || 'No code',
+                          details: (lessonError as any)?.details || 'No details',
+                          hint: (lessonError as any)?.hint || 'No hint',
+                          fullError: JSON.stringify(lessonError, Object.getOwnPropertyNames(lessonError))
+                        })
+                        lessonsFailed++
+                      } else {
+                        console.log('Lesson created successfully:', createdLesson?.id)
+                        if (createdLesson?.id) {
+                          currentLessonIds.add(createdLesson.id)
+                        }
+                        lessonsCreated++
+                      }
                     }
                   } catch (lessonErr) {
-                    console.error('Exception creating lesson:', lessonErr)
+                    console.error('Exception processing lesson:', lessonErr)
                     lessonsFailed++
                   }
                 }
               }
             }
             
-            console.log(`Lessons update summary: ${lessonsCreated} created, ${lessonsFailed} failed`)
+            // Delete lessons that are no longer in the courseSections
+            if (existingLessons && existingLessons.length > 0) {
+              for (const existingLesson of existingLessons) {
+                if (!currentLessonIds.has(existingLesson.id)) {
+                  try {
+                    const { error: deleteError } = await supabase
+                      .from('course_lessons')
+                      .delete()
+                      .eq('id', existingLesson.id)
+                      
+                    if (deleteError) {
+                      console.error('Error deleting lesson:', existingLesson.id, deleteError)
+                    } else {
+                      console.log('Deleted lesson:', existingLesson.id)
+                    }
+                  } catch (deleteErr) {
+                    console.error('Exception deleting lesson:', deleteErr)
+                  }
+                }
+              }
+            }
+            
+            console.log(`Lessons update summary: ${lessonsUpdated} updated, ${lessonsCreated} created, ${lessonsFailed} failed`)
             
             // Update tags if selected
             if (formData.selectedTagIds !== undefined) {
@@ -7584,12 +7642,20 @@ export default function AdminPanel() {
                                         key_points: lesson.key_points || []
                                       }))
                                     
+                                    // Instead of creating a "שיעורים נוספים" section, 
+                                    // assign these lessons to the first section or create a proper section
                                     if (lessonsWithoutSection.length > 0) {
-                                      sectionsWithLessons.push({
-                                        id: 'no-section',
-                                        title: 'שיעורים נוספים',
-                                        lessons: lessonsWithoutSection
-                                      })
+                                      if (sectionsWithLessons.length > 0) {
+                                        // Add to first section
+                                        sectionsWithLessons[0].lessons.push(...lessonsWithoutSection)
+                                      } else {
+                                        // Create a proper section for lessons without section
+                                        sectionsWithLessons.push({
+                                          id: 'temp-section-' + Date.now(),
+                                          title: 'חלק א\'',
+                                          lessons: lessonsWithoutSection
+                                        })
+                                      }
                                     }
                                     
                                     setCourseSections(sectionsWithLessons)

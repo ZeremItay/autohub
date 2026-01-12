@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Search, Send, ArrowRight, ChevronRight } from 'lucide-react';
 import { getAllProfiles } from '@/lib/queries/profiles';
 import { supabase } from '@/lib/supabase';
@@ -17,6 +18,7 @@ interface Conversation {
   id: string;
   name: string;
   avatar: string;
+  avatar_url?: string | null;
   avatarColor: string;
   lastMessage: string;
   timestamp: string;
@@ -71,7 +73,8 @@ export default function MessagesPage() {
               const formattedConversations: Conversation[] = apiConversations.map((conv: any) => ({
                 id: conv.partner_id,
                 name: conv.partner_name,
-                avatar: conv.partner_avatar ? '' : (conv.partner_name?.charAt(0) || '?'),
+                avatar: conv.partner_name?.charAt(0) || '?',
+                avatar_url: conv.partner_avatar || null,
                 avatarColor: 'bg-pink-500',
                 lastMessage: conv.messages && conv.messages.length > 0 
                   ? conv.messages[conv.messages.length - 1].text 
@@ -108,36 +111,87 @@ export default function MessagesPage() {
         const partnerName = localStorage.getItem('messagePartnerName');
         
         if (partnerId && partnerName) {
-          // Check if conversation already exists
-          const existingConv = conversations.find(conv => conv.id === partnerId);
-          
-          if (existingConv) {
-            // Conversation exists, open it
-            setActiveConversation(existingConv);
-          } else {
-            // Create new conversation
-            const newConversation: Conversation = {
-              id: partnerId,
-              name: partnerName,
-              avatar: partnerName.charAt(0),
-              avatarColor: 'bg-pink-500',
-              lastMessage: '',
-              timestamp: 'עכשיו',
-              unreadCount: 0,
-              isOnline: true,
-              messages: []
-            };
+          // Try to get partner profile for avatar
+          try {
+            const { data: profiles } = await getAllProfiles();
+            const profilesArray = Array.isArray(profiles) ? profiles : [];
+            const partner = profilesArray.find((p: any) => 
+              (p.user_id || p.id) === partnerId
+            );
             
-            // Add to conversations list
+            // Check if conversation already exists using functional update
+            let conversationToOpen: Conversation | null = null;
             setConversations(prev => {
-              const updated = [newConversation, ...prev];
-              // Save to localStorage
-              if (userId) {
-                localStorage.setItem(`conversations_${userId}`, JSON.stringify(updated));
+              const existingConv = prev.find(conv => conv.id === partnerId);
+              
+              if (existingConv) {
+                // Conversation exists, open it
+                conversationToOpen = existingConv;
+                return prev;
+              } else {
+                // Create new conversation
+                const newConversation: Conversation = {
+                  id: partnerId,
+                  name: partnerName,
+                  avatar: partnerName.charAt(0),
+                  avatar_url: partner?.avatar_url || null,
+                  avatarColor: 'bg-pink-500',
+                  lastMessage: '',
+                  timestamp: 'עכשיו',
+                  unreadCount: 0,
+                  isOnline: true,
+                  messages: []
+                };
+                
+                conversationToOpen = newConversation;
+                const updated = [newConversation, ...prev];
+                // Save to localStorage
+                if (userId) {
+                  localStorage.setItem(`conversations_${userId}`, JSON.stringify(updated));
+                }
+                return updated;
               }
-              return updated;
             });
-            setActiveConversation(newConversation);
+            
+            if (conversationToOpen) {
+              setActiveConversation(conversationToOpen);
+            }
+          } catch (error) {
+            console.error('Error loading partner profile:', error);
+            // Create conversation without avatar if profile load fails
+            let conversationToOpen: Conversation | null = null;
+            setConversations(prev => {
+              const existingConv = prev.find(conv => conv.id === partnerId);
+              
+              if (existingConv) {
+                conversationToOpen = existingConv;
+                return prev;
+              } else {
+                const newConversation: Conversation = {
+                  id: partnerId,
+                  name: partnerName,
+                  avatar: partnerName.charAt(0),
+                  avatar_url: null,
+                  avatarColor: 'bg-pink-500',
+                  lastMessage: '',
+                  timestamp: 'עכשיו',
+                  unreadCount: 0,
+                  isOnline: true,
+                  messages: []
+                };
+                
+                conversationToOpen = newConversation;
+                const updated = [newConversation, ...prev];
+                if (userId) {
+                  localStorage.setItem(`conversations_${userId}`, JSON.stringify(updated));
+                }
+                return updated;
+              }
+            });
+            
+            if (conversationToOpen) {
+              setActiveConversation(conversationToOpen);
+            }
           }
           
           // Clear the partner info from localStorage
@@ -243,6 +297,15 @@ export default function MessagesPage() {
       partnerId,
       isFromCurrentUser
     });
+
+    // Dispatch event to update unread count in header
+    if (typeof window !== 'undefined') {
+      if (isFromCurrentUser) {
+        window.dispatchEvent(new Event('messageSent'));
+      } else {
+        window.dispatchEvent(new Event('messageReceived'));
+      }
+    }
 
     // Use functional update to ensure we have the latest state
     setConversations(prev => {
@@ -383,6 +446,7 @@ export default function MessagesPage() {
                 id: partnerId,
                 name: partnerName,
                 avatar: partnerName.charAt(0),
+                avatar_url: partner.avatar_url || null,
                 avatarColor: 'bg-pink-500',
                 lastMessage: newMessage.content,
                 timestamp: new Date(newMessage.created_at).toLocaleTimeString('he-IL', {
@@ -543,6 +607,11 @@ export default function MessagesPage() {
         body: JSON.stringify({
           conversation_id: activeConversation.id
         }),
+      }).then(() => {
+        // Dispatch event to update unread count in header
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('messageReceived'));
+        }
       }).catch(error => {
         console.error('Error marking messages as read:', error);
       });
@@ -746,8 +815,18 @@ export default function MessagesPage() {
               <div className="flex items-center gap-2 sm:gap-3">
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${conversation.avatarColor} flex items-center justify-center text-white font-semibold text-base sm:text-lg`}>
-                    {conversation.avatar}
+                  <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-full ${conversation.avatarColor} flex items-center justify-center text-white font-semibold text-base sm:text-lg overflow-hidden`}>
+                    {conversation.avatar_url ? (
+                      <Image 
+                        src={conversation.avatar_url} 
+                        alt={conversation.name} 
+                        fill
+                        className="object-cover rounded-full"
+                        sizes="(max-width: 640px) 40px, 48px"
+                      />
+                    ) : (
+                      <span>{conversation.avatar}</span>
+                    )}
                   </div>
                   {conversation.isOnline && (
                     <div className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 border-white"></div>
@@ -794,8 +873,18 @@ export default function MessagesPage() {
                 <ArrowRight className="w-5 h-5 text-gray-600" />
               </button>
               <div className="relative">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${activeConversation.avatarColor} flex items-center justify-center text-white font-semibold text-base sm:text-lg`}>
-                  {activeConversation.avatar}
+                <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-full ${activeConversation.avatarColor} flex items-center justify-center text-white font-semibold text-base sm:text-lg overflow-hidden`}>
+                  {activeConversation.avatar_url ? (
+                    <Image 
+                      src={activeConversation.avatar_url} 
+                      alt={activeConversation.name} 
+                      fill
+                      className="object-cover rounded-full"
+                      sizes="(max-width: 640px) 40px, 48px"
+                    />
+                  ) : (
+                    <span>{activeConversation.avatar}</span>
+                  )}
                 </div>
                 {activeConversation.isOnline && (
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>

@@ -111,12 +111,21 @@ export default function CoursesPage() {
       }
       
       if (!error && data) {
-        setCourses(data);
+        // Additional client-side filter to ensure no draft courses are shown to non-admins
+        const filteredData = isUserAdmin 
+          ? data 
+          : data.filter((course: Course) => {
+              // Only show published courses or courses with no status (backward compatibility)
+              // Explicitly exclude draft courses
+              return course.status !== 'draft' && (!course.status || course.status === 'published');
+            });
+        
+        setCourses(filteredData);
         
         // Check enrollments for all courses
         if (currentUser && !isAdmin(currentUser)) {
           const enrollmentMap = new Map<string, boolean>();
-          for (const course of data) {
+          for (const course of filteredData) {
             const { data: enrollment } = await checkEnrollment(course.id, currentUser.id);
             enrollmentMap.set(course.id, !!enrollment);
           }
@@ -124,7 +133,7 @@ export default function CoursesPage() {
         } else if (isAdmin(currentUser)) {
           // Admin is enrolled in all courses
           const enrollmentMap = new Map<string, boolean>();
-          data.forEach(course => enrollmentMap.set(course.id, true));
+          filteredData.forEach(course => enrollmentMap.set(course.id, true));
           setEnrollments(enrollmentMap);
         }
       }

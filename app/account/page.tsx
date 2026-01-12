@@ -309,6 +309,10 @@ export default function AccountSettingsPage() {
       if (!error) {
         alert('השינויים נשמרו בהצלחה');
         await loadUser();
+        // Dispatch event for profile completion modal if social links were updated
+        if (activeTab === 'social' && typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('profileSocialLinksUpdated'));
+        }
       } else {
         alert('שגיאה בשמירת השינויים');
       }

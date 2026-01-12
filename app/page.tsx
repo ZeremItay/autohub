@@ -46,6 +46,7 @@ import { lazyLoad } from '@/lib/utils/lazyLoad';
 import Link from 'next/link';
 import RecentUpdates, { type RecentUpdate } from '@/app/components/RecentUpdates';
 import { ReportsTicker } from '@/app/components/home/ReportsTicker';
+import ProfileCompletionModal from '@/app/components/ProfileCompletionModal';
 import dynamic from 'next/dynamic';
 
 const RichTextEditor = dynamic(
@@ -2155,6 +2156,13 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Profile Completion Modal */}
+      {currentUser && (currentUser.user_id || currentUser.id) && (
+        <ProfileCompletionModal 
+          userId={(currentUser.user_id || currentUser.id) as string} 
+        />
       )}
     </div>
   );
