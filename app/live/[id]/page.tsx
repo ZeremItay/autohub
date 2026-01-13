@@ -52,8 +52,20 @@ export default function LiveEventPage() {
         if (currentUser) {
           const userId = currentUser.user_id || currentUser.id;
           if (userId) {
-            const { isRegistered } = await isUserRegisteredForEvent(userId, eventId);
-            setRegistered(isRegistered);
+            try {
+              const { isRegistered, error } = await isUserRegisteredForEvent(userId, eventId);
+              if (error) {
+                console.warn('Error checking registration status (non-critical):', error);
+                // Don't fail the page load if registration check fails
+                setRegistered(false);
+              } else {
+                setRegistered(isRegistered);
+              }
+            } catch (err) {
+              console.warn('Error checking registration status (non-critical):', err);
+              // Don't fail the page load if registration check fails
+              setRegistered(false);
+            }
           }
         }
       }
@@ -113,14 +125,45 @@ export default function LiveEventPage() {
         }),
       });
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        // If response is not JSON, try to get text
+        const text = await response.text().catch(() => '');
+        console.error('Failed to parse response as JSON:', {
+          status: response.status,
+          statusText: response.statusText,
+          text: text.substring(0, 200)
+        });
+        data = { error: `שגיאת שרת (${response.status})` };
+      }
 
       if (!response.ok) {
         if (data.alreadyRegistered) {
           setRegistered(true);
           alert('אתה כבר נרשמת לאירוע זה');
         } else {
-          throw new Error(data.error || 'שגיאה בהרשמה לאירוע');
+          // Extract error message from response
+          let errorMessage = 'שגיאה בהרשמה לאירוע';
+          
+          if (data.error) {
+            errorMessage = typeof data.error === 'string' ? data.error : (data.error.message || errorMessage);
+          } else if (data.message) {
+            errorMessage = data.message;
+          }
+          
+          // Log detailed error for debugging
+          console.error('Registration failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorMessage,
+            fullData: data,
+            details: data.details
+          });
+          
+          // Show user-friendly error message
+          alert(`שגיאה בהרשמה לאירוע: ${errorMessage}`);
         }
       } else {
         setRegistered(true);
@@ -128,7 +171,8 @@ export default function LiveEventPage() {
       }
     } catch (error: any) {
       console.error('Error registering for event:', error);
-      alert('שגיאה בהרשמה לאירוע. אנא נסה שוב.');
+      const errorMessage = error?.message || 'שגיאה בהרשמה לאירוע. אנא נסה שוב.';
+      alert(errorMessage);
     } finally {
       setRegistering(false);
     }

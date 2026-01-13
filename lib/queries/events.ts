@@ -348,19 +348,37 @@ export async function isUserRegisteredForEvent(
   userId: string,
   eventId: string
 ): Promise<{ isRegistered: boolean; error: any }> {
-  const { data, error } = await supabase
-    .from('event_registrations')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('event_id', eventId)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('event_registrations')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('event_id', eventId)
+      .maybeSingle();
 
-  if (error) {
-    console.error('Error checking event registration:', error);
-    return { isRegistered: false, error };
+    if (error) {
+      // Log more details about the error
+      console.warn('Error checking event registration:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        userId,
+        eventId
+      });
+      return { isRegistered: false, error };
+    }
+
+    return { isRegistered: !!data, error: null };
+  } catch (err: any) {
+    console.error('Exception in isUserRegisteredForEvent:', {
+      message: err?.message || 'Unknown error',
+      error: err,
+      userId,
+      eventId
+    });
+    return { isRegistered: false, error: err };
   }
-
-  return { isRegistered: !!data, error: null };
 }
 
 // Get all registrations for an event (for admins)

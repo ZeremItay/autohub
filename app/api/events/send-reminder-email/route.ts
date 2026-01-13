@@ -108,9 +108,8 @@ export async function POST(request: NextRequest) {
     let aboutTextHtml = '';
     if (event.about_text) {
       // Convert HTML to email-friendly format while preserving paragraphs and spacing
-      // Replace <p> tags with proper spacing, keep <br> tags, and remove other HTML
       let aboutText = event.about_text
-        .replace(/<p[^>]*>/gi, '<p style="margin: 0 0 12px 0;">') // Add spacing between paragraphs
+        .replace(/<p[^>]*>/gi, '<p style="margin: 0 0 12px 0;">')
         .replace(/<\/p>/gi, '</p>')
         .replace(/<br\s*\/?>/gi, '<br>')
         .replace(/<strong[^>]*>/gi, '<strong>')
@@ -124,7 +123,6 @@ export async function POST(request: NextRequest) {
         .replace(/<li[^>]*>/gi, '<li style="margin-bottom: 8px;">')
         .replace(/<\/li>/gi, '</li>');
       
-      // Remove any other HTML tags that we don't want
       aboutText = aboutText.replace(/<[^>]+>/g, (match: string) => {
         const tag = match.toLowerCase();
         if (tag.startsWith('<p') || tag === '</p>' || 
@@ -166,13 +164,13 @@ export async function POST(request: NextRequest) {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>נרשמת בהצלחה לאירוע!</title>
+        <title>תזכורת: האירוע מחר!</title>
       </head>
       <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; background-color: #f5f5f5; margin: 0; padding: 20px;">
         <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
           <!-- Header -->
           <div style="background: linear-gradient(135deg, #F52F8E 0%, #E01E7A 100%); padding: 40px 20px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">🎉 נרשמת בהצלחה לאירוע!</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">🔔 תזכורת: האירוע מחר!</h1>
           </div>
           
           <!-- Content -->
@@ -182,15 +180,15 @@ export async function POST(request: NextRequest) {
             </p>
             
             <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 25px;">
-              נרשמת בהצלחה לאירוע <strong>"${event.title}"</strong>!
+              זה תזכורת ידידותית שהאירוע <strong>"${event.title}"</strong> מתקיים מחר!
             </p>
             
-            <div style="background-color: #f8f9fa; border-right: 4px solid #F52F8E; padding: 20px; border-radius: 8px; margin: 25px 0;">
-              <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">
-                <strong>תאריך:</strong> ${eventDate}
+            <div style="background-color: #fff3cd; border-right: 4px solid #ffc107; padding: 20px; border-radius: 8px; margin: 25px 0;">
+              <p style="margin: 0 0 10px 0; font-size: 16px; color: #333; font-weight: bold;">
+                📅 תאריך: ${eventDate}
               </p>
-              <p style="margin: 0; font-size: 16px; color: #333;">
-                <strong>שעה:</strong> ${eventTime}
+              <p style="margin: 0; font-size: 16px; color: #333; font-weight: bold;">
+                🕐 שעה: ${eventTime}
               </p>
             </div>
 
@@ -243,7 +241,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         from: 'מועדון האוטומטורים <noreply@autohub.co.il>',
         to: [userEmail],
-        subject: `נרשמת בהצלחה לאירוע: ${event.title}`,
+        subject: `🔔 תזכורת: האירוע "${event.title}" מחר!`,
         html: emailHtml,
       }),
     });
@@ -274,10 +272,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Registration confirmation email sent successfully:', {
+    console.log('✅ Reminder email sent successfully:', {
       to: userEmail,
       emailId: emailData.id,
-      subject: `נרשמת בהצלחה לאירוע: ${event.title}`
+      subject: `🔔 תזכורת: האירוע "${event.title}" מחר!`
     });
 
     return NextResponse.json({ 
@@ -285,7 +283,7 @@ export async function POST(request: NextRequest) {
       emailId: emailData.id 
     });
   } catch (error: any) {
-    console.error('Error in send-registration-email API:', error);
+    console.error('Error in send-reminder-email API:', error);
     return NextResponse.json(
       { error: 'Internal server error', message: error.message },
       { status: 500 }

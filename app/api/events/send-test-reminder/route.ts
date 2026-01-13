@@ -1,34 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase-server';
-import { cookies } from 'next/headers';
-import { getEventById } from '@/lib/queries/events';
-import { getProfileWithRole } from '@/lib/queries/profiles';
 import { createClient } from '@supabase/supabase-js';
 
+// Test route to send a reminder email to a specific user
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, eventId } = body;
+    const { email, eventId } = body;
 
-    if (!userId || !eventId) {
+    if (!email) {
       return NextResponse.json(
-        { error: 'Missing required fields: userId, eventId' },
+        { error: 'Missing required field: email' },
         { status: 400 }
       );
     }
 
-    // Get event details
-    const { data: event, error: eventError } = await getEventById(eventId);
-    
-    if (eventError || !event) {
-      console.error('Error fetching event:', eventError);
-      return NextResponse.json(
-        { error: 'Event not found', details: eventError },
-        { status: 404 }
-      );
-    }
-
-    // Get user email from auth
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -47,28 +32,70 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    // Find user by email
+    const { data: { users }, error: userError } = await supabaseAdmin.auth.admin.listUsers();
     
-    if (userError || !user) {
-      console.error('Error getting user email:', userError);
+    if (userError) {
+      console.error('Error fetching users:', userError);
       return NextResponse.json(
-        { error: 'User not found', details: userError },
+        { error: 'Failed to fetch users', details: userError },
+        { status: 500 }
+      );
+    }
+
+    const user = users.find(u => u.email === email);
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: `User with email ${email} not found` },
         { status: 404 }
       );
     }
 
-    const userEmail = user.email;
+    // If eventId is provided, use it; otherwise use a test event
+    let eventIdToUse = eventId;
+    
+    if (!eventIdToUse) {
+      // Get the first upcoming event as test
+      const { data: events } = await supabaseAdmin
+        .from('events')
+        .select('*')
+        .gte('event_date', new Date().toISOString().split('T')[0])
+        .order('event_date', { ascending: true })
+        .limit(1);
+      
+      if (events && events.length > 0) {
+        eventIdToUse = events[0].id;
+      } else {
+        return NextResponse.json(
+          { error: 'No upcoming events found. Please provide an eventId.' },
+          { status: 404 }
+        );
+      }
+    }
 
-    if (!userEmail) {
-      console.warn('No email found for user:', userId);
+    // Get event details
+    const { data: event, error: eventError } = await supabaseAdmin
+      .from('events')
+      .select('*')
+      .eq('id', eventIdToUse)
+      .single();
+    
+    if (eventError || !event) {
+      console.error('Error fetching event:', eventError);
       return NextResponse.json(
-        { error: 'No email found for user' },
+        { error: 'Event not found', details: eventError },
         { status: 404 }
       );
     }
 
-    // Get user profile for display name
-    const { data: profile } = await getProfileWithRole(userId);
+    // Get user profile
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('display_name, first_name')
+      .eq('user_id', user.id)
+      .single();
+
     const userName = profile?.display_name || profile?.first_name || user.email?.split('@')[0] || 'משתמש';
 
     // Format date and time
@@ -107,10 +134,8 @@ export async function POST(request: NextRequest) {
     // Build about text
     let aboutTextHtml = '';
     if (event.about_text) {
-      // Convert HTML to email-friendly format while preserving paragraphs and spacing
-      // Replace <p> tags with proper spacing, keep <br> tags, and remove other HTML
       let aboutText = event.about_text
-        .replace(/<p[^>]*>/gi, '<p style="margin: 0 0 12px 0;">') // Add spacing between paragraphs
+        .replace(/<p[^>]*>/gi, '<p style="margin: 0 0 12px 0;">')
         .replace(/<\/p>/gi, '</p>')
         .replace(/<br\s*\/?>/gi, '<br>')
         .replace(/<strong[^>]*>/gi, '<strong>')
@@ -124,7 +149,6 @@ export async function POST(request: NextRequest) {
         .replace(/<li[^>]*>/gi, '<li style="margin-bottom: 8px;">')
         .replace(/<\/li>/gi, '</li>');
       
-      // Remove any other HTML tags that we don't want
       aboutText = aboutText.replace(/<[^>]+>/g, (match: string) => {
         const tag = match.toLowerCase();
         if (tag.startsWith('<p') || tag === '</p>' || 
@@ -166,13 +190,13 @@ export async function POST(request: NextRequest) {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>נרשמת בהצלחה לאירוע!</title>
+        <title>תזכורת: האירוע מחר!</title>
       </head>
       <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; background-color: #f5f5f5; margin: 0; padding: 20px;">
         <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
           <!-- Header -->
           <div style="background: linear-gradient(135deg, #F52F8E 0%, #E01E7A 100%); padding: 40px 20px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">🎉 נרשמת בהצלחה לאירוע!</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">🔔 תזכורת: האירוע מחר!</h1>
           </div>
           
           <!-- Content -->
@@ -182,15 +206,15 @@ export async function POST(request: NextRequest) {
             </p>
             
             <p style="font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 25px;">
-              נרשמת בהצלחה לאירוע <strong>"${event.title}"</strong>!
+              זה תזכורת ידידותית שהאירוע <strong>"${event.title}"</strong> מתקיים מחר!
             </p>
             
-            <div style="background-color: #f8f9fa; border-right: 4px solid #F52F8E; padding: 20px; border-radius: 8px; margin: 25px 0;">
-              <p style="margin: 0 0 10px 0; font-size: 16px; color: #333;">
-                <strong>תאריך:</strong> ${eventDate}
+            <div style="background-color: #fff3cd; border-right: 4px solid #ffc107; padding: 20px; border-radius: 8px; margin: 25px 0;">
+              <p style="margin: 0 0 10px 0; font-size: 16px; color: #333; font-weight: bold;">
+                📅 תאריך: ${eventDate}
               </p>
-              <p style="margin: 0; font-size: 16px; color: #333;">
-                <strong>שעה:</strong> ${eventTime}
+              <p style="margin: 0; font-size: 16px; color: #333; font-weight: bold;">
+                🕐 שעה: ${eventTime}
               </p>
             </div>
 
@@ -201,7 +225,7 @@ export async function POST(request: NextRequest) {
             ${instructorHtml}
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${siteUrl}/live/${eventId}" 
+              <a href="${siteUrl}/live/${eventIdToUse}" 
                  style="display: inline-block; background-color: #F52F8E; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
                 צפייה בפרטי האירוע
               </a>
@@ -242,8 +266,8 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         from: 'מועדון האוטומטורים <noreply@autohub.co.il>',
-        to: [userEmail],
-        subject: `נרשמת בהצלחה לאירוע: ${event.title}`,
+        to: [email],
+        subject: `🔔 תזכורת: האירוע "${event.title}" מחר!`,
         html: emailHtml,
       }),
     });
@@ -274,18 +298,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Registration confirmation email sent successfully:', {
-      to: userEmail,
+    console.log('✅ Test reminder email sent successfully:', {
+      to: email,
       emailId: emailData.id,
-      subject: `נרשמת בהצלחה לאירוע: ${event.title}`
+      subject: `🔔 תזכורת: האירוע "${event.title}" מחר!`
     });
 
     return NextResponse.json({ 
       success: true, 
-      emailId: emailData.id 
+      emailId: emailData.id,
+      sentTo: email,
+      eventTitle: event.title
     });
   } catch (error: any) {
-    console.error('Error in send-registration-email API:', error);
+    console.error('Error in send-test-reminder API:', error);
     return NextResponse.json(
       { error: 'Internal server error', message: error.message },
       { status: 500 }
