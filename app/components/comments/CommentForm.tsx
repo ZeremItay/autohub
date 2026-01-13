@@ -90,6 +90,10 @@ export default function CommentForm({
       await onSubmit(text);
       setText('');
       setIsExpanded(false); // Collapse after successful submit
+      // If replying, call onCancel to close the reply form
+      if (isReplying && onCancel) {
+        onCancel();
+      }
     } catch (error) {
       console.error('Error submitting comment:', error);
     } finally {

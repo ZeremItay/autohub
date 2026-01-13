@@ -415,13 +415,13 @@ function ForumDetailPageContent() {
 
   async function handleSubmitReply(commentId: string, text: string) {
     if (!text.trim() || !selectedPost || !currentUser) {
-      return;
+      return Promise.reject(new Error('Missing required data'));
     }
 
     const userId = currentUser.user_id || currentUser.id;
     if (!userId) {
       alert('שגיאה: לא נמצא משתמש מחובר');
-      return;
+      return Promise.reject(new Error('User not found'));
     }
 
     try {
@@ -448,12 +448,16 @@ function ForumDetailPageContent() {
           setSelectedPost(data);
           setPostReplies(data.replies || []);
         }
+        return Promise.resolve();
       } else {
-        alert(`שגיאה ביצירת התגובה: ${result.error || 'שגיאה לא ידועה'}`);
+        const errorMsg = result.error || 'שגיאה לא ידועה';
+        alert(`שגיאה ביצירת התגובה: ${errorMsg}`);
+        return Promise.reject(new Error(errorMsg));
       }
     } catch (error) {
       console.error('Error creating reply:', error);
       alert('שגיאה ביצירת התגובה. אנא נסה שוב.');
+      return Promise.reject(error);
     }
   }
 
