@@ -425,6 +425,29 @@ export default function RecordingsPage() {
                   {recording.title}
                 </h3>
 
+                {/* Instructor */}
+                {recording.instructor_name && (
+                  <div className="flex items-center gap-2 mb-2">
+                    {recording.instructor_avatar_url ? (
+                      <img
+                        src={recording.instructor_avatar_url}
+                        alt={recording.instructor_name}
+                        className="w-6 h-6 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold">
+                        {recording.instructor_name.charAt(0)}
+                      </div>
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium text-gray-700">{recording.instructor_name}</span>
+                      {recording.instructor_title && (
+                        <span className="text-xs text-gray-500">{recording.instructor_title}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Description */}
                 {recording.description && (() => {
                   // Check if description contains HTML tags

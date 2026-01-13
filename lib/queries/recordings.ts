@@ -47,7 +47,7 @@ export async function getAllRecordings() {
     // Note: qa_section and key_points are only needed in detail page, not in listing
     const { data, error } = await supabase
       .from('recordings')
-      .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at')
+      .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at, instructor_name, instructor_title, instructor_avatar_url, instructor_user_id')
       .order('created_at', { ascending: false })
       .limit(100) // Limit to improve performance
     
@@ -56,7 +56,7 @@ export async function getAllRecordings() {
       // If specific columns fail, try with * as fallback
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('recordings')
-        .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at')
+        .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at, instructor_name, instructor_title, instructor_avatar_url, instructor_user_id')
         .order('created_at', { ascending: false })
         .limit(100)
       
@@ -106,7 +106,7 @@ export async function getRecordingsPaginated(page: number = 1, limit: number = 6
     // 'planned' uses table statistics and is good enough for pagination
     let query = supabase
       .from('recordings')
-      .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at', { count: 'planned' });
+      .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at, instructor_name, instructor_title, instructor_avatar_url, instructor_user_id', { count: 'planned' });
 
     // Apply sorting
     if (sortBy === 'recently-active') {

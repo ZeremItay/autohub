@@ -381,6 +381,29 @@ function RecordingDetailPageContent() {
           {/* Title */}
           <h1 className="text-3xl font-bold text-gray-800 mb-4">{recording.title}</h1>
 
+          {/* Instructor */}
+          {recording.instructor_name && (
+            <div className="flex items-center gap-3 mb-4">
+              {recording.instructor_avatar_url ? (
+                <img
+                  src={recording.instructor_avatar_url}
+                  alt={recording.instructor_name}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white font-semibold">
+                  {recording.instructor_name.charAt(0)}
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-700">{recording.instructor_name}</span>
+                {recording.instructor_title && (
+                  <span className="text-xs text-gray-500">{recording.instructor_title}</span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Metadata */}
           <div className="flex items-center gap-6 mb-6 flex-wrap">
             {recording.views !== undefined && (
