@@ -79,16 +79,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate Zoom Web Client join URL
-    // Using direct join URL format that forces web client (not app)
-    // Note: Zoom Web Client may still prompt to open app - user should click "Join from browser"
+    // Using /wc/join/ endpoint which forces web client (no app redirect)
     const params = new URLSearchParams({
       role: '0', // 0 = participant
-      uname: userName || profile.display_name || profile.first_name || 'משתמש', // Use uname instead of name
+      uname: userName || profile.display_name || profile.first_name || 'משתמש',
       email: userEmail || session.user.email || '',
-      stype: '100', // Force web client (100 = web client only, no app redirect)
-      fromBrowser: '1', // Force browser join
-      browserType: 'chrome', // Specify browser type
-      zm: '0', // Disable app redirect (0 = no app redirect)
+      browser: '1', // Force browser/web client
+      // Note: Zoom will still ask for audio/video permissions - this is normal
+      // User can enable them in the meeting or click "Continue without audio or video"
     });
 
     // Add password if exists (server-side only - never exposed to client)
@@ -96,11 +94,8 @@ export async function POST(request: NextRequest) {
       params.append('pwd', event.zoom_meeting_password);
     }
 
-    // Generate join URL - force web client to stay in browser
-    // Using /wc/join/ endpoint with parameters to prevent app redirect
-    // Note: Zoom may still show app prompt - user must click "Join from browser" inside iframe
-    // Alternative: Use /j/ endpoint which is more browser-friendly
-    const joinUrl = `https://zoom.us/j/${meetingNumber}?${params.toString()}`;
+    // Use /wc/join/ endpoint - this forces web client only (no app redirect)
+    const joinUrl = `https://zoom.us/wc/join/${meetingNumber}?${params.toString()}`;
 
     return NextResponse.json({ 
       joinUrl,

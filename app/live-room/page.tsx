@@ -10,8 +10,22 @@ import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 
 // Lazy load ZoomMeeting (heavy component, only needed when live event is active)
+// Wrap in error boundary to prevent React errors from breaking the page
 const ZoomMeeting = dynamic(
-  () => import('@/app/components/zoom/ZoomMeeting'),
+  () => import('@/app/components/zoom/ZoomMeeting').catch((err) => {
+    console.error('Error loading ZoomMeeting component:', err);
+    // Return a fallback component
+    return {
+      default: () => (
+        <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+          <div className="text-center text-white">
+            <p className="text-lg mb-2">שגיאה בטעינת פגישת Zoom</p>
+            <p className="text-sm text-gray-400">אנא רענן את הדף</p>
+          </div>
+        </div>
+      )
+    };
+  }),
   { 
     ssr: false,
     loading: () => <div className="w-full h-96 bg-gray-100 rounded animate-pulse flex items-center justify-center">

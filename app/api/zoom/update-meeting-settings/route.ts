@@ -84,8 +84,11 @@ async function updateMeetingSettings(accessToken: string, meetingId: string) {
     body: JSON.stringify({
       settings: {
         participants_can_invite_others: false, // Disable invite option
-        approval_type: 0, // Automatically approve (0 = Automatically approve, 1 = Manually approve, 2 = No registration required)
-        registration_type: 0, // No registration required (0 = Attendees register once and can attend any occurrence, 1 = Attendees must register for each occurrence, 2 = Attendees register once and can attend any occurrence, 3 = No registration required)
+        approval_type: 2, // No registration required (0 = Automatically approve, 1 = Manually approve, 2 = No registration required)
+        registration_type: 3, // No registration required (0 = Attendees register once, 1 = Register for each occurrence, 2 = Register once, 3 = No registration required)
+        join_before_host: true, // Allow joining before host
+        waiting_room: false, // Disable waiting room for direct join
+        allow_multiple_devices: true, // Allow multiple devices
       },
     }),
   });
