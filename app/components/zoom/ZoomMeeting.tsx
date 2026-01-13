@@ -143,7 +143,7 @@ export default function ZoomMeeting({
         ref={iframeRef}
         src={joinUrl}
         className="w-full h-full border-0"
-        allow="microphone; camera; autoplay; encrypted-media; fullscreen; display-capture"
+        allow="microphone *; camera *; autoplay *; encrypted-media *; fullscreen; display-capture *; geolocation *"
         allowFullScreen
         title="Zoom Meeting"
         style={{ minHeight: '400px' }}
