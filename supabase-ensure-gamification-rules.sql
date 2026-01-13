@@ -22,7 +22,8 @@ BEGIN
       ('שיתוף פוסט', 3, 'active', 'שיתוף פוסט'),
       ('השלמת קורס', 50, 'active', 'השלמת קורס מלא'),
       ('העלאת פרויקט', 25, 'active', 'העלאת פרויקט חדש'),
-      ('הרשמה לאירוע', 1, 'active', 'הרשמה לאירוע')
+      ('הרשמה לאירוע', 1, 'active', 'הרשמה לאירוע'),
+      ('host_live_event', 50, 'active', 'העברת לייב')
     ON CONFLICT (action_name) 
     DO UPDATE SET 
       point_value = EXCLUDED.point_value,
@@ -51,7 +52,8 @@ BEGIN
       ('שיתוף פוסט', 3, true, 'שיתוף פוסט'),
       ('השלמת קורס', 50, true, 'השלמת קורס מלא'),
       ('העלאת פרויקט', 25, true, 'העלאת פרויקט חדש'),
-      ('הרשמה לאירוע', 1, true, 'הרשמה לאירוע')
+      ('הרשמה לאירוע', 1, true, 'הרשמה לאירוע'),
+      ('host_live_event', 50, true, 'העברת לייב')
     ON CONFLICT (trigger_action) 
     DO UPDATE SET 
       point_value = EXCLUDED.point_value,

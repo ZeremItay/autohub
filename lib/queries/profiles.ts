@@ -23,6 +23,7 @@ export interface Profile {
   role_id: string // Required - every profile MUST have a role
   social_links?: SocialLink[]
   hosted_recordings?: string[] // Array of recording IDs that the user has hosted/instructed
+  has_seen_completion_message?: boolean // Whether user has seen the profile completion success message
   created_at?: string
   updated_at?: string
 }

@@ -2050,6 +2050,7 @@ export default function AdminPanel() {
           instructor_name: formData.instructor_name || undefined,
           instructor_title: formData.instructor_title || undefined,
           instructor_avatar_url: formData.instructor_avatar_url || undefined,
+          instructor_user_id: formData.instructor_user_id || undefined,
           learning_points: Array.isArray(formData.learning_points) ? formData.learning_points : [],
           about_text: formData.about_text || undefined,
           is_recurring: formData.is_recurring || false,
@@ -2066,6 +2067,27 @@ export default function AdminPanel() {
           console.error('Error creating event:', error)
           alert(`שגיאה ביצירת האירוע: ${(error as any)?.message || 'שגיאה לא ידועה'}`)
         } else {
+          // Award 50 points to instructor if they are from the community
+          if (data && formData.instructor_user_id) {
+            try {
+              const { awardPoints } = await import('@/lib/queries/gamification');
+              const pointsResult = await awardPoints(
+                formData.instructor_user_id,
+                'host_live_event',
+                { relatedId: data.id }
+              );
+              
+              if (pointsResult.success) {
+                console.log(`✅ Awarded 50 points to instructor ${formData.instructor_user_id} for hosting live event`);
+              } else {
+                console.warn('⚠️ Could not award points to instructor:', pointsResult.error);
+              }
+            } catch (pointsError) {
+              console.warn('Error awarding points to instructor:', pointsError);
+              // Don't fail event creation if points award fails
+            }
+          }
+          
           await loadData()
           setEditing(null)
           setFormData({})
@@ -2671,6 +2693,7 @@ export default function AdminPanel() {
           instructor_name: formData.instructor_name || undefined,
           instructor_title: formData.instructor_title || undefined,
           instructor_avatar_url: formData.instructor_avatar_url || undefined,
+          instructor_user_id: formData.instructor_user_id || undefined,
           learning_points: Array.isArray(formData.learning_points) ? formData.learning_points : [],
           about_text: formData.about_text || undefined,
           is_recurring: formData.is_recurring || false,
@@ -2687,6 +2710,10 @@ export default function AdminPanel() {
           console.error('Error updating event:', error)
           alert(`שגיאה בעדכון האירוע: ${error?.message || 'שגיאה לא ידועה'}`)
         } else {
+          // Award points if instructor_user_id was added (only on first assignment)
+          // Note: We don't award points on update to avoid duplicate awards
+          // Points are only awarded when event is first created
+          
           await loadData()
           setEditing(null)
           setFormData({})
@@ -5823,7 +5850,45 @@ export default function AdminPanel() {
                     </div>
                     <div className="border-t border-gray-200 pt-4">
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">מנחה</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-4">
+                        {/* Select Instructor from Users */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            בחר מנחה ממשתמשים קיימים (אופציונלי)
+                          </label>
+                          <UserSelector
+                            selectedUserId={formData.instructor_user_id || ''}
+                            onSelectionChange={(selectedUserId) => {
+                              if (selectedUserId) {
+                                const selectedUser = users.find((u: any) => (u.user_id || u.id) === selectedUserId);
+                                if (selectedUser) {
+                                  setFormData({
+                                    ...formData,
+                                    instructor_user_id: selectedUserId,
+                                    instructor_name: selectedUser.display_name || selectedUser.first_name || selectedUser.nickname || '',
+                                    instructor_title: selectedUser.role?.name || '',
+                                    instructor_avatar_url: selectedUser.avatar_url || ''
+                                  });
+                                }
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  instructor_user_id: '',
+                                  instructor_name: formData.instructor_name || '',
+                                  instructor_title: formData.instructor_title || '',
+                                  instructor_avatar_url: formData.instructor_avatar_url || ''
+                                });
+                              }
+                            }}
+                            availableUsers={users}
+                            placeholder="-- בחר מנחה --"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            בחירת מנחה תמלא אוטומטית את השדות למטה. המנחה יקבל 50 נקודות על העברת הלייב
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">שם המנחה</label>
                           <input
@@ -7159,6 +7224,9 @@ export default function AdminPanel() {
                                   setEditing(recording.id)
                                   // Load full recording data (including qa_section and key_points) for editing
                                   try {
+                                    // Clear cache to ensure fresh data
+                                    const { clearCache } = await import('@/lib/cache');
+                                    clearCache(`recording:${recording.id}`);
                                     const { data: fullRecording, error } = await getRecordingById(recording.id);
                                     if (error || !fullRecording) {
                                       console.error('Error loading full recording:', error);
@@ -7203,10 +7271,19 @@ export default function AdminPanel() {
                                     console.log('Loading recording for edit:', {
                                       id: fullRecording.id,
                                       title: fullRecording.title,
+                                      description: fullRecording.description,
+                                      descriptionLength: fullRecording.description?.length || 0,
+                                      descriptionType: typeof fullRecording.description,
                                       key_points: editData.key_points,
                                       qa_section: editData.qa_section,
                                       raw_key_points: fullRecording.key_points,
                                       raw_qa_section: fullRecording.qa_section
+                                    });
+                                    // Ensure description is properly loaded - always set it even if empty
+                                    editData.description = fullRecording.description || '';
+                                    console.log('Setting formData with description:', {
+                                      description: editData.description,
+                                      descriptionLength: editData.description?.length || 0
                                     });
                                     setFormData(editData);
                                   } catch (error) {
@@ -7803,7 +7880,8 @@ export default function AdminPanel() {
                                 event_time: event.event_time || '',
                                 learning_points: event.learning_points || [],
                                 status: event.status || 'upcoming',
-                                recording_id: event.recording_id || undefined
+                                recording_id: event.recording_id || undefined,
+                                instructor_user_id: event.instructor_user_id || undefined
                               };
                               if (combinedDateTime) {
                                 formDataUpdate.event_datetime = combinedDateTime;

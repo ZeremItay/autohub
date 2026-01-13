@@ -8,7 +8,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Link from '@tiptap/extension-link';
 import { supabase } from '@/lib/supabase';
 import { Bold, Italic, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
 interface RichTextEditorProps {
   content: string;
@@ -132,7 +132,19 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
       const html = editor.getHTML();
       onChange(html);
     },
+    immediatelyRender: false, // Fix SSR warning
   });
+
+  // Update editor content when content prop changes
+  useEffect(() => {
+    if (editor && content !== undefined) {
+      const currentContent = editor.getHTML();
+      // Only update if content actually changed to avoid unnecessary updates
+      if (currentContent !== content) {
+        editor.commands.setContent(content || '');
+      }
+    }
+  }, [editor, content]);
 
   const handleImageUpload = useCallback(async (file: File) => {
     if (!editor || !userId) return;

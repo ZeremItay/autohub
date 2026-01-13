@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Bell, Lock, Download, Link as LinkIcon, Save, Upload, X, Camera, Plus, Edit2, Trash2, Instagram, Facebook, Linkedin, Twitter, Youtube, Github, Globe } from 'lucide-react';
-import { getAllProfiles, updateProfile } from '@/lib/queries/profiles';
+import { Settings, Bell, Lock, Download, Save, Upload, X, Camera } from 'lucide-react';
+import { getProfileWithRole, updateProfile } from '@/lib/queries/profiles';
 import { supabase } from '@/lib/supabase';
-import type { SocialLink } from '@/lib/types';
 
 export default function AccountSettingsPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'login' | 'notifications' | 'social' | 'privacy' | 'export'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'notifications' | 'privacy' | 'export'>('login');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,26 +22,11 @@ export default function AccountSettingsPage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
-  const [showSocialModal, setShowSocialModal] = useState(false);
-  const [editingSocialIndex, setEditingSocialIndex] = useState<number | null>(null);
-  const [socialForm, setSocialForm] = useState({ platform: '', url: '' });
   const [emailPreferences, setEmailPreferences] = useState({
     forum_reply: true,
     new_project: true
   });
   const [savingEmailPreferences, setSavingEmailPreferences] = useState(false);
-  
-  const socialPlatforms = [
-    { value: 'instagram', label: 'Instagram', icon: Instagram, color: 'bg-gradient-to-br from-purple-600 to-pink-500' },
-    { value: 'facebook', label: 'Facebook', icon: Facebook, color: 'bg-blue-600' },
-    { value: 'linkedin', label: 'LinkedIn', icon: Linkedin, color: 'bg-blue-700' },
-    { value: 'twitter', label: 'Twitter/X', icon: Twitter, color: 'bg-black' },
-    { value: 'youtube', label: 'YouTube', icon: Youtube, color: 'bg-red-600' },
-    { value: 'tiktok', label: 'TikTok', icon: LinkIcon, color: 'bg-black' },
-    { value: 'github', label: 'GitHub', icon: Github, color: 'bg-gray-800' },
-    { value: 'website', label: 'Website', icon: Globe, color: 'bg-gray-600' }
-  ];
 
   useEffect(() => {
     loadUser();
@@ -68,25 +52,12 @@ export default function AccountSettingsPage() {
         return;
       }
       
-      // Get all profiles and find the one matching the authenticated user
-      const { data: profiles } = await getAllProfiles();
-      if (!profiles || !Array.isArray(profiles) || profiles.length === 0) {
-        console.error('No profiles found');
-        alert('שגיאה: לא נמצאו פרופילים.');
-        return;
-      }
+      // Get profile directly by user_id (much more efficient)
+      const { data: user, error: profileError } = await getProfileWithRole(authUser.id);
       
-      // Find the profile that matches the authenticated user
-      // Match by user_id (UUID) or email
-      const user = profiles.find((p: any) => 
-        p.user_id === authUser.id || 
-        p.email === userEmail ||
-        (p.user_id && p.user_id === authUser.id)
-      );
-      
-      if (!user) {
-        console.error('User profile not found for authenticated user:', authUser.id, userEmail);
-        alert('שגיאה: לא נמצא פרופיל למשתמש המחובר.');
+      if (profileError || !user) {
+        console.error('User profile not found for authenticated user:', authUser.id, userEmail, profileError);
+        alert('שגיאה: לא נמצא פרופיל למשתמש המחובר. אנא פנה לתמיכה.');
         return;
       }
       
@@ -104,7 +75,6 @@ export default function AccountSettingsPage() {
       // Add cache buster to avatar URL
       const avatarUrl = user.avatar_url || null;
       setAvatarPreview(avatarUrl ? `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : null);
-      setSocialLinks(user.social_links || []);
       
       // Load email preferences only if user is logged in
       try {
@@ -299,24 +269,11 @@ export default function AccountSettingsPage() {
         alert('הסיסמה שונתה בהצלחה');
       }
 
-      // Include social_links in updates if on social tab
-      if (activeTab === 'social') {
-        updates.social_links = socialLinks;
-      }
-
       const { error } = await updateProfile(currentUser.user_id || currentUser.id, updates);
       
       if (!error) {
         alert('השינויים נשמרו בהצלחה');
         await loadUser();
-        // Dispatch event for profile completion modal if social links were updated
-        if (activeTab === 'social' && typeof window !== 'undefined') {
-          console.log('🔗 Dispatching profileSocialLinksUpdated event');
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/account/page.tsx:314',message:'Dispatching profileSocialLinksUpdated event',data:{activeTab},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
-          // #endregion
-          window.dispatchEvent(new Event('profileSocialLinksUpdated'));
-        }
       } else {
         alert('שגיאה בשמירת השינויים');
       }
@@ -366,17 +323,6 @@ export default function AccountSettingsPage() {
               >
                 <Bell className="w-5 h-5" />
                 <span className="font-medium">הגדרות התראות</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('social')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-right ${
-                  activeTab === 'social'
-                    ? 'bg-[#F52F8E] text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <LinkIcon className="w-5 h-5" />
-                <span className="font-medium">Social Accounts</span>
               </button>
               <button
                 onClick={() => setActiveTab('privacy')}
@@ -689,219 +635,6 @@ export default function AccountSettingsPage() {
                       <span>שמור העדפות</span>
                     </button>
                   </div>
-                </div>
-              )}
-
-              {activeTab === 'social' && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">Social Accounts</h2>
-                    <button
-                      onClick={() => {
-                        setEditingSocialIndex(null);
-                        setSocialForm({ platform: '', url: '' });
-                        setShowSocialModal(true);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>הוסף רשת חברתית</span>
-                    </button>
-                  </div>
-
-                  {socialLinks.length === 0 ? (
-                    <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
-                      <LinkIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 mb-4">עדיין לא הוספת רשתות חברתיות</p>
-                      <button
-                        onClick={() => {
-                          setEditingSocialIndex(null);
-                          setSocialForm({ platform: '', url: '' });
-                          setShowSocialModal(true);
-                        }}
-                        className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors"
-                      >
-                        הוסף רשת חברתית ראשונה
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {socialLinks.map((link, index) => {
-                        const platform = socialPlatforms.find(p => p.value === link.platform);
-                        const Icon = platform?.icon || LinkIcon;
-                        return (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-[#F52F8E] transition-colors"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-lg ${platform?.color || 'bg-gray-500'} flex items-center justify-center text-white`}>
-                                <Icon className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-gray-800">{platform?.label || link.platform}</p>
-                                <a
-                                  href={link.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm text-gray-500 hover:text-[#F52F8E] transition-colors truncate max-w-xs block"
-                                >
-                                  {link.url}
-                                </a>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => {
-                                  setEditingSocialIndex(index);
-                                  setSocialForm({ platform: link.platform, url: link.url });
-                                  setShowSocialModal(true);
-                                }}
-                                className="p-2 text-gray-600 hover:text-[#F52F8E] hover:bg-pink-50 rounded-lg transition-colors"
-                                title="ערוך"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  const updated = socialLinks.filter((_, i) => i !== index);
-                                  setSocialLinks(updated);
-                                }}
-                                className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                                title="מחק"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {socialLinks.length > 0 && (
-                    <div className="pt-4 border-t border-gray-200">
-                      <button
-                        onClick={async () => {
-                          setSaving(true);
-                          try {
-                            if (!currentUser) return;
-                            const { error } = await updateProfile(currentUser.user_id || currentUser.id, {
-                              social_links: socialLinks
-                            });
-                            if (!error) {
-                              alert('הרשתות החברתיות נשמרו בהצלחה');
-                              await loadUser();
-                            } else {
-                              alert('שגיאה בשמירת הרשתות החברתיות');
-                            }
-                          } catch (error) {
-                            console.error('Error saving social links:', error);
-                            alert('שגיאה בשמירת הרשתות החברתיות');
-                          } finally {
-                            setSaving(false);
-                          }
-                        }}
-                        disabled={saving}
-                        className="flex items-center gap-2 px-6 py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Save className="w-5 h-5" />
-                        <span>שמור שינויים</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Social Link Modal */}
-                  {showSocialModal && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                      <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-                        <div className="flex items-center justify-between mb-6">
-                          <h3 className="text-xl font-bold text-gray-800">
-                            {editingSocialIndex !== null ? 'ערוך רשת חברתית' : 'הוסף רשת חברתית'}
-                          </h3>
-                          <button
-                            onClick={() => {
-                              setShowSocialModal(false);
-                              setEditingSocialIndex(null);
-                              setSocialForm({ platform: '', url: '' });
-                            }}
-                            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              פלטפורמה
-                            </label>
-                            <select
-                              value={socialForm.platform}
-                              onChange={(e) => setSocialForm({ ...socialForm, platform: e.target.value })}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
-                            >
-                              <option value="">בחר פלטפורמה</option>
-                              {socialPlatforms.map((platform) => (
-                                <option key={platform.value} value={platform.value}>
-                                  {platform.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              קישור (URL)
-                            </label>
-                            <input
-                              type="url"
-                              value={socialForm.url}
-                              onChange={(e) => setSocialForm({ ...socialForm, url: e.target.value })}
-                              placeholder="https://..."
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-6">
-                          <button
-                            onClick={() => {
-                              if (!socialForm.platform || !socialForm.url) {
-                                alert('אנא מלא את כל השדות');
-                                return;
-                              }
-
-                              if (editingSocialIndex !== null) {
-                                const updated = [...socialLinks];
-                                updated[editingSocialIndex] = { platform: socialForm.platform, url: socialForm.url };
-                                setSocialLinks(updated);
-                              } else {
-                                setSocialLinks([...socialLinks, { platform: socialForm.platform, url: socialForm.url }]);
-                              }
-
-                              setShowSocialModal(false);
-                              setEditingSocialIndex(null);
-                              setSocialForm({ platform: '', url: '' });
-                            }}
-                            className="flex-1 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors"
-                          >
-                            שמור
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowSocialModal(false);
-                              setEditingSocialIndex(null);
-                              setSocialForm({ platform: '', url: '' });
-                            }}
-                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                          >
-                            ביטול
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 

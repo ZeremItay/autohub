@@ -112,9 +112,30 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
             !!(profileData?.facebook_url && profileData.facebook_url.trim().length > 0),
           avatarUrl: profileData?.avatar_url,
           instagramUrl: profileData?.instagram_url,
-          facebookUrl: profileData?.facebook_url
+          facebookUrl: profileData?.facebook_url,
+          hasSeenCompletionMessage: profileData?.has_seen_completion_message
         });
         setProfile(profileData);
+        
+        // If user has already seen completion message and all tasks are complete, don't show modal
+        const headlineComplete = !!(profileData?.headline && profileData.headline.trim().length > 0);
+        const avatarComplete = !!(profileData?.avatar_url && 
+          profileData.avatar_url.trim().length > 0 &&
+          !profileData.avatar_url.startsWith('data:image/svg+xml') &&
+          !profileData.avatar_url.includes('dicebear.com') &&
+          !profileData.avatar_url.includes('api.dicebear'));
+        const socialLinksComplete = !!(profileData?.social_links && 
+          Array.isArray(profileData.social_links) && 
+          profileData.social_links.length > 0) ||
+          !!(profileData?.instagram_url && profileData.instagram_url.trim().length > 0) ||
+          !!(profileData?.facebook_url && profileData.facebook_url.trim().length > 0);
+        const allComplete = headlineComplete && avatarComplete && socialLinksComplete;
+        
+        if (allComplete && profileData?.has_seen_completion_message) {
+          console.log('✅ User has already seen completion message, closing modal');
+          setIsOpen(false);
+          if (onClose) onClose();
+        }
       } catch (error) {
         console.error('Error loading profile:', error);
       } finally {
@@ -272,30 +293,43 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
     };
   }, [userId]); // Only depend on userId, not on profile or other state
 
-  // Check if all tasks are complete and show completion message
+  // Check if all tasks are complete and show completion message (only once)
   useEffect(() => {
-    if (allTasksComplete && !showCompletion) {
+    if (allTasksComplete && !showCompletion && profile && !profile.has_seen_completion_message) {
       setShowCompletion(true);
+      // Mark as seen in database immediately
+      (async () => {
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ has_seen_completion_message: true })
+            .eq('user_id', userId);
+          
+          if (error) {
+            console.error('Error marking completion message as seen:', error);
+          } else {
+            console.log('✅ Marked completion message as seen in database');
+            // Update local state
+            setProfile({ ...profile, has_seen_completion_message: true });
+          }
+        } catch (err) {
+          console.error('Error updating has_seen_completion_message:', err);
+        }
+      })();
+      
       // Auto-close after 3 seconds
       setTimeout(() => {
         setIsOpen(false);
         if (onClose) onClose();
-        // Mark as completed in localStorage
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(`profile_completed_${userId}`, 'true');
-        }
       }, 3000);
     }
-  }, [allTasksComplete, showCompletion, userId, onClose]);
+  }, [allTasksComplete, showCompletion, userId, onClose, profile]);
 
-  // Don't show modal if already completed
+  // Don't show modal if user has already seen the completion message
   useEffect(() => {
-    if (typeof window !== 'undefined' && !loading && profile) {
-      const isCompleted = localStorage.getItem(`profile_completed_${userId}`) === 'true';
-      if (isCompleted && allTasksComplete) {
-        setIsOpen(false);
-        if (onClose) onClose();
-      }
+    if (!loading && profile && allTasksComplete && profile.has_seen_completion_message) {
+      setIsOpen(false);
+      if (onClose) onClose();
     }
   }, [userId, allTasksComplete, onClose, loading, profile]);
 
@@ -319,7 +353,8 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
   }
 
   // Don't show if all tasks are complete and user has seen completion message
-  if (allTasksComplete && showCompletion) {
+  // Only show if user hasn't seen it yet
+  if (allTasksComplete && showCompletion && profile && !profile.has_seen_completion_message) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-x-hidden">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 animate-fade-in overflow-x-hidden">
@@ -334,6 +369,11 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
         </div>
       </div>
     );
+  }
+  
+  // Don't show anything if user has already seen the completion message
+  if (allTasksComplete && profile?.has_seen_completion_message) {
+    return null;
   }
 
   return (

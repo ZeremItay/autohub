@@ -83,12 +83,21 @@ async function updateMeetingSettings(accessToken: string, meetingId: string) {
     },
     body: JSON.stringify({
       settings: {
-        participants_can_invite_others: false, // Disable invite option
+        participants_can_invite_others: false, // Disable invite option - prevents users from inviting others
         approval_type: 2, // No registration required (0 = Automatically approve, 1 = Manually approve, 2 = No registration required)
         registration_type: 3, // No registration required (0 = Attendees register once, 1 = Register for each occurrence, 2 = Register once, 3 = No registration required)
-        join_before_host: true, // Allow joining before host
-        waiting_room: false, // Disable waiting room for direct join
+        join_before_host: false, // Disable join before host - forces waiting room for unauthorized access
+        waiting_room: true, // Enable waiting room - blocks app users, allows web users from our site
         allow_multiple_devices: true, // Allow multiple devices
+        show_share_button: false, // Hide share button in meeting
+        show_join_info: false, // Hide join info (meeting ID, password) from participants
+        participants_can_rename: false, // Prevent participants from renaming themselves
+        mute_upon_entry: false, // Don't mute participants on entry
+        watermark: false, // Disable watermark (optional)
+        // Additional security settings
+        meeting_authentication: false, // We handle auth on our side
+        authentication_option: '', // No additional auth required
+        authentication_domains: '', // No domain restriction (we handle it)
       },
     }),
   });

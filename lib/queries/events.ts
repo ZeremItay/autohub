@@ -25,6 +25,7 @@ export interface Event {
   instructor_name?: string;
   instructor_title?: string;
   instructor_avatar_url?: string;
+  instructor_user_id?: string; // User ID of instructor from the community
   learning_points?: string[];
   about_text?: string;
   is_recurring: boolean;
