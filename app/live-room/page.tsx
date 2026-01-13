@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Calendar, Clock, MapPin, ArrowRight, User, CheckCircle, Video, Maximize, Minimize } from 'lucide-react';
 import Link from 'next/link';
 import { getNextLiveEvent } from '@/lib/queries/events';
-import { getCurrentUser, isPremiumUser } from '@/lib/utils/user';
+import { getCurrentUser, hasLiveAccess } from '@/lib/utils/user';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 
@@ -47,7 +47,7 @@ export default function LiveRoomPage() {
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [isPremium, setIsPremium] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
@@ -151,7 +151,7 @@ export default function LiveRoomPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        setIsPremium(false);
+        setHasAccess(false);
         setCheckingAccess(false);
         return;
       }
@@ -159,13 +159,13 @@ export default function LiveRoomPage() {
       const user = await getCurrentUser();
       if (user) {
         setCurrentUser(user);
-        setIsPremium(isPremiumUser(user));
+        setHasAccess(hasLiveAccess(user));
       } else {
-        setIsPremium(false);
+        setHasAccess(false);
       }
     } catch (error) {
       console.error('Error checking access:', error);
-      setIsPremium(false);
+      setHasAccess(false);
     } finally {
       setCheckingAccess(false);
     }
@@ -267,7 +267,7 @@ export default function LiveRoomPage() {
               </h1>
             </div>
             {/* Fullscreen Toggle Button */}
-            {event.zoom_meeting_id && !checkingAccess && isPremium && (
+            {event.zoom_meeting_id && !checkingAccess && hasAccess && (
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -299,7 +299,7 @@ export default function LiveRoomPage() {
       <div className={`flex-1 relative min-h-0 w-full bg-gray-900 ${isFullscreen ? 'overflow-visible' : 'overflow-hidden'}`}>
         {event.zoom_meeting_id && !checkingAccess && (
           <>
-            {isPremium ? (
+            {hasAccess ? (
               <div 
                 className={`bg-gray-900 overflow-hidden shadow-2xl transition-all duration-300 ease-in-out ${
                   isFullscreen 

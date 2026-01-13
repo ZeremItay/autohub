@@ -672,13 +672,33 @@ function ProfilePageContent() {
 
   async function savePersonal() {
     try {
+      // Security check: Only allow editing own profile
+      if (!profile) {
+        alert('שגיאה: פרופיל לא נמצא');
+        return;
+      }
+
+      // Check if user is logged in
+      if (!currentLoggedInUserId) {
+        alert('שגיאה: אתה לא מחובר. אנא התחבר כדי לערוך את הפרופיל.');
+        return;
+      }
+
+      // Check if the logged-in user is the owner of this profile
+      const profileUserId = profile.user_id || profile.id;
+      if (currentLoggedInUserId !== profileUserId) {
+        alert('שגיאה: אתה יכול לערוך רק את הפרופיל שלך!');
+        setEditingPersonal(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({
           bio: formData.bio,
           avatar_url: formData.avatar_url
         })
-        .eq('id', profile.id)
+        .eq('user_id', currentLoggedInUserId) // Use user_id from auth, not profile.id
       
       if (!error) {
         await loadProfile()
@@ -691,6 +711,8 @@ function ProfilePageContent() {
           // #endregion
           window.dispatchEvent(new Event('profileAvatarUpdated'));
         }
+      } else {
+        alert('שגיאה בשמירת המידע האישי. נסה שוב.');
       }
     } catch (error: any) {
       // Safely extract error message to avoid circular reference issues
@@ -1810,7 +1832,7 @@ function ProfilePageContent() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
                     <h2 className="text-lg sm:text-xl font-semibold text-[#F52F8E]">מידע אישי</h2>
-                    {!editingPersonal && (
+                    {!editingPersonal && currentLoggedInUserId && profile && (currentLoggedInUserId === (profile.user_id || profile.id)) && (
                       <button
                         onClick={() => setEditingPersonal(true)}
                         className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-sm sm:text-base"

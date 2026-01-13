@@ -384,10 +384,16 @@ export default function CourseDetailPage() {
     }
     
     // Check if course requires payment
+    // Free and basic users always pay full price for paid courses
+    // Premium users pay only if not free_for_premium
+    const userRole = currentUser?.roles?.name || currentUser?.role?.name;
+    const isPremium = userRole === 'premium' || userRole === 'admin';
+    const isFreeOrBasic = userRole === 'free' || userRole === 'basic';
+    
     const requiresPayment = !course.is_free && 
                            course.price && 
                            course.price > 0 && 
-                           !(course.is_free_for_premium && isPremiumUser(currentUser));
+                           (isFreeOrBasic || !(course.is_free_for_premium && isPremium));
     
     if (requiresPayment) {
       // Redirect to payment page with course ID

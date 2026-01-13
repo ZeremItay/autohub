@@ -182,11 +182,36 @@ export default function ProtectedAction({
   // User is logged in but not premium
   if (requirePremium && user && !isPremium) {
     const hasEnoughPoints = pointsCost ? (userPoints >= pointsCost) : false;
-    const defaultMessage = pointsCost 
-      ? (hasEnoughPoints 
-          ? `פעולה זו עולה ${pointsCost} נקודות. יש לך ${userPoints} נקודות.` 
-          : `פעולה זו עולה ${pointsCost} נקודות. יש לך ${userPoints} נקודות בלבד.`)
-      : 'צריך לשדרג לפרימיום כדי לצפות בתוכן זה';
+    
+    // If user has enough points and pointsCost is set, allow the action
+    if (pointsCost && hasEnoughPoints) {
+      // User can perform action - just pass through
+      if (React.isValidElement(children)) {
+        const childClassName = (children as any).props?.className || '';
+        const mergedClassName = className ? `${className} ${childClassName}`.trim() : childClassName;
+        
+        return React.cloneElement(children as React.ReactElement<any>, {
+          className: mergedClassName || undefined
+        });
+      }
+      return <>{children}</>;
+    }
+    
+    // User doesn't have enough points or no pointsCost - show message
+    let defaultMessage: string;
+    
+    if (pointsCost) {
+      // User can pay with points (free or basic users)
+      if (hasEnoughPoints) {
+        defaultMessage = `פעולה זו עולה ${pointsCost} נקודות. יש לך ${userPoints} נקודות.`;
+      } else {
+        defaultMessage = `פעולה זו עולה ${pointsCost} נקודות. יש לך ${userPoints} נקודות בלבד. שדרג לפרימיום כדי לבצע פעולה זו ללא נקודות.`;
+      }
+    } else {
+      // No points option - premium required
+      defaultMessage = 'צריך לשדרג לפרימיום כדי לצפות בתוכן זה';
+    }
+    
     const message = disabledMessage || defaultMessage;
     
     return (
@@ -242,13 +267,13 @@ export default function ProtectedAction({
                   >
                     <span>שדרג לפרימיום</span>
                   </Link>
-                  {pointsCost && !hasEnoughPoints && (
+                  {pointsCost && (
                     <Link
                       href="/profile"
                       className="inline-flex items-center gap-1 text-blue-400 hover:underline font-medium text-xs"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <span>הרוויח נקודות</span>
+                      <span>{hasEnoughPoints ? 'השתמש בנקודות' : 'הרוויח נקודות'}</span>
                     </Link>
                   )}
                 </div>

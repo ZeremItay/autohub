@@ -6962,6 +6962,7 @@ export default function AdminPanel() {
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 text-xs rounded ${
                             role.name === 'premium' ? 'bg-pink-100 text-pink-700' :
+                            role.name === 'basic' ? 'bg-blue-100 text-blue-700' :
                             role.name === 'admin' ? 'bg-purple-100 text-purple-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>

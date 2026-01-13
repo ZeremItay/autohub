@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getRecordingsPaginated } from '@/lib/queries/recordings';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { isPremiumUser } from '@/lib/utils/user';
+import { hasRecordingAccess } from '@/lib/utils/user';
 import { formatDate } from '@/lib/utils/date';
 import { getTagsByContent, getTagsByContentBatch, type Tag } from '@/lib/queries/tags';
 import { 
@@ -26,7 +26,8 @@ import {
 
 export default function RecordingsPage() {
   const router = useRouter();
-  const { user: currentUser, isPremium: userIsPremium, loading: userLoading } = useCurrentUser();
+  const { user: currentUser, loading: userLoading } = useCurrentUser();
+  const userHasRecordingAccess = hasRecordingAccess(currentUser);
   const [recordings, setRecordings] = useState<any[]>([])
   const [recordingTags, setRecordingTags] = useState<Record<string, Tag[]>>({})
   const [loading, setLoading] = useState(true)
@@ -234,7 +235,7 @@ export default function RecordingsPage() {
   }, [loadRecordings])
 
   function handleRecordingClick(recordingId: string) {
-    if (!userIsPremium) {
+    if (!userHasRecordingAccess) {
       alert('גישה להקלטות זמינה למנויי פרימיום בלבד. אנא שדרג את המנוי שלך כדי לצפות בהקלטות.');
       return;
     }
@@ -341,7 +342,7 @@ export default function RecordingsPage() {
               className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer group relative flex flex-col h-full"
             >
               {/* Show lock overlay only when user loading is complete, user is logged in, and user is not premium */}
-              {!userLoading && currentUser && !userIsPremium ? (
+              {!userLoading && currentUser && !userHasRecordingAccess ? (
                 <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center rounded-xl">
                   <div className="text-center text-white p-4">
                     <Lock className="w-8 h-8 mx-auto mb-2" />

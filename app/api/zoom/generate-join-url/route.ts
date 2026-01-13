@@ -40,13 +40,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user is premium
+    // Check if user has live access (basic, premium, admin)
     const roleName = (profile.roles as any)?.name || (profile.roles as any)?.[0]?.name;
-    const isPremium = roleName === 'premium' || roleName === 'admin';
+    const hasAccess = roleName === 'basic' || roleName === 'premium' || roleName === 'admin';
     
-    if (!isPremium) {
+    if (!hasAccess) {
       return NextResponse.json(
-        { error: 'Access denied - Premium subscription required' },
+        { error: 'Access denied - Subscription required for live events' },
         { status: 403 }
       );
     }

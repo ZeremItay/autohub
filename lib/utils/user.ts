@@ -121,3 +121,45 @@ export function isAdmin(user: UserWithRole | null | undefined): boolean {
   return roleName === 'admin';
 }
 
+/**
+ * Check if user is basic subscription
+ */
+export function isBasicUser(user: UserWithRole | null | undefined): boolean {
+  if (!user) return false;
+  
+  const roleName = getUserRole(user);
+  return roleName === 'basic';
+}
+
+/**
+ * Check if user has access to live events
+ * Returns true for: basic, premium, admin
+ */
+export function hasLiveAccess(user: UserWithRole | null | undefined): boolean {
+  if (!user) return false;
+  
+  const roleName = getUserRole(user);
+  return roleName === 'basic' || roleName === 'premium' || roleName === 'admin';
+}
+
+/**
+ * Check if user has access to recordings
+ * Returns true for: premium, admin only
+ */
+export function hasRecordingAccess(user: UserWithRole | null | undefined): boolean {
+  if (!user) return false;
+  
+  const roleName = getUserRole(user);
+  return roleName === 'premium' || roleName === 'admin';
+}
+
+/**
+ * Check if user can submit projects without paying points
+ * Returns true for: premium, admin only
+ */
+export function hasFreeProjectSubmission(user: UserWithRole | null | undefined): boolean {
+  if (!user) return false;
+  
+  const roleName = getUserRole(user);
+  return roleName === 'premium' || roleName === 'admin';
+}

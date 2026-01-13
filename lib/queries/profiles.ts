@@ -56,7 +56,8 @@ export async function getProfile(userId: string) {
           id,
           name,
           display_name,
-          description
+          description,
+          price
         )
       `)
       .eq('user_id', userId)
@@ -175,7 +176,7 @@ export async function updateProfileById(profileId: string, updates: Partial<Prof
 }
 
 // Update user role
-export async function updateUserRole(userId: string, roleName: 'free' | 'premium' | 'admin') {
+export async function updateUserRole(userId: string, roleName: 'free' | 'basic' | 'premium' | 'admin') {
   // First get the role ID
   const { data: role, error: roleError } = await supabase
     .from('roles')
@@ -236,7 +237,8 @@ export async function getAllProfiles() {
           id,
           name,
           display_name,
-          description
+          description,
+          price
         )
       `)
       .order('created_at', { ascending: false })

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { getRecordingById, incrementRecordingViews } from '@/lib/queries/recordings';
 import { getRecordingComments, createComment, deleteComment, type Comment } from '@/lib/queries/comments';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { isPremiumUser } from '@/lib/utils/user';
+import { hasRecordingAccess } from '@/lib/utils/user';
 import { formatDate } from '@/lib/utils/date';
 import { CommentsList } from '@/app/components/comments';
 import AuthGuard from '@/app/components/AuthGuard';
@@ -23,7 +23,8 @@ export default function RecordingDetailPage() {
 function RecordingDetailPageContent() {
   const params = useParams();
   const router = useRouter();
-  const { user: currentUser, isPremium: userIsPremium, refetch: refetchUser } = useCurrentUser();
+  const { user: currentUser, refetch: refetchUser } = useCurrentUser();
+  const userHasRecordingAccess = hasRecordingAccess(currentUser);
   const [recording, setRecording] = useState<any>(null);
   const [recordingTags, setRecordingTags] = useState<TagType[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -83,7 +84,7 @@ function RecordingDetailPageContent() {
   }, [params.id]);
 
   function handlePlayClick() {
-    if (!userIsPremium) {
+    if (!userHasRecordingAccess) {
       alert('גישה להקלטות זמינה למנויי פרימיום בלבד. אנא שדרג את המנוי שלך כדי לצפות בהקלטות.');
       return;
     }
@@ -258,7 +259,7 @@ function RecordingDetailPageContent() {
 
         {/* Video Player */}
         <div className="bg-black rounded-xl overflow-hidden mb-6 aspect-video relative">
-          {!userIsPremium ? (
+          {!userHasRecordingAccess ? (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8">
               <div className="text-center max-w-md">
                 <div className="w-20 h-20 bg-[#F52F8E] rounded-full flex items-center justify-center mx-auto mb-6">

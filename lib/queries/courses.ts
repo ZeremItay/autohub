@@ -1117,12 +1117,24 @@ export async function enrollInCourse(courseId: string, userId: string) {
   if (course?.is_free) {
     paymentStatus = 'free';
   } else if (course?.is_free_for_premium && isPremium) {
-    // Free for premium users
+    // Free for premium users only
     paymentStatus = 'free';
   } else if (course?.price && course.price > 0) {
-    // Paid course (for free users, or if not free_for_premium)
-    paymentStatus = 'paid';
-    paymentAmount = course.price;
+    // Paid course - free and basic users always pay full price
+    // Premium users pay only if not free_for_premium
+    if (userRole === 'free' || userRole === 'basic') {
+      // Free and basic users always pay full price
+      paymentStatus = 'paid';
+      paymentAmount = course.price;
+    } else if (isPremium) {
+      // Premium users pay only if not free_for_premium
+      paymentStatus = 'paid';
+      paymentAmount = course.price;
+    } else {
+      // Default for other roles
+      paymentStatus = 'paid';
+      paymentAmount = course.price;
+    }
   } else {
     // Default to free if no price set
     paymentStatus = 'free';

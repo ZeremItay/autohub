@@ -167,6 +167,13 @@ export default function SubscriptionPage() {
     return roleName === 'premium' || roleName === 'admin';
   }
 
+  function isBasicUser(): boolean {
+    if (!currentUser) return false;
+    const role = currentUser.roles || currentUser.role;
+    const roleName = typeof role === 'object' ? role?.name : role;
+    return roleName === 'basic';
+  }
+
   // Get user role name
   function getUserRoleName(): string {
     if (!currentUser) return 'free';
@@ -188,6 +195,7 @@ export default function SubscriptionPage() {
     const roleName = typeof role === 'object' ? role?.name : role;
     if (roleName === 'admin') return 'מנהל';
     if (roleName === 'premium') return 'מנוי פרימיום';
+    if (roleName === 'basic') return 'מנוי בסיסי';
     if (roleName === 'free') return 'חינמי';
     return 'חינמי';
   }
@@ -203,16 +211,23 @@ export default function SubscriptionPage() {
       return role.price;
     }
     // Fallback to default prices
-    return isPremium ? 97 : 0;
+    const roleName = typeof role === 'object' ? role?.name : role;
+    if (roleName === 'premium') return 97;
+    if (roleName === 'basic') return 42;
+    return 0;
   }
 
   // Get role price from current user's role (for subscription display)
   function getRolePriceFromUser(): number {
     if (!currentUser) return 0;
     const role = currentUser.roles || currentUser.role;
-    if (typeof role === 'object' && role?.price !== undefined) {
+    if (typeof role === 'object' && role?.price !== undefined && role.price !== null) {
       return role.price;
     }
+    // Fallback to default prices if price not loaded from DB
+    const roleName = typeof role === 'object' ? role?.name : role;
+    if (roleName === 'premium') return 97;
+    if (roleName === 'basic') return 42;
     return 0;
   }
 
@@ -273,12 +288,19 @@ export default function SubscriptionPage() {
       'גישה בסיסית לקהילה',
       'צפייה בפורומים',
       'גישה לקורסים בסיסיים'
+    ] : roleName === 'basic' ? [
+      'גישה בסיסית לקהילה',
+      'צפייה בפורומים',
+      'גישה לקורסים בסיסיים',
+      'גישה ללייבים'
     ] : (isPremium ? [
       'גישה לכל הקורסים',
       'הקלטות ללא הגבלה',
       'תמיכה בעדיפות גבוהה',
       'גישה לפורום VIP',
-      'הורדת חומרים'
+      'הורדת חומרים',
+      'גישה ללייבים',
+      'הגשת פרויקטים ללא נקודות'
     ] : [
       'גישה בסיסית לקהילה',
       'צפייה בפורומים',
@@ -385,8 +407,12 @@ export default function SubscriptionPage() {
     }
   }
 
-  function handleChangePlan() {
-    // Redirect to payment page for subscription upgrade
+  function handleChangePlan(e?: React.MouseEvent) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // Navigate to payment page with iframe
     router.push('/payment');
   }
 
@@ -474,7 +500,7 @@ export default function SubscriptionPage() {
           {roleName === 'free' && !subscriptionData.isPaidSubscription && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                💡 זהו מנוי חינמי. כדי לשדרג למנוי פרימיום, לחץ על "שדרוג מנוי" (כשיהיה זמין).
+                💡 זהו מנוי חינמי. כדי לשדרג למנוי, אפשר ללחוץ על כפתור שדרוג המנוי.
               </p>
             </div>
           )}
@@ -537,7 +563,7 @@ export default function SubscriptionPage() {
               <>
                 <button
                   onClick={handleCancelSubscription}
-                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center gap-2 font-medium text-sm sm:text-base border border-gray-300"
                 >
                   <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   בטל מנוי
@@ -556,12 +582,30 @@ export default function SubscriptionPage() {
                   עדכן אמצעי תשלום
                 </button>
               </>
+            ) : isBasicUser() ? (
+              <>
+                <button
+                  onClick={handleChangePlan}
+                  className="px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm sm:text-base flex items-center justify-center gap-2"
+                >
+                  <Crown className="w-5 h-5" />
+                  שדרג לפרימיום
+                </button>
+                <button
+                  onClick={handleCancelSubscription}
+                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center gap-2 font-medium text-sm sm:text-base border border-gray-300"
+                >
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                  בטל מנוי
+                </button>
+              </>
             ) : (
               <button
                 onClick={handleChangePlan}
-                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors font-medium text-sm sm:text-base"
+                className="px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm sm:text-base flex items-center justify-center gap-2"
               >
-                שדרג למנוי פרימיום
+                <Crown className="w-5 h-5" />
+                שדרג למנוי בסיסי או פרימיום
               </button>
             )}
           </div>

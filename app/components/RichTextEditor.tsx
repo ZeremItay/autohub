@@ -7,7 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import TextAlign from '@tiptap/extension-text-align';
 import Link from '@tiptap/extension-link';
 import { supabase } from '@/lib/supabase';
-import { Bold, Italic, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
+import { Bold, Italic, Link as LinkIcon, Image as ImageIcon, List, ListOrdered } from 'lucide-react';
 import { useCallback, useEffect } from 'react';
 
 interface RichTextEditorProps {
@@ -23,6 +23,25 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3],
+        },
+        bulletList: {
+          HTMLAttributes: {
+            class: 'list-disc',
+            dir: 'rtl',
+            style: 'padding-right: 1.5rem; margin: 0.5rem 0;',
+          },
+        },
+        orderedList: {
+          HTMLAttributes: {
+            class: 'list-decimal',
+            dir: 'rtl',
+            style: 'padding-right: 1.5rem; margin: 0.5rem 0;',
+          },
+        },
+        listItem: {
+          HTMLAttributes: {
+            style: 'margin-bottom: 0.25rem;',
+          },
         },
       }),
       Image.configure({
@@ -92,7 +111,7 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
     content,
       editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none focus:outline-none min-h-[200px] px-4 py-3 text-right prose-headings:text-right prose-p:text-right prose-ul:text-right prose-ol:text-right prose-img:max-w-full prose-img:rounded-lg prose-img:my-4',
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none focus:outline-none min-h-[200px] px-4 py-3 text-right prose-headings:text-right prose-p:text-right prose-ul:text-right prose-ol:text-right prose-li:text-right prose-li:list-item prose-ul:list-disc prose-ol:list-decimal prose-img:max-w-full prose-img:rounded-lg prose-img:my-4 [&_ul]:pr-6 [&_ol]:pr-6 [&_li]:mb-1',
         dir: 'rtl',
         style: 'direction: rtl; text-align: right;',
       },
@@ -330,6 +349,26 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
           title="הוסף תמונה"
         >
           <ImageIcon className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          className={`p-2 rounded hover:bg-gray-200 transition-colors ${
+            editor.isActive('bulletList') ? 'bg-gray-300' : ''
+          }`}
+          title="רשימה עם נקודות"
+        >
+          <List className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          className={`p-2 rounded hover:bg-gray-200 transition-colors ${
+            editor.isActive('orderedList') ? 'bg-gray-300' : ''
+          }`}
+          title="רשימה ממוספרת"
+        >
+          <ListOrdered className="w-4 h-4" />
         </button>
         {(() => {
           // Check if selection is on an image

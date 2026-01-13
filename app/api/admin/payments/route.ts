@@ -236,15 +236,32 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        // Extend subscription if it's active or was just activated
+        // Check if this is the first payment for this subscription
+        // Only extend subscription if there are previous completed payments (recurring payment)
+        // If this is the first payment, don't extend - subscription was already created with correct end_date
+        const { data: previousPayments, error: paymentsError } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('subscription_id', subscription_id)
+          .eq('status', 'completed')
+          .neq('id', payment.id) // Exclude current payment
+          .limit(1);
+
+        // Only extend if there are previous payments (this is a recurring payment)
         if (subscription.status === 'active' || subscription.status === 'pending') {
-          const { data: extended, error: extendError } = await extendSubscription(subscription_id, 1);
-          
-          if (extendError) {
-            console.error('Error extending subscription:', extendError);
-            // Don't fail the request, just log the error
+          if (previousPayments && previousPayments.length > 0) {
+            // This is a recurring payment - extend subscription
+            const { data: extended, error: extendError } = await extendSubscription(subscription_id, 1);
+            
+            if (extendError) {
+              console.error('Error extending subscription:', extendError);
+              // Don't fail the request, just log the error
+            } else {
+              console.log(`Subscription ${subscription_id} extended by 1 month (recurring payment)`);
+            }
           } else {
-            console.log(`Subscription ${subscription_id} extended by 1 month`);
+            // This is the first payment - subscription already created with correct end_date, don't extend
+            console.log(`First payment for subscription ${subscription_id} - not extending (subscription already created with correct end_date)`);
           }
         }
       }
@@ -303,6 +320,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required field: id' }, { status: 400 });
     }
 
+    // Get existing payment to check if it was already completed
+    const { data: existingPayment, error: getExistingError } = await supabase
+      .from('payments')
+      .select('status, subscription_id')
+      .eq('id', id)
+      .single();
+
+    if (getExistingError || !existingPayment) {
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+    }
+
+    const wasAlreadyCompleted = existingPayment.status === 'completed';
+    const isNowCompleted = updates.status === 'completed';
+    const isStatusChangeToCompleted = !wasAlreadyCompleted && isNowCompleted;
+
     // Update payment
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
@@ -320,7 +352,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // If payment status was updated to 'completed', activate subscription (if pending) and extend it
-    if (updates.status === 'completed') {
+    if (isStatusChangeToCompleted) {
       // Get subscription to check its status
       const { data: subscription, error: subError } = await supabase
         .from('subscriptions')
@@ -367,15 +399,32 @@ export async function PUT(request: NextRequest) {
           }
         }
         
-        // Extend subscription if it's active or was just activated
+        // Check if this is the first payment for this subscription
+        // Only extend subscription if there are previous completed payments (recurring payment)
+        // If this is the first payment, don't extend - subscription was already created with correct end_date
+        const { data: previousPayments, error: paymentsError } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('subscription_id', payment.subscription_id)
+          .eq('status', 'completed')
+          .neq('id', payment.id) // Exclude current payment
+          .limit(1);
+
+        // Only extend if there are previous payments (this is a recurring payment)
         if (subscription.status === 'active' || subscription.status === 'pending') {
-          const { data: extended, error: extendError } = await extendSubscription(subscription.id, 1);
-          
-          if (extendError) {
-            console.error('Error extending subscription:', extendError);
-            // Don't fail the request, just log the error
+          if (previousPayments && previousPayments.length > 0) {
+            // This is a recurring payment - extend subscription
+            const { data: extended, error: extendError } = await extendSubscription(subscription.id, 1);
+            
+            if (extendError) {
+              console.error('Error extending subscription:', extendError);
+              // Don't fail the request, just log the error
+            } else {
+              console.log(`Subscription ${subscription.id} extended by 1 month (recurring payment)`);
+            }
           } else {
-            console.log(`Subscription ${subscription.id} extended by 1 month`);
+            // This is the first payment - subscription already created with correct end_date, don't extend
+            console.log(`First payment for subscription ${subscription.id} - not extending (subscription already created with correct end_date)`);
           }
         }
       }

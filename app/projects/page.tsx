@@ -21,7 +21,7 @@ import { getAllRecordings } from '@/lib/queries/recordings';
 import { getAllTags, suggestTag, assignTagsToContent, type Tag } from '@/lib/queries/tags';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useOnlineUsers } from '@/lib/hooks/useOnlineUsers';
-import { isPremiumUser } from '@/lib/utils/user';
+import { hasFreeProjectSubmission, hasRecordingAccess } from '@/lib/utils/user';
 import { formatTimeAgo } from '@/lib/utils/date';
 import { getInitials } from '@/lib/utils/display';
 import { supabase } from '@/lib/supabase';
@@ -193,7 +193,8 @@ function TagSelectorWithCreate({
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const { user: currentUser, isPremium: userIsPremium } = useCurrentUser();
+  const { user: currentUser } = useCurrentUser();
+  const userHasFreeProjectSubmission = hasFreeProjectSubmission(currentUser);
   const { users: onlineUsers } = useOnlineUsers();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -747,8 +748,8 @@ export default function ProjectsPage() {
       return;
     }
     
-    // If user is premium, proceed normally
-    if (userIsPremium) {
+    // If user has free project submission, proceed normally
+    if (userHasFreeProjectSubmission) {
       setSelectedProject(project);
       setOfferForm({ message: '', offer_amount: '' });
       setShowOfferModal(true);
@@ -798,8 +799,8 @@ export default function ProjectsPage() {
         return;
       }
       
-      // For free users, deduct points before creating offer
-      if (!userIsPremium) {
+      // For users without free project submission, deduct points before creating offer
+      if (!userHasFreeProjectSubmission) {
         const pointsCost = 50;
         const deductionResult = await deductPoints(userId, pointsCost);
         
@@ -826,8 +827,8 @@ export default function ProjectsPage() {
 
       if (error) {
         console.error('Error submitting offer:', error);
-        // If offer creation failed, refund points (for free users)
-        if (!userIsPremium) {
+        // If offer creation failed, refund points (for users without free submission)
+        if (!userHasFreeProjectSubmission) {
           try {
             const { awardPoints } = await import('@/lib/queries/gamification');
             const awardResult = await awardPoints(userId, 'הגשת הצעה', {});
@@ -867,8 +868,8 @@ export default function ProjectsPage() {
         }
       }
 
-      // Award points only for premium users (free users already paid with points)
-      if (userIsPremium) {
+      // Award points only for users with free submission (others already paid with points)
+      if (userHasFreeProjectSubmission) {
         try {
           const { awardPoints } = await import('@/lib/queries/gamification');
           await awardPoints(userId, 'הגשת הצעה', {}).catch(() => {
@@ -1073,7 +1074,6 @@ export default function ProjectsPage() {
                           requireAuth={true}
                           requirePremium={true}
                           pointsCost={50}
-                          disabledMessage="התחבר כדי להגיש הצעה"
                         >
                           <button 
                             onClick={(e) => {
@@ -1213,7 +1213,6 @@ export default function ProjectsPage() {
                           requireAuth={true}
                           requirePremium={true}
                           pointsCost={50}
-                          disabledMessage="התחבר כדי להגיש הצעה"
                         >
                           <button 
                             onClick={(e) => {
@@ -1556,7 +1555,7 @@ export default function ProjectsPage() {
             <RecentUpdates 
               updates={recentUpdates} 
               showAllUpdatesLink={false}
-              userIsPremium={userIsPremium}
+              userIsPremium={hasRecordingAccess(currentUser)}
             />
 
             {/* Upcoming Events */}

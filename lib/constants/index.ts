@@ -5,6 +5,7 @@
 // User roles
 export const ROLES = {
   FREE: 'free',
+  BASIC: 'basic',
   PREMIUM: 'premium',
   ADMIN: 'admin'
 } as const;

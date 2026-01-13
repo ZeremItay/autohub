@@ -163,15 +163,32 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Extend subscription if it's active or was just activated
+      // Check if this is the first payment for this subscription
+      // Only extend subscription if there are previous completed payments (recurring payment)
+      // If this is the first payment, don't extend - subscription was already created with correct end_date
+      const { data: previousPayments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('subscription_id', subscription_id)
+        .eq('status', 'completed')
+        .neq('id', payment.id) // Exclude current payment
+        .limit(1);
+
+      // Only extend if there are previous payments (this is a recurring payment)
       if (subscription.status === 'active' || subscription.status === 'pending') {
-        const { data: extended, error: extendError } = await extendSubscription(subscription_id, 1);
-        
-        if (extendError) {
-          console.error('Error extending subscription:', extendError);
-          // Don't fail the request, just log the error
+        if (previousPayments && previousPayments.length > 0) {
+          // This is a recurring payment - extend subscription
+          const { data: extended, error: extendError } = await extendSubscription(subscription_id, 1);
+          
+          if (extendError) {
+            console.error('Error extending subscription:', extendError);
+            // Don't fail the request, just log the error
+          } else {
+            console.log(`Subscription ${subscription_id} extended by 1 month (recurring payment)`);
+          }
         } else {
-          console.log(`Subscription ${subscription_id} extended by 1 month`);
+          // This is the first payment - subscription already created with correct end_date, don't extend
+          console.log(`First payment for subscription ${subscription_id} - not extending (subscription already created with correct end_date)`);
         }
       }
     }

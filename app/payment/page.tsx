@@ -12,7 +12,7 @@ function PaymentPageContent() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [course, setCourse] = useState<Course | null>(null);
-  const [paymentUrl, setPaymentUrl] = useState<string>('https://pay.sumit.co.il/eaxdrn/hsclm5/c/payment');
+  const [paymentUrl, setPaymentUrl] = useState<string>('https://pay.sumit.co.il/eaxdrn/hsclm5/');
 
   useEffect(() => {
     checkAuth();
@@ -35,7 +35,7 @@ function PaymentPageContent() {
           setPaymentUrl(data.payment_url);
         } else {
           // Default payment URL if course doesn't have a specific one
-          setPaymentUrl('https://pay.sumit.co.il/eaxdrn/hsclm5/c/payment');
+          setPaymentUrl('https://pay.sumit.co.il/eaxdrn/hsclm5/');
         }
       }
     } catch (error) {
