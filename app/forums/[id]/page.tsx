@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { MessageCircle, Eye, Pin, Lock, Edit, Image, Video, X, Smile, Code, Link as LinkIcon, Italic, Bold, ArrowRight, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { getForumById, getForumPosts, getAllForums, getForumPostById, deleteForumPostReply, toggleForumPostLike, getForumPostLikes, type Forum, type ForumPost } from '@/lib/queries/forums';
-import { getAllProfiles } from '@/lib/queries/profiles';
 import AuthGuard from '@/app/components/AuthGuard';
 import dynamic from 'next/dynamic';
 import CommentsList from '@/app/components/comments/CommentsList';
@@ -57,38 +56,24 @@ function ForumDetailPageContent() {
   const [selectedPostForLikes, setSelectedPostForLikes] = useState<string | null>(null);
   const [postLikes, setPostLikes] = useState<Record<string, Array<{user_id: string, display_name: string, avatar_url: string | null, created_at: string}>>>({});
   const [loadingLikes, setLoadingLikes] = useState<Record<string, boolean>>({});
-  const { isAdmin, loading: userLoading } = useCurrentUser();
+  const { user: currentUserFromHook, isAdmin, loading: userLoading } = useCurrentUser();
 
   // Ref to prevent parallel calls to loadPosts
   const isLoadingPostsRef = useRef(false);
   // Ref to track if the operation was cancelled (timeout or unmount)
   const isCancelledRef = useRef(false);
 
-  // Memoize load functions to prevent unnecessary re-renders and race conditions
-  const loadCurrentUser = useCallback(async () => {
-    try {
-      const { data: profiles } = await getAllProfiles();
-      if (Array.isArray(profiles) && profiles.length > 0) {
-        // Try to get user from localStorage first
-        const selectedUserId = typeof window !== 'undefined' ? localStorage.getItem('selectedUserId') : null;
-        let user = profiles[0];
-        
-        if (selectedUserId && Array.isArray(profiles)) {
-          const foundUser = profiles.find((p: any) => (p.user_id || p.id) === selectedUserId);
-          if (foundUser) {
-            user = foundUser;
-          }
-        }
-        
-        setCurrentUser({ 
-          id: user.user_id || user.id, 
-          ...user 
-        });
-      }
-    } catch (error) {
-      console.error('Error loading current user:', error);
+  // Update currentUser when hook user changes
+  useEffect(() => {
+    if (currentUserFromHook) {
+      setCurrentUser({
+        id: currentUserFromHook.user_id || currentUserFromHook.id,
+        ...currentUserFromHook
+      });
+    } else {
+      setCurrentUser(null);
     }
-  }, []);
+  }, [currentUserFromHook]);
 
   const loadForum = useCallback(async () => {
     if (!forumId) return;
@@ -197,9 +182,6 @@ function ForumDetailPageContent() {
       withTimeout(loadPosts(), 8000, 'loadPosts').catch(err => {
         if (!cancelled) console.error('loadPosts failed:', err);
       }),
-      withTimeout(loadCurrentUser(), 8000, 'loadCurrentUser').catch(err => {
-        if (!cancelled) console.error('loadCurrentUser failed:', err);
-      }),
       withTimeout(loadAllForums(), 8000, 'loadAllForums').catch(err => {
         if (!cancelled) console.error('loadAllForums failed:', err);
       })
@@ -214,7 +196,7 @@ function ForumDetailPageContent() {
       // Don't mark as cancelled here - only timeout should do that
       // This prevents race conditions when dependencies change
     };
-  }, [forumId, loadForum, loadPosts, loadCurrentUser, loadAllForums]);
+  }, [forumId, loadForum, loadPosts, loadAllForums]);
 
   // Check if there's a postId in the URL (from redirect from /posts/[postId] page)
   useEffect(() => {
@@ -235,7 +217,7 @@ function ForumDetailPageContent() {
     
     const handleProfileUpdate = () => {
       loadPosts();
-      loadCurrentUser();
+      // currentUser is updated automatically via useCurrentUser hook
       if (selectedPost) {
         // Reload selected post to update avatars
         const { getForumPostById } = require('@/lib/queries/forums');
@@ -250,7 +232,7 @@ function ForumDetailPageContent() {
 
     window.addEventListener('profileUpdated', handleProfileUpdate);
     return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
-  }, [forumId, selectedPost, currentUser, loadPosts, loadCurrentUser]);
+  }, [forumId, selectedPost, currentUser, loadPosts]);
 
   async function handleCreatePost() {
     // Check if content is empty (strip HTML tags for validation)

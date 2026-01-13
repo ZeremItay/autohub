@@ -2214,6 +2214,7 @@ export default function AdminPanel() {
           email: formData.email,
           experience_level: formData.experience_level,
           avatar_url: formData.avatar_url,
+          points: formData.points !== undefined ? parseInt(formData.points) || 0 : undefined,
           updated_at: new Date().toISOString()
         }
         
@@ -3777,6 +3778,18 @@ export default function AdminPanel() {
                         </option>
                       ))}
                     </select>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">נקודות</label>
+                      <input
+                        type="number"
+                        placeholder="נקודות (למשל: 100)"
+                        value={formData.points || 0}
+                        onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) || 0 })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        min="0"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">ניתן לערוך את מספר הנקודות של המשתמש</p>
+                    </div>
                     <div className="flex gap-2">
                       <input
                         type="text"

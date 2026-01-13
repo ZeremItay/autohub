@@ -108,7 +108,7 @@ export default function CommentsList({
               onReply={onSubmitReply ? handleReply : undefined}
               badge={commentBadge}
               showReplies={true}
-              replyingTo={replyingTo[comment.id] || null}
+              replyingTo={replyingTo}
               onToggleReply={onSubmitReply ? handleToggleReply : undefined}
               size={size}
             />

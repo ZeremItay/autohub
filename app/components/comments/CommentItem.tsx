@@ -46,7 +46,7 @@ interface CommentItemProps {
   };
   showReplies?: boolean;
   isReply?: boolean;
-  replyingTo?: string | null;
+  replyingTo?: string | null | Record<string, string | null>;
   onToggleReply?: (commentId: string) => void;
   replyText?: string;
   onReplyTextChange?: (text: string) => void;
@@ -69,7 +69,11 @@ export default function CommentItem({
 }: CommentItemProps) {
   const commentUserId = comment.user_id || comment.user?.user_id;
   const canDelete = currentUser && (currentUser.id === commentUserId || currentUser.user_id === commentUserId);
-  const isReplying = replyingTo === comment.id;
+  // Handle both string | null and Record<string, string | null> for replyingTo
+  const replyingToValue = typeof replyingTo === 'object' && replyingTo !== null && !Array.isArray(replyingTo)
+    ? (replyingTo as Record<string, string | null>)[comment.id] || null
+    : (replyingTo as string | null);
+  const isReplying = replyingToValue === comment.id;
   const [likesCount, setLikesCount] = useState(comment.likes_count || 0);
   const [userLiked, setUserLiked] = useState(comment.user_liked || false);
   const [liking, setLiking] = useState(false);
@@ -199,8 +203,8 @@ export default function CommentItem({
             </button>
           )}
           
-          {/* Reply Button */}
-          {currentUser && onReply && onToggleReply && !isReply && (
+          {/* Reply Button - Allow replies to replies */}
+          {currentUser && onReply && onToggleReply && (
             <button
               onClick={() => onToggleReply(comment.id)}
               className={`${textSize} text-[#F52F8E] hover:underline`}
@@ -226,7 +230,7 @@ export default function CommentItem({
           </div>
         )}
 
-        {/* Replies */}
+        {/* Replies - Allow nested replies */}
         {showReplies && comment.replies && comment.replies.length > 0 && (
           <div className={`mt-2 ${isReply ? '' : 'pr-4 space-y-2 border-r-2 border-gray-200'}`}>
             {comment.replies.map((reply) => {
@@ -240,8 +244,10 @@ export default function CommentItem({
                   currentUser={currentUser}
                   onDelete={onDelete}
                   onReply={onReply}
+                  onToggleReply={onToggleReply}
+                  replyingTo={replyingTo}
                   badge={replyBadge}
-                  showReplies={false}
+                  showReplies={true}
                   isReply={true}
                   size={size}
                 />

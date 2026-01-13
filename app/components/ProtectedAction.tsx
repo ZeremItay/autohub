@@ -183,15 +183,28 @@ export default function ProtectedAction({
   if (requirePremium && user && !isPremium) {
     const hasEnoughPoints = pointsCost ? (userPoints >= pointsCost) : false;
     
+    // Debug logging
+    console.log('[ProtectedAction] User check:', {
+      requirePremium,
+      hasUser: !!user,
+      isPremium,
+      userPoints,
+      pointsCost,
+      hasEnoughPoints
+    });
+    
     // If user has enough points and pointsCost is set, allow the action
     if (pointsCost && hasEnoughPoints) {
-      // User can perform action - just pass through
+      // User can perform action - just pass through (onClick is preserved automatically by cloneElement)
       if (React.isValidElement(children)) {
         const childClassName = (children as any).props?.className || '';
         const mergedClassName = className ? `${className} ${childClassName}`.trim() : childClassName;
+        const originalProps = (children as any).props || {};
         
+        // Clone element and preserve all original props (including onClick)
         return React.cloneElement(children as React.ReactElement<any>, {
-          className: mergedClassName || undefined
+          ...originalProps, // Preserve all original props
+          className: mergedClassName || originalProps.className
         });
       }
       return <>{children}</>;
