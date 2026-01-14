@@ -37,11 +37,13 @@ import {
   Menu,
   GripVertical,
   Eye,
-  EyeOff
+  EyeOff,
+  MessageSquare
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
+import { getVideoDuration, isSupportedVideoUrl } from '@/lib/utils/video-duration'
 
 // Lazy load heavy components
 const DatePicker = dynamic(
@@ -87,6 +89,25 @@ const ImageGalleryModal = dynamic(
 // Import date-fns locale separately (lightweight)
 import { he } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // User Selector Component with Search
 function UserSelector({
@@ -840,8 +861,82 @@ function ApiDocumentation() {
   )
 }
 
+// SortableLesson Component for drag-and-drop
+function SortableLesson({
+  lesson,
+  sectionIndex,
+  lessonIndex,
+  onEdit,
+  onDelete,
+  onTitleChange
+}: {
+  lesson: any;
+  sectionIndex: number;
+  lessonIndex: number;
+  onEdit: () => void;
+  onDelete: () => void;
+  onTitleChange: (value: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: `lesson-${sectionIndex}-${lessonIndex}-${lesson.id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 bg-white p-3 rounded border border-gray-200 ${isDragging ? 'shadow-lg z-50' : ''}`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600"
+        title="גרור להזזה"
+      >
+        <GripVertical className="w-4 h-4" />
+      </div>
+      <input
+        type="text"
+        placeholder="שם השיעור"
+        value={lesson.title}
+        onChange={(e) => onTitleChange(e.target.value)}
+        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+        dir="rtl"
+        lang="he"
+      />
+      <button
+        type="button"
+        onClick={onEdit}
+        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+        title="ערוך שיעור"
+      >
+        <Edit className="w-3 h-3" />
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+        title="מחק שיעור"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks' | 'forums' | 'api-docs' | 'menu'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks' | 'forums' | 'api-docs' | 'menu' | 'lesson-questions'>('users')
   const [users, setUsers] = useState<any[]>([])
   const [usersSearchQuery, setUsersSearchQuery] = useState<string>('')
   const [posts, setPosts] = useState<any[]>([])
@@ -888,6 +983,9 @@ export default function AdminPanel() {
   const [editingMenuItem, setEditingMenuItem] = useState<string | null>(null)
   const [menuItemFormData, setMenuItemFormData] = useState<Partial<MenuItem>>({})
   const [draggedMenuItem, setDraggedMenuItem] = useState<string | null>(null)
+  const [lessonQuestions, setLessonQuestions] = useState<any[]>([])
+  const [editingQuestion, setEditingQuestion] = useState<string | null>(null)
+  const [questionAnswer, setQuestionAnswer] = useState<string>('')
   
   // Calculate selected date for events DatePicker
   const eventSelectedDate = useMemo(() => {
@@ -925,12 +1023,74 @@ export default function AdminPanel() {
     }
   }, [formData.event_date, formData.event_time, (formData as any).event_datetime]);
   const fileInputRef = React.useRef<HTMLInputElement>(null)
-  const [courseSections, setCourseSections] = useState<Array<{id: string, title: string, lessons: Array<{id: string, title: string, description?: string, video_url?: string, duration_minutes?: number, qa_section?: Array<{question: string, answer: string}>, key_points?: Array<{title: string, description: string, url?: string}>}>}>>([])
+  const [courseSections, setCourseSections] = useState<Array<{id: string, title: string, lessons: Array<{id: string, title: string, description?: string, video_url?: string, duration_minutes?: number, transcript?: string, qa_section?: Array<{question: string, answer: string}>, key_points?: Array<{title: string, description: string, url?: string}>}>}>>([])
   const [editingLesson, setEditingLesson] = useState<{lessonId: string, sectionIndex: number, lessonIndex: number} | null>(null)
-  const [editingLessonData, setEditingLessonData] = useState<{title: string, description: string, video_url: string, qa_section: Array<{question: string, answer: string}>, key_points: Array<{title: string, description: string, url?: string}>} | null>(null)
+  const [editingLessonData, setEditingLessonData] = useState<{title: string, description: string, video_url: string, duration_minutes?: number, transcript?: string, qa_section: Array<{question: string, answer: string}>, key_points: Array<{title: string, description: string, url?: string}>} | null>(null)
+  const [fetchingVideoDuration, setFetchingVideoDuration] = useState(false)
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
   const router = useRouter()
+  
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end event
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over || !active) return;
+
+    const activeIdStr = active.id as string;
+    const overIdStr = over.id as string;
+
+    // Parse the IDs to get section and lesson indices
+    // Format: lesson-{sectionIndex}-{lessonIndex}-{lessonId}
+    const activeMatch = activeIdStr.match(/^lesson-(\d+)-(\d+)-(.+)$/);
+    const overMatch = overIdStr.match(/^lesson-(\d+)-(\d+)-(.+)$/);
+
+    if (!activeMatch || !overMatch) return;
+
+    const activeSectionIndex = parseInt(activeMatch[1]);
+    const activeLessonIndex = parseInt(activeMatch[2]);
+    const overSectionIndex = parseInt(overMatch[1]);
+    const overLessonIndex = parseInt(overMatch[2]);
+
+    // If dropped in the same position, do nothing
+    if (activeSectionIndex === overSectionIndex && activeLessonIndex === overLessonIndex) {
+      return;
+    }
+
+    // Create a copy of courseSections
+    const updated = [...courseSections];
+    const activeLesson = updated[activeSectionIndex].lessons[activeLessonIndex];
+
+    // Remove from source
+    updated[activeSectionIndex].lessons.splice(activeLessonIndex, 1);
+
+    // Insert into destination
+    if (activeSectionIndex === overSectionIndex) {
+      // Same section - just reorder
+      const newIndex = activeLessonIndex < overLessonIndex ? overLessonIndex - 1 : overLessonIndex;
+      updated[overSectionIndex].lessons.splice(newIndex, 0, activeLesson);
+    } else {
+      // Different section - move to new section
+      updated[overSectionIndex].lessons.splice(overLessonIndex, 0, activeLesson);
+    }
+
+    setCourseSections(updated);
+  }
+
+  // Handle drag start event
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(event.active.id as string);
+  }
   
   // Ref to track if the operation was cancelled (timeout or unmount)
   const isCancelledRef = useRef(false)
@@ -1240,7 +1400,52 @@ export default function AdminPanel() {
         setAvailableRoles(rolesData || [])
       } else if (activeTab === 'courses') {
         const { data, error } = await getAllCourses(undefined, true) // Include drafts for admin panel
-        if (!error) setCourses(data || [])
+        if (!error && data) {
+          // Load tags and calculate stats for each course
+          const { getTagsByContent } = await import('@/lib/queries/tags')
+          const { calculateCourseStats } = await import('@/lib/queries/courses')
+          const coursesWithTags = await Promise.all(
+            (data || []).map(async (course: any) => {
+              const { data: tagsData } = await getTagsByContent('course', course.id)
+              const tags = tagsData || []
+              
+              // Calculate actual stats from lessons
+              const stats = await calculateCourseStats(course.id)
+              
+              // Extract tag objects from tag_assignments structure
+              const normalizedTags = tags.map((ta: any) => {
+                // getTagsByContent returns { tag: {...} } structure
+                return ta.tag || ta;
+              }).filter((tag: any) => tag && (tag.name || tag.title || tag.id));
+              
+              // Debug log for first course
+              if (course.id === (data[0]?.id)) {
+                console.log('🔍 Course debug:', {
+                  courseId: course.id,
+                  courseTitle: course.title,
+                  originalDifficulty: course.difficulty,
+                  originalDurationHours: course.duration_hours,
+                  originalLessonsCount: course.lessons_count,
+                  calculatedStats: stats,
+                  tagsData: tags,
+                  normalizedTags: normalizedTags,
+                  courseCategory: course.category
+                });
+              }
+              
+              return {
+                ...course,
+                tags: normalizedTags,
+                lessons_count: stats.lessons_count,
+                duration_hours: stats.duration_hours,
+                total_duration_minutes: stats.total_duration_minutes,
+                // Make sure difficulty is preserved correctly
+                difficulty: course.difficulty
+              }
+            })
+          )
+          setCourses(coursesWithTags)
+        }
       } else if (activeTab === 'badges') {
         const { getAllBadges } = await import('@/lib/queries/badges')
         const { data, error } = await getAllBadges()
@@ -1300,6 +1505,14 @@ export default function AdminPanel() {
         const { data, error } = await getAllMenuItems()
         if (!error && data && Array.isArray(data)) {
           setMenuItems(data)
+        }
+      } else if (activeTab === 'lesson-questions') {
+        const response = await fetch('/api/admin/lesson-questions?status=pending', {
+          credentials: 'include'
+        })
+        if (response.ok) {
+          const { data } = await response.json()
+          setLessonQuestions(data || [])
         }
       }
       
@@ -1434,7 +1647,21 @@ export default function AdminPanel() {
         // Reload courses list to update counts if needed
         if (activeTab === 'courses') {
           const { data: coursesData, error } = await getAllCourses(undefined, true) // Include drafts for admin panel
-          if (!error) setCourses(coursesData || [])
+          if (!error && coursesData) {
+            // Load tags for each course
+            const { getTagsByContent } = await import('@/lib/queries/tags')
+            const coursesWithTags = await Promise.all(
+              (coursesData || []).map(async (course: any) => {
+                const { data: tagsData } = await getTagsByContent('course', course.id)
+                const tags = tagsData || []
+                return {
+                  ...course,
+                  tags: tags.map((ta: any) => ta.tag || ta).filter(Boolean)
+                }
+              })
+            )
+            setCourses(coursesWithTags)
+          }
         }
         return { success: true, data }
       } else {
@@ -1471,7 +1698,21 @@ export default function AdminPanel() {
     // Load courses if not already loaded
     if (courses.length === 0) {
       const { data, error } = await getAllCourses(undefined, true) // Include drafts for admin panel
-      if (!error) setCourses(data || [])
+      if (!error && data) {
+        // Load tags for each course
+        const { getTagsByContent } = await import('@/lib/queries/tags')
+        const coursesWithTags = await Promise.all(
+          (data || []).map(async (course: any) => {
+            const { data: tagsData } = await getTagsByContent('course', course.id)
+            const tags = tagsData || []
+            return {
+              ...course,
+              tags: tags.map((ta: any) => ta.tag || ta).filter(Boolean)
+            }
+          })
+        )
+        setCourses(coursesWithTags)
+      }
     }
     loadUserEnrollments(userId)
   }
@@ -1865,17 +2106,14 @@ export default function AdminPanel() {
           return
         }
 
-        // Calculate total lessons count from sections
-        const totalLessons = courseSections.reduce((sum, section) => sum + section.lessons.length, 0)
-        
         const courseData = {
           title: (formData.title || '').trim(),
           description: (formData.description || '').trim(),
           thumbnail_url: formData.thumbnail_url || undefined,
           category: 'כללי', // Default category
           difficulty: 'מתחילים' as 'מתחילים' | 'בינוני' | 'מתקדמים', // Default difficulty (required by DB)
-          duration_hours: 1, // Default duration
-          lessons_count: totalLessons || 0,
+          duration_hours: 0, // Will be calculated automatically after lessons are saved
+          lessons_count: 0, // Will be calculated automatically after lessons are saved
           is_recommended: false,
           is_new: false,
           price: formData.price && formData.price > 0 ? parseFloat(formData.price) : undefined,
@@ -2004,6 +2242,14 @@ export default function AdminPanel() {
               const { assignTagsToContent } = await import('@/lib/queries/tags')
               await assignTagsToContent('course', data.id, formData.selectedTagIds)
             }
+            
+            // Calculate and update course stats from actual lessons
+            const { calculateCourseStats, updateCourse } = await import('@/lib/queries/courses')
+            const stats = await calculateCourseStats(data.id)
+            await updateCourse(data.id, {
+              lessons_count: stats.lessons_count,
+              duration_hours: stats.duration_hours
+            })
             
             await loadData()
             setEditing(null)
@@ -2405,17 +2651,13 @@ export default function AdminPanel() {
       } else if (activeTab === 'courses') {
         const { updateCourse, getCourseLessons, createLesson, deleteLesson } = await import('@/lib/queries/courses')
         
-        // Calculate total lessons count from sections
-        const totalLessons = courseSections.reduce((sum, section) => sum + section.lessons.length, 0)
-        
         const { data, error } = await updateCourse(id, {
           title: formData.title || '',
           description: formData.description || '',
           thumbnail_url: formData.thumbnail_url || undefined,
           category: formData.category || 'כללי',
           difficulty: (formData.difficulty as 'מתחילים' | 'בינוני' | 'מתקדמים') || 'מתחילים',
-          duration_hours: parseFloat(formData.duration_hours) || 0,
-          lessons_count: totalLessons,
+          // duration_hours and lessons_count will be calculated automatically after lessons are saved
           is_recommended: formData.is_recommended || false,
           is_new: formData.is_new || false,
           instructor_name: formData.instructor_name || undefined,
@@ -2647,6 +2889,14 @@ export default function AdminPanel() {
             if (lessonsFailed > 0) {
               alert(`הקורס עודכן בהצלחה, אבל ${lessonsFailed} שיעורים נכשלו ביצירה. בדוק את הקונסול לפרטים.`)
             }
+            
+            // Calculate and update course stats from actual lessons
+            const { calculateCourseStats } = await import('@/lib/queries/courses')
+            const stats = await calculateCourseStats(id)
+            await updateCourse(id, {
+              lessons_count: stats.lessons_count,
+              duration_hours: stats.duration_hours
+            })
             
             await loadData()
             setEditing(null)
@@ -3519,6 +3769,17 @@ export default function AdminPanel() {
             <Menu className="w-5 h-5 inline-block ml-2" />
             ניהול תפריט
           </button>
+          <button
+            onClick={() => setActiveTab('lesson-questions')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'lesson-questions'
+                ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
+                : 'text-gray-600 hover:text-[#F52F8E]'
+            }`}
+          >
+            <MessageSquare className="w-5 h-5 inline-block ml-2" />
+            שאלות שיעורים
+          </button>
         </div>
 
         {/* Content */}
@@ -3553,6 +3814,7 @@ export default function AdminPanel() {
                 {activeTab === 'forums' && 'פורומים'}
                 {activeTab === 'api-docs' && 'דוקומנטציה API'}
                 {activeTab === 'menu' && 'ניהול תפריט'}
+                {activeTab === 'lesson-questions' && 'שאלות שיעורים'}
               </h2>
               {selectedItems.size > 0 && (
                 <div className="flex gap-2">
@@ -4929,13 +5191,81 @@ export default function AdminPanel() {
                               placeholder="תאר את השיעור..."
                             />
                           </div>
-                          <input
-                            type="text"
-                            placeholder="קישור וידאו (YouTube, Vimeo, או קישור ישיר)"
-                            value={editingLessonData.video_url}
-                            onChange={(e) => setEditingLessonData({...editingLessonData, video_url: e.target.value})}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                          />
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              placeholder="קישור וידאו (YouTube, Vimeo, S3, או קישור ישיר)"
+                              value={editingLessonData.video_url}
+                              onChange={async (e) => {
+                                const newUrl = e.target.value;
+                                setEditingLessonData({...editingLessonData, video_url: newUrl});
+                                
+                                // Auto-fetch duration if URL is valid and supported
+                                if (newUrl && isSupportedVideoUrl(newUrl)) {
+                                  setFetchingVideoDuration(true);
+                                  try {
+                                    const result = await getVideoDuration(newUrl);
+                                    if (result.duration_minutes > 0 && !result.error) {
+                                      setEditingLessonData(prev => prev ? {
+                                        ...prev,
+                                        video_url: newUrl,
+                                        duration_minutes: result.duration_minutes
+                                      } : null);
+                                    } else if (result.error) {
+                                      console.warn('Could not fetch video duration:', result.error);
+                                    }
+                                  } catch (error) {
+                                    console.error('Error fetching video duration:', error);
+                                  } finally {
+                                    setFetchingVideoDuration(false);
+                                  }
+                                }
+                              }}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                            {fetchingVideoDuration && (
+                              <p className="text-xs text-blue-600 flex items-center gap-1">
+                                <span className="animate-spin">⏳</span>
+                                משיכת משך הזמן...
+                              </p>
+                            )}
+                            {editingLessonData.duration_minutes !== undefined && editingLessonData.duration_minutes > 0 && !fetchingVideoDuration && (
+                              <p className="text-xs text-green-600">
+                                ✓ משך זמן: {Math.floor(editingLessonData.duration_minutes)} דקות {Math.round((editingLessonData.duration_minutes % 1) * 60)} שניות
+                              </p>
+                            )}
+                          </div>
+                          <div className="mt-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              משך זמן (דקות) - ניתן להזין ידנית אם לא נמשך אוטומטית
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="משך זמן בדקות"
+                              value={editingLessonData.duration_minutes || ''}
+                              onChange={(e) => setEditingLessonData({
+                                ...editingLessonData,
+                                duration_minutes: e.target.value ? parseFloat(e.target.value) : 0
+                              })}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              תמלול השיעור
+                            </label>
+                            <textarea
+                              placeholder="הזן את התמלול של השיעור..."
+                              value={editingLessonData.transcript || ''}
+                              onChange={(e) => setEditingLessonData({...editingLessonData, transcript: e.target.value})}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg min-h-[200px]"
+                              dir="rtl"
+                              lang="he"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">התמלול יוצג בדרופדאון למטה בשיעור</p>
+                          </div>
                         </div>
                         
                         {/* Q&A Section */}
@@ -4977,6 +5307,8 @@ export default function AdminPanel() {
                                   title: editingLessonData.title,
                                   description: editingLessonData.description,
                                   video_url: editingLessonData.video_url,
+                                  duration_minutes: editingLessonData.duration_minutes || 0,
+                                  transcript: editingLessonData.transcript,
                                   qa_section: editingLessonData.qa_section.filter(qa => qa.question.trim() || qa.answer.trim()),
                                   key_points: editingLessonData.key_points.filter(point => point.title.trim() || point.description.trim())
                                 }
@@ -4997,6 +5329,8 @@ export default function AdminPanel() {
                                     title: editingLessonData.title,
                                     description: editingLessonData.description,
                                     video_url: editingLessonData.video_url,
+                                    duration_minutes: editingLessonData.duration_minutes || 0,
+                                    transcript: editingLessonData.transcript,
                                     qa_section: filteredQa,
                                     key_points: filteredKeyPoints
                                   })
@@ -5425,107 +5759,128 @@ export default function AdminPanel() {
                           <p className="text-xs">לחץ על "הוסף חלק" כדי להתחיל להוסיף שיעורים</p>
                         </div>
                       ) : (
-                        courseSections.map((section, sectionIndex) => (
-                        <div key={section.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                          <div className="flex items-center gap-2 mb-3">
-                            <input
-                              type="text"
-                              placeholder="שם החלק (למשל: חלק א')"
-                              value={section.title}
-                              onChange={(e) => {
-                                const updated = [...courseSections]
-                                updated[sectionIndex].title = e.target.value
-                                setCourseSections(updated)
-                              }}
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-                              dir="rtl"
-                              lang="he"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = courseSections.filter((_, i) => i !== sectionIndex)
-                                setCourseSections(updated)
-                              }}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            {section.lessons.length === 0 ? (
-                              <div className="text-center py-4 text-gray-400 text-sm">
-                                אין שיעורים בחלק זה
-                              </div>
-                            ) : (
-                              section.lessons.map((lesson, lessonIndex) => (
-                              <div key={lesson.id} className="flex items-center gap-2 bg-white p-3 rounded border border-gray-200">
-                                <input
-                                  type="text"
-                                  placeholder="שם השיעור"
-                                  value={lesson.title}
-                                  onChange={(e) => {
-                                    const updated = [...courseSections]
-                                    updated[sectionIndex].lessons[lessonIndex].title = e.target.value
-                                    setCourseSections(updated)
-                                  }}
-                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                  dir="rtl"
-                                  lang="he"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingLesson({lessonId: lesson.id, sectionIndex, lessonIndex})
-                                    setEditingLessonData({
-                                      title: lesson.title || '',
-                                      description: lesson.description || '',
-                                      video_url: lesson.video_url || '',
-                                      qa_section: lesson.qa_section || [],
-                                      key_points: lesson.key_points || []
-                                    })
-                                  }}
-                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                                  title="ערוך שיעור"
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                        >
+                          {courseSections.map((section, sectionIndex) => {
+                            const lessonIds = section.lessons.map((_, lessonIndex) => 
+                              `lesson-${sectionIndex}-${lessonIndex}-${section.lessons[lessonIndex].id}`
+                            );
+                            
+                            return (
+                              <div key={section.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <input
+                                    type="text"
+                                    placeholder="שם החלק (למשל: חלק א')"
+                                    value={section.title}
+                                    onChange={(e) => {
+                                      const updated = [...courseSections]
+                                      updated[sectionIndex].title = e.target.value
+                                      setCourseSections(updated)
+                                    }}
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                                    dir="rtl"
+                                    lang="he"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = courseSections.filter((_, i) => i !== sectionIndex)
+                                      setCourseSections(updated)
+                                    }}
+                                    className="p-2 text-red-600 hover:bg-red-50 rounded"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                                
+                                <SortableContext
+                                  items={lessonIds}
+                                  strategy={verticalListSortingStrategy}
                                 >
-                                  <Edit className="w-3 h-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const updated = [...courseSections]
-                                    updated[sectionIndex].lessons = updated[sectionIndex].lessons.filter((_, i) => i !== lessonIndex)
-                                    setCourseSections(updated)
-                                  }}
-                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
+                                  <div className="space-y-2">
+                                    {section.lessons.length === 0 ? (
+                                      <div className="text-center py-4 text-gray-400 text-sm">
+                                        אין שיעורים בחלק זה
+                                      </div>
+                                    ) : (
+                                      section.lessons.map((lesson, lessonIndex) => (
+                                        <SortableLesson
+                                          key={lesson.id}
+                                          lesson={lesson}
+                                          sectionIndex={sectionIndex}
+                                          lessonIndex={lessonIndex}
+                                          onEdit={() => {
+                                            setEditingLesson({lessonId: lesson.id, sectionIndex, lessonIndex})
+                                            setEditingLessonData({
+                                              title: lesson.title || '',
+                                              description: lesson.description || '',
+                                              video_url: lesson.video_url || '',
+                                              duration_minutes: lesson.duration_minutes || 0,
+                                              transcript: lesson.transcript || '',
+                                              qa_section: lesson.qa_section || [],
+                                              key_points: lesson.key_points || []
+                                            })
+                                          }}
+                                          onDelete={() => {
+                                            const updated = [...courseSections]
+                                            updated[sectionIndex].lessons = updated[sectionIndex].lessons.filter((_, i) => i !== lessonIndex)
+                                            setCourseSections(updated)
+                                          }}
+                                          onTitleChange={(value) => {
+                                            const updated = [...courseSections]
+                                            updated[sectionIndex].lessons[lessonIndex].title = value
+                                            setCourseSections(updated)
+                                          }}
+                                        />
+                                      ))
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = [...courseSections]
+                                        updated[sectionIndex].lessons.push({
+                                          id: `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                          title: '',
+                                          description: '',
+                                          video_url: '',
+                                          duration_minutes: 0
+                                        })
+                                        setCourseSections(updated)
+                                      }}
+                                      className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm flex items-center justify-center gap-2"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                      הוסף שיעור לחלק זה
+                                    </button>
+                                  </div>
+                                </SortableContext>
                               </div>
-                            ))
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = [...courseSections]
-                                updated[sectionIndex].lessons.push({
-                                  id: `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                  title: '',
-                                  description: '',
-                                  video_url: '',
-                                  duration_minutes: 0
-                                })
-                                setCourseSections(updated)
-                              }}
-                              className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm flex items-center justify-center gap-2"
-                            >
-                              <Plus className="w-3 h-3" />
-                              הוסף שיעור לחלק זה
-                            </button>
-                          </div>
-                        </div>
-                      ))
+                            );
+                          })}
+                          <DragOverlay>
+                            {activeId ? (() => {
+                              const match = activeId.match(/^lesson-(\d+)-(\d+)-(.+)$/);
+                              if (!match) return null;
+                              const sectionIndex = parseInt(match[1]);
+                              const lessonIndex = parseInt(match[2]);
+                              const lesson = courseSections[sectionIndex]?.lessons[lessonIndex];
+                              if (!lesson) return null;
+                              return (
+                                <div className="flex items-center gap-2 bg-white p-3 rounded border-2 border-[#F52F8E] shadow-lg opacity-90">
+                                  <GripVertical className="w-4 h-4 text-gray-400" />
+                                  <div className="flex-1 px-3 py-2 text-sm text-gray-700 font-medium">
+                                    {lesson.title || 'שיעור ללא שם'}
+                                  </div>
+                                </div>
+                              );
+                            })() : null}
+                          </DragOverlay>
+                        </DndContext>
                       )}
                     </div>
                   </div>
@@ -7626,29 +7981,169 @@ export default function AdminPanel() {
                       </td>
                     </tr>
                   ))}
-                  {activeTab === 'courses' && courses.map((course) => (
+                  {activeTab === 'courses' && courses.map((course, courseIndex) => {
+                    // Debug first course row
+                    if (courseIndex === 0) {
+                      console.log('🔍 Rendering course row:', {
+                        courseId: course.id,
+                        courseTitle: course.title,
+                        lessons_count: course.lessons_count,
+                        duration_hours: course.duration_hours,
+                        difficulty: course.difficulty,
+                        allKeys: Object.keys(course)
+                      });
+                    }
+                    return (
                     <tr key={course.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(course.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedItems)
+                            if (e.target.checked) {
+                              newSelected.add(course.id)
+                            } else {
+                              newSelected.delete(course.id)
+                            }
+                            setSelectedItems(newSelected)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-medium">{course.title || '-'}</td>
                       <td className="py-3 px-4">
-                        {course.category && (
-                          <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
-                            {course.category}
-                          </span>
-                        )}
+                        {(() => {
+                          // Show tags if available, otherwise show category
+                          // course.tags should already be normalized from loadData
+                          const tags = Array.isArray(course.tags) ? course.tags.filter((tag: any) => {
+                            if (!tag) return false;
+                            // Tags should already be normalized, but check both structures
+                            const tagObj = tag.tag || tag;
+                            return tagObj && (tagObj.name || tagObj.title || tagObj.id);
+                          }) : [];
+                          
+                          if (tags.length > 0) {
+                            return (
+                              <div className="flex flex-wrap gap-1">
+                                {tags.slice(0, 2).map((tag: any, idx: number) => {
+                                  // Normalize tag structure
+                                  const tagObj = tag.tag || tag;
+                                  const tagName = tagObj?.name || tagObj?.title || String(tagObj || tag);
+                                  const tagId = tagObj?.id || tag?.id || `tag-${idx}`;
+                                  return (
+                                    <span key={tagId} className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
+                                      {tagName}
+                                    </span>
+                                  );
+                                })}
+                                {tags.length > 2 && (
+                                  <span className="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded">
+                                    +{tags.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          }
+                          // Fallback to category if no tags
+                          if (course.category && course.category !== 'כללי') {
+                            return (
+                              <span className="px-2 py-1 bg-[#F52F8E] text-white text-xs rounded">
+                                {course.category}
+                              </span>
+                            )
+                          }
+                          return <span className="text-gray-400 text-xs">-</span>
+                        })()}
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-1 text-xs rounded ${
-                          course.difficulty === 'מתחילים' 
-                            ? 'bg-green-100 text-green-700'
-                            : course.difficulty === 'בינוני'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {course.difficulty || '-'}
-                        </span>
+                        {(() => {
+                          // Handle both Hebrew and English difficulty values
+                          const difficulty = course.difficulty
+                          
+                          // Debug: Check if difficulty is actually duration_hours
+                          if (typeof difficulty === 'number' || (typeof difficulty === 'string' && difficulty.includes('שעות'))) {
+                            console.error('⚠️ Difficulty field contains wrong data:', {
+                              courseId: course.id,
+                              courseTitle: course.title,
+                              difficulty: course.difficulty,
+                              duration_hours: course.duration_hours,
+                              lessons_count: course.lessons_count
+                            });
+                          }
+                          
+                          let displayText = difficulty || '-'
+                          let colorClass = 'bg-gray-100 text-gray-700'
+                          
+                          // Only process if it's actually a difficulty value, not a number
+                          const difficultyStr = String(difficulty);
+                          if (difficultyStr === 'מתחילים' || difficultyStr === 'beginner') {
+                            displayText = 'מתחילים'
+                            colorClass = 'bg-green-100 text-green-700'
+                          } else if (difficultyStr === 'בינוני' || difficultyStr === 'intermediate') {
+                            displayText = 'בינוני'
+                            colorClass = 'bg-yellow-100 text-yellow-700'
+                          } else if (difficultyStr === 'מתקדמים' || difficultyStr === 'advanced') {
+                            displayText = 'מתקדמים'
+                            colorClass = 'bg-red-100 text-red-700'
+                          }
+                          
+                          return (
+                            <span className={`px-2 py-1 text-xs rounded ${colorClass}`}>
+                              {displayText}
+                            </span>
+                          )
+                        })()}
                       </td>
-                      <td className="py-3 px-4">{course.duration_hours || 0} שעות</td>
-                      <td className="py-3 px-4">{course.lessons_count || 0}</td>
+                      <td className="py-3 px-4">
+                        {(() => {
+                          const hours = course.duration_hours || 0
+                          
+                          // Debug: Check if duration_hours is actually lessons_count
+                          if (hours > 100) {
+                            console.error('⚠️ Duration seems too high, might be lessons_count:', {
+                              courseId: course.id,
+                              courseTitle: course.title,
+                              duration_hours: course.duration_hours,
+                              lessons_count: course.lessons_count
+                            });
+                          }
+                          
+                          if (hours === 0) return <span className="text-gray-400">0 שעות</span>
+                          // Format hours nicely - if less than 1 hour, show minutes
+                          if (hours < 1) {
+                            const minutes = Math.round(hours * 60)
+                            return `${minutes} דקות`
+                          }
+                          // If whole number, show as hours
+                          if (hours % 1 === 0) {
+                            return `${hours} שעות`
+                          }
+                          // Otherwise show hours and minutes
+                          const wholeHours = Math.floor(hours)
+                          const minutes = Math.round((hours - wholeHours) * 60)
+                          if (minutes === 0) {
+                            return `${wholeHours} שעות`
+                          }
+                          return `${wholeHours} שעות ${minutes} דקות`
+                        })()}
+                      </td>
+                      <td className="py-3 px-4">
+                        {(() => {
+                          const count = course.lessons_count ?? 0;
+                          // Debug if count is missing
+                          if (!course.lessons_count && course.lessons_count !== 0) {
+                            console.warn('⚠️ Missing lessons_count for course:', {
+                              courseId: course.id,
+                              courseTitle: course.title,
+                              lessons_count: course.lessons_count,
+                              allCourseKeys: Object.keys(course)
+                            });
+                          }
+                          return count;
+                        })()}
+                      </td>
                       <td className="py-3 px-4">
                         <div className="flex flex-col gap-1">
                           {course.is_recommended && (
@@ -7798,7 +8293,8 @@ export default function AdminPanel() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {activeTab === 'events' && events.map((event) => (
                     <tr key={event.id} className="border-b border-gray-100">
                       <td className="py-3 px-4">
@@ -8451,6 +8947,133 @@ export default function AdminPanel() {
                 </div>
               </div>
             )}
+            {activeTab === 'lesson-questions' && (
+              <div className="mt-6">
+                <div className="space-y-4">
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      כאן תוכל לראות ולענות על שאלות שהמשתמשים שלחו על שיעורים. לאחר שתענה על שאלה, היא תתווסף אוטומטית ל-Q&A של השיעור.
+                    </p>
+                  </div>
+                  
+                  {lessonQuestions.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      אין שאלות ממתינות
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {lessonQuestions.map((question: any) => (
+                        <div
+                          key={question.id}
+                          className="border border-gray-200 rounded-lg p-4 bg-white"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="font-semibold text-gray-800">
+                                  {question.lesson?.course?.title || 'קורס לא ידוע'} - {question.lesson?.title || 'שיעור לא ידוע'}
+                                </span>
+                                <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded">
+                                  ממתין לתשובה
+                                </span>
+                              </div>
+                              <div className="text-sm text-gray-600 mb-2">
+                                <span className="font-medium">משתמש:</span> {question.user?.full_name || question.user?.email || 'לא ידוע'}
+                              </div>
+                              <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                                <p className="text-gray-800 font-medium mb-1">שאלה:</p>
+                                <p className="text-gray-700">{question.question}</p>
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                נשלח ב-{new Date(question.created_at).toLocaleDateString('he-IL', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {editingQuestion === question.id ? (
+                            <div className="mt-4 space-y-3">
+                              <textarea
+                                value={questionAnswer}
+                                onChange={(e) => setQuestionAnswer(e.target.value)}
+                                placeholder="הזן תשובה לשאלה..."
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] resize-none min-h-[120px]"
+                                dir="rtl"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={async () => {
+                                    if (!questionAnswer.trim()) {
+                                      alert('אנא הזן תשובה')
+                                      return
+                                    }
+                                    
+                                    try {
+                                      const response = await fetch('/api/admin/lesson-questions', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          questionId: question.id,
+                                          answer: questionAnswer.trim(),
+                                          lessonId: question.lesson_id,
+                                          question: question.question
+                                        })
+                                      })
+                                      
+                                      const { data, error } = await response.json()
+                                      
+                                      if (error) {
+                                        alert(`שגיאה: ${error}`)
+                                      } else {
+                                        setEditingQuestion(null)
+                                        setQuestionAnswer('')
+                                        await loadData()
+                                        alert('התשובה נשמרה בהצלחה והוספה ל-Q&A של השיעור!')
+                                      }
+                                    } catch (error: any) {
+                                      console.error('Error answering question:', error)
+                                      alert(`שגיאה: ${error.message || 'שגיאה לא ידועה'}`)
+                                    }
+                                  }}
+                                  className="px-6 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors flex items-center gap-2"
+                                >
+                                  <Save className="w-4 h-4" />
+                                  שמור תשובה
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingQuestion(null)
+                                    setQuestionAnswer('')
+                                  }}
+                                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                                >
+                                  ביטול
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditingQuestion(question.id)
+                                setQuestionAnswer('')
+                              }}
+                              className="mt-3 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                            >
+                              ענה על השאלה
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
       </div>
         )}
       </div>
@@ -8612,7 +9235,26 @@ export default function AdminPanel() {
                             >
                               <div className="flex-1">
                                 <h4 className="font-medium text-gray-800">{course.title || 'ללא כותרת'}</h4>
-                                <p className="text-sm text-gray-500">{course.category || ''}</p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {(() => {
+                                    const tags = (course.tags || []).filter((tag: any) => tag && tag.name)
+                                    if (tags.length > 0) {
+                                      return tags.slice(0, 2).map((tag: any) => (
+                                        <span key={tag.id} className="px-2 py-0.5 bg-[#F52F8E] text-white text-xs rounded">
+                                          {tag.name}
+                                        </span>
+                                      ))
+                                    }
+                                    if (course.category) {
+                                      return (
+                                        <span className="px-2 py-0.5 bg-[#F52F8E] text-white text-xs rounded">
+                                          {course.category}
+                                        </span>
+                                      )
+                                    }
+                                    return null
+                                  })()}
+                                </div>
                                 <span className={`text-xs px-2 py-1 rounded mt-1 inline-block ${
                                   enrollment.status === 'completed' ? 'bg-green-100 text-green-700' :
                                   enrollment.status === 'cancelled' ? 'bg-red-100 text-red-700' :
@@ -8665,13 +9307,46 @@ export default function AdminPanel() {
                             >
                               <div className="flex-1">
                                 <h4 className="font-medium text-gray-800">{course.title}</h4>
-                                <p className="text-sm text-gray-500">{course.category || ''}</p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {(() => {
+                                    const tags = (course.tags || []).filter((tag: any) => tag && tag.name)
+                                    if (tags.length > 0) {
+                                      return tags.slice(0, 2).map((tag: any) => (
+                                        <span key={tag.id} className="px-2 py-0.5 bg-[#F52F8E] text-white text-xs rounded">
+                                          {tag.name}
+                                        </span>
+                                      ))
+                                    }
+                                    if (course.category) {
+                                      return (
+                                        <span className="px-2 py-0.5 bg-[#F52F8E] text-white text-xs rounded">
+                                          {course.category}
+                                        </span>
+                                      )
+                                    }
+                                    return null
+                                  })()}
+                                </div>
                                 <span className={`text-xs px-2 py-1 rounded mt-1 inline-block ${
-                                  course.difficulty === 'מתחילים' ? 'bg-green-100 text-green-700' :
-                                  course.difficulty === 'בינוני' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-red-100 text-red-700'
+                                  (() => {
+                                    const difficulty = String(course.difficulty)
+                                    if (difficulty === 'מתחילים' || difficulty === 'beginner') {
+                                      return 'bg-green-100 text-green-700'
+                                    } else if (difficulty === 'בינוני' || difficulty === 'intermediate') {
+                                      return 'bg-yellow-100 text-yellow-700'
+                                    } else if (difficulty === 'מתקדמים' || difficulty === 'advanced') {
+                                      return 'bg-red-100 text-red-700'
+                                    }
+                                    return 'bg-gray-100 text-gray-700'
+                                  })()
                                 }`}>
-                                  {course.difficulty}
+                                  {(() => {
+                                    const difficulty = String(course.difficulty)
+                                    if (difficulty === 'מתחילים' || difficulty === 'beginner') return 'מתחילים'
+                                    if (difficulty === 'בינוני' || difficulty === 'intermediate') return 'בינוני'
+                                    if (difficulty === 'מתקדמים' || difficulty === 'advanced') return 'מתקדמים'
+                                    return difficulty || '-'
+                                  })()}
                                 </span>
                               </div>
                               <button

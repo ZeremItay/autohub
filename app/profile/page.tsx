@@ -2102,6 +2102,9 @@ function ProfilePageContent() {
                       {pointsHistory.map((entry: any) => {
                         // Use displayAction if available (from enhanced history), otherwise fallback
                         const actionText = entry.displayAction || entry.action_name || entry.action || entry.description || 'פעולה';
+                        const isPositive = entry.points > 0;
+                        const Icon = isPositive ? Trophy : XCircle;
+                        const iconColor = isPositive ? 'text-yellow-500' : 'text-red-500';
                         
                         return (
                           <div
@@ -2110,7 +2113,7 @@ function ProfilePageContent() {
                           >
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <Trophy className="w-5 h-5 text-yellow-500" />
+                                <Icon className={`w-5 h-5 ${iconColor}`} />
                                 <span className="font-semibold text-gray-800">
                                   {actionText}
                                 </span>
@@ -2124,9 +2127,9 @@ function ProfilePageContent() {
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`text-lg font-bold ${
-                                entry.points > 0 ? 'text-green-600' : 'text-red-600'
+                                isPositive ? 'text-green-600' : 'text-red-600'
                               }`}>
-                                {entry.points > 0 ? '+' : ''}{entry.points}
+                                {isPositive ? '+' : ''}{entry.points}
                               </span>
                               <span className="text-sm text-gray-500">נקודות</span>
                             </div>

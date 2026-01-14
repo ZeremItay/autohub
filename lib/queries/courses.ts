@@ -25,6 +25,7 @@ export interface Course {
   created_at: string;
   updated_at: string;
   progress?: number; // Progress percentage for user
+  tags?: any[]; // Tags assigned to the course
 }
 
 export interface CourseProgress {
@@ -75,6 +76,7 @@ export interface CourseLesson {
   description?: string;
   video_url?: string;
   content?: string;
+  transcript?: string;
   duration_minutes?: number;
   lesson_order: number;
   is_preview: boolean;
@@ -109,11 +111,14 @@ export async function getAllCourses(userId?: string, includeDrafts: boolean = fa
       .order('created_at', { ascending: false });
     if (allError || !allData) return { data: [], error: allError };
     // Filter out draft courses manually if status column doesn't exist
-    const finalData = allData.filter((course: any) => {
-      // Only show published courses or courses with no status (backward compatibility)
-      // Explicitly exclude draft courses
-      return course.status !== 'draft' && (!course.status || course.status === 'published');
-    });
+    // But only if includeDrafts is false
+    const finalData = includeDrafts 
+      ? allData 
+      : allData.filter((course: any) => {
+          // Only show published courses or courses with no status (backward compatibility)
+          // Explicitly exclude draft courses
+          return course.status !== 'draft' && (!course.status || course.status === 'published');
+        });
     // Get user progress if userId provided
     if (userId) {
       const courseIds = finalData.map((c: any) => c.id);
@@ -672,6 +677,34 @@ export async function createCourseSection(section: Omit<CourseSection, 'id' | 'c
   } catch (e: any) {
     console.error('Exception creating section:', e);
     return { data: null, error: { message: e?.message || 'Unknown error' } as any };
+  }
+}
+
+// Calculate course statistics from lessons
+export async function calculateCourseStats(courseId: string) {
+  const supabaseClient = await getSupabaseClient();
+  
+  try {
+    const { data: lessons, error } = await supabaseClient
+      .from('course_lessons')
+      .select('duration_minutes')
+      .eq('course_id', courseId);
+    
+    if (error) {
+      console.error('Error calculating course stats:', error);
+      return { lessons_count: 0, total_duration_minutes: 0, duration_hours: 0 };
+    }
+    
+    const lessons_count = lessons?.length || 0;
+    const total_duration_minutes = lessons?.reduce((sum: number, lesson: CourseLesson) => {
+      return sum + (lesson.duration_minutes || 0);
+    }, 0) || 0;
+    const duration_hours = total_duration_minutes / 60;
+    
+    return { lessons_count, total_duration_minutes, duration_hours };
+  } catch (e: any) {
+    console.error('Exception calculating course stats:', e);
+    return { lessons_count: 0, total_duration_minutes: 0, duration_hours: 0 };
   }
 }
 

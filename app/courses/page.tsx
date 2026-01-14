@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import Link from 'next/link';
 import { getAllCourses, getCoursesByCategory, getCoursesInProgress, checkEnrollment, type Course } from '@/lib/queries/courses';
-import { getAllProfiles } from '@/lib/queries/profiles';
+import { getCurrentUserProfile } from '@/lib/queries/profiles';
 import { isAdmin } from '@/lib/utils/user';
 import { getAllTags, getContentByTag, type Tag } from '@/lib/queries/tags';
 import { supabase } from '@/lib/supabase';
@@ -70,12 +70,11 @@ export default function CoursesPage() {
 
   async function loadCurrentUser() {
     try {
-      const { data: profiles } = await getAllProfiles();
-      if (Array.isArray(profiles) && profiles.length > 0) {
-        const firstUser = profiles[0];
+      const { data: profile } = await getCurrentUserProfile();
+      if (profile) {
         setCurrentUser({ 
-          id: firstUser.user_id || firstUser.id, 
-          ...firstUser 
+          id: profile.user_id || profile.id, 
+          ...profile 
         });
       }
     } catch (error) {
@@ -91,10 +90,22 @@ export default function CoursesPage() {
 
       const isUserAdmin = currentUser ? isAdmin(currentUser) : false;
       
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Loading courses - isUserAdmin:', isUserAdmin, 'currentUser:', currentUser);
+      }
+      
       if (selectedCategory === 'הכל') {
         const result = await getAllCourses(currentUser?.id, isUserAdmin);
         data = result.data || [];
         error = result.error;
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 getAllCourses result:', { 
+            dataCount: data.length, 
+            includeDrafts: isUserAdmin,
+            courses: data.map((c: any) => ({ id: c.id, title: c.title, status: c.status }))
+          });
+        }
       } else {
         // Filter by tag - selectedCategory is now a tag ID
         const { data: assignments } = await getContentByTag(selectedCategory, 'course');
@@ -351,6 +362,11 @@ export default function CoursesPage() {
                         {course.is_new && (
                           <span className="absolute top-3 right-3 px-3 py-1 bg-[#F52F8E] text-white text-xs font-semibold rounded-full">
                             חדש
+                          </span>
+                        )}
+                        {course.status === 'draft' && (
+                          <span className="absolute top-3 right-3 px-3 py-1 bg-gray-600 text-white text-xs font-semibold rounded-full">
+                            טיוטה
                           </span>
                         )}
                       </div>

@@ -225,6 +225,34 @@ export async function PUT(request: NextRequest) {
         }
       })
 
+      // If points are being updated, get current points first for all users
+      const pointsHistoryEntries: any[] = [];
+      if (updates.points !== undefined) {
+        const { data: currentProfiles } = await supabaseAdmin
+          .from('profiles')
+          .select('id, points')
+          .in('id', ids);
+        
+        if (currentProfiles) {
+          const newPoints = parseInt(updates.points) || 0;
+          for (const profile of currentProfiles) {
+            const currentPoints = profile.points || 0;
+            const pointsDifference = newPoints - currentPoints;
+            if (pointsDifference !== 0) {
+              const historyActionName = pointsDifference > 0 
+                ? 'תוספת ידנית מאדמין' 
+                : 'הפחתה ידנית מאדמין';
+              
+              pointsHistoryEntries.push({
+                user_id: profile.id,
+                points: pointsDifference,
+                action_name: historyActionName
+              });
+            }
+          }
+        }
+      }
+
       // Update all users in the array
       const { data, error } = await supabaseAdmin
         .from('profiles')
@@ -250,6 +278,38 @@ export async function PUT(request: NextRequest) {
         }, { status: 400 })
       }
 
+      // Add points history entries if any
+      if (pointsHistoryEntries.length > 0) {
+        const { error: historyError } = await supabaseAdmin
+          .from('points_history')
+          .insert(pointsHistoryEntries);
+        
+        if (historyError) {
+          // If 'action_name' column doesn't exist, try 'action'
+          if (historyError.code === 'PGRST204' || historyError.message?.includes('action_name') || historyError.message?.includes('column')) {
+            console.log('⚠️ "action_name" column not found, trying "action" instead');
+            const historyEntriesWithAction = pointsHistoryEntries.map(entry => ({
+              user_id: entry.user_id,
+              points: entry.points,
+              action: entry.action_name
+            }));
+            const { error: insertError2 } = await supabaseAdmin
+              .from('points_history')
+              .insert(historyEntriesWithAction);
+            
+            if (insertError2) {
+              console.error('❌ Error adding to points history:', insertError2?.message || String(insertError2));
+            } else {
+              console.log(`✅ Added ${pointsHistoryEntries.length} points history entries successfully`);
+            }
+          } else {
+            console.error('❌ Error adding to points history:', historyError?.message || String(historyError));
+          }
+        } else {
+          console.log(`✅ Added ${pointsHistoryEntries.length} points history entries successfully`);
+        }
+      }
+
       console.log(`Bulk updated ${data?.length || 0} users successfully`)
       return NextResponse.json({ 
         success: true,
@@ -262,6 +322,25 @@ export async function PUT(request: NextRequest) {
       const { id, ...updates } = body
       
       console.log('Updating user via API:', { id, updates })
+      
+      // If points are being updated, get current points first to calculate difference
+      let pointsDifference = 0;
+      let profileIdForHistory = id;
+      if (updates.points !== undefined) {
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('points, id')
+          .eq('id', id)
+          .single();
+        
+        if (currentProfile) {
+          const currentPoints = currentProfile.points || 0;
+          const newPoints = parseInt(updates.points) || 0;
+          pointsDifference = newPoints - currentPoints;
+          profileIdForHistory = currentProfile.id;
+          console.log(`Points change: ${currentPoints} → ${newPoints} (difference: ${pointsDifference})`);
+        }
+      }
       
       const { data, error } = await supabase
         .from('profiles')
@@ -286,6 +365,49 @@ export async function PUT(request: NextRequest) {
           hint: error.hint,
           code: error.code
         }, { status: 400 })
+      }
+      
+      // If points were changed, add entry to points_history
+      if (pointsDifference !== 0) {
+        const historyActionName = pointsDifference > 0 
+          ? 'תוספת ידנית מאדמין' 
+          : 'הפחתה ידנית מאדמין';
+        
+        const historyData: any = {
+          user_id: profileIdForHistory, // Use profile.id, not profile.user_id
+          points: pointsDifference,
+          action_name: historyActionName
+        };
+
+        // Try to insert with 'action_name' first, then fallback to 'action' if needed
+        const { error: historyError } = await supabase
+          .from('points_history')
+          .insert([historyData]);
+        
+        if (historyError) {
+          // If 'action_name' column doesn't exist, try 'action'
+          if (historyError.code === 'PGRST204' || historyError.message?.includes('action_name') || historyError.message?.includes('column')) {
+            console.log('⚠️ "action_name" column not found, trying "action" instead');
+            const historyDataWithAction: any = {
+              user_id: profileIdForHistory,
+              points: pointsDifference,
+              action: historyActionName
+            };
+            const { error: insertError2 } = await supabase
+              .from('points_history')
+              .insert([historyDataWithAction]);
+            
+            if (insertError2) {
+              console.error('❌ Error adding to points history:', insertError2?.message || String(insertError2));
+            } else {
+              console.log('✅ Points history entry added successfully');
+            }
+          } else {
+            console.error('❌ Error adding to points history:', historyError?.message || String(historyError));
+          }
+        } else {
+          console.log('✅ Points history entry added successfully');
+        }
       }
       
       console.log('User updated successfully:', data)

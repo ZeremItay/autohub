@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Play, Clock, CheckCircle, Lock, ArrowRight, ArrowLeft, HelpCircle, Star, ChevronDown, ChevronUp, ExternalLink, X, BookOpen } from 'lucide-react';
-import { getCourseById, getCourseLessons, getCourseSections, checkEnrollment, enrollInCourse, markLessonComplete, markLessonIncomplete, getCompletedLessons, isLessonCompleted, canAccessLesson, getNextAvailableLesson, type Course, type CourseLesson, type CourseSection } from '@/lib/queries/courses';
+import { Play, Clock, CheckCircle, Lock, ArrowRight, ArrowLeft, HelpCircle, Star, ChevronDown, ChevronUp, ExternalLink, X, BookOpen, MessageSquare, Send } from 'lucide-react';
+import { getCourseById, getCourseLessons, getCourseSections, checkEnrollment, enrollInCourse, markLessonComplete, markLessonIncomplete, getCompletedLessons, isLessonCompleted, getNextAvailableLesson, type Course, type CourseLesson, type CourseSection } from '@/lib/queries/courses';
 import { getCurrentUserProfile } from '@/lib/queries/profiles';
 import { isAdmin, isPremiumUser } from '@/lib/utils/user';
 import { awardPoints } from '@/lib/queries/gamification';
@@ -22,6 +22,7 @@ export default function CourseDetailPage() {
   const [selectedLesson, setSelectedLesson] = useState<CourseLesson | null>(null);
   const [openQaIndex, setOpenQaIndex] = useState<number | null>(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [checkingEnrollment, setCheckingEnrollment] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
@@ -31,6 +32,10 @@ export default function CourseDetailPage() {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [questionText, setQuestionText] = useState('');
+  const [submittingQuestion, setSubmittingQuestion] = useState(false);
+  const [userQuestions, setUserQuestions] = useState<any[]>([]);
+  const [showQuestionForm, setShowQuestionForm] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -69,6 +74,18 @@ export default function CourseDetailPage() {
     
     updateNextLesson();
   }, [selectedLesson, completedLessons, course, currentUser, lessons]);
+
+  // Close transcript dropdown when lesson changes
+  useEffect(() => {
+    setTranscriptOpen(false);
+  }, [selectedLesson?.id]);
+
+  // Scroll to top when lesson changes
+  useEffect(() => {
+    if (selectedLesson) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [selectedLesson?.id]);
 
   async function loadData() {
     setLoading(true);
@@ -155,16 +172,28 @@ export default function CourseDetailPage() {
           
           // Load completed lessons and determine next lesson (optimized)
           if (userId) {
-            // Load completed lessons in parallel with lesson access check
-            const [completedLessonsResult] = await Promise.all([
-              getCompletedLessons(courseId, userId)
-            ]);
-            
-            const { data: completedLessonIds } = completedLessonsResult;
+            // Load completed lessons once
+            const { data: completedLessonIds } = await getCompletedLessons(courseId, userId);
             const completedIds = Array.isArray(completedLessonIds) ? completedLessonIds : [];
             
-            await loadCompletedLessons(courseId, userId);
-            await checkLessonAccess(courseId, userId, lessonsData);
+            // Set completed lessons state
+            setCompletedLessons(completedIds);
+            
+            // Calculate lesson access on client side (much faster than N API calls)
+            const accessMap = new Map<string, boolean>();
+            if (courseData?.is_sequential) {
+              // For sequential courses: first lesson is always accessible, others need previous lesson completed
+              lessonsData.forEach((lesson: CourseLesson, index: number) => {
+                const isAccessible = index === 0 || completedIds.includes(lessonsData[index - 1].id);
+                accessMap.set(lesson.id, isAccessible);
+              });
+            } else {
+              // For non-sequential courses: all lessons are accessible
+              lessonsData.forEach((lesson: CourseLesson) => {
+                accessMap.set(lesson.id, true);
+              });
+            }
+            setLessonAccessStatus(accessMap);
             
             // Find the next lesson to watch (optimized - no loop with API calls)
             let nextLesson: CourseLesson | null = null;
@@ -218,30 +247,79 @@ export default function CourseDetailPage() {
     }
   }
 
-  async function loadCompletedLessons(courseId: string, userId: string) {
+  // Load user questions when lesson changes
+  useEffect(() => {
+    if (selectedLesson && currentUser) {
+      loadUserQuestions();
+    } else {
+      setUserQuestions([]);
+    }
+  }, [selectedLesson?.id, currentUser?.id]);
+
+  async function loadUserQuestions() {
+    if (!selectedLesson || !currentUser) return;
+    
     try {
-      const { data, error } = await getCompletedLessons(courseId, userId);
-      if (!error && data) {
-        setCompletedLessons(data);
+      const response = await fetch(`/api/lessons/${selectedLesson.id}/questions`);
+      const { data } = await response.json();
+      if (data) {
+        setUserQuestions(data);
       }
     } catch (error) {
-      console.error('Error loading completed lessons:', error);
+      console.error('Error loading questions:', error);
     }
   }
 
-  async function checkLessonAccess(courseId: string, userId: string, lessonsList: CourseLesson[]) {
+  async function handleSubmitQuestion() {
+    if (!selectedLesson || !currentUser || !questionText.trim() || submittingQuestion) return;
+    
+    setSubmittingQuestion(true);
     try {
-      const accessMap = new Map<string, boolean>();
+      const response = await fetch(`/api/lessons/${selectedLesson.id}/questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: questionText.trim() })
+      });
       
-      for (const lesson of lessonsList) {
-        const canAccess = await canAccessLesson(lesson.id, courseId, userId);
-        accessMap.set(lesson.id, canAccess);
+      const { data, error } = await response.json();
+      
+      if (error) {
+        alert(`שגיאה בשליחת השאלה: ${error}`);
+      } else {
+        setQuestionText('');
+        setShowQuestionForm(false);
+        await loadUserQuestions();
+        alert('השאלה נשלחה בהצלחה! נענה עליה בהקדם.');
       }
-      
-      setLessonAccessStatus(accessMap);
-    } catch (error) {
-      console.error('Error checking lesson access:', error);
+    } catch (error: any) {
+      console.error('Error submitting question:', error);
+      alert('שגיאה בשליחת השאלה. נסה שוב.');
+    } finally {
+      setSubmittingQuestion(false);
     }
+  }
+
+  // Calculate lesson access on client side (optimized - no API calls)
+  function calculateLessonAccess(lessonsList: CourseLesson[], completedIds: string[], isSequential: boolean): Map<string, boolean> {
+    const accessMap = new Map<string, boolean>();
+    
+    // Sort lessons by lesson_order to ensure correct order for sequential access calculation
+    const sortedLessons = [...lessonsList].sort((a, b) => (a.lesson_order || 0) - (b.lesson_order || 0));
+    
+    if (isSequential) {
+      // For sequential courses: first lesson is always accessible, others need previous lesson completed
+      sortedLessons.forEach((lesson, index) => {
+        const isAccessible = index === 0 || completedIds.includes(sortedLessons[index - 1].id);
+        accessMap.set(lesson.id, isAccessible);
+      });
+    } else {
+      // For non-sequential courses: all lessons are accessible
+      sortedLessons.forEach((lesson: CourseLesson) => {
+        accessMap.set(lesson.id, true);
+      });
+    }
+    
+    return accessMap;
   }
 
   async function handleMarkComplete() {
@@ -297,9 +375,12 @@ export default function CourseDetailPage() {
               }
             }
             
-            // If course is sequential, check access for next lessons
+            // If course is sequential, recalculate access for next lessons
             if (course.is_sequential) {
-              await checkLessonAccess(course.id, currentUser.id, lessons);
+              // Recalculate access on client side (no API calls needed)
+              const updatedAccessMap = calculateLessonAccess(lessons, updatedCompletedLessons, true);
+              setLessonAccessStatus(updatedAccessMap);
+              
               // Update next available lesson
               const currentIndex = lessons.findIndex(l => l.id === selectedLesson.id);
               if (currentIndex !== -1) {
@@ -356,9 +437,14 @@ export default function CourseDetailPage() {
           
           let nextLesson: CourseLesson | null = null;
           
+          // Calculate access on client side (no API calls)
+          const accessMap = calculateLessonAccess(lessonsData, completedIds, course.is_sequential || false);
+          setLessonAccessStatus(accessMap);
+          
           if (course.is_sequential) {
-            for (const lesson of lessonsData) {
-              const canAccess = await canAccessLesson(lesson.id, courseId, currentUser.id);
+            for (let i = 0; i < lessonsData.length; i++) {
+              const lesson = lessonsData[i];
+              const canAccess = accessMap.get(lesson.id) ?? true;
               const isCompleted = completedIds.includes(lesson.id);
               if (canAccess && !isCompleted) {
                 nextLesson = lesson;
@@ -428,9 +514,14 @@ export default function CourseDetailPage() {
               
               let nextLesson: CourseLesson | null = null;
               
+              // Calculate access on client side (no API calls)
+              const accessMap = calculateLessonAccess(lessonsData, completedIds, course.is_sequential || false);
+              setLessonAccessStatus(accessMap);
+              
               if (course.is_sequential) {
-                for (const lesson of lessonsData) {
-                  const canAccess = await canAccessLesson(lesson.id, courseId, currentUser.id);
+                for (let i = 0; i < lessonsData.length; i++) {
+                  const lesson = lessonsData[i];
+                  const canAccess = accessMap.get(lesson.id) ?? true;
                   const isCompleted = completedIds.includes(lesson.id);
                   if (canAccess && !isCompleted) {
                     nextLesson = lesson;
@@ -478,9 +569,14 @@ export default function CourseDetailPage() {
             
             let nextLesson: CourseLesson | null = null;
             
+            // Calculate access on client side (no API calls)
+            const accessMap = calculateLessonAccess(lessonsData, completedIds, course.is_sequential || false);
+            setLessonAccessStatus(accessMap);
+            
             if (course.is_sequential) {
-              for (const lesson of lessonsData) {
-                const canAccess = await canAccessLesson(lesson.id, courseId, currentUser.id);
+              for (let i = 0; i < lessonsData.length; i++) {
+                const lesson = lessonsData[i];
+                const canAccess = accessMap.get(lesson.id) ?? true;
                 const isCompleted = completedIds.includes(lesson.id);
                 if (canAccess && !isCompleted) {
                   nextLesson = lesson;
@@ -728,6 +824,11 @@ export default function CourseDetailPage() {
                     מומלץ
                   </span>
                 )}
+                {course.status === 'draft' && (
+                  <span className="px-3 py-1 bg-gray-600 text-white text-xs font-semibold rounded-full">
+                    טיוטה
+                  </span>
+                )}
               </div>
               <h1 className="text-3xl font-bold text-gray-800 mb-3">{course.title}</h1>
               {course.description && (() => {
@@ -837,7 +938,9 @@ export default function CourseDetailPage() {
                 // Display with sections (accordion)
                 <div className="space-y-2">
                   {sections.map((section) => {
-                    const sectionLessons = lessons.filter(lesson => lesson.section_id === section.id);
+                    const sectionLessons = lessons
+                      .filter(lesson => lesson.section_id === section.id)
+                      .sort((a, b) => (a.lesson_order || 0) - (b.lesson_order || 0));
                     const isOpen = openSections.has(section.id);
                     console.log(`Section "${section.title}" (${section.id}): ${sectionLessons.length} lessons, isOpen: ${isOpen}`);
                     
@@ -912,7 +1015,11 @@ export default function CourseDetailPage() {
                                         </div>
                                         <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
                                         {lesson.description && (
-                                          <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                                          <div 
+                                            className="text-xs sm:text-sm text-gray-600 line-clamp-2 overflow-hidden"
+                                            dangerouslySetInnerHTML={{ __html: lesson.description }}
+                                            dir="rtl"
+                                          />
                                         )}
                                         {lesson.duration_minutes && (
                                           <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
@@ -948,7 +1055,9 @@ export default function CourseDetailPage() {
                         <span className="font-semibold text-gray-800 text-sm sm:text-base">שיעורים נוספים</span>
                       </div>
                       <div className="p-2 space-y-2">
-                        {lessons.filter(lesson => !lesson.section_id).map((lesson) => {
+                        {[...lessons.filter(lesson => !lesson.section_id)]
+                          .sort((a, b) => (a.lesson_order || 0) - (b.lesson_order || 0))
+                          .map((lesson) => {
                           const isCompleted = completedLessons.includes(lesson.id);
                           const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
                           const isLocked = course.is_sequential && !canAccess;
@@ -992,7 +1101,11 @@ export default function CourseDetailPage() {
                                   </div>
                                   <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
                                   {lesson.description && (
-                                    <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                                    <div 
+                                      className="text-xs sm:text-sm text-gray-600 line-clamp-2 overflow-hidden"
+                                      dangerouslySetInnerHTML={{ __html: lesson.description }}
+                                      dir="rtl"
+                                    />
                                   )}
                                   {lesson.duration_minutes && (
                                     <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
@@ -1108,7 +1221,11 @@ export default function CourseDetailPage() {
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3">{selectedLesson.title}</h2>
                   {selectedLesson.description && (
-                    <p className="text-gray-600 mb-4">{selectedLesson.description}</p>
+                    <div 
+                      className="text-gray-600 mb-4 prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: selectedLesson.description }}
+                      dir="rtl"
+                    />
                   )}
                 </div>
 
@@ -1213,6 +1330,84 @@ export default function CourseDetailPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Ask Question Section */}
+                {currentUser && (
+                  <div className="mb-6 pt-6 border-t border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-6 h-6 text-[#F52F8E]" />
+                        <h2 className="text-xl font-bold text-gray-800">שאל שאלה</h2>
+                      </div>
+                      {!showQuestionForm && (
+                        <button
+                          onClick={() => setShowQuestionForm(true)}
+                          className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors text-sm font-semibold"
+                        >
+                          שאל שאלה חדשה
+                        </button>
+                      )}
+                    </div>
+                    
+                    {showQuestionForm && (
+                      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                        <textarea
+                          value={questionText}
+                          onChange={(e) => setQuestionText(e.target.value)}
+                          placeholder="מה תרצה לשאול על השיעור הזה?"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] resize-none min-h-[100px]"
+                          dir="rtl"
+                          disabled={submittingQuestion}
+                        />
+                        <div className="flex items-center gap-2 mt-3">
+                          <button
+                            onClick={handleSubmitQuestion}
+                            disabled={!questionText.trim() || submittingQuestion}
+                            className="px-6 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold"
+                          >
+                            {submittingQuestion ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                <span>שולח...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Send className="w-4 h-4" />
+                                <span>שלח שאלה</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowQuestionForm(false);
+                              setQuestionText('');
+                            }}
+                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                          >
+                            ביטול
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* User's pending questions */}
+                    {userQuestions.filter((q: any) => q.status === 'pending').length > 0 && (
+                      <div className="mb-4">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-2">השאלות שלך ממתינות לתשובה:</h3>
+                        <div className="space-y-2">
+                          {userQuestions
+                            .filter((q: any) => q.status === 'pending')
+                            .map((q: any) => (
+                              <div key={q.id} className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                <p className="text-gray-800 text-sm">{q.question}</p>
+                                <p className="text-xs text-gray-500 mt-1">נשלח ב-{new Date(q.created_at).toLocaleDateString('he-IL')}</p>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1337,6 +1532,33 @@ export default function CourseDetailPage() {
                   </div>
                 )}
 
+                {/* Transcript Section */}
+                {selectedLesson.transcript && (
+                  <div className="mt-6 border-t border-gray-200 pt-6">
+                    <button
+                      onClick={() => setTranscriptOpen(!transcriptOpen)}
+                      className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <span className="font-semibold text-gray-800 flex items-center gap-2">
+                        <BookOpen className="w-5 h-5" />
+                        תמלול
+                      </span>
+                      {transcriptOpen ? (
+                        <ChevronUp className="w-5 h-5 text-gray-600" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-gray-600" />
+                      )}
+                    </button>
+                    {transcriptOpen && (
+                      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                          {selectedLesson.transcript}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {!selectedLesson.video_url && !selectedLesson.content && (
                   <div className="text-center py-12 text-gray-500">
                     <p>תוכן השיעור יופיע כאן בקרוב</p>
@@ -1399,7 +1621,9 @@ export default function CourseDetailPage() {
                 // Display with sections (accordion)
                 <div className="space-y-2">
                   {sections.map((section) => {
-                    const sectionLessons = lessons.filter(lesson => lesson.section_id === section.id);
+                    const sectionLessons = lessons
+                      .filter(lesson => lesson.section_id === section.id)
+                      .sort((a, b) => (a.lesson_order || 0) - (b.lesson_order || 0));
                     const isOpen = openSections.has(section.id);
                     
                     // Debug logging
@@ -1479,7 +1703,11 @@ export default function CourseDetailPage() {
                                         </div>
                                         <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
                                         {lesson.description && (
-                                          <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                                          <div 
+                                            className="text-xs sm:text-sm text-gray-600 line-clamp-2 overflow-hidden"
+                                            dangerouslySetInnerHTML={{ __html: lesson.description }}
+                                            dir="rtl"
+                                          />
                                         )}
                                         {lesson.duration_minutes && (
                                           <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
@@ -1515,7 +1743,9 @@ export default function CourseDetailPage() {
                         <span className="font-semibold text-gray-800 text-sm sm:text-base">שיעורים נוספים</span>
                       </div>
                       <div className="p-2 space-y-2">
-                        {lessons.filter(lesson => !lesson.section_id).map((lesson) => {
+                        {[...lessons.filter(lesson => !lesson.section_id)]
+                          .sort((a, b) => (a.lesson_order || 0) - (b.lesson_order || 0))
+                          .map((lesson) => {
                           const isCompleted = completedLessons.includes(lesson.id);
                           const canAccess = lessonAccessStatus.get(lesson.id) ?? true;
                           const isLocked = course.is_sequential && !canAccess;
@@ -1560,7 +1790,11 @@ export default function CourseDetailPage() {
                                   </div>
                                   <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
                                   {lesson.description && (
-                                    <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{lesson.description}</p>
+                                    <div 
+                                      className="text-xs sm:text-sm text-gray-600 line-clamp-2 overflow-hidden"
+                                      dangerouslySetInnerHTML={{ __html: lesson.description }}
+                                      dir="rtl"
+                                    />
                                   )}
                                   {lesson.duration_minutes && (
                                     <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">

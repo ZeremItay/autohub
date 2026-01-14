@@ -647,6 +647,60 @@ export async function deductPoints(userId: string, amount: number) {
     const newPoints = currentPoints - amount;
     console.log(`💰 Deducting points: ${currentPoints} - ${amount} = ${newPoints}`);
 
+    // Get profile ID for points_history (points_history.user_id references profiles.id, not profiles.user_id)
+    let profileIdForHistory = profile.user_id;
+    const { data: profileForHistory } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+    
+    if (profileForHistory) {
+      profileIdForHistory = profileForHistory.id;
+    }
+
+    // Add to points history
+    const historyActionName = 'הגשת הצעה לפרויקט';
+    const historyData: any = {
+      user_id: profileIdForHistory, // Use profile.id, not profile.user_id
+      points: -amount, // Negative points for deduction
+      action_name: historyActionName
+    };
+
+    // Try to insert with 'action_name' first, then fallback to 'action' if needed
+    let historyError: any = null;
+    const { error: insertError } = await supabase
+      .from('points_history')
+      .insert([historyData]);
+    
+    if (insertError) {
+      // If 'action_name' column doesn't exist, try 'action'
+      if (insertError.code === 'PGRST204' || insertError.message?.includes('action_name') || insertError.message?.includes('column')) {
+        console.log('⚠️ "action_name" column not found, trying "action" instead');
+        const historyDataWithAction: any = {
+          user_id: profileIdForHistory,
+          points: -amount,
+          action: historyActionName
+        };
+        const { error: insertError2 } = await supabase
+          .from('points_history')
+          .insert([historyDataWithAction]);
+        
+        if (insertError2) {
+          historyError = insertError2;
+        }
+      } else {
+        historyError = insertError;
+      }
+    }
+    
+    if (historyError) {
+      console.error('❌ Error adding to points history:', historyError?.message || String(historyError));
+      // Don't fail the deduction if history insert fails, but log it
+    } else {
+      console.log('✅ Points history entry added successfully');
+    }
+
     // Update points in database
     const { error: updateError } = await supabase
       .from('profiles')

@@ -730,44 +730,67 @@ export default function ProjectsPage() {
   }
 
   function handleSubmitOffer(projectId: string) {
+    console.log('[handleSubmitOffer] Called with projectId:', projectId);
     // ProtectedAction already handles auth check, but keep this as a safety check
     if (!currentUser) {
+      console.log('[handleSubmitOffer] No current user');
       return; // ProtectedAction will show tooltip
     }
     
+    console.log('[handleSubmitOffer] Current user:', currentUser);
+    console.log('[handleSubmitOffer] Projects array length:', projects.length);
+    
     // Find the project
     const project = projects.find(p => p.id === projectId);
+    console.log('[handleSubmitOffer] Found project:', project ? 'YES' : 'NO', project);
     if (!project) {
+      console.log('[handleSubmitOffer] Project not found!');
       alert('פרויקט לא נמצא');
       return;
     }
     
     // Check if project is closed
+    console.log('[handleSubmitOffer] Project status:', project.status);
     if (project.status === 'closed') {
+      console.log('[handleSubmitOffer] Project is closed');
       alert('לא ניתן להגיש הצעות לפרויקט סגור');
       return;
     }
     
     // If user has free project submission, proceed normally
+    console.log('[handleSubmitOffer] userHasFreeProjectSubmission:', userHasFreeProjectSubmission);
     if (userHasFreeProjectSubmission) {
+      console.log('[handleSubmitOffer] User has free submission - opening offer modal');
       setSelectedProject(project);
       setOfferForm({ message: '', offer_amount: '' });
       setShowOfferModal(true);
+      console.log('[handleSubmitOffer] setShowOfferModal(true) called');
       return;
     }
     
     // For free users, check points balance
     const pointsCost = 50;
     const currentPoints = userPoints || (currentUser as any)?.points || 0;
+    console.log('[handleSubmitOffer] Points check:', {
+      userPoints,
+      currentUserPoints: (currentUser as any)?.points,
+      currentPoints,
+      pointsCost,
+      hasEnough: currentPoints >= pointsCost
+    });
     
     if (currentPoints >= pointsCost) {
       // User has enough points - show confirmation modal
+      console.log('[handleSubmitOffer] User has enough points - opening confirmation modal');
       setSelectedProject(project);
       setShowPointsConfirmationModal(true);
+      console.log('[handleSubmitOffer] setShowPointsConfirmationModal(true) called');
     } else {
       // User doesn't have enough points - show insufficient points modal
+      console.log('[handleSubmitOffer] User does NOT have enough points - opening insufficient points modal');
       setSelectedProject(project);
       setShowInsufficientPointsModal(true);
+      console.log('[handleSubmitOffer] setShowInsufficientPointsModal(true) called');
     }
   }
 
@@ -1072,11 +1095,11 @@ export default function ProjectsPage() {
                       ) : (
                         <ProtectedAction
                           requireAuth={true}
-                          requirePremium={true}
                           pointsCost={50}
                         >
                           <button 
                             onClick={(e) => {
+                              console.log('[Button] Clicked!', project.id);
                               e.stopPropagation();
                               handleSubmitOffer(project.id);
                             }}
@@ -1211,7 +1234,6 @@ export default function ProjectsPage() {
                       ) : (
                         <ProtectedAction
                           requireAuth={true}
-                          requirePremium={true}
                           pointsCost={50}
                         >
                           <button 
@@ -1882,7 +1904,6 @@ export default function ProjectsPage() {
                 </button>
                 <ProtectedAction
                   requireAuth={true}
-                  requirePremium={true}
                   pointsCost={50}
                   disabledMessage="התחבר כדי להגיש הצעה"
                 >
@@ -2098,6 +2119,106 @@ export default function ProjectsPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Points Confirmation Modal */}
+      {showPointsConfirmationModal && selectedProject && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowPointsConfirmationModal(false);
+            setSelectedProject(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">אישור הגשת הצעה</h2>
+            <p className="text-gray-700 mb-4">
+              הגשת הצעה לפרויקט זה תעלה לך 50 נקודות. האם אתה בטוח שברצונך להמשיך?
+            </p>
+            <p className="text-sm text-gray-500 mb-6 text-center">
+              לחלופין, ניתן{' '}
+              <Link 
+                href="/subscription" 
+                className="text-[#F52F8E] hover:underline font-medium"
+                onClick={() => {
+                  setShowPointsConfirmationModal(false);
+                  setSelectedProject(null);
+                }}
+              >
+                לשדרג למנוי פרימיום
+              </Link>
+              {' '}ולהגיש הצעות ללא הגבלה
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowPointsConfirmationModal(false);
+                  setSelectedProject(null);
+                }}
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-colors font-medium text-sm"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={() => {
+                  setPointsConfirmed(true);
+                  setShowPointsConfirmationModal(false);
+                  setShowOfferModal(true);
+                }}
+                className="px-6 py-2.5 bg-[#F52F8E] text-white rounded-xl hover:bg-[#E01E7A] transition-colors font-medium text-sm"
+              >
+                אישור והמשך
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Insufficient Points Modal */}
+      {showInsufficientPointsModal && selectedProject && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowInsufficientPointsModal(false);
+            setSelectedProject(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">אין מספיק נקודות</h2>
+            <p className="text-gray-700 mb-6">
+              הגשת הצעה לפרויקט זה עולה 50 נקודות. יש לך {userPoints || (currentUser as any)?.points || 0} נקודות בלבד.
+              <br /><br />
+              אתה יכול להרוויח נקודות על ידי פעילות בקהילה, או לשדרג לפרימיום כדי להגיש הצעות ללא נקודות.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowInsufficientPointsModal(false);
+                  setSelectedProject(null);
+                }}
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-colors font-medium text-sm"
+              >
+                סגור
+              </button>
+              <Link
+                href="/subscription"
+                className="px-6 py-2.5 bg-[#F52F8E] text-white rounded-xl hover:bg-[#E01E7A] transition-colors font-medium text-sm inline-block text-center"
+                onClick={() => {
+                  setShowInsufficientPointsModal(false);
+                  setSelectedProject(null);
+                }}
+              >
+                שדרג לפרימיום
+              </Link>
             </div>
           </div>
         </div>

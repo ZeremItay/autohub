@@ -33,6 +33,16 @@ export default function ProtectedAction({
   const [showTooltip, setShowTooltip] = useState(false);
   const userPoints = (user as any)?.points || 0;
 
+  console.log('[ProtectedAction] Render:', {
+    requireAuth,
+    requirePremium,
+    hasUser: !!user,
+    loading,
+    isPremium,
+    userPoints,
+    pointsCost
+  });
+
   // Show loading state
   if (loading) {
     return (
@@ -303,16 +313,7 @@ export default function ProtectedAction({
 
   // User is authenticated and meets requirements - allow action
   // Just pass through the children - they handle their own onClick
-  if (React.isValidElement(children)) {
-    // Merge className if provided
-    const childClassName = (children as any).props?.className || '';
-    const mergedClassName = className ? `${className} ${childClassName}`.trim() : childClassName;
-    
-    return React.cloneElement(children as React.ReactElement<any>, {
-      className: mergedClassName || undefined
-    });
-  }
-
+  // Simply return children as-is - no need to clone if we're not modifying anything
   return <>{children}</>;
 }
 
