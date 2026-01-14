@@ -35,9 +35,9 @@ export async function GET(request: NextRequest) {
     
     let result;
     if (status === 'pending') {
-      result = await getAllPendingQuestions();
+      result = await getAllPendingQuestions(supabase);
     } else {
-      result = await getAllQuestions();
+      result = await getAllQuestions(supabase);
     }
     
     if (result.error) {
@@ -84,14 +84,14 @@ export async function POST(request: NextRequest) {
     }
     
     // Answer the question
-    const answerResult = await answerLessonQuestion(questionId, answer, userId);
+    const answerResult = await answerLessonQuestion(questionId, answer, userId, supabase);
     
     if (answerResult.error) {
       return NextResponse.json({ error: answerResult.error.message }, { status: 500 });
     }
     
     // Add Q&A to lesson's qa_section
-    const addQAResult = await addQAToLesson(lessonId, question, answer);
+    const addQAResult = await addQAToLesson(lessonId, question, answer, supabase);
     
     if (addQAResult.error) {
       console.error('Error adding Q&A to lesson:', addQAResult.error);

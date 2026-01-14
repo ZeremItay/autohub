@@ -80,11 +80,12 @@ export async function getLessonQuestions(lessonId: string, userId?: string) {
 export async function answerLessonQuestion(
   questionId: string,
   answer: string,
-  answeredBy: string
+  answeredBy: string,
+  supabaseClient?: any
 ) {
-  const supabaseClient = await getSupabaseClient();
+  const client = supabaseClient || await getSupabaseClient();
   
-  const { data, error } = await supabaseClient
+  const { data, error } = await client
     .from('lesson_questions')
     .update({
       answer: answer,
@@ -105,11 +106,11 @@ export async function answerLessonQuestion(
 }
 
 // Add Q&A to lesson's qa_section
-export async function addQAToLesson(lessonId: string, question: string, answer: string) {
-  const supabaseClient = await getSupabaseClient();
+export async function addQAToLesson(lessonId: string, question: string, answer: string, supabaseClient?: any) {
+  const client = supabaseClient || await getSupabaseClient();
   
   // Get current lesson
-  const { data: lesson, error: lessonError } = await supabaseClient
+  const { data: lesson, error: lessonError } = await client
     .from('course_lessons')
     .select('qa_section')
     .eq('id', lessonId)
@@ -132,7 +133,7 @@ export async function addQAToLesson(lessonId: string, question: string, answer: 
   const updatedQASection = [...currentQASection, newQAItem];
   
   // Update lesson with new qa_section
-  const { data, error } = await supabaseClient
+  const { data, error } = await client
     .from('course_lessons')
     .update({
       qa_section: updatedQASection
@@ -150,10 +151,10 @@ export async function addQAToLesson(lessonId: string, question: string, answer: 
 }
 
 // Get all pending questions (for admin)
-export async function getAllPendingQuestions() {
-  const supabaseClient = await getSupabaseClient();
+export async function getAllPendingQuestions(supabaseClient?: any) {
+  const client = supabaseClient || await getSupabaseClient();
   
-  const { data, error } = await supabaseClient
+  const { data, error } = await client
     .from('lesson_questions')
     .select(`
       *,
@@ -184,10 +185,10 @@ export async function getAllPendingQuestions() {
 }
 
 // Get all questions (for admin)
-export async function getAllQuestions() {
-  const supabaseClient = await getSupabaseClient();
+export async function getAllQuestions(supabaseClient?: any) {
+  const client = supabaseClient || await getSupabaseClient();
   
-  const { data, error } = await supabaseClient
+  const { data, error } = await client
     .from('lesson_questions')
     .select(`
       *,
