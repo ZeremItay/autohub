@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createServerClient } from '@/lib/supabase-server';
 import { submitLessonQuestion, getLessonQuestions } from '@/lib/queries/lessons';
 
@@ -7,7 +8,8 @@ export async function POST(
   { params }: { params: Promise<{ lessonId: string }> }
 ) {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
@@ -40,7 +42,8 @@ export async function GET(
   { params }: { params: Promise<{ lessonId: string }> }
 ) {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     const { data: { session } } = await supabase.auth.getSession();
     
     const userId = session?.user?.id;

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createServerClient } from '@/lib/supabase-server';
 import { getAllPendingQuestions, getAllQuestions, answerLessonQuestion, addQAToLesson } from '@/lib/queries/lessons';
 import { isAdmin } from '@/lib/utils/user';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
@@ -51,7 +53,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(cookieStore);
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
