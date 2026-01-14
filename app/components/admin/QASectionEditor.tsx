@@ -14,6 +14,10 @@ interface QASectionEditorProps {
 }
 
 export default function QASectionEditor({ qaSection, onChange, className = '' }: QASectionEditorProps) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/admin/QASectionEditor.tsx:16',message:'QASectionEditor RENDER',data:{qaSection_type:typeof qaSection,qaSection_isArray:Array.isArray(qaSection),qaSection_length:Array.isArray(qaSection)?qaSection.length:'not array',qaSection},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  
   const handleAddQA = () => {
     onChange([...(qaSection || []), { question: '', answer: '' }]);
   };

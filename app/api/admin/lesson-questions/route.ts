@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     
+    console.log('🔍 Admin requesting questions with status:', status);
+    
     let result;
     if (status === 'pending') {
       result = await getAllPendingQuestions(supabase);
@@ -40,10 +42,14 @@ export async function GET(request: NextRequest) {
       result = await getAllQuestions(supabase);
     }
     
+    console.log('📦 Query result:', { hasError: !!result.error, dataLength: result.data?.length || 0 });
+    
     if (result.error) {
+      console.error('❌ Error getting questions:', result.error);
       return NextResponse.json({ error: result.error.message }, { status: 500 });
     }
     
+    console.log('✅ Returning questions:', result.data?.length || 0);
     return NextResponse.json({ data: result.data });
   } catch (error: any) {
     console.error('Error getting questions:', error);
@@ -77,7 +83,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    const { questionId, answer, lessonId, question } = await request.json();
+    const { questionId, answer, lessonId, question, addToQA } = await request.json();
     
     if (!questionId || !answer || !lessonId || !question) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -90,12 +96,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: answerResult.error.message }, { status: 500 });
     }
     
-    // Add Q&A to lesson's qa_section
-    const addQAResult = await addQAToLesson(lessonId, question, answer, supabase);
-    
-    if (addQAResult.error) {
-      console.error('Error adding Q&A to lesson:', addQAResult.error);
-      // Don't fail the request if this fails, the question is already answered
+    // Add Q&A to lesson's qa_section only if addToQA is true
+    if (addToQA) {
+      const addQAResult = await addQAToLesson(lessonId, question, answer, supabase);
+      
+      if (addQAResult.error) {
+        console.error('Error adding Q&A to lesson:', addQAResult.error);
+        // Don't fail the request if this fails, the question is already answered
+      }
     }
     
     return NextResponse.json({ data: answerResult.data });

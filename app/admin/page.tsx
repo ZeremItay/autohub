@@ -38,7 +38,9 @@ import {
   GripVertical,
   Eye,
   EyeOff,
-  MessageSquare
+  MessageSquare,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -986,6 +988,7 @@ export default function AdminPanel() {
   const [lessonQuestions, setLessonQuestions] = useState<any[]>([])
   const [editingQuestion, setEditingQuestion] = useState<string | null>(null)
   const [questionAnswer, setQuestionAnswer] = useState<string>('')
+  const [addToQA, setAddToQA] = useState<boolean>(false)
   
   // Calculate selected date for events DatePicker
   const eventSelectedDate = useMemo(() => {
@@ -1028,6 +1031,7 @@ export default function AdminPanel() {
   const [editingLessonData, setEditingLessonData] = useState<{title: string, description: string, video_url: string, duration_minutes?: number, transcript?: string, qa_section: Array<{question: string, answer: string}>, key_points: Array<{title: string, description: string, url?: string}>} | null>(null)
   const [fetchingVideoDuration, setFetchingVideoDuration] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
   const router = useRouter()
@@ -1507,12 +1511,51 @@ export default function AdminPanel() {
           setMenuItems(data)
         }
       } else if (activeTab === 'lesson-questions') {
-        const response = await fetch('/api/admin/lesson-questions?status=pending', {
-          credentials: 'include'
-        })
-        if (response.ok) {
-          const { data } = await response.json()
-          setLessonQuestions(data || [])
+        console.log('🔍 Loading lesson questions...')
+        try {
+          const response = await fetch('/api/admin/lesson-questions?status=pending', {
+            credentials: 'include'
+          })
+          console.log('📡 Response status:', response.status, response.statusText)
+          
+          const contentType = response.headers.get('content-type')
+          console.log('📄 Content-Type:', contentType)
+          
+          if (response.ok) {
+            const text = await response.text()
+            console.log('📝 Raw response text:', text)
+            
+            let result
+            try {
+              result = JSON.parse(text)
+            } catch (parseError) {
+              console.error('❌ Failed to parse JSON:', parseError)
+              console.error('Raw text was:', text)
+              setLessonQuestions([])
+              return
+            }
+            
+            console.log('📦 Response data:', result)
+            setLessonQuestions(result.data || [])
+            console.log('✅ Set lesson questions:', result.data || [])
+          } else {
+            const text = await response.text()
+            console.error('❌ Error response status:', response.status)
+            console.error('❌ Error response text:', text)
+            
+            let error
+            try {
+              error = JSON.parse(text)
+            } catch (parseError) {
+              error = { message: text || 'Unknown error' }
+            }
+            
+            console.error('❌ Error loading questions:', error)
+            setLessonQuestions([])
+          }
+        } catch (fetchError: any) {
+          console.error('❌ Fetch error:', fetchError)
+          setLessonQuestions([])
         }
       }
       
@@ -5770,9 +5813,33 @@ export default function AdminPanel() {
                               `lesson-${sectionIndex}-${lessonIndex}-${section.lessons[lessonIndex].id}`
                             );
                             
+                            const isOpen = openSections.has(section.id);
+                            
+                            const toggleSection = () => {
+                              const newOpenSections = new Set(openSections);
+                              if (isOpen) {
+                                newOpenSections.delete(section.id);
+                              } else {
+                                newOpenSections.add(section.id);
+                              }
+                              setOpenSections(newOpenSections);
+                            };
+                            
                             return (
-                              <div key={section.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                <div className="flex items-center gap-2 mb-3">
+                              <div key={section.id} className="border border-gray-200 rounded-lg bg-gray-50 overflow-hidden">
+                                <div className="flex items-center gap-2 p-4">
+                                  <button
+                                    type="button"
+                                    onClick={toggleSection}
+                                    className="p-1.5 text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                                    title={isOpen ? 'סגור חלק' : 'פתח חלק'}
+                                  >
+                                    {isOpen ? (
+                                      <ChevronUp className="w-5 h-5" />
+                                    ) : (
+                                      <ChevronDown className="w-5 h-5" />
+                                    )}
+                                  </button>
                                   <input
                                     type="text"
                                     placeholder="שם החלק (למשל: חלק א')"
@@ -5798,11 +5865,17 @@ export default function AdminPanel() {
                                   </button>
                                 </div>
                                 
-                                <SortableContext
-                                  items={lessonIds}
-                                  strategy={verticalListSortingStrategy}
+                                <div
+                                  className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                                    isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
+                                  }`}
                                 >
-                                  <div className="space-y-2">
+                                  <div className="px-4 pb-4">
+                                    <SortableContext
+                                      items={lessonIds}
+                                      strategy={verticalListSortingStrategy}
+                                    >
+                                      <div className="space-y-2">
                                     {section.lessons.length === 0 ? (
                                       <div className="text-center py-4 text-gray-400 text-sm">
                                         אין שיעורים בחלק זה
@@ -5814,17 +5887,121 @@ export default function AdminPanel() {
                                           lesson={lesson}
                                           sectionIndex={sectionIndex}
                                           lessonIndex={lessonIndex}
-                                          onEdit={() => {
+                                          onEdit={async () => {
+                                            console.log('🎯 onEdit clicked for lesson:', lesson.id, lesson.title)
                                             setEditingLesson({lessonId: lesson.id, sectionIndex, lessonIndex})
-                                            setEditingLessonData({
-                                              title: lesson.title || '',
-                                              description: lesson.description || '',
-                                              video_url: lesson.video_url || '',
-                                              duration_minutes: lesson.duration_minutes || 0,
-                                              transcript: lesson.transcript || '',
-                                              qa_section: lesson.qa_section || [],
-                                              key_points: lesson.key_points || []
-                                            })
+                                            
+                                            // Always load lesson from DB via API route to get latest data (especially qa_section)
+                                            // This ensures we always have the most up-to-date data, including Q&A added through lesson questions
+                                            try {
+                                              console.log('🔍 Loading lesson for edit from DB:', lesson.id, lesson.title)
+                                              
+                                              // Show loading state
+                                              setEditingLessonData({
+                                                title: lesson.title || '',
+                                                description: lesson.description || '',
+                                                video_url: lesson.video_url || '',
+                                                duration_minutes: lesson.duration_minutes || 0,
+                                                transcript: lesson.transcript || '',
+                                                qa_section: [], // Start with empty array, will be updated from DB
+                                                key_points: lesson.key_points || []
+                                              })
+                                              
+                                              console.log('📡 Fetching from API route:', `/api/admin/lessons/${lesson.id}`)
+                                              const response = await fetch(`/api/admin/lessons/${lesson.id}`)
+                                              console.log('📡 API response status:', response.status, response.statusText)
+                                              
+                                              if (!response.ok) {
+                                                const errorText = await response.text()
+                                                console.error('❌ Failed to load lesson from API:', response.status, errorText)
+                                                throw new Error(`Failed to load lesson: ${response.status} ${response.statusText}`)
+                                              }
+                                              
+                                              const result = await response.json()
+                                              
+                                              if (!result.data) {
+                                                console.error('❌ No data in API response:', result)
+                                                throw new Error('No data returned from API')
+                                              }
+                                              
+                                              const dbLesson = result.data
+                                              
+                                              console.log('📦 Loaded lesson from DB:', {
+                                                lessonId: dbLesson.id,
+                                                title: dbLesson.title,
+                                                hasQASection: !!dbLesson.qa_section,
+                                                qa_section_type: typeof dbLesson.qa_section,
+                                                qa_section_isArray: Array.isArray(dbLesson.qa_section),
+                                                qa_section_length: Array.isArray(dbLesson.qa_section) ? dbLesson.qa_section.length : 'not array',
+                                                qa_section: dbLesson.qa_section
+                                              })
+                                              
+                                              // Ensure qa_section is an array
+                                              let qaSection: Array<{question: string, answer: string}> = []
+                                              
+                                              if (dbLesson.qa_section) {
+                                                if (Array.isArray(dbLesson.qa_section)) {
+                                                  qaSection = dbLesson.qa_section
+                                                } else if (typeof dbLesson.qa_section === 'string') {
+                                                  try {
+                                                    qaSection = JSON.parse(dbLesson.qa_section)
+                                                    if (!Array.isArray(qaSection)) {
+                                                      console.warn('⚠️ Parsed qa_section is not an array:', qaSection)
+                                                      qaSection = []
+                                                    }
+                                                  } catch (parseError) {
+                                                    console.error('❌ Error parsing qa_section string:', parseError)
+                                                    qaSection = []
+                                                  }
+                                                } else if (typeof dbLesson.qa_section === 'object') {
+                                                  // If it's a single object, wrap it in an array
+                                                  qaSection = [dbLesson.qa_section]
+                                                }
+                                              }
+                                              
+                                              console.log('✅ Final qa_section to set:', {
+                                                length: qaSection.length,
+                                                items: qaSection
+                                              })
+                                              
+                                              // #region agent log
+                                              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:5874',message:'BEFORE setEditingLessonData',data:{lessonId:lesson.id,qaSection_length:qaSection.length,qaSection},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                                              // #endregion
+                                              
+                                              setEditingLessonData({
+                                                title: dbLesson.title || '',
+                                                description: dbLesson.description || '',
+                                                video_url: dbLesson.video_url || '',
+                                                duration_minutes: dbLesson.duration_minutes || 0,
+                                                transcript: dbLesson.transcript || '',
+                                                qa_section: qaSection,
+                                                key_points: Array.isArray(dbLesson.key_points) ? dbLesson.key_points : (dbLesson.key_points || [])
+                                              })
+                                              
+                                              // #region agent log
+                                              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:5889',message:'AFTER setEditingLessonData',data:{lessonId:lesson.id,qaSection_length:qaSection.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                                              // #endregion
+                                              
+                                              console.log('✅ Successfully loaded and set editingLessonData with', qaSection.length, 'Q&A items')
+                                            } catch (error: any) {
+                                              console.error('❌ Error loading lesson from DB:', error)
+                                              alert(`שגיאה בטעינת השיעור מה-DB: ${error.message || 'שגיאה לא ידועה'}. השתמש בנתונים מה-state.`)
+                                              
+                                              // Fallback to state data as last resort
+                                              const fallbackQASection = Array.isArray(lesson.qa_section) 
+                                                ? lesson.qa_section 
+                                                : (lesson.qa_section ? [lesson.qa_section] : [])
+                                              
+                                              setEditingLessonData({
+                                                title: lesson.title || '',
+                                                description: lesson.description || '',
+                                                video_url: lesson.video_url || '',
+                                                duration_minutes: lesson.duration_minutes || 0,
+                                                transcript: lesson.transcript || '',
+                                                qa_section: fallbackQASection,
+                                                key_points: Array.isArray(lesson.key_points) ? lesson.key_points : (lesson.key_points || [])
+                                              })
+                                            }
                                           }}
                                           onDelete={() => {
                                             const updated = [...courseSections]
@@ -5857,8 +6034,10 @@ export default function AdminPanel() {
                                       <Plus className="w-3 h-3" />
                                       הוסף שיעור לחלק זה
                                     </button>
+                                      </div>
+                                    </SortableContext>
                                   </div>
-                                </SortableContext>
+                                </div>
                               </div>
                             );
                           })}
@@ -8192,6 +8371,18 @@ export default function AdminPanel() {
                                 console.log('Loaded lessons:', lessons)
                                 console.log('Lessons count:', lessons?.length || 0)
                                 
+                                // Log qa_section for each lesson
+                                if (lessons && lessons.length > 0) {
+                                  lessons.forEach((lesson: any) => {
+                                    console.log(`📚 Lesson ${lesson.id} (${lesson.title}):`, {
+                                      qa_section_type: typeof lesson.qa_section,
+                                      qa_section_is_array: Array.isArray(lesson.qa_section),
+                                      qa_section_length: Array.isArray(lesson.qa_section) ? lesson.qa_section.length : 'not array',
+                                      qa_section: lesson.qa_section
+                                    })
+                                  })
+                                }
+                                
                                 // Load sections first
                                 const { getCourseSections } = await import('@/lib/queries/courses')
                                 const { data: sectionsData } = await getCourseSections(course.id)
@@ -8204,29 +8395,50 @@ export default function AdminPanel() {
                                       title: section.title,
                                       lessons: lessons
                                         .filter((lesson: any) => lesson.section_id === section.id)
-                                        .map((lesson: any) => ({
+                                        .map((lesson: any) => {
+                                          // Ensure qa_section is an array
+                                          const qaSection = Array.isArray(lesson.qa_section) 
+                                            ? lesson.qa_section 
+                                            : (lesson.qa_section ? [lesson.qa_section] : [])
+                                          
+                                          console.log(`✅ Mapping lesson ${lesson.id} to section ${section.id}:`, {
+                                            qa_section_length: qaSection.length,
+                                            qa_section: qaSection
+                                          })
+                                          
+                                          return {
                                     id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                     title: lesson.title || '',
                                     description: lesson.description || '',
                                     video_url: lesson.video_url || '',
                                     duration_minutes: lesson.duration_minutes || 0,
-                                    qa_section: lesson.qa_section || [],
+                                    transcript: lesson.transcript || '',
+                                    qa_section: qaSection,
                                     key_points: lesson.key_points || []
-                                        }))
+                                          }
+                                        })
                                     }))
                                     
                                     // Add lessons without section
                                     const lessonsWithoutSection = lessons
                                       .filter((lesson: any) => !lesson.section_id)
-                                      .map((lesson: any) => ({
+                                      .map((lesson: any) => {
+                                        // Ensure qa_section is an array
+                                        const qaSection = Array.isArray(lesson.qa_section) 
+                                          ? lesson.qa_section 
+                                          : (lesson.qa_section ? [lesson.qa_section] : [])
+                                        
+                                        return {
                                         id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                         title: lesson.title || '',
                                         description: lesson.description || '',
                                         video_url: lesson.video_url || '',
                                         duration_minutes: lesson.duration_minutes || 0,
-                                        qa_section: lesson.qa_section || [],
+                                        transcript: lesson.transcript || '',
+                                        qa_section: qaSection,
                                         key_points: lesson.key_points || []
-                                      }))
+                                        }
+                                      })
                                     
                                     // Instead of creating a "שיעורים נוספים" section, 
                                     // assign these lessons to the first section or create a proper section
@@ -8248,15 +8460,23 @@ export default function AdminPanel() {
                                     console.log('✅ Successfully loaded', sectionsWithLessons.length, 'sections with', lessons.length, 'lessons')
                                   } else {
                                     // No sections - group all lessons into one section (backward compatibility)
-                                    const mappedLessons = lessons.map((lesson: any) => ({
+                                    const mappedLessons = lessons.map((lesson: any) => {
+                                      // Ensure qa_section is an array
+                                      const qaSection = Array.isArray(lesson.qa_section) 
+                                        ? lesson.qa_section 
+                                        : (lesson.qa_section ? [lesson.qa_section] : [])
+                                      
+                                      return {
                                       id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                       title: lesson.title || '',
                                       description: lesson.description || '',
                                       video_url: lesson.video_url || '',
                                       duration_minutes: lesson.duration_minutes || 0,
-                                      qa_section: lesson.qa_section || [],
+                                      transcript: lesson.transcript || '',
+                                      qa_section: qaSection,
                                       key_points: lesson.key_points || []
-                                    }))
+                                      }
+                                    })
                                   
                                   setCourseSections([{
                                     id: 'section-1',
@@ -8978,7 +9198,7 @@ export default function AdminPanel() {
                                 </span>
                               </div>
                               <div className="text-sm text-gray-600 mb-2">
-                                <span className="font-medium">משתמש:</span> {question.user?.full_name || question.user?.email || 'לא ידוע'}
+                                <span className="font-medium">משתמש:</span> {question.user?.display_name || question.user?.first_name || question.user?.nickname || question.user?.email || 'לא ידוע'}
                               </div>
                               <div className="bg-gray-50 rounded-lg p-3 mb-3">
                                 <p className="text-gray-800 font-medium mb-1">שאלה:</p>
@@ -9005,6 +9225,18 @@ export default function AdminPanel() {
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] resize-none min-h-[120px]"
                                 dir="rtl"
                               />
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id={`add-to-qa-${question.id}`}
+                                  checked={addToQA}
+                                  onChange={(e) => setAddToQA(e.target.checked)}
+                                  className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                                />
+                                <label htmlFor={`add-to-qa-${question.id}`} className="text-sm text-gray-700 cursor-pointer">
+                                  הוסף ל-Q&A של השיעור
+                                </label>
+                              </div>
                               <div className="flex gap-2">
                                 <button
                                   onClick={async () => {
@@ -9021,7 +9253,8 @@ export default function AdminPanel() {
                                           questionId: question.id,
                                           answer: questionAnswer.trim(),
                                           lessonId: question.lesson_id,
-                                          question: question.question
+                                          question: question.question,
+                                          addToQA: addToQA
                                         })
                                       })
                                       
@@ -9032,8 +9265,62 @@ export default function AdminPanel() {
                                       } else {
                                         setEditingQuestion(null)
                                         setQuestionAnswer('')
+                                        setAddToQA(false)
+                                        
+                                        // Reload lesson questions
                                         await loadData()
-                                        alert('התשובה נשמרה בהצלחה והוספה ל-Q&A של השיעור!')
+                                        
+                                        // If we added to QA, reload the specific lesson to update Q&A section
+                                        if (addToQA && question.lesson_id) {
+                                          try {
+                                            // Load lesson from DB via API route to get latest data
+                                            const response = await fetch(`/api/admin/lessons/${question.lesson_id}`)
+                                            
+                                            if (response.ok) {
+                                              const { data: updatedLesson } = await response.json()
+                                              
+                                              if (updatedLesson) {
+                                                // Ensure qa_section is an array
+                                                const qaSection = Array.isArray(updatedLesson.qa_section) 
+                                                  ? updatedLesson.qa_section 
+                                                  : (updatedLesson.qa_section ? [updatedLesson.qa_section] : [])
+                                                
+                                                // Update the lesson in courseSections state
+                                                const updatedSections = courseSections.map(section => ({
+                                                  ...section,
+                                                  lessons: section.lessons.map(lesson => 
+                                                    lesson.id === question.lesson_id
+                                                      ? { ...lesson, qa_section: qaSection }
+                                                      : lesson
+                                                  )
+                                                }))
+                                                setCourseSections(updatedSections)
+                                                
+                                                // If the lesson is currently being edited, update editingLessonData too
+                                                if (editingLesson && editingLesson.lessonId === question.lesson_id && editingLessonData) {
+                                                  console.log('Updating editingLessonData with new Q&A section')
+                                                  setEditingLessonData({
+                                                    ...editingLessonData,
+                                                    qa_section: qaSection
+                                                  })
+                                                  alert('התשובה נשמרה בהצלחה והוספה ל-Q&A של השיעור! השאלה מופיעה כעת בעריכה.')
+                                                } else {
+                                                  alert('התשובה נשמרה בהצלחה והוספה ל-Q&A של השיעור! אם אתה בעריכה של הקורס, סגור ופתח מחדש את עריכת השיעור כדי לראות את השינויים.')
+                                                }
+                                              } else {
+                                                alert(addToQA ? 'התשובה נשמרה בהצלחה והוספה ל-Q&A של השיעור! אם אתה בעריכה של הקורס, סגור ופתח מחדש את עריכת השיעור כדי לראות את השינויים.' : 'התשובה נשמרה בהצלחה!')
+                                              }
+                                            } else {
+                                              console.error('Failed to reload lesson:', response.statusText)
+                                              alert(addToQA ? 'התשובה נשמרה בהצלחה והוספה ל-Q&A של השיעור! אם אתה בעריכה של הקורס, סגור ופתח מחדש את עריכת השיעור כדי לראות את השינויים.' : 'התשובה נשמרה בהצלחה!')
+                                            }
+                                          } catch (reloadError) {
+                                            console.error('Error reloading lesson:', reloadError)
+                                            alert(addToQA ? 'התשובה נשמרה בהצלחה והוספה ל-Q&A של השיעור! אם אתה בעריכה של הקורס, סגור ופתח מחדש את עריכת השיעור כדי לראות את השינויים.' : 'התשובה נשמרה בהצלחה!')
+                                          }
+                                        } else {
+                                          alert('התשובה נשמרה בהצלחה!')
+                                        }
                                       }
                                     } catch (error: any) {
                                       console.error('Error answering question:', error)
@@ -9049,6 +9336,7 @@ export default function AdminPanel() {
                                   onClick={() => {
                                     setEditingQuestion(null)
                                     setQuestionAnswer('')
+                                    setAddToQA(false)
                                   }}
                                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                                 >
@@ -9061,6 +9349,7 @@ export default function AdminPanel() {
                               onClick={() => {
                                 setEditingQuestion(question.id)
                                 setQuestionAnswer('')
+                                setAddToQA(false)
                               }}
                               className="mt-3 px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
                             >

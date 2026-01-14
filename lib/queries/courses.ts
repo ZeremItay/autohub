@@ -725,8 +725,53 @@ export async function getCourseLessons(courseId: string) {
     // Ensure qa_section and key_points are arrays
     if (data && !error) {
       data.forEach((lesson: any) => {
-        if (!lesson.qa_section) lesson.qa_section = [];
-        if (!lesson.key_points) lesson.key_points = [];
+        // #region agent log
+        if (typeof window !== 'undefined') {
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:727',message:'BEFORE parsing lesson qa_section',data:{courseId,lessonId:lesson.id,lessonTitle:lesson.title,raw_qa_section_type:typeof lesson.qa_section,raw_qa_section_isArray:Array.isArray(lesson.qa_section),raw_qa_section_length:Array.isArray(lesson.qa_section)?lesson.qa_section.length:'not array',raw_qa_section:lesson.qa_section},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+        }
+        // #endregion
+        
+        // Parse qa_section if it's a string (JSONB from DB)
+        if (lesson.qa_section) {
+          if (typeof lesson.qa_section === 'string') {
+            try {
+              lesson.qa_section = JSON.parse(lesson.qa_section);
+            } catch (e) {
+              console.error('Error parsing qa_section for lesson:', lesson.id, e);
+              lesson.qa_section = [];
+            }
+          }
+          // Ensure it's an array
+          if (!Array.isArray(lesson.qa_section)) {
+            lesson.qa_section = [];
+          }
+        } else {
+          lesson.qa_section = [];
+        }
+        
+        // Parse key_points if it's a string (JSONB from DB)
+        if (lesson.key_points) {
+          if (typeof lesson.key_points === 'string') {
+            try {
+              lesson.key_points = JSON.parse(lesson.key_points);
+            } catch (e) {
+              console.error('Error parsing key_points for lesson:', lesson.id, e);
+              lesson.key_points = [];
+            }
+          }
+          // Ensure it's an array
+          if (!Array.isArray(lesson.key_points)) {
+            lesson.key_points = [];
+          }
+        } else {
+          lesson.key_points = [];
+        }
+        
+        // #region agent log
+        if (typeof window !== 'undefined') {
+          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:760',message:'AFTER parsing lesson qa_section',data:{courseId,lessonId:lesson.id,lessonTitle:lesson.title,qa_section_type:typeof lesson.qa_section,qa_section_isArray:Array.isArray(lesson.qa_section),qa_section_length:Array.isArray(lesson.qa_section)?lesson.qa_section.length:'not array',qa_section:lesson.qa_section},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+        }
+        // #endregion
       });
     }
     
@@ -769,34 +814,103 @@ export async function getCourseLessons(courseId: string) {
 }
 
 // Get lesson by ID
-export async function getLessonById(lessonId: string) {
-  // Try to use client-side supabase first (for client components)
+export async function getLessonById(lessonId: string, supabaseClient?: any) {
+  // Use provided client, or try to use client-side supabase first (for client components)
   // Fall back to server client if needed
-  let supabaseClient;
+  let client;
   
-  try {
-    // Check if we're in a browser environment
-    if (typeof window !== 'undefined') {
-      supabaseClient = supabase;
-    } else {
-      supabaseClient = createServerClient();
+  if (supabaseClient) {
+    client = supabaseClient;
+  } else {
+    try {
+      // Check if we're in a browser environment
+      if (typeof window !== 'undefined') {
+        client = supabase;
+      } else {
+        client = createServerClient();
+      }
+    } catch (e) {
+      // Fallback to server client
+      client = createServerClient();
     }
-  } catch (e) {
-    // Fallback to server client
-    supabaseClient = createServerClient();
   }
   
-  const { data, error } = await supabaseClient
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:793',message:'getLessonById ENTRY',data:{lessonId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }
+  // #endregion
+  
+  const { data, error } = await client
     .from('course_lessons')
     .select('*')
     .eq('id', lessonId)
     .single();
   
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:797',message:'BEFORE parsing qa_section',data:{lessonId,hasData:!!data,error:error?.message,raw_qa_section_type:typeof data?.qa_section,raw_qa_section_isArray:Array.isArray(data?.qa_section),raw_qa_section:data?.qa_section},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }
+  // #endregion
+  
   // Ensure qa_section and key_points are arrays
   if (data && !error) {
-    if (!data.qa_section) data.qa_section = [];
-    if (!data.key_points) data.key_points = [];
+    // Parse qa_section if it's a string (JSONB from DB)
+    if (data.qa_section) {
+      if (typeof data.qa_section === 'string') {
+        try {
+          data.qa_section = JSON.parse(data.qa_section);
+        } catch (e) {
+          console.error('Error parsing qa_section:', e);
+          data.qa_section = [];
+        }
+      }
+      // Ensure it's an array
+      if (!Array.isArray(data.qa_section)) {
+        data.qa_section = [];
+      }
+    } else {
+      data.qa_section = [];
+    }
+    
+    // Parse key_points if it's a string (JSONB from DB)
+    if (data.key_points) {
+      if (typeof data.key_points === 'string') {
+        try {
+          data.key_points = JSON.parse(data.key_points);
+        } catch (e) {
+          console.error('Error parsing key_points:', e);
+          data.key_points = [];
+        }
+      }
+      // Ensure it's an array
+      if (!Array.isArray(data.key_points)) {
+        data.key_points = [];
+      }
+    } else {
+      data.key_points = [];
+    }
+    
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:830',message:'AFTER parsing qa_section',data:{lessonId,qa_section_type:typeof data.qa_section,qa_section_isArray:Array.isArray(data.qa_section),qa_section_length:Array.isArray(data.qa_section)?data.qa_section.length:'not array',qa_section:data.qa_section},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    }
+    // #endregion
+    
+    console.log('🔍 getLessonById - Loaded lesson:', {
+      id: data.id,
+      title: data.title,
+      qa_section_type: typeof data.qa_section,
+      qa_section_length: Array.isArray(data.qa_section) ? data.qa_section.length : 'not array',
+      qa_section: data.qa_section
+    });
   }
+  
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:845',message:'getLessonById RETURN',data:{lessonId,hasData:!!data,qa_section_length:Array.isArray(data?.qa_section)?data.qa_section.length:'not array'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }
+  // #endregion
   
   return { data, error };
 }
