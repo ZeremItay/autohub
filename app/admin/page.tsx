@@ -2320,7 +2320,8 @@ export default function AdminPanel() {
           zoom_meeting_id: formData.zoom_meeting_id || undefined,
           zoom_meeting_password: formData.zoom_meeting_password || undefined,
           recording_id: formData.recording_id || undefined,
-          status: formData.status || 'upcoming'
+          status: formData.status || 'upcoming',
+          is_free_for_basic: formData.is_free_for_basic || false
         }
 
         const { data, error } = await createEvent(eventData)
@@ -2951,7 +2952,8 @@ export default function AdminPanel() {
           zoom_meeting_id: formData.zoom_meeting_id || undefined,
           zoom_meeting_password: formData.zoom_meeting_password || undefined,
           recording_id: formData.recording_id || undefined,
-          status: formData.status || 'upcoming'
+          status: formData.status || 'upcoming',
+          is_free_for_basic: formData.is_free_for_basic || false
         }
 
         const { data, error } = await updateEvent(id, updateData)
@@ -6589,6 +6591,20 @@ export default function AdminPanel() {
                             />
                           </div>
                         )}
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.is_free_for_basic || false}
+                            onChange={(e) => setFormData({ ...formData, is_free_for_basic: e.target.checked })}
+                            className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                          />
+                          <span>פתוח למשתמשים חינמיים (free)</span>
+                        </label>
+                        {formData.is_free_for_basic && (
+                          <p className="text-xs text-gray-500">
+                            💡 לייב זה יהיה זמין גם למשתמשים עם מנוי חינמי (free), לא רק למשתמשי basic/premium
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -8476,7 +8492,8 @@ export default function AdminPanel() {
                                 learning_points: event.learning_points || [],
                                 status: event.status || 'upcoming',
                                 recording_id: event.recording_id || undefined,
-                                instructor_user_id: event.instructor_user_id || undefined
+                                instructor_user_id: event.instructor_user_id || undefined,
+                                is_free_for_basic: event.is_free_for_basic || false
                               };
                               if (combinedDateTime) {
                                 formDataUpdate.event_datetime = combinedDateTime;

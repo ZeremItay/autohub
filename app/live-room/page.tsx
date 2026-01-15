@@ -159,7 +159,16 @@ export default function LiveRoomPage() {
       const user = await getCurrentUser();
       if (user) {
         setCurrentUser(user);
-        setHasAccess(hasLiveAccess(user));
+        
+        // Check if event is free for free users
+        if (event?.is_free_for_basic) {
+          // If event is free for free users, allow free, basic, premium, and admin users
+          const roleName = (user.roles as any)?.name || (user.role as any)?.name;
+          setHasAccess(roleName === 'free' || roleName === 'basic' || roleName === 'premium' || roleName === 'admin');
+        } else {
+          // Otherwise, use standard live access check (basic, premium, admin only - no free)
+          setHasAccess(hasLiveAccess(user));
+        }
       } else {
         setHasAccess(false);
       }

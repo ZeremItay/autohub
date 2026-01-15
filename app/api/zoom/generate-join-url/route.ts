@@ -40,22 +40,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has live access (basic, premium, admin)
-    const roleName = (profile.roles as any)?.name || (profile.roles as any)?.[0]?.name;
-    const hasAccess = roleName === 'basic' || roleName === 'premium' || roleName === 'admin';
-    
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Access denied - Subscription required for live events' },
-        { status: 403 }
-      );
-    }
-
-    // Get meeting password from database (server-side only)
+    // Get meeting password and free access status from database (server-side only)
     // This ensures password is never exposed to client
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('zoom_meeting_id, zoom_meeting_password')
+      .select('zoom_meeting_id, zoom_meeting_password, is_free_for_basic')
       .eq('zoom_meeting_id', meetingNumber)
       .maybeSingle();
 
@@ -63,6 +52,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Meeting not found' },
         { status: 404 }
+      );
+    }
+
+    // Check access based on event settings
+    const roleName = (profile.roles as any)?.name || (profile.roles as any)?.[0]?.name;
+    let hasAccess = false;
+
+    if (event.is_free_for_basic) {
+      // If event is free for free users, allow free, basic, premium, and admin users
+      hasAccess = roleName === 'free' || roleName === 'basic' || roleName === 'premium' || roleName === 'admin';
+    } else {
+      // Otherwise, use standard access check (basic, premium, admin only - no free)
+      hasAccess = roleName === 'basic' || roleName === 'premium' || roleName === 'admin';
+    }
+    
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'Access denied - Subscription required for live events' },
+        { status: 403 }
       );
     }
 

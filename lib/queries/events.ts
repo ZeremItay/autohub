@@ -34,6 +34,7 @@ export interface Event {
   zoom_meeting_password?: string;
   recording_id?: string;
   status?: 'upcoming' | 'active' | 'completed' | 'cancelled' | 'deleted';
+  is_free_for_basic?: boolean; // If true, event is accessible to basic (free) users
   created_at: string;
   updated_at: string;
 }
