@@ -5,6 +5,7 @@ export interface EmailPreferences {
   user_id: string;
   forum_reply: boolean;
   new_project: boolean;
+  mention: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -32,6 +33,7 @@ export async function getEmailPreferences(userId: string): Promise<{ data: Email
           user_id: userId,
           forum_reply: true,  // Default: users receive forum reply notifications
           new_project: true, // Default: users receive new project notifications
+          mention: true, // Default: users receive mention notifications
         },
         error: null
       };
@@ -47,7 +49,7 @@ export async function getEmailPreferences(userId: string): Promise<{ data: Email
 // Update email preferences for a user
 export async function updateEmailPreferences(
   userId: string,
-  preferences: Partial<Pick<EmailPreferences, 'forum_reply' | 'new_project'>>
+  preferences: Partial<Pick<EmailPreferences, 'forum_reply' | 'new_project' | 'mention'>>
 ): Promise<{ data: EmailPreferences | null; error: any }> {
   try {
     const supabase = await getSupabaseClient();
@@ -85,6 +87,7 @@ export async function updateEmailPreferences(
           user_id: userId,
           forum_reply: preferences.forum_reply ?? true,
           new_project: preferences.new_project ?? true,
+          mention: preferences.mention ?? true,
         })
         .select()
         .single();
@@ -105,7 +108,7 @@ export async function updateEmailPreferences(
 // Check if we should send an email notification to a user
 export async function shouldSendEmail(
   userId: string,
-  notificationType: 'forum_reply' | 'new_project'
+  notificationType: 'forum_reply' | 'new_project' | 'mention'
 ): Promise<boolean> {
   try {
     const { data, error } = await getEmailPreferences(userId);

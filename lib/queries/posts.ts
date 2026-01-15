@@ -369,6 +369,25 @@ export async function createPost(post: {
     // Silently fail - gamification is not critical
     logError(error, 'createPost:points:catch');
   }
+
+  // Process @mentions for notifications and emails
+  try {
+    const baseUrl = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_SITE_URL || '');
+    await fetch(`${baseUrl}/api/mentions/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: post.content,
+        mentionerId: post.user_id,
+        mentionerName: '',
+        link: `/#post-${data.id}`,
+        relatedId: data.id,
+        relatedType: 'post'
+      })
+    });
+  } catch (error) {
+    console.warn('Error processing post mentions:', error);
+  }
   
   return { data, error: null }
 }

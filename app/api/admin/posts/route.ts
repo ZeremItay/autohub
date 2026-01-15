@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { checkAndNotifyMentions } from '@/lib/utils/notifications'
 
 export async function GET() {
   try {
@@ -33,17 +34,43 @@ export async function POST(request: Request) {
   try {
     const supabase = createServerClient()
     const body = await request.json()
-    
+
     const { data, error } = await supabase
       .from('posts')
       .insert([body])
       .select()
       .single()
-    
+
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
-    
+
+    // Check for @ mentions and send notifications
+    if (data && data.content && data.user_id) {
+      try {
+        // Get user's display name for the notification
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('user_id', data.user_id)
+          .single();
+
+        const displayName = profile?.display_name || 'מנהל';
+
+        await checkAndNotifyMentions(
+          data.content,
+          data.user_id,
+          displayName,
+          `/#post-${data.id}`, // Link to the post
+          data.id,
+          'announcement'
+        );
+      } catch (mentionError) {
+        // Log error but don't fail the post creation
+        console.error('Error processing mentions:', mentionError);
+      }
+    }
+
     return NextResponse.json({ data })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })

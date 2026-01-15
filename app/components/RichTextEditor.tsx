@@ -6,6 +6,7 @@ import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import TextAlign from '@tiptap/extension-text-align';
 import Link from '@tiptap/extension-link';
+import { createMentionExtension } from './MentionExtension';
 import { supabase } from '@/lib/supabase';
 import { Bold, Italic, Link as LinkIcon, Image as ImageIcon, List, ListOrdered } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -109,6 +110,7 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
           class: 'text-[#F52F8E] underline',
         },
       }),
+      createMentionExtension(),
     ],
     content,
       editorProps: {

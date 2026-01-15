@@ -24,7 +24,8 @@ export default function AccountSettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [emailPreferences, setEmailPreferences] = useState({
     forum_reply: true,
-    new_project: true
+    new_project: true,
+    mention: true
   });
   const [savingEmailPreferences, setSavingEmailPreferences] = useState(false);
 
@@ -86,7 +87,8 @@ export default function AccountSettingsPage() {
           if (prefsData.data) {
             setEmailPreferences({
               forum_reply: prefsData.data.forum_reply ?? true,
-              new_project: prefsData.data.new_project ?? true
+              new_project: prefsData.data.new_project ?? true,
+              mention: prefsData.data.mention ?? true
             });
           }
         } else if (prefsResponse.status === 401) {
@@ -596,6 +598,27 @@ export default function AccountSettingsPage() {
                         </label>
                         <p className="text-sm text-gray-500 mt-1">
                           קבל מייל כאשר פרויקט חדש נוצר באתר
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mention Email Preference */}
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <input
+                        type="checkbox"
+                        id="mention"
+                        checked={emailPreferences.mention}
+                        onChange={(e) => setEmailPreferences({ ...emailPreferences, mention: e.target.checked })}
+                        className="mt-1 w-5 h-5 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="mention" className="block text-base font-medium text-gray-800 cursor-pointer">
+                          התראה על תיוג
+                        </label>
+                        <p className="text-sm text-gray-500 mt-1">
+                          קבל מייל כאשר מישהו מתייג אותך בתגובה, פוסט או פורום
                         </p>
                       </div>
                     </div>

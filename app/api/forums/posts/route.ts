@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 import { awardPoints } from '@/lib/queries/gamification';
+import { checkAndNotifyMentions } from '@/lib/utils/notifications';
 
 export async function POST(request: NextRequest) {
   try {
@@ -147,6 +148,21 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error('Error awarding points for new post:', error);
       // Don't fail the request if points awarding fails
+    }
+
+    // Check for mentions in content
+    try {
+      const mentionerName = postProfile?.display_name || postProfile?.first_name || postProfile?.nickname || 'משתמש';
+      await checkAndNotifyMentions(
+        content,
+        actualUserId,
+        mentionerName,
+        `/forums/${forum_id}/posts/${post.id}`,
+        post.id,
+        'forum_post'
+      );
+    } catch (mentionError) {
+      console.warn('Error checking mentions:', mentionError);
     }
 
     // Return post with profile

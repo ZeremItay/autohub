@@ -7,6 +7,7 @@ import { formatTimeAgo } from '@/lib/utils/date';
 import { getInitials } from '@/lib/utils/display';
 import { stripHtml } from '@/lib/utils/stripHtml';
 import { Button } from '@/components/ui/Button';
+import RichTextEditor from '@/app/components/RichTextEditor';
 import type { PostWithProfile } from '@/lib/queries/posts';
 import type { PostComment } from '@/lib/queries/post-comments';
 import type { UserWithRole } from '@/lib/utils/user';
@@ -34,15 +35,13 @@ export function AnnouncementsFeed({
 }: AnnouncementsFeedProps) {
   const [showPostForm, setShowPostForm] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
-  const [newPostImageUrl, setNewPostImageUrl] = useState('');
   const [postComments, setPostComments] = useState<Record<string, PostComment[]>>({});
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
 
   const handleCreatePost = async () => {
     if (!newPostContent.trim()) return;
-    await onCreatePost(newPostContent, newPostImageUrl);
+    await onCreatePost(newPostContent);
     setNewPostContent('');
-    setNewPostImageUrl('');
     setShowPostForm(false);
   };
 
@@ -77,35 +76,23 @@ export function AnnouncementsFeed({
                   onClick={() => {
                     setShowPostForm(false);
                     setNewPostContent('');
-                    setNewPostImageUrl('');
                   }}
                   className="text-gray-500 hover:text-gray-700"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <textarea
-                value={newPostContent}
-                onChange={(e) => setNewPostContent(e.target.value)}
+              <RichTextEditor
+                content={newPostContent}
+                onChange={setNewPostContent}
                 placeholder="מה אתה רוצה לשתף?"
-                dir="rtl"
-                lang="he"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] resize-none"
-                rows={4}
-              />
-              <input
-                type="text"
-                value={newPostImageUrl}
-                onChange={(e) => setNewPostImageUrl(e.target.value)}
-                placeholder="קישור לתמונה (אופציונלי)"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                userId={currentUser?.id || currentUser?.user_id}
               />
               <div className="flex items-center justify-end gap-2">
                 <Button
                   onClick={() => {
                     setShowPostForm(false);
                     setNewPostContent('');
-                    setNewPostImageUrl('');
                   }}
                   variant="secondary"
                 >

@@ -1,6 +1,8 @@
 import { createNotification } from '../queries/notifications';
 import { createServerClient } from '../supabase-server';
 import { createClient } from '@supabase/supabase-js';
+import { shouldSendEmail } from '../queries/email-preferences';
+import { stripHtml } from './stripHtml';
 
 // Helper function to create notification for comment on recording
 export async function notifyRecordingComment(
@@ -369,10 +371,6 @@ export async function notifyMention(
   // Don't notify if user mentioned themselves
   if (mentionerId === mentionedUserId) return;
 
-  // Extract mention from content (look for @username pattern)
-  const mentionMatch = content.match(/@(\w+)/);
-  if (!mentionMatch) return;
-
   return await createNotification({
     user_id: mentionedUserId,
     type: 'mention',
@@ -383,6 +381,81 @@ export async function notifyMention(
     related_type: relatedType,
     is_read: false
   });
+}
+
+// Helper function to send mention email notification
+export async function sendMentionEmail(
+  mentionedUserId: string,
+  mentionerName: string,
+  content: string,
+  link: string,
+  contextType: 'comment' | 'forum_post' | 'forum_reply' | 'announcement'
+) {
+  try {
+    // Check email preferences
+    const shouldSend = await shouldSendEmail(mentionedUserId, 'mention');
+    if (!shouldSend) return;
+
+    // Get mentioned user's email
+    const supabase = createServerClient();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, display_name')
+      .eq('user_id', mentionedUserId)
+      .single();
+
+    if (!profile?.email) return;
+
+    // Truncate content for preview
+    const preview = stripHtml(content).substring(0, 200) + (content.length > 200 ? '...' : '');
+
+    const contextLabels = {
+      'comment': 'תגובה',
+      'forum_post': 'פוסט בפורום',
+      'forum_reply': 'תשובה בפורום',
+      'announcement': 'הודעה'
+    };
+
+    // Send email
+    await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: profile.email,
+        subject: `${mentionerName} תייג אותך`,
+        html: `
+          <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <div style="background: linear-gradient(135deg, #F52F8E 0%, #E01E7A 100%); padding: 30px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">תוייגת!</h1>
+            </div>
+            <div style="padding: 30px; background-color: #ffffff;">
+              <p style="font-size: 16px; color: #333333; margin-bottom: 20px;">
+                שלום ${profile.display_name || 'משתמש'},
+              </p>
+              <p style="font-size: 16px; color: #333333; margin-bottom: 20px;">
+                <strong>${mentionerName}</strong> תייג אותך ב${contextLabels[contextType]}:
+              </p>
+              <div style="background-color: #f9fafb; border-right: 4px solid #F52F8E; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">${preview}</p>
+              </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${link}" style="display: inline-block; background: linear-gradient(135deg, #F52F8E 0%, #E01E7A 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">צפה בתיוג</a>
+              </div>
+              <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+                ניתן לבטל את קבלת התראות אימייל על תיוגים בהגדרות החשבון שלך.
+              </p>
+            </div>
+            <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="font-size: 12px; color: #9ca3af; margin: 0;">© 2026 AutoHub. כל הזכויות שמורות.</p>
+            </div>
+          </div>
+        `
+      })
+    });
+  } catch (error) {
+    console.error('Error sending mention email:', error);
+    // Don't throw - email failures shouldn't break the flow
+  }
 }
 
 // Helper function to check for mentions in text and create notifications
@@ -396,22 +469,49 @@ export async function checkAndNotifyMentions(
 ) {
   const supabase = createServerClient();
   
-  // Find all @mentions in content (Hebrew and English usernames)
+  // Find all mentioned user IDs from rendered mention HTML
+  const mentionedUserIds = Array.from(content.matchAll(/data-user-id=["']([^"']+)["']/g), m => m[1]);
+
+  // Fallback: find @mentions in content (Hebrew and English usernames)
   const mentionMatches = content.matchAll(/@([\w\u0590-\u05FF]+)/g);
   const mentionedUsernames = Array.from(mentionMatches, m => m[1]);
   
-  if (mentionedUsernames.length === 0) return;
+  if (mentionedUserIds.length === 0 && mentionedUsernames.length === 0) return;
 
-  // Get user IDs for mentioned usernames or display names
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('user_id, display_name, username, nickname')
-    .or(mentionedUsernames.map(u => `username.ilike.${u},display_name.ilike.${u},nickname.ilike.${u}`).join(','));
+  let profiles: Array<{ user_id: string; display_name?: string; username?: string; nickname?: string }> = [];
+
+  if (mentionedUserIds.length > 0) {
+    const { data: profilesById } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, username, nickname')
+      .in('user_id', Array.from(new Set(mentionedUserIds)));
+    if (profilesById) {
+      profiles = profiles.concat(profilesById);
+    }
+  }
+
+  if (mentionedUsernames.length > 0) {
+    const { data: profilesByName } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, username, nickname')
+      .or(mentionedUsernames.map(u => `username.ilike.${u},display_name.ilike.${u},nickname.ilike.${u}`).join(','));
+    if (profilesByName) {
+      profiles = profiles.concat(profilesByName);
+    }
+  }
 
   if (!profiles || profiles.length === 0) return;
 
   // Create notifications for each mentioned user
+  const uniqueProfiles = new Map<string, any>();
   for (const profile of profiles) {
+    const userId = profile.user_id || (profile as any).id;
+    if (userId && !uniqueProfiles.has(userId)) {
+      uniqueProfiles.set(userId, profile);
+    }
+  }
+
+  for (const profile of uniqueProfiles.values()) {
     const userId = profile.user_id || (profile as any).id;
     if (userId && userId !== mentionerId) {
       await notifyMention(
@@ -422,6 +522,15 @@ export async function checkAndNotifyMentions(
         link,
         relatedId,
         relatedType
+      );
+
+      // Send email notification
+      await sendMentionEmail(
+        userId,
+        mentionerName,
+        content,
+        link,
+        relatedType as 'comment' | 'forum_post' | 'forum_reply' | 'announcement'
       );
     }
   }

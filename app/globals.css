@@ -509,3 +509,26 @@ img.ProseMirror-separator {
   border-radius: 4px 0 0 0;
   cursor: nwse-resize;
 }
+/* Mention styling for @ mentions */
+.mention {
+  background-color: #FFF0F6;
+  color: #F52F8E;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  text-decoration: none;
+}
+
+.mention:hover {
+  background-color: #FFE0F0;
+  text-decoration: underline;
+}
+
+/* Tippy dropdown styling */
+.tippy-box {
+  background-color: transparent;
+  border: none;
+}
+
