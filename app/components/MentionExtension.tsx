@@ -22,13 +22,13 @@ export const createMentionExtension = () => {
     renderLabel({ node }) {
       return `@${node.attrs.label || node.attrs.id}`;
     },
-    renderHTML({ node, HTMLAttributes }) {
+    renderHTML({ options, node }) {
       const userId = node.attrs.id;
       const label = node.attrs.label || node.attrs.id;
       return [
         'a',
         {
-          ...HTMLAttributes,
+          ...options.HTMLAttributes,
           href: `/profile?userId=${userId}`,
           'data-user-id': userId,
         },
