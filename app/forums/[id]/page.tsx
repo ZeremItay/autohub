@@ -103,7 +103,6 @@ function ForumDetailPageContent() {
     
     // Prevent parallel calls
     if (isLoadingPostsRef.current) {
-      console.log('loadPosts already running, skipping...');
       return;
     }
     
@@ -125,14 +124,10 @@ function ForumDetailPageContent() {
       
       // Check if operation was cancelled (timeout occurred)
       if (isCancelledRef.current) {
-        console.log('loadPosts was cancelled, skipping state updates');
         return;
       }
       
       if (!error && data) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:147',message:'loadPosts - posts loaded',data:{postsCount:data.length,firstPostLikesCount:data[0]?.likes_count,firstPostId:data[0]?.id,allLikesCounts:data.map((p:any)=>({id:p.id,likes_count:p.likes_count}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'G'})}).catch(()=>{});
-        // #endregion
         setPosts(data);
         // Initialize liked posts state
         const likedMap: Record<string, boolean> = {};
@@ -254,16 +249,7 @@ function ForumDetailPageContent() {
       alert('שגיאה: לא נמצא משתמש מחובר');
       return;
     }
-    
-    console.log('Creating post with:', {
-      forum_id: forumId,
-      user_id: userId,
-      title: newPostTitle,
-      content: newPostContent,
-      media_url: mediaUrl,
-      media_type: mediaType
-    });
-    
+
     try {
       const response = await fetch('/api/forums/posts', {
         method: 'POST',
@@ -279,8 +265,6 @@ function ForumDetailPageContent() {
       });
       
       const result = await response.json();
-      console.log('Response status:', response.status);
-      console.log('Response:', JSON.stringify(result, null, 2));
       
       if (!response.ok) {
         console.error('API returned error status:', response.status);
@@ -494,9 +478,6 @@ function ForumDetailPageContent() {
 
     try {
       if (process.env.NODE_ENV === 'development') {
-        console.log('Attempting to delete post:', postId);
-        console.log('Current user:', currentUser);
-        console.log('Is admin:', isAdmin);
       }
 
       const response = await fetch(`/api/forums/posts/${postId}/delete`, {
@@ -661,8 +642,15 @@ function ForumDetailPageContent() {
           : p
       ));
       
-      // Toggle like in database
-      const { data, error } = await toggleForumPostLike(postId, userId);
+      // Toggle like in database via secure API
+      const response = await fetch('/api/forums/posts/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId })
+      });
+      const result = await response.json();
+      const data = result.data;
+      const error = result.error;
       
       if (error) {
         // Revert optimistic update
@@ -723,9 +711,6 @@ function ForumDetailPageContent() {
     setLoadingLikes(prev => ({ ...prev, [postId]: true }));
     try {
       const { data, error } = await getForumPostLikes(postId);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:739',message:'handleShowLikes - after getForumPostLikes',data:{postId,hasData:!!data,dataLength:data?.length,hasError:!!error,likes:data?.map((l:any)=>({user_id:l.user_id,display_name:l.display_name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'K'})}).catch(()=>{});
-      // #endregion
       if (error) {
         console.error('Error loading likes:', error);
       }
@@ -750,15 +735,9 @@ function ForumDetailPageContent() {
       const userId = currentUser?.id || currentUser?.user_id || undefined;
       const { data, error } = await getForumPostById(post.id, userId);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:759',message:'handlePostClick - after getForumPostById',data:{postId:post.id,hasData:!!data,hasError:!!error,errorType:typeof error,errorKeys:error?Object.keys(error):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       
       // If we have data, use it regardless of error (error might be non-critical)
       if (data) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:763',message:'handlePostClick - has data, using it',data:{postId:post.id,hasError:!!error,likesCount:data.likes_count,repliesCount:data.replies_count},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H'})}).catch(()=>{});
-        // #endregion
         setSelectedPost(data);
         setPostReplies(data.replies || []);
         
@@ -778,23 +757,14 @@ function ForumDetailPageContent() {
         
         // If we have data, don't log errors at all - data is what matters
       } else if (error) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:784',message:'handlePostClick - no data, has error',data:{postId:post.id,errorCode:error.code,errorMessage:error.message,errorKeys:Object.keys(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-        // #endregion
         // No data and there's an error
         const isNonCriticalError = error.code === '42501' || 
           error.message?.includes('permission') || 
           error.message?.includes('row-level security') ||
           (error && typeof error === 'object' && Object.keys(error).length === 0);
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:789',message:'handlePostClick - error analysis',data:{postId:post.id,isNonCriticalError,errorCode:error.code,errorKeys:Object.keys(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         
         if (isNonCriticalError) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:792',message:'handlePostClick - non-critical error, logging as warning',data:{postId:post.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           // Non-critical error - show post with limited data
           console.warn('Non-critical error loading post, showing with limited data:', {
             code: error.code,
@@ -803,9 +773,6 @@ function ForumDetailPageContent() {
           setSelectedPost(post);
           setPostReplies([]);
         } else {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:801',message:'handlePostClick - critical error, logging as error',data:{postId:post.id,errorCode:error.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           // Critical error - show error message
           console.error('Error loading post:', {
             code: error.code,

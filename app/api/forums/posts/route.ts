@@ -5,7 +5,6 @@ import { awardPoints } from '@/lib/queries/gamification';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log('Received request body:', JSON.stringify(body, null, 2));
     const { forum_id, user_id, title, content, media_url, media_type } = body;
 
     if (!forum_id || !user_id || !title || !content) {
@@ -53,7 +52,6 @@ export async function POST(request: NextRequest) {
     
     // Use the profile's user_id (from auth.users) for the post
     const actualUserId = userProfile.user_id || user_id;
-    console.log('Using user_id:', actualUserId, 'for profile:', userProfile.id);
 
     // Create the post - only include media fields if they have values
     const postData: any = {
@@ -77,18 +75,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('Inserting post with data:', JSON.stringify(postData, null, 2));
     
     const { data: post, error: postError } = await supabase
       .from('forum_posts')
       .insert([postData])
       .select()
       .single();
-    
-    console.log('Post insert result:', {
-      data: post,
-      error: postError ? JSON.stringify(postError, null, 2) : null
-    });
 
     if (postError) {
       console.error('Supabase error creating post:', JSON.stringify(postError, null, 2));

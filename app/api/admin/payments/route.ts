@@ -216,7 +216,6 @@ export async function POST(request: NextRequest) {
             console.error('Error activating subscription:', activateError);
             // Don't fail the request, just log the error
           } else {
-            console.log(`Subscription ${subscription_id} activated`);
           }
         }
         
@@ -232,7 +231,6 @@ export async function POST(request: NextRequest) {
             console.error('Error updating user role:', updateRoleError);
             // Don't fail the request, just log the error
           } else {
-            console.log(`User ${subData.user_id} role updated to ${subData.role_id}`);
           }
         }
         
@@ -257,11 +255,9 @@ export async function POST(request: NextRequest) {
               console.error('Error extending subscription:', extendError);
               // Don't fail the request, just log the error
             } else {
-              console.log(`Subscription ${subscription_id} extended by 1 month (recurring payment)`);
             }
           } else {
             // This is the first payment - subscription already created with correct end_date, don't extend
-            console.log(`First payment for subscription ${subscription_id} - not extending (subscription already created with correct end_date)`);
           }
         }
       }
@@ -379,7 +375,6 @@ export async function PUT(request: NextRequest) {
             console.error('Error activating subscription:', activateError);
             // Don't fail the request, just log the error
           } else {
-            console.log(`Subscription ${subscription.id} activated`);
           }
         }
         
@@ -395,7 +390,6 @@ export async function PUT(request: NextRequest) {
             console.error('Error updating user role:', updateRoleError);
             // Don't fail the request, just log the error
           } else {
-            console.log(`User ${subData.user_id} role updated to ${subData.role_id}`);
           }
         }
         
@@ -420,11 +414,9 @@ export async function PUT(request: NextRequest) {
               console.error('Error extending subscription:', extendError);
               // Don't fail the request, just log the error
             } else {
-              console.log(`Subscription ${subscription.id} extended by 1 month (recurring payment)`);
             }
           } else {
             // This is the first payment - subscription already created with correct end_date, don't extend
-            console.log(`First payment for subscription ${subscription.id} - not extending (subscription already created with correct end_date)`);
           }
         }
       }
@@ -536,7 +528,6 @@ export async function DELETE(request: NextRequest) {
           console.error('Error updating subscription status:', updateSubError);
           // Don't fail the request, just log
         } else {
-          console.log(`Subscription ${subscriptionId} set to pending (no payments)`);
         }
 
         // Get free role ID
@@ -557,7 +548,6 @@ export async function DELETE(request: NextRequest) {
             console.error('Error restoring user role:', updateRoleError);
             // Don't fail the request, just log
           } else {
-            console.log(`User ${userId} role restored to free`);
           }
         }
       }

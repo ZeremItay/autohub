@@ -18,11 +18,6 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
   const [isOpen, setIsOpen] = useState(true);
   const [showCompletion, setShowCompletion] = useState(false);
   
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:18',message:'ProfileCompletionModal mounted',data:{userId,isOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-  }, []);
-  // #endregion
 
   // Check completion status for each task
   const hasHeadline = profile?.headline && profile.headline.trim().length > 0;
@@ -41,47 +36,13 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
     (profile?.instagram_url && profile.instagram_url.trim().length > 0) ||
     (profile?.facebook_url && profile.facebook_url.trim().length > 0);
   
-  // Debug logging for completion status
-  useEffect(() => {
-    if (profile) {
-      console.log('🔍 ProfileCompletionModal - Current completion status:', {
-        hasHeadline,
-        hasCustomAvatar,
-        hasSocialLinks,
-        headline: profile.headline,
-        avatarUrl: profile.avatar_url,
-        instagramUrl: profile.instagram_url,
-        facebookUrl: profile.facebook_url,
-        socialLinks: profile.social_links
-      });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:50',message:'Completion status check',data:{hasHeadline,hasCustomAvatar,hasSocialLinks,headline:profile.headline,avatarUrl:profile.avatar_url,instagramUrl:profile.instagram_url,facebookUrl:profile.facebook_url,socialLinksCount:profile.social_links?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-      // #endregion
-    }
-  }, [profile, hasHeadline, hasCustomAvatar, hasSocialLinks]);
+  // Debug logging for completion status removed for production
 
   const allTasksComplete = hasHeadline && hasCustomAvatar && hasSocialLinks;
   const completedTasksCount = [hasHeadline, hasCustomAvatar, hasSocialLinks].filter(Boolean).length;
   
   // Debug logging for completion status - log whenever profile or completion status changes
-  useEffect(() => {
-    if (profile) {
-      console.log('🔍 ProfileCompletionModal - Completion status:', {
-        hasHeadline,
-        hasCustomAvatar,
-        hasSocialLinks,
-        allTasksComplete,
-        headline: profile.headline || '(empty)',
-        avatarUrl: profile.avatar_url ? (profile.avatar_url.substring(0, 50) + '...') : '(empty)',
-        instagramUrl: profile.instagram_url || '(empty)',
-        facebookUrl: profile.facebook_url || '(empty)',
-        socialLinksCount: profile.social_links?.length || 0
-      });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:50',message:'Completion status check',data:{hasHeadline,hasCustomAvatar,hasSocialLinks,allTasksComplete,headline:profile.headline,avatarUrl:profile.avatar_url,instagramUrl:profile.instagram_url,facebookUrl:profile.facebook_url,socialLinksCount:profile.social_links?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-      // #endregion
-    }
-  }, [profile, hasHeadline, hasCustomAvatar, hasSocialLinks, allTasksComplete]);
+  // Debug logging removed for production
 
   // Load profile data
   useEffect(() => {
@@ -97,24 +58,7 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
           setLoading(false);
           return;
         }
-        console.log('📋 Profile loaded for completion check:', {
-          userId,
-          hasHeadline: !!(profileData?.headline && profileData.headline.trim().length > 0),
-          hasAvatar: !!(profileData?.avatar_url && 
-            profileData.avatar_url.trim().length > 0 &&
-            !profileData.avatar_url.startsWith('data:image/svg+xml') &&
-            !profileData.avatar_url.includes('dicebear.com') &&
-            !profileData.avatar_url.includes('api.dicebear')),
-          hasSocialLinks: !!(profileData?.social_links && 
-            Array.isArray(profileData.social_links) && 
-            profileData.social_links.length > 0) ||
-            !!(profileData?.instagram_url && profileData.instagram_url.trim().length > 0) ||
-            !!(profileData?.facebook_url && profileData.facebook_url.trim().length > 0),
-          avatarUrl: profileData?.avatar_url,
-          instagramUrl: profileData?.instagram_url,
-          facebookUrl: profileData?.facebook_url,
-          hasSeenCompletionMessage: profileData?.has_seen_completion_message
-        });
+
         setProfile(profileData);
         
         // If user has already seen completion message and all tasks are complete, don't show modal
@@ -132,7 +76,6 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
         const allComplete = headlineComplete && avatarComplete && socialLinksComplete;
         
         if (allComplete && profileData?.has_seen_completion_message) {
-          console.log('✅ User has already seen completion message, closing modal');
           setIsOpen(false);
           if (onClose) onClose();
         }
@@ -167,10 +110,6 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
 
     const handleProfileUpdate = async () => {
       try {
-        console.log('🔄 Profile update event received, reloading profile...');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:89',message:'handleProfileUpdate called',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-        // #endregion
         
         // Clear cache first to ensure fresh data
         const { clearCache } = await import('@/lib/cache');
@@ -196,18 +135,7 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
           !!(profileData?.instagram_url && profileData.instagram_url.trim().length > 0) ||
           !!(profileData?.facebook_url && profileData.facebook_url.trim().length > 0);
         const allComplete = headlineComplete && avatarComplete && socialLinksComplete;
-        
-        console.log('✅ Profile reloaded:', {
-          hasHeadline: headlineComplete,
-          hasAvatar: avatarComplete,
-          hasSocialLinks: socialLinksComplete,
-          allComplete
-        });
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:111',message:'Profile state updated',data:{userId,hasHeadline:headlineComplete,hasAvatar:avatarComplete,hasSocialLinks:socialLinksComplete,allComplete,headline:profileData?.headline,avatarUrl:profileData?.avatar_url,instagramUrl:profileData?.instagram_url,facebookUrl:profileData?.facebook_url,socialLinksCount:profileData?.social_links?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-        // #endregion
-        
+
         // Force state update - always update to trigger re-render
         setProfile(profileData);
         
@@ -215,38 +143,20 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
         return allComplete;
       } catch (error) {
         console.error('Error reloading profile:', error);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:120',message:'Error in handleProfileUpdate',data:{userId,error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-        // #endregion
         return false;
       }
     };
 
     const handleHeadlineUpdate = async (event?: Event) => {
-      console.log('📝 Headline update event received', event);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:140',message:'Headline update event received',data:{userId,eventType:event?.type,hasEvent:!!event},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       await handleProfileUpdate();
     };
     const handleAvatarUpdate = async () => {
-      console.log('🖼️ Avatar update event received');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:127',message:'Avatar update event received',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
       await handleProfileUpdate();
     };
     const handleSocialLinksUpdate = async () => {
-      console.log('🔗 Social links update event received');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:133',message:'Social links update event received',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
       await handleProfileUpdate();
     };
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/components/ProfileCompletionModal.tsx:150',message:'Adding event listeners',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-    // #endregion
     
     window.addEventListener('profileHeadlineUpdated', handleHeadlineUpdate);
     window.addEventListener('profileAvatarUpdated', handleAvatarUpdate);
@@ -270,7 +180,6 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
             const completed = await handleProfileUpdate();
             // Stop polling if all tasks are now complete
             if (completed && pollInterval) {
-              console.log('✅ All tasks completed, stopping polling');
               clearInterval(pollInterval);
               pollInterval = null;
             }
@@ -308,7 +217,6 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
           if (error) {
             console.error('Error marking completion message as seen:', error);
           } else {
-            console.log('✅ Marked completion message as seen in database');
             // Update local state
             setProfile({ ...profile, has_seen_completion_message: true });
           }

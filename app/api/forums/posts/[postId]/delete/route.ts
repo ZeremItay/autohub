@@ -15,14 +15,6 @@ export async function DELETE(
     // Get current session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Delete post - Session check:', {
-        hasSession: !!session,
-        sessionError: sessionError?.message,
-        userId: session?.user?.id
-      });
-    }
-    
     if (sessionError || !session) {
       return NextResponse.json(
         { error: 'Unauthorized', details: sessionError?.message || 'No session found' },
@@ -44,14 +36,6 @@ export async function DELETE(
       .eq('user_id', session.user.id)
       .single();
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Delete post - Profile check:', {
-        hasProfile: !!profile,
-        profileError: profileError?.message,
-        role: profile?.roles || (profile as any)?.role
-      });
-    }
-
     if (profileError || !profile) {
       return NextResponse.json(
         { error: 'User profile not found', details: profileError?.message },
@@ -61,15 +45,7 @@ export async function DELETE(
 
     const role = profile.roles || (profile as any).role;
     const roleName = typeof role === 'object' ? role?.name : role;
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Delete post - Role check:', {
-        role,
-        roleName,
-        isAdmin: roleName === 'admin'
-      });
-    }
-    
+
     if (roleName !== 'admin') {
       return NextResponse.json(
         { error: 'Forbidden - Admin only', details: `User role: ${roleName}` },

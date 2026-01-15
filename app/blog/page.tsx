@@ -37,7 +37,6 @@ export default function BlogPage() {
       if (featuredError) {
         console.warn('Error loading featured posts:', featuredError);
       } else {
-        console.log('Loaded featured posts:', featured?.length || 0);
       }
       setFeaturedPosts(featured || []);
 
@@ -45,16 +44,6 @@ export default function BlogPage() {
       const { data: allPosts, error: allPostsError } = await getAllBlogPosts();
       if (allPostsError) {
         console.warn('Error loading all posts:', allPostsError);
-      } else {
-        console.log('Loaded blog posts:', allPosts?.length || 0);
-        if (allPosts && allPosts.length > 0) {
-          console.log('Sample post:', {
-            id: allPosts[0].id,
-            title: allPosts[0].title,
-            is_published: allPosts[0].is_published,
-            category: allPosts[0].category
-          });
-        }
       }
       setPosts(allPosts || []);
     } catch (error) {

@@ -91,7 +91,6 @@ export default function AccountSettingsPage() {
           }
         } else if (prefsResponse.status === 401) {
           // User not authenticated, use defaults silently
-          console.log('User not authenticated, using default email preferences');
         }
       } catch (error) {
         console.error('Error loading email preferences:', error);

@@ -272,12 +272,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Reminder email sent successfully:', {
-      to: userEmail,
-      emailId: emailData.id,
-      subject: `🔔 תזכורת: האירוע "${event.title}" מחר!`
-    });
-
     return NextResponse.json({ 
       success: true, 
       emailId: emailData.id 

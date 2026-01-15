@@ -39,11 +39,6 @@ export default function LiveEventPage() {
       if (error) {
         console.error('Error loading event:', error);
       } else {
-        console.log('Event loaded:', { 
-          id: data?.id, 
-          instructor_name: data?.instructor_name,
-          instructor_avatar_url: data?.instructor_avatar_url 
-        });
         setEvent(data);
         // Reset avatar error when event data changes
         setAvatarError(false);

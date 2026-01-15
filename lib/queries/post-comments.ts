@@ -208,7 +208,6 @@ export async function createPostComment(
         console.error('❌ Failed to award points for comment:', result.error);
         // Don't fail the comment operation, but log the error for debugging
       } else {
-        console.log(`✅ Awarded ${result.points || 0} points for comment`);
       }
     } catch (error) {
       // Silently fail - gamification is not critical, but log for debugging

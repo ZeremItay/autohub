@@ -298,12 +298,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Test reminder email sent successfully:', {
-      to: email,
-      emailId: emailData.id,
-      subject: `🔔 תזכורת: האירוע "${event.title}" מחר!`
-    });
-
     return NextResponse.json({ 
       success: true, 
       emailId: emailData.id,

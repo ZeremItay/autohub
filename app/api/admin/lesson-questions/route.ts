@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     
-    console.log('🔍 Admin requesting questions with status:', status);
     
     let result;
     if (status === 'pending') {
@@ -42,14 +41,12 @@ export async function GET(request: NextRequest) {
       result = await getAllQuestions(supabase);
     }
     
-    console.log('📦 Query result:', { hasError: !!result.error, dataLength: result.data?.length || 0 });
     
     if (result.error) {
       console.error('❌ Error getting questions:', result.error);
       return NextResponse.json({ error: result.error.message }, { status: 500 });
     }
     
-    console.log('✅ Returning questions:', result.data?.length || 0);
     return NextResponse.json({ data: result.data });
   } catch (error: any) {
     console.error('Error getting questions:', error);

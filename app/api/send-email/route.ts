@@ -50,12 +50,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Email sent via Resend:', {
-      to,
-      emailId: data.id,
-      subject
-    });
-
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('Email sending error:', error);

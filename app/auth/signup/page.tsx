@@ -95,7 +95,6 @@ export default function SignupPage() {
 
       if (roleError || !roles?.id) {
         console.error('Error fetching free role or role not found:', roleError);
-        console.log('Attempting to create free role (מנוי חינמי)...');
         
         // Try to create the free role if it doesn't exist
         const { data: newRole, error: createRoleError } = await supabase
@@ -117,19 +116,9 @@ export default function SignupPage() {
           return;
         } else {
           freeRoleId = newRole.id;
-          console.log('✅ Free role (מנוי חינמי) created/found:', {
-            id: freeRoleId,
-            name: newRole.name,
-            display_name: newRole.display_name
-          });
         }
       } else {
         freeRoleId = roles.id;
-        console.log('✅ Free role (מנוי חינמי) found:', {
-          id: freeRoleId,
-          name: roles.name,
-          display_name: roles.display_name
-        });
       }
 
       // Ensure we have a role ID before creating profile
@@ -140,9 +129,6 @@ export default function SignupPage() {
         return;
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:143',message:'Before profile insert',data:{userId:authData.user.id,email:formData.email,displayName:formData.displayName,roleId:freeRoleId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -162,22 +148,12 @@ export default function SignupPage() {
         .select()
         .single();
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:161',message:'After profile insert',data:{hasProfileData:!!profileData,hasError:!!profileError,errorType:typeof profileError,errorKeys:profileError?Object.keys(profileError):[],errorMessage:profileError?.message,errorCode:profileError?.code,profileId:profileData?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2'})}).catch(()=>{});
-      // #endregion
 
       if (profileError) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:161',message:'Profile error detected',data:{errorMessage:profileError?.message,errorCode:profileError?.code,errorDetails:profileError?.details,errorHint:profileError?.hint,errorStringified:JSON.stringify(profileError,Object.getOwnPropertyNames(profileError))},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-2',hypothesisId:'H2'})}).catch(()=>{});
-        // #endregion
         
         // Check if profile already exists (duplicate key error)
         if (profileError.code === '23505' || profileError.message?.includes('duplicate') || profileError.message?.includes('unique')) {
           // This is a duplicate key error - don't log as error, just check if profile exists
-          console.log('ℹ️ Profile already exists (duplicate key), checking...');
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:183',message:'Duplicate key error, checking if profile exists',data:{userId:authData.user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
-          // #endregion
           
           // Profile might already exist, check if it does
           const { data: existingProfile, error: checkError } = await supabase
@@ -186,13 +162,9 @@ export default function SignupPage() {
             .eq('user_id', authData.user.id)
             .single();
           
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:189',message:'Profile check result',data:{hasExistingProfile:!!existingProfile,checkError:checkError?.message,profileId:existingProfile?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
-          // #endregion
           
           if (existingProfile) {
             // Profile exists, continue with signup (user might be retrying)
-            console.log('✅ Profile already exists, continuing with signup');
             // Don't set error, just continue - profile was already created
           } else {
             // Real duplicate key error but profile doesn't exist - this is unusual
@@ -211,7 +183,6 @@ export default function SignupPage() {
           return;
         }
       } else if (profileData) {
-        console.log('✅ Profile created successfully:', profileData.id);
       }
 
       // Save user to localStorage
@@ -265,45 +236,37 @@ export default function SignupPage() {
             error: errorData
           });
         } else {
-          console.log('✅ Welcome email sent successfully');
         }
       } catch (err) {
         // Silently fail - don't block user if email fails
         console.warn('Failed to send welcome email:', err);
       }
       
-      // Award points for registration (don't block if it fails)
+      // Award points for registration via secure API (don't block if it fails)
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:260',message:'Before awardPoints call',data:{userId:authData.user.id,actionName:'הרשמה'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
-        
-        const { awardPoints } = await import('@/lib/queries/gamification');
-        const pointsResult = await awardPoints(authData.user.id, 'הרשמה', {});
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:263',message:'After awardPoints call',data:{success:pointsResult.success,points:pointsResult.points,error:pointsResult.error,alreadyAwarded:pointsResult.alreadyAwarded},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
-        
-        if (pointsResult.success) {
-          console.log('✅ Points awarded for registration:', pointsResult.points);
-        } else {
+        const pointsResponse = await fetch('/api/points/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: authData.user.id,
+            actionName: 'הרשמה',
+            options: {}
+          })
+        });
+        const pointsResult = await pointsResponse.json();
+
+        if (!pointsResult.success) {
           // Don't log as error - gamification is optional
           if (pointsResult.error && !pointsResult.error.includes('Rule not found')) {
             console.warn('Failed to award points for registration:', pointsResult.error);
           }
         }
       } catch (pointsErr) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/auth/signup/page.tsx:270',message:'Exception in awardPoints',data:{errorMessage:pointsErr instanceof Error?pointsErr.message:String(pointsErr)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
-        
         // Silently fail - don't block user if points award fails
         console.warn('Error awarding points for registration:', pointsErr);
       }
 
       // Show success message
-      console.log('✅ Signup completed successfully for user:', authData.user.id);
       
       // Redirect to home page
       router.push('/');
@@ -358,12 +321,6 @@ export default function SignupPage() {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const redirectUrl = `${origin}/auth/callback`;
 
-      console.log('Initiating Google OAuth signup:', {
-        origin,
-        redirectUrl,
-        fullUrl: typeof window !== 'undefined' ? window.location.href : 'N/A'
-      });
-
       // Remove queryParams that might interfere with PKCE flow
       // PKCE flow is handled automatically by Supabase
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -379,10 +336,6 @@ export default function SignupPage() {
         setError(oauthError.message || 'שגיאה בהרשמה עם Google');
         setGoogleLoading(false);
       } else {
-        console.log('OAuth signup initiated successfully:', {
-          url: data?.url,
-          provider: data?.provider
-        });
         // Note: If successful, user will be redirected to Google, so we don't need to handle success here
         // The redirect happens automatically via data.url
       }

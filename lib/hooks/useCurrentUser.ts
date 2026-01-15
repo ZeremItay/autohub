@@ -98,7 +98,8 @@ export function useCurrentUser(): UseCurrentUserReturn {
 
   useEffect(() => {
     loadUser();
-  }, [loadUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only load user once on mount
 
   const isPremium = checkPremium(user);
   const isAdmin = checkAdmin(user);

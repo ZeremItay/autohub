@@ -55,7 +55,6 @@ function ResetPasswordContent() {
           }
         } else {
           // Session exists, we're good to go
-          console.log('Recovery session found');
           setLoading(false);
         }
       });

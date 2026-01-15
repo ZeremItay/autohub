@@ -146,14 +146,6 @@ export async function POST() {
           continue;
         }
 
-        console.log(`Creating profile for ${userData.email}:`, {
-          userId,
-          roleId,
-          freeRoleId,
-          premiumRoleId,
-          display_name: userData.user_metadata.display_name
-        });
-
         // First, try to delete existing profile if it exists (to avoid conflicts)
         await supabaseAdmin
           .from('profiles')
@@ -171,24 +163,12 @@ export async function POST() {
           is_online: true
         };
 
-        console.log('Profile data to insert:', profileData);
 
         const { data: profile, error: profileError } = await supabaseAdmin
           .from('profiles')
           .insert(profileData)
           .select()
           .single();
-
-        console.log(`Profile result for ${userData.email}:`, {
-          profile,
-          error: profileError,
-          profileErrorDetails: profileError ? {
-            message: profileError.message,
-            details: profileError.details,
-            hint: profileError.hint,
-            code: profileError.code
-          } : null
-        });
 
         if (profileError) {
           errors.push({ 
@@ -207,7 +187,6 @@ export async function POST() {
             role: userData.email.includes('sara') ? 'premium' : 'free',
             points: profile.points
           });
-          console.log(`✅ Successfully created profile for ${userData.email}`);
         } else {
           errors.push({ email: userData.email, error: 'Profile was not created - no data returned' });
           console.error(`❌ Profile was not created for ${userData.email} - no data returned`);
@@ -221,29 +200,14 @@ export async function POST() {
 
     // Verify profiles were actually created
     if (createdUsers.length > 0) {
-      console.log('Verifying created profiles...');
       for (const user of createdUsers) {
         const { data: verifyProfile, error: verifyError } = await supabaseAdmin
           .from('profiles')
           .select('*')
           .eq('user_id', user.user_id)
           .single();
-        
-        console.log(`Verification for ${user.email}:`, {
-          found: !!verifyProfile,
-          profile: verifyProfile,
-          error: verifyError
-        });
       }
     }
-
-    // Log results for debugging
-    console.log('User creation results:', {
-      created: createdUsers.length,
-      errorsCount: errors.length,
-      users: createdUsers,
-      errors: errors
-    });
 
     return NextResponse.json({
       success: createdUsers.length > 0,

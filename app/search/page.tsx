@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, Video, MessageSquare, FileText, Briefcase, BookOpen, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { stripHtml } from '@/lib/utils/stripHtml';
 
 function SearchResultsContent() {
   const searchParams = useSearchParams();
@@ -116,7 +117,7 @@ function SearchResultsContent() {
                     >
                       <h3 className="text-lg font-semibold text-gray-800 mb-2">{recording.title}</h3>
                       {recording.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2">{recording.description}</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">{stripHtml(recording.description)}</p>
                       )}
                     </Link>
                   ))}
@@ -140,7 +141,7 @@ function SearchResultsContent() {
                     >
                       <h3 className="text-lg font-semibold text-gray-800 mb-2">{forum.display_name || forum.name}</h3>
                       {forum.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2">{forum.description}</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">{stripHtml(forum.description)}</p>
                       )}
                     </Link>
                   ))}
@@ -185,7 +186,7 @@ function SearchResultsContent() {
                       key={post.id}
                       className="bg-white rounded-xl shadow-sm border border-gray-100 p-4"
                     >
-                      <p className="text-gray-800 mb-2">{post.content}</p>
+                      <p className="text-gray-800 mb-2 line-clamp-3">{stripHtml(post.content)}</p>
                       {post.profiles && (
                         <p className="text-sm text-gray-600">מאת: {post.profiles.display_name}</p>
                       )}
@@ -211,7 +212,7 @@ function SearchResultsContent() {
                     >
                       <h3 className="text-lg font-semibold text-gray-800 mb-2">{project.title}</h3>
                       {project.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">{stripHtml(project.description)}</p>
                       )}
                     </Link>
                   ))}
@@ -235,7 +236,7 @@ function SearchResultsContent() {
                     >
                       <h3 className="text-lg font-semibold text-gray-800 mb-2">{course.title}</h3>
                       {course.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2">{course.description}</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">{stripHtml(course.description)}</p>
                       )}
                     </Link>
                   ))}

@@ -40,7 +40,6 @@ export default function RecentUpdatesPage() {
   // Debug: Log admin status
   useEffect(() => {
     if (!userLoading) {
-      console.log('Admin status:', { isAdmin, userLoading, user: user ? 'loaded' : 'null' });
     }
   }, [isAdmin, userLoading, user]);
 

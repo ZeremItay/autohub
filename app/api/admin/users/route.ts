@@ -125,19 +125,70 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Security: Check authentication via API Key or Admin Session
+    const apiKey = request.headers.get('X-API-Key') || request.headers.get('Authorization')?.replace('Bearer ', '')
+    const validApiKey = process.env.ADMIN_API_KEY || process.env.API_KEY
+
+    let isAuthorized = false
+
+    // Option 1: Check API Key
+    if (apiKey && validApiKey && apiKey === validApiKey) {
+      isAuthorized = true
+    } else {
+      // Option 2: Check Admin Session (for browser-based requests)
+      try {
+        const cookieStore = await cookies()
+        const supabase = createServerClient(cookieStore)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+        if (!sessionError && session) {
+          // Check if user is admin
+          const { data: adminProfile } = await supabase
+            .from('profiles')
+            .select(`
+              *,
+              roles:role_id (
+                id,
+                name,
+                display_name,
+                description
+              )
+            `)
+            .eq('user_id', session.user.id)
+            .single()
+
+          const role = adminProfile?.roles || adminProfile?.role
+          const roleName = typeof role === 'object' ? role?.name : role
+
+          if (roleName === 'admin') {
+            isAuthorized = true
+          }
+        }
+      } catch (error) {
+        // Session check failed - continue to check API key only
+      }
+    }
+
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Provide valid API key in X-API-Key header or be logged in as admin.' },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerClient()
     const body = await request.json()
-    
+
     const { data, error } = await supabase
       .from('profiles')
       .insert([body])
       .select()
       .single()
-    
+
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
-    
+
     return NextResponse.json({ data })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -287,7 +338,6 @@ export async function PUT(request: NextRequest) {
         if (historyError) {
           // If 'action_name' column doesn't exist, try 'action'
           if (historyError.code === 'PGRST204' || historyError.message?.includes('action_name') || historyError.message?.includes('column')) {
-            console.log('⚠️ "action_name" column not found, trying "action" instead');
             const historyEntriesWithAction = pointsHistoryEntries.map(entry => ({
               user_id: entry.user_id,
               points: entry.points,
@@ -300,17 +350,14 @@ export async function PUT(request: NextRequest) {
             if (insertError2) {
               console.error('❌ Error adding to points history:', insertError2?.message || String(insertError2));
             } else {
-              console.log(`✅ Added ${pointsHistoryEntries.length} points history entries successfully`);
             }
           } else {
             console.error('❌ Error adding to points history:', historyError?.message || String(historyError));
           }
         } else {
-          console.log(`✅ Added ${pointsHistoryEntries.length} points history entries successfully`);
         }
       }
 
-      console.log(`Bulk updated ${data?.length || 0} users successfully`)
       return NextResponse.json({ 
         success: true,
         data: data || [],
@@ -321,7 +368,6 @@ export async function PUT(request: NextRequest) {
       const supabase = createServerClient()
       const { id, ...updates } = body
       
-      console.log('Updating user via API:', { id, updates })
       
       // If points are being updated, get current points first to calculate difference
       let pointsDifference = 0;
@@ -338,7 +384,6 @@ export async function PUT(request: NextRequest) {
           const newPoints = parseInt(updates.points) || 0;
           pointsDifference = newPoints - currentPoints;
           profileIdForHistory = currentProfile.id;
-          console.log(`Points change: ${currentPoints} → ${newPoints} (difference: ${pointsDifference})`);
         }
       }
       
@@ -387,7 +432,6 @@ export async function PUT(request: NextRequest) {
         if (historyError) {
           // If 'action_name' column doesn't exist, try 'action'
           if (historyError.code === 'PGRST204' || historyError.message?.includes('action_name') || historyError.message?.includes('column')) {
-            console.log('⚠️ "action_name" column not found, trying "action" instead');
             const historyDataWithAction: any = {
               user_id: profileIdForHistory,
               points: pointsDifference,
@@ -400,17 +444,14 @@ export async function PUT(request: NextRequest) {
             if (insertError2) {
               console.error('❌ Error adding to points history:', insertError2?.message || String(insertError2));
             } else {
-              console.log('✅ Points history entry added successfully');
             }
           } else {
             console.error('❌ Error adding to points history:', historyError?.message || String(historyError));
           }
         } else {
-          console.log('✅ Points history entry added successfully');
         }
       }
       
-      console.log('User updated successfully:', data)
       return NextResponse.json({ data })
     }
   } catch (error: any) {

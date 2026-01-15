@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { type News } from '@/lib/queries/news';
+import { stripHtml } from '@/lib/utils/stripHtml';
 
 interface NewsCarouselProps {
   news: News[];
@@ -51,7 +52,7 @@ export function NewsCarousel({ news }: NewsCarouselProps) {
                       <div className="p-4 sm:p-6 text-white w-full">
                         <h3 className="text-lg sm:text-xl font-bold mb-2">{item.title}</h3>
                         {item.content && (
-                          <p className="text-sm sm:text-base opacity-90 line-clamp-2">{item.content}</p>
+                          <p className="text-sm sm:text-base opacity-90 line-clamp-2">{stripHtml(item.content)}</p>
                         )}
                       </div>
                     </div>
@@ -72,7 +73,7 @@ export function NewsCarousel({ news }: NewsCarouselProps) {
                     <div className="p-4 sm:p-6 text-white w-full">
                       <h3 className="text-lg sm:text-xl font-bold mb-2">{item.title}</h3>
                       {item.content && (
-                        <p className="text-sm sm:text-base opacity-90 line-clamp-2">{item.content}</p>
+                        <p className="text-sm sm:text-base opacity-90 line-clamp-2">{stripHtml(item.content)}</p>
                       )}
                     </div>
                   </div>

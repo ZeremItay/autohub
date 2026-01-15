@@ -125,14 +125,6 @@ export async function markAllNotificationsAsRead(userId: string) {
 
 // Create a notification
 export async function createNotification(notification: Omit<Notification, 'id' | 'created_at' | 'updated_at'>) {
-  // Log notification creation attempt
-  console.log('📬 Creating notification:', {
-    user_id: notification.user_id,
-    type: notification.type,
-    title: notification.title,
-    message: notification.message?.substring(0, 50) + '...'
-  });
-
   // Try to use API route if available (server-side), fallback to direct supabase call
   if (typeof window === 'undefined') {
     // Server-side: use direct supabase call
@@ -186,13 +178,7 @@ export async function createNotification(notification: Omit<Notification, 'id' |
       
       return { data: null, error };
     }
-    
-    console.log('✅ Notification created successfully:', {
-      id: data?.id,
-      type: data?.type,
-      user_id: data?.user_id
-    });
-    
+
     return { data, error: null };
   } else {
     // Client-side: use API route
@@ -256,12 +242,6 @@ export async function createNotification(notification: Omit<Notification, 'id' |
         console.error('❌ Error creating notification via API:', result);
         return { data: null, error: result };
       }
-
-      console.log('✅ Notification created successfully via API:', {
-        id: result.data?.id,
-        type: result.data?.type,
-        user_id: result.data?.user_id
-      });
 
       return { data: result.data, error: null };
     } catch (fetchError: any) {

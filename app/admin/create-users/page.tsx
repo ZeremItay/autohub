@@ -22,7 +22,6 @@ export default function CreateTestUsersPage() {
 
       const data = await response.json();
 
-      console.log('API Response:', data);
 
       if (response.ok && data.success !== false) {
         setResult({

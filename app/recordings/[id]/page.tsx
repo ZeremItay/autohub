@@ -43,7 +43,6 @@ function RecordingDetailPageContent() {
     let httpsUrl = url.replace(/^http:\/\//, 'https://');
     // Log the transformation for debugging
     if (httpsUrl !== url) {
-      console.log('URL converted from HTTP to HTTPS:', { original: url, converted: httpsUrl });
     }
     return httpsUrl;
   }
@@ -182,15 +181,8 @@ function RecordingDetailPageContent() {
         replyTextToUse,
         parentId
       );
-      
+
       if (!error && data) {
-        console.log('Reply created successfully:', {
-          replyId: data.id,
-          userId: userId,
-          user: data.user,
-          displayName: data.user?.display_name || data.user?.first_name || data.user?.nickname || 'משתמש'
-        });
-        
         if (!text) {
           setReplyText('');
           setReplyingTo(null);
@@ -336,10 +328,8 @@ function RecordingDetailPageContent() {
                       }
                     }}
                     onLoadStart={() => {
-                      console.log('Video load started:', videoUrl);
                     }}
                     onCanPlay={() => {
-                      console.log('Video can play:', videoUrl);
                     }}
                   >
                     הדפדפן שלך לא תומך בנגן וידאו.

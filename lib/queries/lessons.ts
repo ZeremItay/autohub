@@ -107,9 +107,6 @@ export async function answerLessonQuestion(
 
 // Add Q&A to lesson's qa_section
 export async function addQAToLesson(lessonId: string, question: string, answer: string, supabaseClient?: any) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/lessons.ts:109',message:'addQAToLesson ENTRY',data:{lessonId,question,answer},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   
   const client = supabaseClient || await getSupabaseClient();
   
@@ -120,15 +117,9 @@ export async function addQAToLesson(lessonId: string, question: string, answer: 
     .eq('id', lessonId)
     .single();
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/lessons.ts:118',message:'BEFORE getting current lesson',data:{lessonId,hasLesson:!!lesson,lessonError:lessonError?.message,currentQASection_type:typeof lesson?.qa_section,currentQASection_isArray:Array.isArray(lesson?.qa_section),currentQASection_length:Array.isArray(lesson?.qa_section)?lesson.qa_section.length:'not array',currentQASection:lesson?.qa_section},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   
   if (lessonError || !lesson) {
     console.error('Error getting lesson:', lessonError);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/lessons.ts:122',message:'ERROR getting lesson',data:{lessonId,lessonError:lessonError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return { data: null, error: lessonError };
   }
   
@@ -143,9 +134,6 @@ export async function addQAToLesson(lessonId: string, question: string, answer: 
   
   const updatedQASection = [...currentQASection, newQAItem];
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/lessons.ts:133',message:'BEFORE updating DB',data:{lessonId,currentQASection_length:currentQASection.length,newQAItem,updatedQASection_length:updatedQASection.length,updatedQASection},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   
   // Update lesson with new qa_section
   const { data, error } = await client
@@ -157,18 +145,12 @@ export async function addQAToLesson(lessonId: string, question: string, answer: 
     .select()
     .single();
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/lessons.ts:143',message:'AFTER updating DB',data:{lessonId,hasData:!!data,error:error?.message,updatedData_qa_section_type:typeof data?.qa_section,updatedData_qa_section_isArray:Array.isArray(data?.qa_section),updatedData_qa_section_length:Array.isArray(data?.qa_section)?data.qa_section.length:'not array',updatedData_qa_section:data?.qa_section},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   
   if (error) {
     console.error('Error updating lesson qa_section:', error);
     return { data: null, error };
   }
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/lessons.ts:150',message:'addQAToLesson SUCCESS',data:{lessonId,qa_section_length:data?.qa_section?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   
   return { data, error: null };
 }
@@ -177,7 +159,6 @@ export async function addQAToLesson(lessonId: string, question: string, answer: 
 export async function getAllPendingQuestions(supabaseClient?: any) {
   const client = supabaseClient || await getSupabaseClient();
   
-  console.log('🔍 getAllPendingQuestions - Using client:', !!client);
   
   const { data, error } = await client
     .from('lesson_questions')
@@ -203,14 +184,7 @@ export async function getAllPendingQuestions(supabaseClient?: any) {
     `)
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
-  
-  console.log('📦 getAllPendingQuestions result:', { 
-    hasError: !!error, 
-    errorMessage: error?.message,
-    dataLength: data?.length || 0,
-    data: data 
-  });
-  
+
   if (error) {
     console.error('❌ Error getting pending questions:', error);
     return { data: [], error };

@@ -339,7 +339,6 @@ export async function createPost(post: {
     insertData.media_type = post.media_type;
   }
 
-  console.log('Inserting post with data:', JSON.stringify(insertData, null, 2));
   
   const { data, error } = await supabase
     .from('posts')
@@ -560,14 +559,12 @@ export async function toggleLike(postId: string, userId: string) {
       
       if (!result.success) {
         if (result.alreadyAwarded) {
-          console.log(`ℹ️ Points already awarded for like on post ${postId}`);
         } else {
           console.error('❌ Failed to award points for like:', result.error);
           // Don't fail the like operation, but log the error for debugging
           logError(new Error(result.error || 'Failed to award points'), 'toggleLike:points');
         }
       } else {
-        console.log(`✅ Awarded ${result.points || 0} points for like`);
       }
     } catch (error) {
       // Silently fail - gamification is not critical, but log for debugging

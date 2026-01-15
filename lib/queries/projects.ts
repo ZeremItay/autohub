@@ -273,7 +273,6 @@ export async function createProjectOffer(offer: Omit<ProjectOffer, 'id' | 'creat
         }).then(async (response) => {
           const emailResponse = await response.json();
           if (response.ok) {
-            console.log('✅ Email sent successfully:', emailResponse);
           } else {
             console.warn('❌ Error sending project offer email:', emailResponse);
           }
@@ -588,13 +587,6 @@ export async function sendProjectOfferEmail(
   offerMessage: string,
   projectId: string
 ) {
-  console.log('📧 Starting email send process:', {
-    projectOwnerId,
-    projectTitle,
-    offererName,
-    offerAmount
-  });
-
   try {
     // Get project owner's email from profile or auth
     const { data: ownerProfile } = await supabase
@@ -697,13 +689,6 @@ export async function sendProjectOfferEmail(
     `;
 
     // Send email via API route
-    console.log('📧 Sending email to project owner:', {
-      ownerEmail,
-      projectTitle,
-      offererName,
-      offerAmount
-    });
-
     const emailResponse = await fetch(`${siteUrl}/api/send-email`, {
       method: 'POST',
       headers: {
@@ -725,11 +710,6 @@ export async function sendProjectOfferEmail(
       });
       return { success: false, error: responseData };
     }
-
-    console.log('✅ Email sent successfully:', {
-      to: ownerEmail,
-      emailId: responseData.data?.id
-    });
 
     return { success: true, emailId: responseData.data?.id };
   } catch (error: any) {

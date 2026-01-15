@@ -40,15 +40,15 @@ export async function middleware(request: NextRequest) {
       response.cookies.delete('sb-refresh-token')
       // Continue without user - they'll need to log in again
     } else if (user) {
-      // Check if user still exists in database (user might have been deleted)
-      const { data: profile, error: profileError } = await supabase
+      // Get profile with all needed fields in ONE query (performance optimization)
+      const { data: fullProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('user_id')
+        .select('user_id, first_name, how_to_address, nocode_experience, display_name')
         .eq('user_id', user.id)
         .single()
 
       // If user doesn't exist in profiles table, clear session (user was deleted)
-      if (profileError || !profile) {
+      if (profileError || !fullProfile) {
         // User was deleted from database, clear session
         await supabase.auth.signOut()
         // Clear session cookies
@@ -62,11 +62,6 @@ export async function middleware(request: NextRequest) {
         // User exists - check if profile is complete (user is fully registered)
         // Profile needs: how_to_address, nocode_experience (first_name is optional)
         // Only redirect to complete-profile if user came from OAuth (Google) and missing required fields
-        const { data: fullProfile, error: fullProfileError } = await supabase
-          .from('profiles')
-          .select('first_name, how_to_address, nocode_experience, display_name')
-          .eq('user_id', user.id)
-          .single()
 
         // Only needs completion if missing required fields (how_to_address, nocode_experience)
         // first_name is optional, so don't require it
@@ -113,13 +108,10 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
+     * Only run middleware on routes that need auth checks
+     * Skip API routes to improve performance (they handle auth internally)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
 

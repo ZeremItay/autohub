@@ -91,21 +91,12 @@ export default function CoursesPage() {
       const isUserAdmin = currentUser ? isAdmin(currentUser) : false;
       
       if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 Loading courses - isUserAdmin:', isUserAdmin, 'currentUser:', currentUser);
       }
       
       if (selectedCategory === 'הכל') {
         const result = await getAllCourses(currentUser?.id, isUserAdmin);
         data = result.data || [];
         error = result.error;
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🔍 getAllCourses result:', { 
-            dataCount: data.length, 
-            includeDrafts: isUserAdmin,
-            courses: data.map((c: any) => ({ id: c.id, title: c.title, status: c.status }))
-          });
-        }
       } else {
         // Filter by tag - selectedCategory is now a tag ID
         const { data: assignments } = await getContentByTag(selectedCategory, 'course');

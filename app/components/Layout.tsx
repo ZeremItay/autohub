@@ -40,8 +40,8 @@ import { getAllProfiles, updateProfile } from '@/lib/queries/profiles';
 import { getNextLiveEvent, updateEventStatuses } from '@/lib/queries/events';
 import { deleteNotification } from '@/lib/queries/notifications';
 import { clearCache } from '@/lib/cache';
-import { awardPoints } from '@/lib/queries/gamification';
 import { getVisibleMenuItems, type MenuItem } from '@/lib/queries/menu-items';
+import { stripHtml } from '@/lib/utils/stripHtml';
 
 interface SearchResult {
   recordings: any[];
@@ -113,7 +113,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       
       
       if (process.env.NODE_ENV === 'development') {
-        console.log('Search performed:', { query, hasData: !!data, error, data });
       }
       
       if (!error && data) {
@@ -168,19 +167,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [mobileSearchOpen]);
 
-  // Debug: Log mobile search state
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && mobileSearchOpen) {
-      console.log('Mobile search modal state:', {
-        mobileSearchOpen,
-        hasSearchResults: !!searchResults,
-        searchQuery,
-        searchQueryLength: searchQuery.trim().length,
-        isSearching,
-        totalResults: searchResults ? getTotalResults() : 0
-      });
-    }
-  }, [mobileSearchOpen, searchResults, searchQuery, isSearching]);
+  // Debug: Log mobile search state (removed for production)
 
   // Global error handler to suppress Chrome extension errors
   useEffect(() => {
@@ -224,7 +211,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     async function loadUser() {
       // Prevent parallel calls
       if (isLoadingUserRef.current) {
-        console.log('loadUser already running, skipping...');
         return;
       }
       
@@ -331,13 +317,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             // Mark that we're processing (with timestamp to auto-clear if stuck)
             localStorage.setItem(processingKey, Date.now().toString());
             
-            // Run in background - don't wait for it
-            // awardPoints already handles both Hebrew and English action names internally
-            awardPoints(userId, 'כניסה יומית', { checkDaily: true })
+            // Run in background via secure API - don't wait for it
+            fetch('/api/points/award', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: userId,
+                actionName: 'כניסה יומית',
+                options: { checkDaily: true }
+              })
+            })
+              .then(res => res.json())
               .then((result) => {
                 // Clear processing flag
                 localStorage.removeItem(processingKey);
-                
+
                 // If award succeeded or already awarded, mark today as done
                 if (result.success || result.alreadyAwarded) {
                   localStorage.setItem(lastAwardKey, today);
@@ -435,7 +429,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     // IMPORTANT: This callback must NOT use async/await to prevent blocking
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
-      console.log('[onAuthStateChange] Event:', event);
 
       if (event === 'SIGNED_IN') {
         const shouldReloadUser = !currentUser || currentUser.id !== session?.user?.id;
@@ -479,7 +472,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             .update({ is_online: false })
             .eq('user_id', userIdToUpdate)
             .then(() => {
-              console.log('[onAuthStateChange] Updated is_online to false');
             })
             .catch((error: unknown) => {
               console.error('Error updating is_online on logout:', error);
@@ -536,7 +528,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           table: 'menu_items'
         },
         (payload: any) => {
-          console.log('Menu items changed, reloading...', payload);
           // Reload menu items when changes occur
           loadMenuItems();
         }
@@ -1166,7 +1157,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   >
                                     <p className="text-sm font-semibold text-gray-900 break-words">{recording.title}</p>
                                     {recording.description && (
-                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{recording.description}</p>
+                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{stripHtml(recording.description)}</p>
                                     )}
                                   </Link>
                                       ))}
@@ -1194,7 +1185,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   >
                                     <p className="text-sm font-semibold text-gray-900 break-words">{forum.display_name || forum.name}</p>
                                     {forum.description && (
-                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{forum.description}</p>
+                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{stripHtml(forum.description)}</p>
                                     )}
                                   </Link>
                                       ))}
@@ -1243,7 +1234,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                     key={post.id}
                                     className="block px-3 py-2 rounded-xl hover:bg-pink-50 transition-colors"
                                   >
-                                    <p className="text-sm text-gray-900 line-clamp-2 break-words">{post.content}</p>
+                                    <p className="text-sm text-gray-900 line-clamp-2 break-words">{stripHtml(post.content)}</p>
                                     {post.profiles && (
                                       <p className="text-xs text-gray-600 mt-1 break-words">מאת: {post.profiles.display_name}</p>
                                     )}
@@ -1273,7 +1264,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   >
                                     <p className="text-sm font-semibold text-gray-900 break-words">{project.title}</p>
                                     {project.description && (
-                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{project.description}</p>
+                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{stripHtml(project.description)}</p>
                                     )}
                                   </Link>
                                       ))}
@@ -1301,7 +1292,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   >
                                     <p className="text-sm font-semibold text-gray-900 break-words">{course.title}</p>
                                     {course.description && (
-                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{course.description}</p>
+                                      <p className="text-xs text-gray-600 line-clamp-1 mt-1 break-words">{stripHtml(course.description)}</p>
                                     )}
                                   </Link>
                                       ))}
@@ -1466,7 +1457,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                 >
                                   <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed mb-1">{recording.title}</p>
                                   {recording.description && (
-                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{recording.description}</p>
+                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{stripHtml(recording.description)}</p>
                                   )}
                                 </Link>
                               ))}
@@ -1494,7 +1485,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                 >
                                   <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed mb-1">{forum.display_name || forum.name}</p>
                                   {forum.description && (
-                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{forum.description}</p>
+                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{stripHtml(forum.description)}</p>
                                   )}
                                 </Link>
                               ))}
@@ -1543,7 +1534,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                   key={post.id}
                                   className="block px-3 py-2.5 rounded-lg border border-gray-200 bg-white shadow-sm"
                                 >
-                                  <p className="text-sm text-gray-900 line-clamp-3 break-words leading-relaxed mb-1">{post.content}</p>
+                                  <p className="text-sm text-gray-900 line-clamp-3 break-words leading-relaxed mb-1">{stripHtml(post.content)}</p>
                                   {post.profiles && (
                                     <p className="text-xs text-gray-600 break-words leading-relaxed">מאת: {post.profiles.display_name}</p>
                                   )}
@@ -1573,7 +1564,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                 >
                                   <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed mb-1">{project.title}</p>
                                   {project.description && (
-                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{project.description}</p>
+                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{stripHtml(project.description)}</p>
                                   )}
                                 </Link>
                               ))}
@@ -1601,7 +1592,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                 >
                                   <p className="text-sm font-semibold text-gray-900 break-words leading-relaxed mb-1">{course.title}</p>
                                   {course.description && (
-                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{course.description}</p>
+                                    <p className="text-xs text-gray-600 line-clamp-2 break-words leading-relaxed">{stripHtml(course.description)}</p>
                                   )}
                                 </Link>
                               ))}

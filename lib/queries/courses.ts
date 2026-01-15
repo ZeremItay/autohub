@@ -375,7 +375,6 @@ export async function createCourse(course: Omit<Course, 'id' | 'created_at' | 'u
   if (course.instructor_avatar_url) courseData.instructor_avatar_url = course.instructor_avatar_url
   if (course.payment_url) courseData.payment_url = course.payment_url
   
-  console.log('Inserting course - difficulty:', JSON.stringify(courseData.difficulty))
   
   // First, check if user is authenticated
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -384,7 +383,6 @@ export async function createCourse(course: Omit<Course, 'id' | 'created_at' | 'u
     return { data: null, error: { message: 'User not authenticated', code: 'AUTH_ERROR' } };
   }
   
-  console.log('User authenticated:', session.user.id);
   
   // Insert the course - try with current difficulty value
   try {
@@ -395,7 +393,6 @@ export async function createCourse(course: Omit<Course, 'id' | 'created_at' | 'u
     
     // If error is about difficulty constraint, try the other language
     if (insertError && insertError.message && insertError.message.includes('difficulty_check')) {
-      console.log('Difficulty constraint error detected, trying alternative difficulty values...');
       
       // Try the opposite language
       const alternativeDifficulties = {
@@ -409,7 +406,6 @@ export async function createCourse(course: Omit<Course, 'id' | 'created_at' | 'u
       
       const alternativeDifficulty = alternativeDifficulties[difficulty as keyof typeof alternativeDifficulties];
       if (alternativeDifficulty) {
-        console.log(`Trying alternative difficulty: ${alternativeDifficulty}`);
         courseData.difficulty = alternativeDifficulty;
         
         // Retry with alternative difficulty
@@ -471,7 +467,6 @@ export async function createCourse(course: Omit<Course, 'id' | 'created_at' | 'u
       return { data: null, error: { message: 'No data returned from insert', code: 'NO_DATA' } };
     }
     
-    console.log('Course created successfully:', insertData[0].id);
     return { data: insertData[0], error: null };
     
   } catch (e: any) {
@@ -519,7 +514,6 @@ export async function updateCourse(id: string, updates: Partial<Course>) {
   delete updateData.id;
   delete updateData.created_at;
   
-  console.log('Updating course:', id, 'with data:', JSON.stringify(updateData, null, 2));
   
   const { data, error } = await supabase
     .from('courses')
@@ -531,7 +525,6 @@ export async function updateCourse(id: string, updates: Partial<Course>) {
   if (error) {
     // If error is about difficulty constraint, try the other language
     if (error.message && error.message.includes('difficulty_check')) {
-      console.log('Difficulty constraint error detected, trying alternative difficulty values...');
       
       const alternativeDifficulties: Record<string, string> = {
         'beginner': 'מתחילים',
@@ -544,7 +537,6 @@ export async function updateCourse(id: string, updates: Partial<Course>) {
       
       const alternativeDifficulty = alternativeDifficulties[difficulty];
       if (alternativeDifficulty) {
-        console.log(`Trying alternative difficulty: ${alternativeDifficulty}`);
         updateData.difficulty = alternativeDifficulty;
         
         // Retry with alternative difficulty
@@ -573,17 +565,14 @@ export async function getCourseSections(courseId: string) {
   try {
     if (typeof window !== 'undefined') {
       supabaseClient = supabase;
-      console.log('Using client-side supabase for getCourseSections');
     } else {
       supabaseClient = createServerClient();
-      console.log('Using server-side supabase for getCourseSections');
     }
   } catch (e) {
     console.error('Error initializing supabase client for getCourseSections:', e);
     supabaseClient = createServerClient();
   }
   
-  console.log('Fetching sections for course:', courseId);
   
   try {
     const { data, error } = await supabaseClient
@@ -602,9 +591,7 @@ export async function getCourseSections(courseId: string) {
       return { data: null, error };
     }
     
-    console.log(`Found ${data?.length || 0} sections for course ${courseId}`);
     if (data && data.length > 0) {
-      console.log('Sections data:', data);
     }
     
     return { data: data || [], error: null };
@@ -643,7 +630,6 @@ export async function createCourseSection(section: Omit<CourseSection, 'id' | 'c
     return { data: null, error: { message: 'Failed to initialize supabase client' } as any };
   }
   
-  console.log('Creating section:', section);
   
   const sectionData: any = {
     course_id: section.course_id,
@@ -671,7 +657,6 @@ export async function createCourseSection(section: Omit<CourseSection, 'id' | 'c
       return { data: null, error };
     }
     
-    console.log('Section created successfully:', data?.id);
     
     return { data, error: null };
   } catch (e: any) {
@@ -713,7 +698,6 @@ export async function getCourseLessons(courseId: string) {
   // Use getSupabaseClient which automatically chooses the right client
   const supabaseClient = await getSupabaseClient();
   
-  console.log('Loading lessons for course:', courseId);
   
   try {
     const { data, error } = await supabaseClient
@@ -725,12 +709,6 @@ export async function getCourseLessons(courseId: string) {
     // Ensure qa_section and key_points are arrays
     if (data && !error) {
       data.forEach((lesson: any) => {
-        // #region agent log
-        if (typeof window !== 'undefined') {
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:727',message:'BEFORE parsing lesson qa_section',data:{courseId,lessonId:lesson.id,lessonTitle:lesson.title,raw_qa_section_type:typeof lesson.qa_section,raw_qa_section_isArray:Array.isArray(lesson.qa_section),raw_qa_section_length:Array.isArray(lesson.qa_section)?lesson.qa_section.length:'not array',raw_qa_section:lesson.qa_section},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-        }
-        // #endregion
-        
         // Parse qa_section if it's a string (JSONB from DB)
         if (lesson.qa_section) {
           if (typeof lesson.qa_section === 'string') {
@@ -766,12 +744,6 @@ export async function getCourseLessons(courseId: string) {
         } else {
           lesson.key_points = [];
         }
-        
-        // #region agent log
-        if (typeof window !== 'undefined') {
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:760',message:'AFTER parsing lesson qa_section',data:{courseId,lessonId:lesson.id,lessonTitle:lesson.title,qa_section_type:typeof lesson.qa_section,qa_section_isArray:Array.isArray(lesson.qa_section),qa_section_length:Array.isArray(lesson.qa_section)?lesson.qa_section.length:'not array',qa_section:lesson.qa_section},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-        }
-        // #endregion
       });
     }
     
@@ -790,9 +762,7 @@ export async function getCourseLessons(courseId: string) {
       return { data: null, error };
     }
     
-    console.log(`Loaded ${data?.length || 0} lessons for course ${courseId}`);
     if (data && data.length > 0) {
-      console.log('Lessons data:', data);
     }
     
     return { data, error: null };
@@ -834,25 +804,13 @@ export async function getLessonById(lessonId: string, supabaseClient?: any) {
       client = createServerClient();
     }
   }
-  
-  // #region agent log
-  if (typeof window !== 'undefined') {
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:793',message:'getLessonById ENTRY',data:{lessonId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }
-  // #endregion
-  
+
   const { data, error } = await client
     .from('course_lessons')
     .select('*')
     .eq('id', lessonId)
     .single();
-  
-  // #region agent log
-  if (typeof window !== 'undefined') {
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:797',message:'BEFORE parsing qa_section',data:{lessonId,hasData:!!data,error:error?.message,raw_qa_section_type:typeof data?.qa_section,raw_qa_section_isArray:Array.isArray(data?.qa_section),raw_qa_section:data?.qa_section},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }
-  // #endregion
-  
+
   // Ensure qa_section and key_points are arrays
   if (data && !error) {
     // Parse qa_section if it's a string (JSONB from DB)
@@ -890,28 +848,8 @@ export async function getLessonById(lessonId: string, supabaseClient?: any) {
     } else {
       data.key_points = [];
     }
-    
-    // #region agent log
-    if (typeof window !== 'undefined') {
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:830',message:'AFTER parsing qa_section',data:{lessonId,qa_section_type:typeof data.qa_section,qa_section_isArray:Array.isArray(data.qa_section),qa_section_length:Array.isArray(data.qa_section)?data.qa_section.length:'not array',qa_section:data.qa_section},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    }
-    // #endregion
-    
-    console.log('🔍 getLessonById - Loaded lesson:', {
-      id: data.id,
-      title: data.title,
-      qa_section_type: typeof data.qa_section,
-      qa_section_length: Array.isArray(data.qa_section) ? data.qa_section.length : 'not array',
-      qa_section: data.qa_section
-    });
   }
-  
-  // #region agent log
-  if (typeof window !== 'undefined') {
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:845',message:'getLessonById RETURN',data:{lessonId,hasData:!!data,qa_section_length:Array.isArray(data?.qa_section)?data.qa_section.length:'not array'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }
-  // #endregion
-  
+
   return { data, error };
 }
 
@@ -933,7 +871,6 @@ export async function createLesson(lesson: Omit<CourseLesson, 'id' | 'created_at
     supabaseClient = createServerClient();
   }
   
-  console.log('Creating lesson:', lesson);
   
   const lessonData: any = {
     ...lesson,
@@ -960,7 +897,6 @@ export async function createLesson(lesson: Omit<CourseLesson, 'id' | 'created_at
     return { data: null, error };
   }
   
-  console.log('Lesson created successfully:', data?.id);
   
   return { data, error: null };
 }
@@ -983,7 +919,6 @@ export async function updateLesson(lessonId: string, updates: Partial<CourseLess
     supabaseClient = createServerClient();
   }
   
-  console.log('Updating lesson:', lessonId, updates);
   
   const updateData: any = {
     ...updates,
@@ -1016,7 +951,6 @@ export async function updateLesson(lessonId: string, updates: Partial<CourseLess
     return { data: null, error };
   }
   
-  console.log('Lesson updated successfully:', data?.id);
   
   return { data, error: null };
 }
@@ -1039,7 +973,6 @@ export async function deleteLesson(lessonId: string) {
     supabaseClient = createServerClient();
   }
   
-  console.log('Deleting lesson:', lessonId);
   
   const { error } = await supabaseClient
     .from('course_lessons')
@@ -1052,7 +985,6 @@ export async function deleteLesson(lessonId: string) {
     return { error };
   }
   
-  console.log('Lesson deleted successfully:', lessonId);
   
   return { error: null };
 }
@@ -1067,10 +999,8 @@ export async function deleteCourse(id: string) {
     // Check if we're in a browser environment
     if (typeof window !== 'undefined') {
       supabaseClient = supabase;
-      console.log('Using client-side supabase for deleteCourse');
     } else {
       supabaseClient = createServerClient();
-      console.log('Using server-side supabase for deleteCourse');
     }
   } catch (e) {
     console.error('Error initializing supabase client:', e);
@@ -1078,7 +1008,6 @@ export async function deleteCourse(id: string) {
     supabaseClient = createServerClient();
   }
   
-  console.log('Deleting course:', id);
   
   try {
     const { error } = await supabaseClient
@@ -1101,7 +1030,6 @@ export async function deleteCourse(id: string) {
       return { error };
     }
     
-    console.log('Course deleted successfully:', id);
     return { error: null };
   } catch (e: any) {
     console.error('=== EXCEPTION IN deleteCourse ===');
@@ -1296,7 +1224,6 @@ export async function enrollInCourse(courseId: string, userId: string) {
     payment_amount: paymentAmount
   };
   
-  console.log('Attempting to enroll:', { courseId, userId, authenticatedUserId, enrollmentData });
   
   const { data, error } = await supabaseClient
     .from('course_enrollments')
@@ -1466,11 +1393,6 @@ export async function markLessonComplete(lessonId: string, courseId: string, use
   // Use auth.uid() from session to ensure RLS policy works
   const authenticatedUserId = session.user.id;
   
-  console.log('=== markLessonComplete ===');
-  console.log('lessonId:', lessonId);
-  console.log('courseId:', courseId);
-  console.log('userId (parameter):', userId);
-  console.log('authenticatedUserId (auth.uid()):', authenticatedUserId);
   
   // Check if already completed
   const { data: existing, error: checkError } = await supabaseClient
@@ -1491,7 +1413,6 @@ export async function markLessonComplete(lessonId: string, courseId: string, use
   
   if (existing) {
     // Already completed, just update the timestamp
-    console.log('Lesson already completed, updating timestamp');
     const { data, error } = await supabaseClient
       .from('lesson_completions')
       .update({
@@ -1514,7 +1435,6 @@ export async function markLessonComplete(lessonId: string, courseId: string, use
   }
   
   // Create new completion - use authenticatedUserId to ensure RLS policy works
-  console.log('Creating new completion');
   const { data, error } = await supabaseClient
     .from('lesson_completions')
     .insert([{
@@ -1534,10 +1454,8 @@ export async function markLessonComplete(lessonId: string, courseId: string, use
     console.error('Error hint:', (error as any)?.hint);
     console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
   } else {
-    console.log('Completion created successfully:', data);
   }
   
-  console.log('=== END markLessonComplete ===');
   return { data, error };
 }
 

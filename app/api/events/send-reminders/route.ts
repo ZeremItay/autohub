@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowDateStr = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
 
-    console.log(`🔔 Checking for events on ${tomorrowDateStr}...`);
 
     // Get all events happening tomorrow
     const { data: events, error: eventsError } = await supabaseAdmin
@@ -57,7 +56,6 @@ export async function GET(request: NextRequest) {
     }
 
     if (!events || events.length === 0) {
-      console.log('✅ No events found for tomorrow');
       return NextResponse.json({
         success: true,
         message: 'No events found for tomorrow',
@@ -65,14 +63,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`📅 Found ${events.length} event(s) for tomorrow`);
 
     const results = [];
     let totalRemindersSent = 0;
 
     // Process each event
     for (const event of events) {
-      console.log(`📧 Processing event: ${event.title} (${event.id})`);
 
       // Get all registrations for this event
       const { data: registrations, error: registrationsError } = await supabaseAdmin
@@ -100,7 +96,6 @@ export async function GET(request: NextRequest) {
       }
 
       if (!registrations || registrations.length === 0) {
-        console.log(`No registrations found for event: ${event.title}`);
         results.push({
           eventId: event.id,
           eventTitle: event.title,
@@ -110,7 +105,6 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      console.log(`Found ${registrations.length} registration(s) for event: ${event.title}`);
 
       let eventRemindersSent = 0;
 
@@ -146,7 +140,6 @@ export async function GET(request: NextRequest) {
           } else {
             eventRemindersSent++;
             totalRemindersSent++;
-            console.log(`✅ Reminder sent to ${user.email} for event: ${event.title}`);
           }
         } catch (error: any) {
           console.error(`Error sending reminder to user ${userId}:`, error);
@@ -161,7 +154,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`✅ Reminder process completed. Total reminders sent: ${totalRemindersSent}`);
 
     return NextResponse.json({
       success: true,

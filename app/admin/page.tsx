@@ -1331,7 +1331,6 @@ export default function AdminPanel() {
         
         // Check if operation was cancelled (timeout occurred)
         if (isCancelledRef.current) {
-          console.log('loadData was cancelled, skipping state updates');
           return;
         }
         // Data already includes roles from the query
@@ -1422,20 +1421,7 @@ export default function AdminPanel() {
                 return ta.tag || ta;
               }).filter((tag: any) => tag && (tag.name || tag.title || tag.id));
               
-              // Debug log for first course
-              if (course.id === (data[0]?.id)) {
-                console.log('🔍 Course debug:', {
-                  courseId: course.id,
-                  courseTitle: course.title,
-                  originalDifficulty: course.difficulty,
-                  originalDurationHours: course.duration_hours,
-                  originalLessonsCount: course.lessons_count,
-                  calculatedStats: stats,
-                  tagsData: tags,
-                  normalizedTags: normalizedTags,
-                  courseCategory: course.category
-                });
-              }
+              // Debug log removed for production
               
               return {
                 ...course,
@@ -1511,19 +1497,15 @@ export default function AdminPanel() {
           setMenuItems(data)
         }
       } else if (activeTab === 'lesson-questions') {
-        console.log('🔍 Loading lesson questions...')
         try {
           const response = await fetch('/api/admin/lesson-questions?status=pending', {
             credentials: 'include'
           })
-          console.log('📡 Response status:', response.status, response.statusText)
           
           const contentType = response.headers.get('content-type')
-          console.log('📄 Content-Type:', contentType)
           
           if (response.ok) {
             const text = await response.text()
-            console.log('📝 Raw response text:', text)
             
             let result
             try {
@@ -1535,9 +1517,7 @@ export default function AdminPanel() {
               return
             }
             
-            console.log('📦 Response data:', result)
             setLessonQuestions(result.data || [])
-            console.log('✅ Set lesson questions:', result.data || [])
           } else {
             const text = await response.text()
             console.error('❌ Error response status:', response.status)
@@ -1595,7 +1575,6 @@ export default function AdminPanel() {
           if (response.ok) {
             const result = await response.json()
             if (process.env.NODE_ENV === 'development') {
-              console.log('Forums loaded successfully:', result.data?.length || 0, 'forums')
             }
             setForums(result.data || [])
           } else {
@@ -2206,8 +2185,6 @@ export default function AdminPanel() {
             let lessonsFailed = 0
             const sectionMap = new Map<string, string>() // Map from section id to database section id
             
-            console.log('Creating lessons for course:', data.id)
-            console.log('Course sections:', courseSections)
             
             // First, create all sections
             for (let i = 0; i < courseSections.length; i++) {
@@ -2224,7 +2201,6 @@ export default function AdminPanel() {
                     console.error('Error creating section:', sectionError)
                   } else if (createdSection) {
                     sectionMap.set(section.id, createdSection.id)
-                    console.log('Section created successfully:', createdSection.id)
                   }
                 } catch (sectionErr) {
                   console.error('Exception creating section:', sectionErr)
@@ -2256,14 +2232,12 @@ export default function AdminPanel() {
                       lessonData.section_id = sectionDbId
                     }
                     
-                    console.log('Creating lesson:', lessonData)
                     const { data: createdLesson, error: lessonError } = await createLesson(lessonData)
                     
                     if (lessonError) {
                       console.error('Error creating lesson:', lessonError)
                       lessonsFailed++
                     } else {
-                      console.log('Lesson created successfully:', createdLesson?.id)
                       lessonsCreated++
                     }
                   } catch (lessonErr) {
@@ -2274,7 +2248,6 @@ export default function AdminPanel() {
               }
             }
             
-            console.log(`Lessons creation summary: ${lessonsCreated} created, ${lessonsFailed} failed`)
             
             if (lessonsFailed > 0) {
               alert(`הקורס נוצר בהצלחה, אבל ${lessonsFailed} שיעורים נכשלו ביצירה. בדוק את הקונסול לפרטים.`)
@@ -2356,19 +2329,21 @@ export default function AdminPanel() {
           console.error('Error creating event:', error)
           alert(`שגיאה ביצירת האירוע: ${(error as any)?.message || 'שגיאה לא ידועה'}`)
         } else {
-          // Award 50 points to instructor if they are from the community
+          // Award 50 points to instructor via secure API
           if (data && formData.instructor_user_id) {
             try {
-              const { awardPoints } = await import('@/lib/queries/gamification');
-              const pointsResult = await awardPoints(
-                formData.instructor_user_id,
-                'host_live_event',
-                { relatedId: data.id }
-              );
-              
-              if (pointsResult.success) {
-                console.log(`✅ Awarded 50 points to instructor ${formData.instructor_user_id} for hosting live event`);
-              } else {
+              const pointsResponse = await fetch('/api/points/award', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: formData.instructor_user_id,
+                  actionName: 'host_live_event',
+                  options: { relatedId: data.id }
+                })
+              });
+              const pointsResult = await pointsResponse.json();
+
+              if (!pointsResult.success) {
                 console.warn('⚠️ Could not award points to instructor:', pointsResult.error);
               }
             } catch (pointsError) {
@@ -2508,7 +2483,6 @@ export default function AdminPanel() {
         }
         
         // Always include role_id if it's provided (even if empty string, we might want to clear it)
-        console.log('formData.role_id:', formData.role_id, 'type:', typeof formData.role_id);
         if (formData.role_id !== undefined && formData.role_id !== null && formData.role_id !== '') {
           // If it's a string, check if it's not empty
           if (typeof formData.role_id === 'string' && formData.role_id.trim() !== '') {
@@ -2522,9 +2496,6 @@ export default function AdminPanel() {
           updateData.role_id = null;
         }
         
-        console.log('Updating user with data:', updateData)
-        console.log('User ID:', id)
-        console.log('role_id in updateData:', updateData.role_id)
         
         // Use API route for admin operations to bypass RLS
         const response = await fetch('/api/admin/users', {
@@ -2543,9 +2514,6 @@ export default function AdminPanel() {
           console.error('Error details:', JSON.stringify(result, null, 2))
           alert(`שגיאה בעדכון המשתמש: ${result.error || result.message || 'שגיאה לא ידועה'}`)
         } else {
-          console.log('User updated successfully:', result.data)
-          console.log('Updated user role_id:', result.data?.role_id)
-          console.log('Updated user role:', result.data?.roles)
           
           // Clear cache to force reload
           clearCache('profiles:all')
@@ -2719,7 +2687,6 @@ export default function AdminPanel() {
           try {
             // Update or create sections and lessons
             // Note: We no longer delete all existing lessons - we update them instead
-            console.log('Updating lessons for course:', id)
             const { getCourseSections } = await import('@/lib/queries/courses')
             const { data: existingSections } = await getCourseSections(id)
             const { createLesson, createCourseSection } = await import('@/lib/queries/courses')
@@ -2729,8 +2696,6 @@ export default function AdminPanel() {
             let lessonsFailed = 0
             const sectionMap = new Map<string, string>() // Map from section id to database section id
             
-            console.log('Updating sections and lessons from:', courseSections)
-            console.log('Existing sections:', existingSections)
             
             // First, update or create sections
             for (let i = 0; i < courseSections.length; i++) {
@@ -2756,7 +2721,6 @@ export default function AdminPanel() {
                       console.error('Error updating section:', section.id, updateError)
                     } else {
                       sectionMap.set(section.id, section.id)
-                      console.log('Section updated successfully:', section.id)
                     }
                   } else {
                     // Create new section
@@ -2777,7 +2741,6 @@ export default function AdminPanel() {
                       })
                     } else if (createdSection) {
                       sectionMap.set(section.id, createdSection.id)
-                      console.log('Section created successfully:', createdSection.id)
                     }
                   }
                 } catch (sectionErr) {
@@ -2805,7 +2768,6 @@ export default function AdminPanel() {
                     if (deleteError) {
                       console.error('Error deleting section:', existingSection.id, deleteError)
                     } else {
-                      console.log('Deleted section:', existingSection.id)
                     }
                   } catch (deleteErr) {
                     console.error('Exception deleting section:', deleteErr)
@@ -2857,20 +2819,17 @@ export default function AdminPanel() {
                     if (isExistingLesson) {
                       // Update existing lesson
                       currentLessonIds.add(lesson.id)
-                      console.log('Updating existing lesson:', lesson.id, lessonData)
                       const { error: updateError } = await updateLesson(lesson.id, lessonData)
                       
                       if (updateError) {
                         console.error('Error updating lesson:', updateError)
                         lessonsFailed++
                       } else {
-                        console.log('Lesson updated successfully:', lesson.id)
                         lessonsUpdated++
                       }
                     } else {
                       // Create new lesson
                       lessonData.course_id = id
-                      console.log('Creating new lesson:', lessonData)
                       const { data: createdLesson, error: lessonError } = await createLesson(lessonData)
                       
                       if (lessonError) {
@@ -2884,7 +2843,6 @@ export default function AdminPanel() {
                         })
                         lessonsFailed++
                       } else {
-                        console.log('Lesson created successfully:', createdLesson?.id)
                         if (createdLesson?.id) {
                           currentLessonIds.add(createdLesson.id)
                         }
@@ -2912,7 +2870,6 @@ export default function AdminPanel() {
                     if (deleteError) {
                       console.error('Error deleting lesson:', existingLesson.id, deleteError)
                     } else {
-                      console.log('Deleted lesson:', existingLesson.id)
                     }
                   } catch (deleteErr) {
                     console.error('Exception deleting lesson:', deleteErr)
@@ -2921,7 +2878,6 @@ export default function AdminPanel() {
               }
             }
             
-            console.log(`Lessons update summary: ${lessonsUpdated} updated, ${lessonsCreated} created, ${lessonsFailed} failed`)
             
             // Update tags if selected
             if (formData.selectedTagIds !== undefined) {
@@ -3240,14 +3196,12 @@ export default function AdminPanel() {
       } else if (activeTab === 'courses') {
         try {
           const { deleteCourse } = await import('@/lib/queries/courses')
-          console.log('Deleting course:', id)
           const { error } = await deleteCourse(id)
           
           if (error) {
             console.error('Error deleting course:', error)
             alert(`שגיאה במחיקת הקורס: ${error.message || 'שגיאה לא ידועה'}`)
           } else {
-            console.log('Course deleted successfully:', id)
             await loadData()
             alert('הקורס נמחק בהצלחה!')
           }
@@ -3257,19 +3211,15 @@ export default function AdminPanel() {
         }
       } else if (activeTab === 'events') {
         try {
-          console.log('Deleting event:', id)
           const { error } = await deleteEvent(id)
-          console.log('Delete result:', { error, hasError: !!error })
           
           if (error) {
             console.error('Error deleting event:', error)
             alert(`שגיאה במחיקת האירוע: ${error?.message || 'שגיאה לא ידועה'}`)
           } else {
-            console.log('Event deleted successfully, updating state...')
             // Update state directly by filtering out the deleted event
             setEvents(prevEvents => {
               const updated = prevEvents.filter(e => e.id !== id)
-              console.log('Events updated:', prevEvents.length, '->', updated.length)
               return updated
             })
             // Also reload data to ensure consistency
@@ -3302,14 +3252,12 @@ export default function AdminPanel() {
         }
       } else if (activeTab === 'projects') {
         try {
-          console.log('Deleting project:', id)
           const { error } = await deleteProject(id)
           
           if (error) {
             console.error('Error deleting project:', error)
             alert(`שגיאה במחיקת הפרויקט: ${error?.message || 'שגיאה לא ידועה'}`)
           } else {
-            console.log('Project deleted successfully:', id)
             setProjects(prevProjects => prevProjects.filter(p => p.id !== id))
             await loadData()
             alert('הפרויקט נמחק בהצלחה!')
@@ -4798,7 +4746,6 @@ export default function AdminPanel() {
                                           );
                                           
                                           setFormData({ ...formData, instructor_avatar_url: result.url });
-                                          console.log(`✅ Image uploaded and optimized! Saved ${(result.savings / 1024).toFixed(2)} KB`);
                                         } catch (uploadError: any) {
                                           // If avatars bucket fails, try thumbnails bucket
                                           try {
@@ -4817,7 +4764,6 @@ export default function AdminPanel() {
                                             );
                                             
                                             setFormData({ ...formData, instructor_avatar_url: result.url });
-                                            console.log(`✅ Image uploaded and optimized! Saved ${(result.savings / 1024).toFixed(2)} KB`);
                                           } catch (uploadError2: any) {
                                             console.error('Upload error:', uploadError2);
                                             alert('שגיאה בהעלאת התמונה. אנא נסה שוב.');
@@ -5360,13 +5306,10 @@ export default function AdminPanel() {
                                 
                                 // If lesson has an ID (already saved), update it in database
                                 if (lesson.id && !lesson.id.startsWith('lesson-')) {
-                                  console.log('Updating lesson in database:', lesson.id)
                                   const { updateLesson } = await import('@/lib/queries/courses')
                                   const filteredQa = editingLessonData.qa_section.filter(qa => qa.question.trim() || qa.answer.trim())
                                   const filteredKeyPoints = editingLessonData.key_points.filter(point => point.title.trim() || point.description.trim())
                                   
-                                  console.log('Saving Q&A:', filteredQa)
-                                  console.log('Saving Key Points:', filteredKeyPoints)
                                   
                                   const { data: updatedLesson, error: updateError } = await updateLesson(lesson.id, {
                                     title: editingLessonData.title,
@@ -5384,9 +5327,7 @@ export default function AdminPanel() {
                                     return
                                   }
                                   
-                                  console.log('Lesson updated successfully in database:', updatedLesson)
                                 } else {
-                                  console.log('Lesson not yet saved to database, will be saved when course is saved')
                                 }
                                 
                                 setEditingLesson(null)
@@ -5888,13 +5829,11 @@ export default function AdminPanel() {
                                           sectionIndex={sectionIndex}
                                           lessonIndex={lessonIndex}
                                           onEdit={async () => {
-                                            console.log('🎯 onEdit clicked for lesson:', lesson.id, lesson.title)
                                             setEditingLesson({lessonId: lesson.id, sectionIndex, lessonIndex})
                                             
                                             // Always load lesson from DB via API route to get latest data (especially qa_section)
                                             // This ensures we always have the most up-to-date data, including Q&A added through lesson questions
                                             try {
-                                              console.log('🔍 Loading lesson for edit from DB:', lesson.id, lesson.title)
                                               
                                               // Show loading state
                                               setEditingLessonData({
@@ -5907,9 +5846,7 @@ export default function AdminPanel() {
                                                 key_points: lesson.key_points || []
                                               })
                                               
-                                              console.log('📡 Fetching from API route:', `/api/admin/lessons/${lesson.id}`)
                                               const response = await fetch(`/api/admin/lessons/${lesson.id}`)
-                                              console.log('📡 API response status:', response.status, response.statusText)
                                               
                                               if (!response.ok) {
                                                 const errorText = await response.text()
@@ -5925,17 +5862,7 @@ export default function AdminPanel() {
                                               }
                                               
                                               const dbLesson = result.data
-                                              
-                                              console.log('📦 Loaded lesson from DB:', {
-                                                lessonId: dbLesson.id,
-                                                title: dbLesson.title,
-                                                hasQASection: !!dbLesson.qa_section,
-                                                qa_section_type: typeof dbLesson.qa_section,
-                                                qa_section_isArray: Array.isArray(dbLesson.qa_section),
-                                                qa_section_length: Array.isArray(dbLesson.qa_section) ? dbLesson.qa_section.length : 'not array',
-                                                qa_section: dbLesson.qa_section
-                                              })
-                                              
+
                                               // Ensure qa_section is an array
                                               let qaSection: Array<{question: string, answer: string}> = []
                                               
@@ -5958,16 +5885,7 @@ export default function AdminPanel() {
                                                   qaSection = [dbLesson.qa_section]
                                                 }
                                               }
-                                              
-                                              console.log('✅ Final qa_section to set:', {
-                                                length: qaSection.length,
-                                                items: qaSection
-                                              })
-                                              
-                                              // #region agent log
-                                              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:5874',message:'BEFORE setEditingLessonData',data:{lessonId:lesson.id,qaSection_length:qaSection.length,qaSection},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                                              // #endregion
-                                              
+
                                               setEditingLessonData({
                                                 title: dbLesson.title || '',
                                                 description: dbLesson.description || '',
@@ -5978,11 +5896,7 @@ export default function AdminPanel() {
                                                 key_points: Array.isArray(dbLesson.key_points) ? dbLesson.key_points : (dbLesson.key_points || [])
                                               })
                                               
-                                              // #region agent log
-                                              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:5889',message:'AFTER setEditingLessonData',data:{lessonId:lesson.id,qaSection_length:qaSection.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                                              // #endregion
                                               
-                                              console.log('✅ Successfully loaded and set editingLessonData with', qaSection.length, 'Q&A items')
                                             } catch (error: any) {
                                               console.error('❌ Error loading lesson from DB:', error)
                                               alert(`שגיאה בטעינת השיעור מה-DB: ${error.message || 'שגיאה לא ידועה'}. השתמש בנתונים מה-state.`)
@@ -7816,23 +7730,8 @@ export default function AdminPanel() {
                                     } else {
                                       editData.qa_section = [];
                                     }
-                                    console.log('Loading recording for edit:', {
-                                      id: fullRecording.id,
-                                      title: fullRecording.title,
-                                      description: fullRecording.description,
-                                      descriptionLength: fullRecording.description?.length || 0,
-                                      descriptionType: typeof fullRecording.description,
-                                      key_points: editData.key_points,
-                                      qa_section: editData.qa_section,
-                                      raw_key_points: fullRecording.key_points,
-                                      raw_qa_section: fullRecording.qa_section
-                                    });
                                     // Ensure description is properly loaded - always set it even if empty
                                     editData.description = fullRecording.description || '';
-                                    console.log('Setting formData with description:', {
-                                      description: editData.description,
-                                      descriptionLength: editData.description?.length || 0
-                                    });
                                     setFormData(editData);
                                   } catch (error) {
                                     console.error('Error loading recording for edit:', error);
@@ -8161,17 +8060,6 @@ export default function AdminPanel() {
                     </tr>
                   ))}
                   {activeTab === 'courses' && courses.map((course, courseIndex) => {
-                    // Debug first course row
-                    if (courseIndex === 0) {
-                      console.log('🔍 Rendering course row:', {
-                        courseId: course.id,
-                        courseTitle: course.title,
-                        lessons_count: course.lessons_count,
-                        duration_hours: course.duration_hours,
-                        difficulty: course.difficulty,
-                        allKeys: Object.keys(course)
-                      });
-                    }
                     return (
                     <tr key={course.id} className="border-b border-gray-100">
                       <td className="py-3 px-4">
@@ -8357,7 +8245,6 @@ export default function AdminPanel() {
                                 }
                                 
                                 // Load course lessons
-                                console.log('Loading lessons for course:', course.id)
                                 const { getCourseLessons } = await import('@/lib/queries/courses')
                                 const { data: lessons, error: lessonsError } = await getCourseLessons(course.id)
                                 
@@ -8368,20 +8255,8 @@ export default function AdminPanel() {
                                   return
                                 }
                                 
-                                console.log('Loaded lessons:', lessons)
-                                console.log('Lessons count:', lessons?.length || 0)
                                 
-                                // Log qa_section for each lesson
-                                if (lessons && lessons.length > 0) {
-                                  lessons.forEach((lesson: any) => {
-                                    console.log(`📚 Lesson ${lesson.id} (${lesson.title}):`, {
-                                      qa_section_type: typeof lesson.qa_section,
-                                      qa_section_is_array: Array.isArray(lesson.qa_section),
-                                      qa_section_length: Array.isArray(lesson.qa_section) ? lesson.qa_section.length : 'not array',
-                                      qa_section: lesson.qa_section
-                                    })
-                                  })
-                                }
+                                // Debug logging removed for production
                                 
                                 // Load sections first
                                 const { getCourseSections } = await import('@/lib/queries/courses')
@@ -8397,15 +8272,10 @@ export default function AdminPanel() {
                                         .filter((lesson: any) => lesson.section_id === section.id)
                                         .map((lesson: any) => {
                                           // Ensure qa_section is an array
-                                          const qaSection = Array.isArray(lesson.qa_section) 
-                                            ? lesson.qa_section 
+                                          const qaSection = Array.isArray(lesson.qa_section)
+                                            ? lesson.qa_section
                                             : (lesson.qa_section ? [lesson.qa_section] : [])
-                                          
-                                          console.log(`✅ Mapping lesson ${lesson.id} to section ${section.id}:`, {
-                                            qa_section_length: qaSection.length,
-                                            qa_section: qaSection
-                                          })
-                                          
+
                                           return {
                                     id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                     title: lesson.title || '',
@@ -8457,7 +8327,6 @@ export default function AdminPanel() {
                                     }
                                     
                                     setCourseSections(sectionsWithLessons)
-                                    console.log('✅ Successfully loaded', sectionsWithLessons.length, 'sections with', lessons.length, 'lessons')
                                   } else {
                                     // No sections - group all lessons into one section (backward compatibility)
                                     const mappedLessons = lessons.map((lesson: any) => {
@@ -8484,12 +8353,8 @@ export default function AdminPanel() {
                                     lessons: mappedLessons
                                   }])
                                   
-                                    console.log('✅ Successfully loaded', mappedLessons.length, 'lessons for editing (no sections)')
                                   }
                                 } else {
-                                  console.log('⚠️ No lessons found for course, initializing empty sections')
-                                  console.log('Course ID:', course.id)
-                                  console.log('Lessons data:', lessons)
                                   setCourseSections([])
                                   // Show info message
                                   alert('לא נמצאו שיעורים לקורס זה. הוסף שיעורים בחלק "חלקים ושיעורים" למטה.')
@@ -9298,7 +9163,6 @@ export default function AdminPanel() {
                                                 
                                                 // If the lesson is currently being edited, update editingLessonData too
                                                 if (editingLesson && editingLesson.lessonId === question.lesson_id && editingLessonData) {
-                                                  console.log('Updating editingLessonData with new Q&A section')
                                                   setEditingLessonData({
                                                     ...editingLessonData,
                                                     qa_section: qaSection

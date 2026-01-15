@@ -6,7 +6,6 @@ import { Play, Clock, CheckCircle, Lock, ArrowRight, ArrowLeft, HelpCircle, Star
 import { getCourseById, getCourseLessons, getCourseSections, checkEnrollment, enrollInCourse, markLessonComplete, markLessonIncomplete, getCompletedLessons, isLessonCompleted, getNextAvailableLesson, type Course, type CourseLesson, type CourseSection } from '@/lib/queries/courses';
 import { getCurrentUserProfile } from '@/lib/queries/profiles';
 import { isAdmin, isPremiumUser } from '@/lib/utils/user';
-import { awardPoints } from '@/lib/queries/gamification';
 import ProtectedAction from '@/app/components/ProtectedAction';
 import Link from 'next/link';
 
@@ -338,13 +337,19 @@ export default function CourseDetailPage() {
             const updatedCompletedLessons = [...completedLessons, selectedLesson.id];
             setCompletedLessons(updatedCompletedLessons);
             
-            // Award points for completing a lesson
+            // Award points for completing a lesson via secure API
             try {
-              console.log('🎯 Attempting to award points for lesson completion...');
-              const result = await awardPoints(currentUser.id, 'סיום שיעור', { checkDaily: false });
-              if (result.success) {
-                console.log('✅ Points awarded successfully for lesson completion');
-              } else {
+              const response = await fetch('/api/points/award', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: currentUser.id,
+                  actionName: 'סיום שיעור',
+                  options: { checkDaily: false }
+                })
+              });
+              const result = await response.json();
+              if (!result.success) {
                 console.warn('⚠️ Points not awarded:', result.error, result);
                 if (result.error === 'Rule not found') {
                   console.warn('⚠️ Rule "סיום שיעור" not found in gamification_rules table. Please add it via admin panel or SQL script.');
@@ -357,12 +362,19 @@ export default function CourseDetailPage() {
             // Check if course is fully completed
             const allLessonsCompleted = updatedCompletedLessons.length === lessons.length;
             if (allLessonsCompleted) {
-              // Award points for completing the entire course
+              // Award points for completing the entire course via secure API
               try {
-                console.log('🎯 Attempting to award points for course completion...');
-                const courseResult = await awardPoints(currentUser.id, 'השלמת קורס', { checkDaily: false });
+                const response = await fetch('/api/points/award', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userId: currentUser.id,
+                    actionName: 'השלמת קורס',
+                    options: { checkDaily: false }
+                  })
+                });
+                const courseResult = await response.json();
                 if (courseResult.success) {
-                  console.log('✅ Points awarded successfully for course completion');
                   alert('🎉 מזל טוב! השלמת את כל השיעורים בקורס!');
                 } else {
                   console.warn('⚠️ Points not awarded for course completion:', courseResult.error, courseResult);
@@ -926,7 +938,6 @@ export default function CourseDetailPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:sticky lg:top-4">
               <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">תוכן הקורס</h2>
               {(() => {
-                console.log('Rendering course content - sections:', sections.length, 'lessons:', lessons.length);
                 return null;
               })()}
               {lessons.length === 0 ? (
@@ -942,7 +953,6 @@ export default function CourseDetailPage() {
                       .filter(lesson => lesson.section_id === section.id)
                       .sort((a, b) => (a.lesson_order || 0) - (b.lesson_order || 0));
                     const isOpen = openSections.has(section.id);
-                    console.log(`Section "${section.title}" (${section.id}): ${sectionLessons.length} lessons, isOpen: ${isOpen}`);
                     
                     return (
                       <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1602,17 +1612,6 @@ export default function CourseDetailPage() {
             
             {/* Content - Scrollable */}
             <div className="flex-1 overflow-y-auto px-4 py-4">
-              {(() => {
-                if (process.env.NODE_ENV === 'development') {
-                  console.log('[Mobile Sheet] Rendering content:', {
-                    lessonsCount: lessons.length,
-                    sectionsCount: sections?.length || 0,
-                    sections: sections,
-                    lessonsWithSectionId: lessons.filter(l => l.section_id).length
-                  });
-                }
-                return null;
-              })()}
               {lessons.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p className="text-sm">אין שיעורים זמינים בקורס זה</p>
@@ -1628,7 +1627,6 @@ export default function CourseDetailPage() {
                     
                     // Debug logging
                     if (process.env.NODE_ENV === 'development') {
-                      console.log(`[Mobile Sheet] Section "${section.title}" (${section.id}): ${sectionLessons.length} lessons, isOpen: ${isOpen}`);
                     }
                     
                     return (
@@ -1825,9 +1823,6 @@ export default function CourseDetailPage() {
                 <div className="space-y-2">
                   {(() => {
                     if (process.env.NODE_ENV === 'development') {
-                      console.log(`[Mobile Sheet] No sections found. Displaying ${lessons.length} lessons without sections.`);
-                      console.log(`[Mobile Sheet] Sections state:`, sections);
-                      console.log(`[Mobile Sheet] Lessons with section_id:`, lessons.filter(l => l.section_id).length);
                     }
                     return null;
                   })()}

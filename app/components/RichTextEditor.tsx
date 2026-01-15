@@ -8,7 +8,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Link from '@tiptap/extension-link';
 import { supabase } from '@/lib/supabase';
 import { Bold, Italic, Link as LinkIcon, Image as ImageIcon, List, ListOrdered } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface RichTextEditorProps {
   content: string;
@@ -18,6 +18,8 @@ interface RichTextEditorProps {
 }
 
 export default function RichTextEditor({ content, onChange, placeholder = 'תאר את הבעיה שלך או שתף ידע...', userId }: RichTextEditorProps) {
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -330,10 +332,9 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
         <button
           type="button"
           onClick={() => {
-            const url = window.prompt('הכנס קישור:');
-            if (url) {
-              editor.chain().focus().setLink({ href: url }).run();
-            }
+            const existingUrl = editor.getAttributes('link')?.href || '';
+            setLinkUrl(existingUrl);
+            setIsLinkModalOpen(true);
           }}
           className={`p-2 rounded hover:bg-gray-200 transition-colors ${
             editor.isActive('link') ? 'bg-gray-300' : ''
@@ -425,6 +426,61 @@ export default function RichTextEditor({ content, onChange, placeholder = 'תא�
 
       {/* Editor */}
       <EditorContent editor={editor} />
+
+      {isLinkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 text-sm font-medium text-gray-800">הוסף קישור</div>
+            <input
+              type="url"
+              placeholder="https://example.com"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              dir="ltr"
+            />
+            <div className="mt-4 flex items-center justify-end gap-2">
+              {editor?.isActive('link') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().unsetLink().run();
+                    setIsLinkModalOpen(false);
+                    setLinkUrl('');
+                  }}
+                  className="rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  הסר קישור
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLinkModalOpen(false);
+                  setLinkUrl('');
+                }}
+                className="rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const trimmedUrl = linkUrl.trim();
+                  if (trimmedUrl) {
+                    editor.chain().focus().setLink({ href: trimmedUrl }).run();
+                  }
+                  setIsLinkModalOpen(false);
+                  setLinkUrl('');
+                }}
+                className="rounded-lg bg-[#F52F8E] px-3 py-2 text-sm text-white hover:bg-[#e2287a]"
+              >
+                שמור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

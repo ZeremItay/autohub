@@ -33,16 +33,6 @@ export default function ProtectedAction({
   const [showTooltip, setShowTooltip] = useState(false);
   const userPoints = (user as any)?.points || 0;
 
-  console.log('[ProtectedAction] Render:', {
-    requireAuth,
-    requirePremium,
-    hasUser: !!user,
-    loading,
-    isPremium,
-    userPoints,
-    pointsCost
-  });
-
   // Show loading state
   if (loading) {
     return (
@@ -192,17 +182,7 @@ export default function ProtectedAction({
   // User is logged in but not premium
   if (requirePremium && user && !isPremium) {
     const hasEnoughPoints = pointsCost ? (userPoints >= pointsCost) : false;
-    
-    // Debug logging
-    console.log('[ProtectedAction] User check:', {
-      requirePremium,
-      hasUser: !!user,
-      isPremium,
-      userPoints,
-      pointsCost,
-      hasEnoughPoints
-    });
-    
+
     // If user has enough points and pointsCost is set, allow the action
     if (pointsCost && hasEnoughPoints) {
       // User can perform action - just pass through (onClick is preserved automatically by cloneElement)

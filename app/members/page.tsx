@@ -42,7 +42,6 @@ function MembersPageContent() {
   const loadMembers = useCallback(async () => {
     // Prevent parallel calls
     if (isLoadingMembersRef.current) {
-      console.log('loadMembers already running, skipping...');
       return;
     }
     
@@ -62,7 +61,6 @@ function MembersPageContent() {
       
       // Check if operation was cancelled (timeout occurred)
       if (isCancelledRef.current) {
-        console.log('loadMembers was cancelled, skipping state updates');
         return;
       }
       
@@ -85,7 +83,6 @@ function MembersPageContent() {
         
         // Check again before updating state
         if (isCancelledRef.current) {
-          console.log('loadMembers was cancelled before state update, skipping');
           return;
         }
         

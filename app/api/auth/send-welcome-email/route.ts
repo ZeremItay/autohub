@@ -64,7 +64,6 @@ export async function POST(request: NextRequest) {
     const greeting = safeFirstName ? `שלום ${safeFirstName}` : 'שלום';
     
     // Log for debugging
-    console.log('Welcome email - firstName from DB:', firstName, 'safeFirstName:', safeFirstName, 'greeting:', greeting);
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
     const emailHtml = `
@@ -206,12 +205,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log('✅ Welcome email sent successfully via Resend:', {
-      to: email,
-      emailId: emailData.id,
-      subject: 'ברוכים הבאים למועדון האוטומטורים! 🎉'
-    });
 
     return NextResponse.json({ 
       success: true, 

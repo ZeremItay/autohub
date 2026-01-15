@@ -233,7 +233,6 @@ export default function MessagesPage() {
           filter: `recipient_id=eq.${currentUserId}`
         },
         (payload: any) => {
-          console.log('📨 New message received via Realtime:', payload.new);
           handleNewMessage(payload.new as any);
         }
       )
@@ -246,14 +245,11 @@ export default function MessagesPage() {
           filter: `sender_id=eq.${currentUserId}`
         },
         (payload: any) => {
-          console.log('📤 Message sent via Realtime:', payload.new);
           handleNewMessage(payload.new as any);
         }
       )
       .subscribe(async (status: any) => {
-        console.log('🔔 Realtime subscription status:', status);
         if (status === 'SUBSCRIBED') {
-          console.log('✅ Successfully subscribed to messages Realtime');
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ Realtime channel error - check if Realtime is enabled for messages table');
           console.error('💡 To enable Realtime:');
@@ -275,7 +271,6 @@ export default function MessagesPage() {
 
     return () => {
       if (messagesChannelRef.current) {
-        console.log('🧹 Cleaning up messages Realtime subscription');
         supabase.removeChannel(messagesChannelRef.current);
         messagesChannelRef.current = null;
       }
@@ -289,14 +284,6 @@ export default function MessagesPage() {
     const senderId = newMessage.sender_id;
     const isFromCurrentUser = senderId === currentUserId;
     const partnerId = isFromCurrentUser ? newMessage.recipient_id : senderId;
-
-    console.log('🔄 Handling new message:', {
-      messageId: newMessage.id,
-      senderId,
-      recipientId: newMessage.recipient_id,
-      partnerId,
-      isFromCurrentUser
-    });
 
     // Dispatch event to update unread count in header
     if (typeof window !== 'undefined') {
@@ -318,7 +305,6 @@ export default function MessagesPage() {
       const messageExists = messageExistsInConversations;
       
       if (messageExists) {
-        console.log('⚠️ Message already exists, skipping:', newMessage.id);
         return prev;
       }
       
@@ -326,7 +312,6 @@ export default function MessagesPage() {
       if (activeConversation && activeConversation.id === partnerId) {
         const existsInActive = activeConversation.messages.some(msg => msg.id === newMessage.id);
         if (existsInActive) {
-          console.log('⚠️ Message already exists in active conversation, skipping:', newMessage.id);
           return prev;
         }
       }
@@ -345,7 +330,6 @@ export default function MessagesPage() {
       };
 
       if (existingConv) {
-        console.log('✅ Updating existing conversation:', partnerId);
         
         // If this is a message from current user, check for temp message to replace
         let updatedMessages = [...existingConv.messages];
@@ -357,7 +341,6 @@ export default function MessagesPage() {
             msg.sender === 'me'
           );
           if (tempMessageIndex !== -1) {
-            console.log('🔄 Replacing temp message with real message');
             updatedMessages.splice(tempMessageIndex, 1);
           }
         }
@@ -396,7 +379,6 @@ export default function MessagesPage() {
             // Check if message already exists (prevent duplicates)
             const messageAlreadyExists = prevActive.messages.some(msg => msg.id === newMessage.id);
             if (messageAlreadyExists) {
-              console.log('⚠️ Message already in active conversation, skipping update');
               return prevActive;
             }
             
@@ -409,7 +391,6 @@ export default function MessagesPage() {
                 msg.sender === 'me'
               );
               if (tempMessageIndex !== -1) {
-                console.log('🔄 Replacing temp message in active conversation');
                 activeMessages.splice(tempMessageIndex, 1);
               }
             }
@@ -430,7 +411,6 @@ export default function MessagesPage() {
 
         return sorted;
       } else {
-        console.log('🆕 Creating new conversation for partner:', partnerId);
         // Create new conversation - need to fetch partner profile
         (async () => {
           try {
@@ -462,7 +442,6 @@ export default function MessagesPage() {
                 // Double check it doesn't exist (race condition protection)
                 const alreadyExists = prevConv.find(c => c.id === partnerId);
                 if (alreadyExists) {
-                  console.log('⚠️ Conversation already exists, updating instead:', partnerId);
                   // Update existing instead of creating duplicate
                   return prevConv.map(conv => 
                     conv.id === partnerId 
@@ -475,7 +454,6 @@ export default function MessagesPage() {
                       : conv
                   );
                 }
-                console.log('✅ Adding new conversation:', partnerId);
                 return [newConversation, ...prevConv];
               });
             } else {
@@ -714,7 +692,6 @@ export default function MessagesPage() {
       // Don't replace temp message here - let Realtime handle it
       // This prevents duplicate messages. Realtime will receive the message
       // and call handleNewMessage, which will replace the temp message.
-      console.log('✅ Message sent successfully, waiting for Realtime update');
     } catch (error) {
       console.error('Error sending message:', error);
       // Remove optimistic message on error

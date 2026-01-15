@@ -171,12 +171,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Email sent successfully via Resend:', {
-      to: ownerEmail,
-      emailId: emailData.id,
-      subject: `הצעה חדשה לפרויקט "${projectTitle}"`
-    });
-
     return NextResponse.json({ 
       success: true, 
       emailId: emailData.id 

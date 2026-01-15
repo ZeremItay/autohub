@@ -97,7 +97,6 @@ async function getYouTubeDuration(videoId: string): Promise<number | null> {
       }
     } catch (error) {
       // CORS or other fetch error - this is expected in many cases
-      console.log('Could not fetch YouTube page directly (CORS or other issue):', error);
     }
     
     // If all methods fail, return null (user can enter manually)

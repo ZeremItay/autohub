@@ -157,7 +157,6 @@ export async function getEventById(eventId: string) {
 
 // Delete event (soft delete - sets status to 'deleted')
 export async function deleteEvent(eventId: string) {
-  console.log('deleteEvent called with eventId:', eventId);
   
   // Use soft delete - set status to 'deleted' instead of actually deleting
   const { data, error } = await supabase
@@ -169,7 +168,6 @@ export async function deleteEvent(eventId: string) {
     .eq('id', eventId)
     .select();
   
-  console.log('deleteEvent result (soft delete):', { data, error, hasError: !!error });
   
   return { data, error };
 }

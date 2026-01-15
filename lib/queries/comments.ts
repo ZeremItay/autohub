@@ -345,14 +345,6 @@ export async function createComment(
   // Log profile data for debugging
   if (!profile) {
     console.warn('No profile found for userId:', userId, 'Comment will show as "משתמש"');
-  } else {
-    console.log('Profile loaded for comment:', {
-      userId: profile.user_id,
-      display_name: profile.display_name,
-      first_name: profile.first_name,
-      nickname: profile.nickname,
-      avatar_url: profile.avatar_url
-    });
   }
   
   // Build display name with fallback chain

@@ -95,22 +95,11 @@ export async function getAllBlogPosts(filters?: {
 
   // Debug: Log if no posts found
   if (!data || data.length === 0) {
-    console.log('No published blog posts found. Checking if there are any posts at all...');
     // Try to get all posts (including unpublished) to debug
     const { data: allPosts } = await supabase
       .from('blog_posts')
       .select('id, title, is_published')
       .limit(5);
-    if (allPosts && allPosts.length > 0) {
-      console.log('Found blog posts in database:', allPosts.map((p: any) => ({
-        id: p.id,
-        title: p.title,
-        is_published: p.is_published
-      })));
-      console.log('Note: Only posts with is_published=true are shown on the blog page.');
-    } else {
-      console.log('No blog posts found in database at all.');
-    }
   }
 
   // Get profiles for authors

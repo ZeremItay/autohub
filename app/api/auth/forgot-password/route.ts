@@ -200,12 +200,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Password reset email sent successfully via Resend:', {
-      to: email,
-      emailId: emailData.id,
-      subject: 'איפוס סיסמה - מועדון האוטומטורים'
-    });
-
     return NextResponse.json({ 
       success: true,
       message: 'מייל איפוס סיסמה נשלח בהצלחה',

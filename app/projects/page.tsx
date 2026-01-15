@@ -259,7 +259,6 @@ export default function ProjectsPage() {
   const loadData = useCallback(async () => {
     // Prevent parallel calls
     if (isLoadingDataRef.current) {
-      console.log('loadData already running, skipping...');
       return;
     }
     
@@ -305,7 +304,6 @@ export default function ProjectsPage() {
       
       // Check if operation was cancelled (timeout occurred)
       if (isCancelledRef.current) {
-        console.log('loadData was cancelled, skipping state updates');
         return;
       }
       
@@ -730,67 +728,45 @@ export default function ProjectsPage() {
   }
 
   function handleSubmitOffer(projectId: string) {
-    console.log('[handleSubmitOffer] Called with projectId:', projectId);
     // ProtectedAction already handles auth check, but keep this as a safety check
     if (!currentUser) {
-      console.log('[handleSubmitOffer] No current user');
       return; // ProtectedAction will show tooltip
     }
     
-    console.log('[handleSubmitOffer] Current user:', currentUser);
-    console.log('[handleSubmitOffer] Projects array length:', projects.length);
     
     // Find the project
     const project = projects.find(p => p.id === projectId);
-    console.log('[handleSubmitOffer] Found project:', project ? 'YES' : 'NO', project);
     if (!project) {
-      console.log('[handleSubmitOffer] Project not found!');
       alert('פרויקט לא נמצא');
       return;
     }
     
     // Check if project is closed
-    console.log('[handleSubmitOffer] Project status:', project.status);
     if (project.status === 'closed') {
-      console.log('[handleSubmitOffer] Project is closed');
       alert('לא ניתן להגיש הצעות לפרויקט סגור');
       return;
     }
     
     // If user has free project submission, proceed normally
-    console.log('[handleSubmitOffer] userHasFreeProjectSubmission:', userHasFreeProjectSubmission);
     if (userHasFreeProjectSubmission) {
-      console.log('[handleSubmitOffer] User has free submission - opening offer modal');
       setSelectedProject(project);
       setOfferForm({ message: '', offer_amount: '' });
       setShowOfferModal(true);
-      console.log('[handleSubmitOffer] setShowOfferModal(true) called');
       return;
     }
     
     // For free users, check points balance
     const pointsCost = 50;
     const currentPoints = userPoints || (currentUser as any)?.points || 0;
-    console.log('[handleSubmitOffer] Points check:', {
-      userPoints,
-      currentUserPoints: (currentUser as any)?.points,
-      currentPoints,
-      pointsCost,
-      hasEnough: currentPoints >= pointsCost
-    });
-    
+
     if (currentPoints >= pointsCost) {
       // User has enough points - show confirmation modal
-      console.log('[handleSubmitOffer] User has enough points - opening confirmation modal');
       setSelectedProject(project);
       setShowPointsConfirmationModal(true);
-      console.log('[handleSubmitOffer] setShowPointsConfirmationModal(true) called');
     } else {
       // User doesn't have enough points - show insufficient points modal
-      console.log('[handleSubmitOffer] User does NOT have enough points - opening insufficient points modal');
       setSelectedProject(project);
       setShowInsufficientPointsModal(true);
-      console.log('[handleSubmitOffer] setShowInsufficientPointsModal(true) called');
     }
   }
 
@@ -836,7 +812,6 @@ export default function ProjectsPage() {
         
         // Update local points state
         setUserPoints(deductionResult.points || 0);
-        console.log(`✅ Deducted ${pointsCost} points. New balance: ${deductionResult.points}`);
       }
       
       const { data, error } = await createProjectOffer({
@@ -850,11 +825,19 @@ export default function ProjectsPage() {
 
       if (error) {
         console.error('Error submitting offer:', error);
-        // If offer creation failed, refund points (for users without free submission)
+        // If offer creation failed, refund points via API (for users without free submission)
         if (!userHasFreeProjectSubmission) {
           try {
-            const { awardPoints } = await import('@/lib/queries/gamification');
-            const awardResult = await awardPoints(userId, 'הגשת הצעה', {});
+            const response = await fetch('/api/points/award', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: userId,
+                actionName: 'הגשת הצעה',
+                options: {}
+              })
+            });
+            const awardResult = await response.json();
             if (!awardResult.success) {
               console.error('Failed to award points:', awardResult.error);
               // Don't manually update points - let the user know there was an issue
@@ -891,15 +874,22 @@ export default function ProjectsPage() {
         }
       }
 
-      // Award points only for users with free submission (others already paid with points)
+      // Award points via API only for users with free submission (others already paid with points)
       if (userHasFreeProjectSubmission) {
         try {
-          const { awardPoints } = await import('@/lib/queries/gamification');
-          await awardPoints(userId, 'הגשת הצעה', {}).catch(() => {
-            return awardPoints(userId, 'submit_project_offer', {});
-          }).catch((error) => {
-            console.warn('Error awarding points:', error);
+          const response = await fetch('/api/points/award', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: userId,
+              actionName: 'הגשת הצעה',
+              options: {}
+            })
           });
+          const result = await response.json();
+          if (!result.success) {
+            console.warn('Error awarding points:', result.error);
+          }
         } catch (error) {
           console.warn('Error in gamification:', error);
         }
@@ -1099,7 +1089,6 @@ export default function ProjectsPage() {
                         >
                           <button 
                             onClick={(e) => {
-                              console.log('[Button] Clicked!', project.id);
                               e.stopPropagation();
                               handleSubmitOffer(project.id);
                             }}

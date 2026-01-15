@@ -5,6 +5,7 @@ import { Heart, Share2, MessageCircle, Trash2, ChevronDown, ChevronUp, Send, Plu
 import { CommentsList } from '@/app/components/comments';
 import { formatTimeAgo } from '@/lib/utils/date';
 import { getInitials } from '@/lib/utils/display';
+import { stripHtml } from '@/lib/utils/stripHtml';
 import { Button } from '@/components/ui/Button';
 import type { PostWithProfile } from '@/lib/queries/posts';
 import type { PostComment } from '@/lib/queries/post-comments';
@@ -197,7 +198,7 @@ export function AnnouncementsFeed({
                       }
                       return (
                         <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 leading-relaxed whitespace-pre-line">
-                          {post.content}
+                          {stripHtml(post.content)}
                         </p>
                       );
                     })()}

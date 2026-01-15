@@ -48,6 +48,7 @@ import RecentUpdates, { type RecentUpdate } from '@/app/components/RecentUpdates
 import { ReportsTicker } from '@/app/components/home/ReportsTicker';
 import ProfileCompletionModal from '@/app/components/ProfileCompletionModal';
 import dynamic from 'next/dynamic';
+import { stripHtml } from '@/lib/utils/stripHtml';
 
 const RichTextEditor = dynamic(
   () => import('@/app/components/RichTextEditor'),
@@ -115,7 +116,6 @@ export default function Home() {
   const loadData = useCallback(async () => {
     // Prevent parallel calls
     if (isLoadingDataRef.current) {
-      console.log('loadData already running, skipping...');
       return;
     }
     
@@ -170,7 +170,6 @@ export default function Home() {
       
       // Check if operation was cancelled (timeout occurred)
       if (isCancelledRef.current) {
-        console.log('loadData was cancelled, skipping state updates');
         return;
       }
       
@@ -1404,7 +1403,7 @@ export default function Home() {
                                     );
                                   }
                                   return (
-                                    <p className="text-sm sm:text-base opacity-90 line-clamp-2">{item.content}</p>
+                                    <p className="text-sm sm:text-base opacity-90 line-clamp-2">{stripHtml(item.content)}</p>
                                   );
                                 })()}
                               </div>
@@ -1435,7 +1434,7 @@ export default function Home() {
                                   );
                                 }
                                 return (
-                                  <p className="text-sm sm:text-base opacity-90 line-clamp-2">{item.content}</p>
+                                  <p className="text-sm sm:text-base opacity-90 line-clamp-2">{stripHtml(item.content)}</p>
                                 );
                               })()}
                             </div>

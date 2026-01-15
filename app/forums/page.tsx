@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { getAllForums, getForumPosts, type Forum } from '@/lib/queries/forums';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { stripHtml } from '@/lib/utils/stripHtml';
 
 // Lazy load RichTextEditor (heavy component)
 const RichTextEditor = dynamic(
@@ -362,7 +363,7 @@ export default function ForumsPage() {
                                 );
                               }
                               return (
-                                <p className="text-sm text-gray-900 line-clamp-2 break-words leading-relaxed">{reply.content}</p>
+                                <p className="text-sm text-gray-900 line-clamp-2 break-words leading-relaxed">{stripHtml(reply.content)}</p>
                               );
                             })()}
                             {reply.forum_posts && (
@@ -454,7 +455,7 @@ export default function ForumsPage() {
                       <div className="p-6">
                         <h4 className="text-xl font-semibold text-gray-800 mb-2">{forum.display_name}</h4>
                         {forum.description && (
-                          <p className="text-gray-600 text-sm mb-3">{forum.description}</p>
+                          <p className="text-gray-600 text-sm mb-3">{stripHtml(forum.description)}</p>
                         )}
                         {forum.posts_count === 0 ? (
                           <p className="text-gray-500 text-sm">אין פוסטים</p>

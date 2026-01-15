@@ -81,21 +81,12 @@ export async function getAllRecordings() {
 export async function getRecordingsPaginated(page: number = 1, limit: number = 6, sortBy: string = 'recently-active') {
   const funcStartTime = Date.now();
   const cacheKey = `recordings:paginated:${page}:${limit}:${sortBy}`;
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:81',message:'getRecordingsPaginated START',data:{page,limit,sortBy,cacheKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   
   const cached = getCached<{ data: Recording[], totalCount: number }>(cacheKey);
   if (cached) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:85',message:'CACHE HIT',data:{cacheKey,dataLength:cached.data?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     return { data: cached.data, totalCount: cached.totalCount, error: null };
   }
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:88',message:'CACHE MISS - querying DB',data:{cacheKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
 
   try {
     // Calculate range for pagination
@@ -122,15 +113,9 @@ export async function getRecordingsPaginated(page: number = 1, limit: number = 6
     const { data, error, count } = await query.range(from, to);
     const dbQueryDuration = Date.now() - dbQueryStartTime;
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:109',message:'DB QUERY RESULT',data:{dbQueryDuration,hasData:!!data,dataLength:data?.length||0,count,hasError:!!error,errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     if (error) {
       logError(error, 'getRecordingsPaginated');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:112',message:'DB QUERY ERROR',data:{error:error.message,dbQueryDuration},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       return { data: null, totalCount: 0, error };
     }
 
@@ -138,12 +123,9 @@ export async function getRecordingsPaginated(page: number = 1, limit: number = 6
     const totalCount = count || 0;
     const totalDuration = Date.now() - funcStartTime;
 
-    // Cache the result
-    setCached(cacheKey, { data: recordings, totalCount }, CACHE_TTL.SHORT);
+    // Cache the result with MEDIUM TTL for better performance (5 minutes instead of 1)
+    setCached(cacheKey, { data: recordings, totalCount }, CACHE_TTL.MEDIUM);
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings.ts:122',message:'getRecordingsPaginated SUCCESS',data:{totalDuration,dbQueryDuration,recordingsLength:recordings.length,totalCount},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     
     return { data: recordings, totalCount, error: null };
   } catch (err: any) {

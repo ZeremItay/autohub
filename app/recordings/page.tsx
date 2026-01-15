@@ -1,21 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getRecordingsPaginated } from '@/lib/queries/recordings';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { hasRecordingAccess } from '@/lib/utils/user';
 import { formatDate } from '@/lib/utils/date';
-import { getTagsByContent, getTagsByContentBatch, type Tag } from '@/lib/queries/tags';
-import { 
-  Search, 
-  Grid3x3, 
-  List, 
-  MoreVertical,
-  Trophy,
-  Star,
-  Mail,
-  ChevronDown,
+import { getTagsByContentBatch, type Tag } from '@/lib/queries/tags';
+import { stripHtml } from '@/lib/utils/stripHtml';
+import {
   Play,
   Clock,
   Lock,
@@ -33,56 +26,21 @@ export default function RecordingsPage() {
   const [loading, setLoading] = useState(true)
   const [paginationLoading, setPaginationLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('recently-active')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [activeFilter, setActiveFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-  const itemsPerPage = 6
+  const itemsPerPage = 12 // Increased from 6 to 12 for faster browsing (4x3 grid)
 
   // Ref to prevent parallel calls to loadRecordings
   const isLoadingRecordingsRef = useRef(false);
-  // Ref to track if the operation was cancelled (timeout or unmount)
-  const isCancelledRef = useRef(false);
 
   const loadRecordings = useCallback(async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:48',message:'loadRecordings START',data:{currentPage,sortBy,isLoading:isLoadingRecordingsRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    
     // Prevent parallel calls
     if (isLoadingRecordingsRef.current) {
-      console.log('loadRecordings already running, skipping...');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:51',message:'loadRecordings SKIPPED - already running',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       return;
     }
-    
+
     isLoadingRecordingsRef.current = true;
-    isCancelledRef.current = false; // Reset cancellation flag
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:56',message:'loadRecordings INIT',data:{isCancelled:isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    
-    // Add timeout to prevent hanging (Chrome-specific issue)
-    const timeoutStartTime = Date.now();
-    let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
-      const timeoutDuration = Date.now() - timeoutStartTime;
-      // Only log if not already cancelled (to reduce console spam)
-      if (!isCancelledRef.current) {
-        console.warn('loadRecordings taking too long, stopping loading state');
-      }
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:60',message:'TIMEOUT TRIGGERED',data:{timeoutDuration,isCancelled:isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
-      isCancelledRef.current = true; // Mark as cancelled
-      setLoading(false);
-      setPaginationLoading(false);
-      isLoadingRecordingsRef.current = false; // CRITICAL: Reset ref on timeout
-    }, 30000); // 30 seconds timeout - increased for slow DB queries
     
     // Clear previous recordings when loading new page to avoid showing stale data
     if (currentPage !== 1) {
@@ -99,33 +57,11 @@ export default function RecordingsPage() {
     setError(null)
     
     try {
-      const queryStartTime = Date.now();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:82',message:'BEFORE getRecordingsPaginated',data:{currentPage,itemsPerPage,sortBy,isCancelled:isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       const { data, totalCount: total, error: fetchError } = await getRecordingsPaginated(currentPage, itemsPerPage, sortBy)
-      
-      const queryDuration = Date.now() - queryStartTime;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:85',message:'AFTER getRecordingsPaginated',data:{queryDuration,hasData:!!data,dataLength:data?.length||0,totalCount:total,hasError:!!fetchError,isCancelled:isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
-      // Check if operation was cancelled (timeout occurred)
-      if (isCancelledRef.current) {
-        console.log('loadRecordings was cancelled, skipping state updates');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:88',message:'CANCELLED after query',data:{queryDuration},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        return;
-      }
-      
+
       if (fetchError) {
         setError('שגיאה בטעינת ההקלטות. אנא נסה שוב.')
         console.error('Error loading recordings:', fetchError)
-        // Don't clear recordings on error - keep showing previous page
-        // But still reset ref and clear timeout
-        if (timeoutId) clearTimeout(timeoutId);
         setLoading(false);
         setPaginationLoading(false);
         isLoadingRecordingsRef.current = false;
@@ -135,7 +71,7 @@ export default function RecordingsPage() {
       if (data) {
         // Data is already sorted by the query
         let processed = Array.isArray(data) ? [...data] : []
-        
+
         // Mark new recordings (within last 30 days)
         if (processed.length > 0 && sortBy === 'recently-active') {
           const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000)
@@ -147,33 +83,15 @@ export default function RecordingsPage() {
             return recording
           })
         }
-        
-        // Check again before updating state
-        if (isCancelledRef.current) {
-          console.log('loadRecordings was cancelled before state update, skipping');
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:122',message:'CANCELLED before setRecordings',data:{processedLength:processed.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
-          return;
-        }
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:125',message:'SETTING recordings state',data:{processedLength:processed.length,totalCount:total},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
+
         setRecordings(processed)
         setTotalCount(total || 0)
-        
-        // Load tags only for current page recordings (much faster)
+
+        // Load tags in parallel for current page recordings
         if (processed.length > 0) {
           const recordingIds = processed.map((r: any) => r.id)
           const { data: tagsData } = await getTagsByContentBatch('recording', recordingIds)
-          
-          // Check again before updating tags
-          if (isCancelledRef.current) {
-            console.log('loadRecordings was cancelled before tags update, skipping');
-            return;
-          }
-          
+
           // Group tags by recording ID
           const tagsMap: Record<string, Tag[]> = {}
           if (Array.isArray(tagsData)) {
@@ -188,7 +106,6 @@ export default function RecordingsPage() {
           }
           setRecordingTags(tagsMap)
         } else {
-          // No recordings found for this page
           setRecordingTags({})
         }
       } else {
@@ -197,22 +114,11 @@ export default function RecordingsPage() {
         setRecordingTags({})
       }
     } catch (err: any) {
-      // Only update error state if not cancelled
-      if (!isCancelledRef.current) {
-        setError('שגיאה בטעינת ההקלטות. אנא נסה שוב.')
-        console.error('Error loading recordings:', err)
-      }
-      // Don't clear recordings on error - keep showing previous page
+      setError('שגיאה בטעינת ההקלטות. אנא נסה שוב.')
+      console.error('Error loading recordings:', err)
     } finally {
-      if (timeoutId) clearTimeout(timeoutId);
-      // Only update loading state if not cancelled
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recordings/page.tsx:167',message:'loadRecordings FINALLY',data:{isCancelled:isCancelledRef.current,willUpdateLoading:!isCancelledRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      if (!isCancelledRef.current) {
-        setLoading(false);
-        setPaginationLoading(false);
-      }
+      setLoading(false);
+      setPaginationLoading(false);
       isLoadingRecordingsRef.current = false;
     }
   }, [currentPage, sortBy, itemsPerPage])
@@ -242,50 +148,15 @@ export default function RecordingsPage() {
     router.push(`/recordings/${recordingId}`);
   }
 
-  // Get unique tags from current page recordings - memoized for performance
-  // Note: With pagination, we only have tags for current page, so filter options are limited
-  const allTags = useMemo(() => {
-    const tagSet = new Set<string>()
-    Object.values(recordingTags).forEach(tags => {
-      tags.forEach(tag => tagSet.add(tag.name))
-    })
-    return ['all', ...Array.from(tagSet).sort()]
-  }, [recordingTags])
-
-  // Filter recordings on current page based on search and tags - memoized for performance
-  // Note: With server-side pagination, filtering is limited to current page
-  const filteredRecordingsOnPage = useMemo(() => {
-    return recordings.filter(recording => {
-      // Filter by tag
-      if (activeFilter !== 'all') {
-        const tags = recordingTags[recording.id] || []
-        const tagNames = tags.map(t => t.name)
-        if (!tagNames.includes(activeFilter)) return false
-      }
-      
-      // Filter by search query
-      if (!searchQuery) return true
-      const query = searchQuery.toLowerCase()
-      const tags = recordingTags[recording.id] || []
-      const tagNames = tags.map(t => t.name).join(' ')
-      return (
-        recording.title?.toLowerCase().includes(query) ||
-        recording.description?.toLowerCase().includes(query) ||
-        tagNames.toLowerCase().includes(query)
-      )
-    })
-  }, [recordings, recordingTags, activeFilter, searchQuery])
-
   // Pagination calculations - use totalCount from server for total pages
   const totalPages = Math.ceil(totalCount / itemsPerPage)
-  const paginatedRecordings = filteredRecordingsOnPage
 
-  // Reset to page 1 when filters or sort change (only if not already on page 1)
+  // Reset to page 1 when sort changes (only if not already on page 1)
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1)
     }
-  }, [activeFilter, searchQuery, sortBy])
+  }, [sortBy])
 
 
   return (
@@ -300,23 +171,6 @@ export default function RecordingsPage() {
           <p className="text-gray-600 text-lg">
             צפו בהקלטות מלייבים, וובינרים ומפגשי קהילה
           </p>
-        </div>
-
-        {/* Filter Bar */}
-        <div className="mb-8 flex items-center gap-3 flex-wrap">
-          {allTags.map((tagName) => (
-            <button
-              key={tagName}
-              onClick={() => setActiveFilter(tagName)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeFilter === tagName
-                  ? 'bg-[#F52F8E] text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-              }`}
-            >
-              {tagName === 'all' ? 'הכל' : tagName}
-            </button>
-          ))}
         </div>
 
         {/* Error Message */}
@@ -335,7 +189,7 @@ export default function RecordingsPage() {
 
         {/* Recordings Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {!loading && !paginationLoading && paginatedRecordings.length > 0 && paginatedRecordings.map((recording) => (
+          {!loading && !paginationLoading && recordings.length > 0 && recordings.map((recording) => (
             <div
               key={recording.id}
               onClick={() => handleRecordingClick(recording.id)}
@@ -449,28 +303,11 @@ export default function RecordingsPage() {
                 )}
 
                 {/* Description */}
-                {recording.description && (() => {
-                  // Check if description contains HTML tags
-                  const hasHTML = /<[a-z][\s\S]*>/i.test(recording.description);
-                  
-                  if (hasHTML) {
-                    // For HTML content, render it but limit the height with CSS
-                    return (
-                      <div 
-                        className="text-sm text-gray-600 mb-4 line-clamp-2 prose prose-sm max-w-none [&_p]:mb-1 [&_p]:text-sm [&_ul]:list-disc [&_ul]:mr-4 [&_ol]:list-decimal [&_ol]:mr-4 [&_li]:mb-0 [&_strong]:font-semibold [&_em]:italic"
-                        style={{ direction: 'rtl', textAlign: 'right' }}
-                        dangerouslySetInnerHTML={{ __html: recording.description }}
-                      />
-                    );
-                  } else {
-                    // For plain text, display normally
-                    return (
-                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                        {recording.description}
-                      </p>
-                    );
-                  }
-                })()}
+                {recording.description && (
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                    {stripHtml(recording.description)}
+                  </p>
+                )}
 
                 {/* Metadata - Always at the bottom */}
                 <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
@@ -487,7 +324,7 @@ export default function RecordingsPage() {
         </div>
 
         {/* Empty State */}
-        {paginatedRecordings.length === 0 && !loading && !paginationLoading && (
+        {recordings.length === 0 && !loading && !paginationLoading && (
           <div className="text-center py-12">
             <Play className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">לא נמצאו הקלטות</p>
@@ -590,7 +427,7 @@ export default function RecordingsPage() {
         )}
 
         {/* Page Info */}
-        {paginatedRecordings.length > 0 && !loading && !paginationLoading && (
+        {recordings.length > 0 && !loading && !paginationLoading && (
           <div className="mt-4 text-center text-sm text-gray-600">
             מציג {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} מתוך {totalCount} הקלטות
           </div>

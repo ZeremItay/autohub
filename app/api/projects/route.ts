@@ -68,8 +68,6 @@ export async function POST(request: NextRequest) {
         .filter(t => t.length > 0);
     }
 
-    console.log('Technologies received:', technologies);
-    console.log('Technologies array:', technologiesArray);
 
     const supabase = createServerClient();
 

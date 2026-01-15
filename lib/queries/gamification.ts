@@ -1,4 +1,4 @@
-import { supabase } from '../supabase'
+import { getSupabaseClient } from '../supabase-server'
 
 export interface GamificationRule {
   id: string
@@ -19,6 +19,8 @@ export interface PointsHistory {
 // Get all active gamification rules
 export async function getActiveRules() {
   try {
+    const supabase = await getSupabaseClient()
+
     // Get all rules first, then filter in code
     // Don't use .order() if column might not exist
     const { data, error } = await supabase
@@ -64,7 +66,7 @@ export async function getActiveRules() {
 // Award points to user
 export async function awardPoints(userId: string, actionName: string, options?: { checkDaily?: boolean; relatedId?: string; checkRelatedId?: boolean }) {
   try {
-    console.log(`🎯 Awarding points for action: "${actionName}" to user: ${userId}`);
+    const supabase = await getSupabaseClient()
     
     // Get the rule for this action
     // Try both trigger_action and action_name - handle missing columns gracefully
@@ -84,7 +86,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       return { success: false, error: 'Rule not found', alreadyAwarded: false };
     }
     
-    console.log(`📋 Found ${allRules?.length || 0} rules in database`);
     
     // Filter in code by action_name or trigger_action
     if (allRules && allRules.length > 0) {
@@ -125,20 +126,12 @@ export async function awardPoints(userId: string, actionName: string, options?: 
     }
     
     if (!rule) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/gamification.ts:127',message:'Rule not found, ensuring rules',data:{actionName,allRulesCount:allRules?.length||0,allRuleNames:allRules?.map((r:any)=>({action_name:r.action_name,trigger_action:r.trigger_action}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
-      
       // Rule not found - try to ensure rules exist and retry
       console.warn(`⚠️ Rule not found for action: "${actionName}", ensuring rules exist...`);
       
       // Ensure rules exist
       const ensureResult = await ensureGamificationRules();
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/gamification.ts:133',message:'After ensureGamificationRules',data:{success:ensureResult.success,created:ensureResult.created,updated:ensureResult.updated,error:ensureResult.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
-      
+
       if (ensureResult.success) {
         // Retry finding the rule after ensuring
         const { data: allRulesRetry, error: retryError } = await supabase
@@ -179,10 +172,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       
       if (!rule) {
         // Still not found after ensuring - try alternative names
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/gamification.ts:180',message:'Rule still not found, trying alternatives',data:{actionName,allRulesCount:allRules?.length||0,allRuleNames:allRules?.map((r:any)=>({action_name:r.action_name,trigger_action:r.trigger_action}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
-        
         // Try alternative names for registration
         if (actionName === 'הרשמה') {
           const alternativeNames = ['registration', 'signup', 'הרשמה למערכת', 'הרשמה למערכת', 'user_registration'];
@@ -192,13 +181,7 @@ export async function awardPoints(userId: string, actionName: string, options?: 
               const triggerMatch = r.trigger_action && r.trigger_action.toLowerCase() === altName.toLowerCase();
               return actionMatch || triggerMatch;
             });
-            // #region agent log
             if (rule) {
-              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/gamification.ts:192',message:'Found rule with alternative name',data:{altName,ruleId:rule.id,ruleName:rule.action_name||rule.trigger_action},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H3'})}).catch(()=>{});
-            }
-            // #endregion
-            if (rule) {
-              console.log(`✅ Found rule with alternative name: "${altName}"`);
               break;
             }
           }
@@ -208,24 +191,13 @@ export async function awardPoints(userId: string, actionName: string, options?: 
           // Still not found - this is not critical, just log and continue
           // Don't fail the operation if gamification rule doesn't exist
           console.warn(`⚠️ Rule not found for action: "${actionName}" - continuing without points`);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/gamification.ts:203',message:'Rule not found, returning success=false but not blocking',data:{actionName},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H3'})}).catch(()=>{});
-          // #endregion
         }
         // Rule not found - return error (but don't fail the app operation)
         return { success: false, error: `Rule not found for action: ${actionName}`, alreadyAwarded: false }
       } else {
-        console.log(`✅ Rule found after ensuring: "${actionName}"`);
       }
     }
-    
-    console.log(`✅ Found rule:`, {
-      action_name: rule.action_name,
-      trigger_action: rule.trigger_action,
-      point_value: rule.point_value,
-      description: rule.description
-    });
-    
+
     // Get profile ID (points_history.user_id references profiles.id, not profiles.user_id)
     // First try to get profile by user_id
     let profileIdForHistory = userId;
@@ -266,7 +238,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
           .limit(1);
         
         if (!actionError && historyWithAction && historyWithAction.length > 0) {
-          console.log(`⚠️ User already got points for ${actionName} with relatedId ${options.relatedId}`);
           return { success: false, error: 'Points already awarded for this action', alreadyAwarded: true };
         }
         
@@ -280,13 +251,11 @@ export async function awardPoints(userId: string, actionName: string, options?: 
           .limit(1);
         
         if (!actionNameError && historyWithActionName && historyWithActionName.length > 0) {
-          console.log(`⚠️ User already got points for ${actionName} with relatedId ${options.relatedId}`);
           return { success: false, error: 'Points already awarded for this action', alreadyAwarded: true };
         }
       } else {
         // related_id column doesn't exist - fallback to checking without related_id
         // This is a less precise check, but prevents duplicate points if column doesn't exist
-        console.log(`ℹ️ related_id column doesn't exist, skipping duplicate check for ${actionName}`);
       }
     }
     
@@ -341,11 +310,9 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       
       if (todayHistory && todayHistory.length > 0) {
         // User already got points today for this action
-        console.log(`ℹ️ User already got points today for action: "${actionName}"`);
         return { success: false, error: 'Already awarded today', alreadyAwarded: true }
       }
       
-      console.log(`✅ No points awarded today yet for action: "${actionName}"`);
     }
     
     // Add to points history
@@ -400,7 +367,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
     if (insertError) {
       // If 'action' column doesn't exist, try 'action_name'
       if (insertError.code === 'PGRST204' || insertError.message?.includes('action') || insertError.message?.includes('column')) {
-        console.log('⚠️ "action" column not found, trying "action_name" instead');
         const historyDataWithActionName: any = {
           user_id: profileIdForHistory, // Use profile.id, not profile.user_id
           points: rule.point_value,
@@ -423,7 +389,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       return { success: false, error: historyError.message }
     }
     
-    console.log('✅ Points history added successfully');
     
     // Update user's total points
     // Note: profiles table uses user_id, not id
@@ -455,7 +420,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
     }
     
     const newPoints = (currentProfile.points || 0) + rule.point_value
-    console.log(`💰 Updating points: ${currentProfile.points || 0} + ${rule.point_value} = ${newPoints}`)
     
     const { error: updateError } = await supabase
       .from('profiles')
@@ -481,7 +445,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       const { createNotification } = await import('./notifications');
       // Get rule description for notification
       const ruleDescription = rule.description || actionName;
-      console.log(`📬 Creating notification for ${rule.point_value} points: ${ruleDescription}`);
       
       // Try 'points' type first, fallback to 'like' if not supported
       try {
@@ -542,7 +505,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
           } else if (notificationError.message?.includes('type') || notificationError.message?.includes('CHECK') || notificationError.code === '23514') {
             // If 'points' type is not supported, use 'like' as fallback
             if (process.env.NODE_ENV === 'development') {
-              console.log('⚠️ Points notification type not supported, using "like" as fallback');
             }
             const { error: likeError } = await createNotification({
               user_id: userId,
@@ -563,7 +525,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
               }
             } else {
               if (process.env.NODE_ENV === 'development') {
-                console.log('✅ Notification created with "like" type');
               }
               // Trigger event to refresh notifications in UI
               if (typeof window !== 'undefined') {
@@ -577,7 +538,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
           }
         } else {
           if (process.env.NODE_ENV === 'development') {
-            console.log('✅ Notification created successfully');
           }
           // Trigger event to refresh notifications in UI
           if (typeof window !== 'undefined') {
@@ -601,7 +561,6 @@ export async function awardPoints(userId: string, actionName: string, options?: 
       }
     }
     
-    console.log(`🎉 Successfully awarded ${rule.point_value} points! New total: ${newPoints}`);
     return { success: true, points: newPoints }
   } catch (error: any) {
     console.error('Error awarding points:', error?.message || String(error))
@@ -612,11 +571,12 @@ export async function awardPoints(userId: string, actionName: string, options?: 
 // Deduct points from user
 export async function deductPoints(userId: string, amount: number) {
   try {
+    const supabase = await getSupabaseClient()
+
     if (amount <= 0) {
       return { success: false, error: 'Amount must be positive' };
     }
 
-    console.log(`💸 Deducting ${amount} points from user: ${userId}`);
 
     // Get current profile to check points balance
     const { data: profile, error: profileError } = await supabase
@@ -645,7 +605,6 @@ export async function deductPoints(userId: string, amount: number) {
 
     // Calculate new points balance
     const newPoints = currentPoints - amount;
-    console.log(`💰 Deducting points: ${currentPoints} - ${amount} = ${newPoints}`);
 
     // Get profile ID for points_history (points_history.user_id references profiles.id, not profiles.user_id)
     let profileIdForHistory = profile.user_id;
@@ -676,7 +635,6 @@ export async function deductPoints(userId: string, amount: number) {
     if (insertError) {
       // If 'action_name' column doesn't exist, try 'action'
       if (insertError.code === 'PGRST204' || insertError.message?.includes('action_name') || insertError.message?.includes('column')) {
-        console.log('⚠️ "action_name" column not found, trying "action" instead');
         const historyDataWithAction: any = {
           user_id: profileIdForHistory,
           points: -amount,
@@ -698,7 +656,6 @@ export async function deductPoints(userId: string, amount: number) {
       console.error('❌ Error adding to points history:', historyError?.message || String(historyError));
       // Don't fail the deduction if history insert fails, but log it
     } else {
-      console.log('✅ Points history entry added successfully');
     }
 
     // Update points in database
@@ -712,7 +669,6 @@ export async function deductPoints(userId: string, amount: number) {
       return { success: false, error: updateError.message };
     }
 
-    console.log(`✅ Successfully deducted ${amount} points! New total: ${newPoints}`);
     return { success: true, points: newPoints, previousPoints: currentPoints };
   } catch (error: any) {
     console.error('❌ Error in deductPoints:', error?.message || String(error));
@@ -722,6 +678,8 @@ export async function deductPoints(userId: string, amount: number) {
 
 // Get user's points history
 export async function getUserPointsHistory(userId: string) {
+  const supabase = await getSupabaseClient()
+
   // Get profile ID (points_history.user_id references profiles.id, not profiles.user_id)
   // First try to get profile by user_id
   let profileIdForHistory = userId;
@@ -754,6 +712,8 @@ export async function getUserPointsHistory(userId: string) {
 
 // Get user's current points and rank
 export async function getUserGamificationStats(userId: string) {
+  const supabase = await getSupabaseClient()
+
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('points')
@@ -778,7 +738,7 @@ export async function getUserGamificationStats(userId: string) {
 // Ensure required gamification rules exist with correct values
 export async function ensureGamificationRules() {
   try {
-    console.log('🔧 Ensuring gamification rules exist...');
+    const supabase = await getSupabaseClient()
     
     const requiredRules = [
       { name: 'לייק לפוסט', point_value: 1, description: 'לייק לפוסט' },
@@ -876,7 +836,6 @@ export async function ensureGamificationRules() {
         return { success: false, error: insertError.message };
       }
       
-      console.log(`✅ Created ${missingRules.length} missing rules`);
     }
     
     // Update existing rules to ensure correct values
@@ -918,7 +877,6 @@ export async function ensureGamificationRules() {
     }
     
     if (updatedCount > 0) {
-      console.log(`✅ Updated ${updatedCount} existing rules`);
     }
     
     return { success: true, created: missingRules.length, updated: updatedCount };
@@ -931,7 +889,7 @@ export async function ensureGamificationRules() {
 // Sync points from history to profiles (fix inconsistencies)
 export async function syncUserPoints(userId: string) {
   try {
-    console.log(`🔄 Syncing points for user: ${userId}`);
+    const supabase = await getSupabaseClient()
     
     // Get profile ID (points_history.user_id references profiles.id, not profiles.user_id)
     let profileIdForHistory = userId;
@@ -1007,7 +965,6 @@ export async function syncUserPoints(userId: string) {
       const currentPoints = profileById.points || 0;
       
       if (totalFromHistory !== currentPoints) {
-        console.log(`⚠️ Points mismatch detected: profile=${currentPoints}, history=${totalFromHistory}`);
         
         const { error: updateError } = await supabase
           .from('profiles')
@@ -1019,7 +976,6 @@ export async function syncUserPoints(userId: string) {
           return { success: false, error: updateError.message };
         }
         
-        console.log(`✅ Points synced: ${currentPoints} → ${totalFromHistory}`);
         return { 
           success: true, 
           previousPoints: currentPoints, 
@@ -1035,7 +991,6 @@ export async function syncUserPoints(userId: string) {
     
     // If different, update profile
     if (totalFromHistory !== currentPoints) {
-      console.log(`⚠️ Points mismatch detected: profile=${currentPoints}, history=${totalFromHistory}`);
       
       const { error: updateError } = await supabase
         .from('profiles')
@@ -1047,7 +1002,6 @@ export async function syncUserPoints(userId: string) {
         return { success: false, error: updateError.message };
       }
       
-      console.log(`✅ Points synced: ${currentPoints} → ${totalFromHistory}`);
       return { 
         success: true, 
         previousPoints: currentPoints, 
@@ -1066,7 +1020,7 @@ export async function syncUserPoints(userId: string) {
 // Sync all users' points (admin function)
 export async function syncAllUsersPoints() {
   try {
-    console.log('🔄 Syncing points for all users...');
+    const supabase = await getSupabaseClient()
     
     const { data: profiles, error } = await supabase
       .from('profiles')
@@ -1092,7 +1046,6 @@ export async function syncAllUsersPoints() {
       }
     }
     
-    console.log(`✅ Synced ${syncedCount} users, ${inconsistentCount} had inconsistencies`);
     
     return { 
       success: true, 

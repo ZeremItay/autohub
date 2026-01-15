@@ -274,12 +274,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Registration confirmation email sent successfully:', {
-      to: userEmail,
-      emailId: emailData.id,
-      subject: `נרשמת בהצלחה לאירוע: ${event.title}`
-    });
-
     return NextResponse.json({ 
       success: true, 
       emailId: emailData.id 

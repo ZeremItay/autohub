@@ -125,7 +125,6 @@ export async function POST(request: NextRequest) {
         console.warn('Failed to award points for event registration:', pointsResult.error);
         // Don't fail the registration if points award fails
       } else {
-        console.log('✅ Points awarded for event registration:', pointsResult.points);
       }
     } catch (pointsError) {
       console.warn('Error awarding points for event registration:', pointsError);
@@ -175,17 +174,6 @@ export async function POST(request: NextRequest) {
           error: emailError
         });
         // Don't fail the registration if email fails
-      } else {
-        try {
-          const emailData = await emailResponse.json();
-          console.log('✅ Registration confirmation email sent:', {
-            emailId: emailData.emailId,
-            userId,
-            eventId
-          });
-        } catch (jsonErr) {
-          console.log('✅ Registration confirmation email sent (response not JSON)');
-        }
       }
     } catch (emailError: any) {
       console.warn('Error sending registration email:', {
