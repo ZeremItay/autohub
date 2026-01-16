@@ -670,44 +670,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (!currentUserId || typeof window === 'undefined') return;
 
     async function loadUnreadMessagesCount() {
-      try {
-        // Load from API to get accurate count
-        const response = await fetch('/api/messages', {
-          credentials: 'include'
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            const conversations = result.data.conversations || [];
-            // Count number of conversations with unread messages (not total message count)
-            const conversationsWithUnread = conversations.filter((conv: any) => 
-              (conv.unread_count || 0) > 0
-            ).length;
-            setUnreadMessagesCount(conversationsWithUnread);
-          } else {
-            setUnreadMessagesCount(0);
-          }
-        } else {
-          // Fallback to localStorage if API fails
-          try {
-            const savedConversations = localStorage.getItem(`conversations_${currentUserId}`);
-            if (savedConversations) {
-              const conversations = JSON.parse(savedConversations);
-              const conversationsWithUnread = conversations.filter((conv: any) => 
-                (conv.unreadCount || 0) > 0
-              ).length;
-              setUnreadMessagesCount(conversationsWithUnread);
-            } else {
-              setUnreadMessagesCount(0);
-            }
-          } catch (error) {
-            setUnreadMessagesCount(0);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading unread messages count:', error);
-        // Fallback to localStorage
+      // Fallback function to load from localStorage
+      const loadFromLocalStorage = () => {
         try {
           const savedConversations = localStorage.getItem(`conversations_${currentUserId}`);
           if (savedConversations) {
@@ -722,6 +686,48 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         } catch (e) {
           setUnreadMessagesCount(0);
         }
+      };
+
+      try {
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+        // Load from API to get accurate count
+        const response = await fetch('/api/messages', {
+          credentials: 'include',
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            const conversations = result.data.conversations || [];
+            // Count number of conversations with unread messages (not total message count)
+            const conversationsWithUnread = conversations.filter((conv: any) => 
+              (conv.unread_count || 0) > 0
+            ).length;
+            setUnreadMessagesCount(conversationsWithUnread);
+          } else {
+            setUnreadMessagesCount(0);
+          }
+        } else {
+          // API returned error status - fallback to localStorage
+          loadFromLocalStorage();
+        }
+      } catch (error: any) {
+        // Handle network errors, timeouts, and other fetch errors silently
+        // Only log if it's not a network error (which is expected in some cases)
+        if (error.name !== 'AbortError' && error.name !== 'TypeError') {
+          // Only log unexpected errors, not network failures
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Error loading unread messages count:', error.message);
+          }
+        }
+        // Always fallback to localStorage on any error
+        loadFromLocalStorage();
       }
     }
 
