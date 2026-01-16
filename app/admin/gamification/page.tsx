@@ -12,6 +12,22 @@ interface GamificationRule {
   description?: string
 }
 
+// Predefined action names for dropdown
+const PREDEFINED_ACTIONS = [
+  { value: 'כניסה יומית', label: 'כניסה יומית', description: 'כניסה יומית לאתר' },
+  { value: 'פוסט חדש', label: 'פרסום פוסט', description: 'יצירת פוסט חדש' },
+  { value: 'תגובה לפוסט', label: 'תגובה לפוסט', description: 'תגובה לפוסט' },
+  { value: 'תגובה לנושא', label: 'תגובה לנושא', description: 'תגובה בפורום' },
+  { value: 'קיבלתי לייק על פוסט', label: 'קיבלתי לייק על פוסט', description: 'קיבלתי לייק על פוסט שפרסמתי' },
+  { value: 'לייק לפוסט', label: 'לייק לפוסט', description: 'לייק לפוסט' },
+  { value: 'שיתוף פוסט', label: 'שיתוף פוסט', description: 'שיתוף פוסט' },
+  { value: 'השלמת קורס', label: 'השלמת קורס', description: 'השלמת קורס מלא' },
+  { value: 'העלאת פרויקט', label: 'העלאת פרויקט', description: 'העלאת פרויקט חדש' },
+  { value: 'הרשמה', label: 'הרשמה', description: 'הרשמה למערכת' },
+  { value: 'host_live_event', label: 'העברת לייב', description: 'העברת לייב' },
+  { value: 'other', label: 'אחר (טקסט חופשי)', description: '' },
+]
+
 export default function GamificationAdmin() {
   const [rules, setRules] = useState<GamificationRule[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,6 +38,7 @@ export default function GamificationAdmin() {
     status: 'active',
     description: ''
   })
+  const [isCustomAction, setIsCustomAction] = useState(false)
 
   useEffect(() => {
     loadRules()
@@ -170,6 +187,7 @@ export default function GamificationAdmin() {
               <button
                 onClick={() => {
                   setEditing('new')
+                  setIsCustomAction(false)
                   setFormData({
                     action_name: '',
                     point_value: 0,
@@ -193,13 +211,55 @@ export default function GamificationAdmin() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">שם הפעולה</label>
-                    <input
-                      type="text"
-                      value={formData.action_name}
-                      onChange={(e) => setFormData({ ...formData, action_name: e.target.value })}
-                      placeholder="לדוגמה: כניסה יומית"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
-                    />
+                    {!isCustomAction ? (
+                      <select
+                        value={formData.action_name || ''}
+                        onChange={(e) => {
+                          const selectedValue = e.target.value;
+                          if (selectedValue === 'other') {
+                            setIsCustomAction(true);
+                            setFormData({ ...formData, action_name: '' });
+                          } else {
+                            const selectedAction = PREDEFINED_ACTIONS.find(a => a.value === selectedValue);
+                            setFormData({
+                              ...formData,
+                              action_name: selectedValue,
+                              description: selectedAction?.description || formData.description
+                            });
+                          }
+                        }}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                      >
+                        <option value="">בחר פעולה...</option>
+                        {PREDEFINED_ACTIONS.map((action) => (
+                          <option key={action.value} value={action.value}>
+                            {action.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={formData.action_name}
+                            onChange={(e) => setFormData({ ...formData, action_name: e.target.value })}
+                            placeholder="הזן שם פעולה מותאם אישית"
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCustomAction(false);
+                              setFormData({ ...formData, action_name: '' });
+                            }}
+                            className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+                          >
+                            חזור לרשימה
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">תיאור</label>
@@ -248,6 +308,7 @@ export default function GamificationAdmin() {
                     <button
                       onClick={() => {
                         setEditing(null)
+                        setIsCustomAction(false)
                         setFormData({
                           action_name: '',
                           point_value: 0,
@@ -331,6 +392,7 @@ export default function GamificationAdmin() {
                               <button
                                 onClick={() => {
                                   setEditing(rule.id!)
+                                  setIsCustomAction(!PREDEFINED_ACTIONS.some(a => a.value === rule.action_name))
                                   setFormData(rule)
                                 }}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded"

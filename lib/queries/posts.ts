@@ -557,37 +557,35 @@ export async function toggleLike(postId: string, userId: string) {
       } catch (error) {
         logError(error, 'toggleLike:notification:catch');
       }
-    }
-    
-    // Award points for liking a post (only when adding a like, not removing)
-    // Check if user already got points for this post to prevent duplicate points
-    try {
-      const { awardPoints } = await import('./gamification');
-      // Try Hebrew first (primary), then English as fallback
-      // Pass postId as relatedId to prevent duplicate points for same post
-      const result = await awardPoints(userId, 'לייק לפוסט', { 
-        checkRelatedId: true, 
-        relatedId: postId 
-      }).catch(async () => {
-        // If Hebrew doesn't work, try English
-        return await awardPoints(userId, 'like_post', { 
+      
+      // Award points to post owner for receiving a like (not to the liker)
+      try {
+        const { awardPoints } = await import('./gamification');
+        // Award points to post owner with action "קיבלתי לייק על פוסט"
+        // Use checkRelatedId to prevent duplicate points for same post
+        const result = await awardPoints(postOwnerData.user_id, 'קיבלתי לייק על פוסט', { 
           checkRelatedId: true, 
           relatedId: postId 
+        }).catch(async () => {
+          // If Hebrew doesn't work, try English
+          return await awardPoints(postOwnerData.user_id, 'received_like_on_post', { 
+            checkRelatedId: true, 
+            relatedId: postId 
+          });
         });
-      });
-      
-      if (!result.success) {
-        if (result.alreadyAwarded) {
-        } else {
-          console.error('❌ Failed to award points for like:', result.error);
-          // Don't fail the like operation, but log the error for debugging
-          logError(new Error(result.error || 'Failed to award points'), 'toggleLike:points');
+        
+        if (!result.success) {
+          if (result.alreadyAwarded) {
+            // Already awarded - this is fine, just continue
+          } else {
+            console.error('❌ Failed to award points to post owner for like:', result.error);
+            logError(new Error(result.error || 'Failed to award points'), 'toggleLike:points:owner');
+          }
         }
-      } else {
+      } catch (error) {
+        // Silently fail - gamification is not critical, but log for debugging
+        logError(error, 'toggleLike:points:owner:catch');
       }
-    } catch (error) {
-      // Silently fail - gamification is not critical, but log for debugging
-      logError(error, 'toggleLike:points:catch');
     }
     
     // Increment likes count

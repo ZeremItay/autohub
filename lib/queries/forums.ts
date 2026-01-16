@@ -975,34 +975,35 @@ export async function toggleForumPostLike(postId: string, userId: string) {
       }
     }
     
-    // Award points for liking a post (only when adding a like, not removing)
-    // Check if user already got points for this post to prevent duplicate points
-    try {
-      const { awardPoints } = await import('./gamification');
-      // Try Hebrew first (primary), then English as fallback
-      // Pass postId as relatedId to prevent duplicate points for same post
-      const result = await awardPoints(userId, 'לייק לפוסט', { 
-        checkRelatedId: true, 
-        relatedId: postId 
-      }).catch(async () => {
-        // If Hebrew doesn't work, try English
-        return await awardPoints(userId, 'like_post', { 
+    // Award points to post owner for receiving a like (not to the liker)
+    if (currentPost?.user_id && currentPost.user_id !== userId) {
+      try {
+        const { awardPoints } = await import('./gamification');
+        // Award points to post owner with action "קיבלתי לייק על פוסט"
+        // Use checkRelatedId to prevent duplicate points for same post
+        const result = await awardPoints(currentPost.user_id, 'קיבלתי לייק על פוסט', { 
           checkRelatedId: true, 
           relatedId: postId 
+        }).catch(async () => {
+          // If Hebrew doesn't work, try English
+          return await awardPoints(currentPost.user_id, 'received_like_on_post', { 
+            checkRelatedId: true, 
+            relatedId: postId 
+          });
         });
-      });
-      
-      if (!result.success) {
-        if (result.alreadyAwarded) {
-        } else {
-          console.error('❌ Failed to award points for forum like:', result.error);
-          // Don't fail the like operation, but log the error for debugging
+        
+        if (!result.success) {
+          if (result.alreadyAwarded) {
+            // Already awarded - this is fine, just continue
+          } else {
+            console.error('❌ Failed to award points to post owner for forum like:', result.error);
+            // Don't fail the like operation, but log the error for debugging
+          }
         }
-      } else {
+      } catch (error) {
+        // Silently fail - gamification is not critical, but log for debugging
+        console.warn('Error awarding points to post owner for forum like:', error);
       }
-    } catch (error) {
-      // Silently fail - gamification is not critical, but log for debugging
-      console.warn('Error awarding points for forum like:', error);
     }
     
     return { data: { liked: true, likes_count: newCount }, error: null };

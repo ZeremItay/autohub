@@ -748,6 +748,7 @@ export async function ensureGamificationRules() {
       { name: 'תגובה לנושא', point_value: 5, description: 'תגובה בפורום' },
       { name: 'הרשמה', point_value: 10, description: 'הרשמה למערכת' },
       { name: 'host_live_event', point_value: 50, description: 'העברת לייב' },
+      { name: 'קיבלתי לייק על פוסט', point_value: 1, description: 'קיבלתי לייק על פוסט שפרסמתי' },
     ];
     
     // Try to detect which column structure is used

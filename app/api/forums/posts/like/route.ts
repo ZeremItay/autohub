@@ -75,10 +75,10 @@ export async function POST(request: NextRequest) {
 
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-      // Update likes_count in forum_posts table
+      // Update likes_count in forum_posts table and get post owner
       const { data: currentPost } = await serverSupabase
         .from('forum_posts')
-        .select('likes_count')
+        .select('likes_count, user_id')
         .eq('id', postId)
         .single();
 
@@ -95,23 +95,25 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Award points server-side with duplicate prevention
-      try {
-        const result = await awardPoints(userId, 'לייק לפוסט', {
-          checkRelatedId: true,
-          relatedId: postId
-        }).catch(async () => {
-          return await awardPoints(userId, 'like_post', {
+      // Award points to post owner for receiving a like (not to the liker)
+      if (currentPost?.user_id && currentPost.user_id !== userId) {
+        try {
+          const result = await awardPoints(currentPost.user_id, 'קיבלתי לייק על פוסט', {
             checkRelatedId: true,
             relatedId: postId
+          }).catch(async () => {
+            return await awardPoints(currentPost.user_id, 'received_like_on_post', {
+              checkRelatedId: true,
+              relatedId: postId
+            });
           });
-        });
 
-        if (!result.success && !result.alreadyAwarded) {
-          console.error('Failed to award points for forum like:', result.error);
+          if (!result.success && !result.alreadyAwarded) {
+            console.error('Failed to award points to post owner for forum like:', result.error);
+          }
+        } catch (error) {
+          console.warn('Error awarding points to post owner for forum like:', error);
         }
-      } catch (error) {
-        console.warn('Error awarding points for forum like:', error);
       }
 
       return NextResponse.json({ data: { liked: true, likes_count: newCount }, error: null });

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 import { createForumPostReply } from '@/lib/queries/forums';
-import { getAllProfiles } from '@/lib/queries/profiles';
 import { notifyForumPostReply, checkAndNotifyMentions } from '@/lib/utils/notifications';
-import { awardPoints } from '@/lib/queries/gamification';
 
 export async function POST(request: NextRequest) {
   try {
@@ -72,10 +70,8 @@ export async function POST(request: NextRequest) {
       ? (profile.display_name || profile.first_name || profile.nickname || profile.full_name || 'משתמש')
       : 'משתמש';
 
-    // Get user info for notifications
-    const { data: profiles } = await getAllProfiles();
-    const replier = (Array.isArray(profiles) ? profiles : []).find((p: any) => (p.user_id || p.id) === user_id);
-    const replierName = replier?.display_name || profile?.display_name || profile?.first_name || profile?.nickname || 'משתמש';
+    // Use profile we already fetched for notifications (no need to call getAllProfiles)
+    const replierName = displayName;
 
     // Create notification for post owner (includes email sending)
     if (post.user_id && post.user_id !== user_id) {
@@ -100,15 +96,8 @@ export async function POST(request: NextRequest) {
       'forum_reply'
     );
 
-    // Award points for replying to a topic (only for top-level replies, not nested)
-    if (!parent_id) {
-      try {
-        await awardPoints(user_id, 'תגובה לנושא');
-      } catch (error) {
-        console.error('Error awarding points for reply:', error);
-        // Don't fail the request if points awarding fails
-      }
-    }
+    // Note: Points are awarded in createForumPostReply function to avoid duplication
+    // No need to award points here
 
     // Return reply with profile (use the profile from createForumPostReply if it exists, otherwise use the one we fetched)
     const replyWithProfile = reply?.profile 
