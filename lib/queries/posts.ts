@@ -388,6 +388,10 @@ export async function createPost(post: {
   } catch (error) {
     console.warn('Error processing post mentions:', error);
   }
+
+  // If this is an announcement from admin, send email to all users
+  // Note: Email sending is handled client-side in handleCreatePost to support test mode
+  // This allows passing testUserId from the UI
   
   return { data, error: null }
 }
