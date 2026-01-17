@@ -40,7 +40,9 @@ import {
   EyeOff,
   MessageSquare,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -941,6 +943,8 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'roles' | 'gamification' | 'recordings' | 'resources' | 'blog' | 'subscriptions' | 'payments' | 'news' | 'badges' | 'courses' | 'reports' | 'events' | 'projects' | 'tags' | 'feedbacks' | 'forums' | 'api-docs' | 'menu' | 'lesson-questions'>('users')
   const [users, setUsers] = useState<any[]>([])
   const [usersSearchQuery, setUsersSearchQuery] = useState<string>('')
+  const [usersCurrentPage, setUsersCurrentPage] = useState<number>(1)
+  const usersPerPage = 15
   const [posts, setPosts] = useState<any[]>([])
   const [roles, setRoles] = useState<any[]>([])
   const [recordings, setRecordings] = useState<any[]>([])
@@ -2302,14 +2306,26 @@ export default function AdminPanel() {
             
             
             // First, create all sections
+            // Get existing sections to check for conflicts
+            const { getCourseSections } = await import('@/lib/queries/courses')
+            const { data: existingSectionsForNewCourse } = await getCourseSections(data.id)
+            const existingOrdersForNewCourse = existingSectionsForNewCourse?.map((s: any) => s.section_order) || []
+            
             for (let i = 0; i < courseSections.length; i++) {
               const section = courseSections[i]
               if (section.title.trim()) {
                 try {
+                  // Find next available section_order
+                  let targetSectionOrder = i + 1
+                  while (existingOrdersForNewCourse.includes(targetSectionOrder)) {
+                    targetSectionOrder++
+                  }
+                  existingOrdersForNewCourse.push(targetSectionOrder)
+                  
                   const { data: createdSection, error: sectionError } = await createCourseSection({
                     course_id: data.id,
                     title: section.title,
-                    section_order: i + 1
+                    section_order: targetSectionOrder
                   })
                   
                   if (sectionError) {
@@ -2814,6 +2830,11 @@ export default function AdminPanel() {
             
             
             // First, update or create sections
+            // #region agent log
+            if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2828',message:'Starting section processing',data:{courseId:id,totalSections:courseSections.length,existingSectionsCount:existingSections?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            }
+            // #endregion
             for (let i = 0; i < courseSections.length; i++) {
               const section = courseSections[i]
               if (section.title.trim() && section.id !== 'no-section') {
@@ -2821,6 +2842,12 @@ export default function AdminPanel() {
                   // Check if section already exists (has a real database ID)
                   const isExistingSection = section.id && section.id.length > 20 && section.id.includes('-')
                   const existingSection = existingSections?.find((s: any) => s.id === section.id)
+                  
+                  // #region agent log
+                  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2834',message:'Processing section',data:{sectionId:section.id,sectionTitle:section.title,isExistingSection,hasExistingInDB:!!existingSection,sectionOrder:i+1},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                  }
+                  // #endregion
                   
                   if (isExistingSection && existingSection) {
                     // Update existing section
@@ -2837,13 +2864,33 @@ export default function AdminPanel() {
                       console.error('Error updating section:', section.id, updateError)
                     } else {
                       sectionMap.set(section.id, section.id)
+                      // #region agent log
+                      if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+                        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2851',message:'Section updated in map',data:{sectionId:section.id,mappedId:section.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                      }
+                      // #endregion
                     }
                   } else {
                     // Create new section
+                    // Check if section_order already exists, if so find the next available order
+                    let targetSectionOrder = i + 1
+                    if (existingSections && existingSections.length > 0) {
+                      const existingOrders = existingSections.map((s: any) => s.section_order)
+                      while (existingOrders.includes(targetSectionOrder)) {
+                        targetSectionOrder++
+                      }
+                    }
+                    
+                    // #region agent log
+                    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+                      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2864',message:'Creating new section',data:{sectionId:section.id,sectionTitle:section.title,targetSectionOrder},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                    }
+                    // #endregion
+                    
                     const { data: createdSection, error: sectionError } = await createCourseSection({
                       course_id: id,
                       title: section.title,
-                      section_order: i + 1
+                      section_order: targetSectionOrder
                     })
                     
                     if (sectionError) {
@@ -2855,8 +2902,18 @@ export default function AdminPanel() {
                         hint: (sectionError as any)?.hint || 'No hint',
                         fullError: JSON.stringify(sectionError, Object.getOwnPropertyNames(sectionError))
                       })
+                      // #region agent log
+                      if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+                        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2870',message:'Section creation failed',data:{sectionId:section.id,error:sectionError.message,code:(sectionError as any)?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                      }
+                      // #endregion
                     } else if (createdSection) {
                       sectionMap.set(section.id, createdSection.id)
+                      // #region agent log
+                      if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+                        fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2880',message:'Section created and mapped',data:{sectionId:section.id,createdSectionId:createdSection.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                      }
+                      // #endregion
                     }
                   }
                 } catch (sectionErr) {
@@ -2864,6 +2921,11 @@ export default function AdminPanel() {
                 }
               }
             }
+            // #region agent log
+            if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2887',message:'Section processing complete',data:{sectionMapSize:sectionMap.size,sectionMapEntries:Array.from(sectionMap.entries())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})            }).catch(()=>{});
+            }
+            // #endregion
             
             // Delete sections that are no longer in the courseSections array
             if (existingSections && existingSections.length > 0) {
@@ -2907,6 +2969,12 @@ export default function AdminPanel() {
               
               const sectionDbId = sectionMap.get(section.id) || section.id
               
+              // #region agent log
+              if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2929',message:'Processing section lessons',data:{sectionId:section.id,sectionDbId,lessonsCount:section.lessons.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})            }).catch(()=>{});
+            }
+            // #endregion
+              
               for (const lesson of section.lessons) {
                 if (lesson.title.trim()) {
                   try {
@@ -2921,31 +2989,68 @@ export default function AdminPanel() {
                       key_points: lesson.key_points || []
                     }
                     
-                    // Link lesson to section
+                    // Link lesson to section - validate it's a UUID first
                     if (sectionDbId) {
-                      lessonData.section_id = sectionDbId
+                      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+                      if (uuidRegex.test(sectionDbId)) {
+                        lessonData.section_id = sectionDbId
+                      } else {
+                        console.warn('Invalid section_id format, skipping:', sectionDbId)
+                        // #region agent log
+                        if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+                          fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2993',message:'Invalid section_id format',data:{sectionDbId,sectionId:section.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                        }
+                        // #endregion
+                      }
                     }
                     
-                    // Check if lesson already exists (has an ID that looks like a UUID)
+                    // Check if lesson already exists (has a valid UUID format)
+                    // UUID format: 8-4-4-4-12 hex characters separated by hyphens
+                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
                     const isExistingLesson = lesson.id && 
                       typeof lesson.id === 'string' && 
-                      lesson.id.length > 20 && 
-                      lesson.id.includes('-')
+                      uuidRegex.test(lesson.id)
+                    
+                    // #region agent log
+                    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2953',message:'Checking lesson ID',data:{lessonId:lesson.id,lessonTitle:lesson.title,isExistingLesson,sectionDbId,hasSectionId:!!lessonData.section_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})            }).catch(()=>{});
+            }
+            // #endregion
                     
                     if (isExistingLesson) {
                       // Update existing lesson
                       currentLessonIds.add(lesson.id)
+                      // #region agent log
+                      if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2958',message:'Updating existing lesson',data:{lessonId:lesson.id,lessonData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})            }).catch(()=>{});
+            }
+            // #endregion
                       const { error: updateError } = await updateLesson(lesson.id, lessonData)
                       
                       if (updateError) {
                         console.error('Error updating lesson:', updateError)
+                        // #region agent log
+                        if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2962',message:'Lesson update failed',data:{lessonId:lesson.id,error:updateError.message,code:(updateError as any)?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})            }).catch(()=>{});
+            }
+            // #endregion
                         lessonsFailed++
                       } else {
+                        // #region agent log
+                        if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2966',message:'Lesson updated successfully',data:{lessonId:lesson.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})            }).catch(()=>{});
+            }
+            // #endregion
                         lessonsUpdated++
                       }
                     } else {
                       // Create new lesson
                       lessonData.course_id = id
+                      // #region agent log
+                      if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2969',message:'Creating new lesson',data:{lessonId:lesson.id,lessonData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})            }).catch(()=>{});
+            }
+            // #endregion
                       const { data: createdLesson, error: lessonError } = await createLesson(lessonData)
                       
                       if (lessonError) {
@@ -2957,16 +3062,31 @@ export default function AdminPanel() {
                           hint: (lessonError as any)?.hint || 'No hint',
                           fullError: JSON.stringify(lessonError, Object.getOwnPropertyNames(lessonError))
                         })
+                        // #region agent log
+                        if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2973',message:'Lesson creation failed',data:{lessonId:lesson.id,error:lessonError.message,code:(lessonError as any)?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})            }).catch(()=>{});
+            }
+            // #endregion
                         lessonsFailed++
                       } else {
                         if (createdLesson?.id) {
                           currentLessonIds.add(createdLesson.id)
+                          // #region agent log
+                          if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2984',message:'Lesson created successfully',data:{oldLessonId:lesson.id,newLessonId:createdLesson.id,sectionId:createdLesson.section_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})            }).catch(()=>{});
+            }
+            // #endregion
                         }
                         lessonsCreated++
                       }
                     }
                   } catch (lessonErr) {
                     console.error('Exception processing lesson:', lessonErr)
+                    // #region agent log
+                    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:2990',message:'Exception processing lesson',data:{lessonId:lesson.id,error:lessonErr instanceof Error?lessonErr.message:String(lessonErr)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})            }).catch(()=>{});
+            }
+            // #endregion
                     lessonsFailed++
                   }
                 }
@@ -3669,7 +3789,10 @@ export default function AdminPanel() {
         {/* Tabs */}
         <div className="flex gap-4 mb-6 border-b border-gray-200 overflow-x-auto">
           <button
-            onClick={() => setActiveTab('users')}
+            onClick={() => {
+              setActiveTab('users')
+              setUsersCurrentPage(1) // Reset to first page when switching to users tab
+            }}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'users'
                 ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
@@ -4020,7 +4143,10 @@ export default function AdminPanel() {
                     type="text"
                     placeholder="חפש משתמש לפי שם, כינוי או אימייל..."
                     value={usersSearchQuery}
-                    onChange={(e) => setUsersSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setUsersSearchQuery(e.target.value)
+                      setUsersCurrentPage(1) // Reset to first page when searching
+                    }}
                     className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
                     dir="rtl"
                   />
@@ -5317,11 +5443,10 @@ export default function AdminPanel() {
                                         video_url: newUrl,
                                         duration_minutes: result.duration_minutes
                                       } : null);
-                                    } else if (result.error) {
-                                      console.warn('Could not fetch video duration:', result.error);
                                     }
+                                    // Silently ignore errors - user can manually enter duration if needed
                                   } catch (error) {
-                                    console.error('Error fetching video duration:', error);
+                                    // Silently ignore errors - don't spam console
                                   } finally {
                                     setFetchingVideoDuration(false);
                                   }
@@ -5946,30 +6071,50 @@ export default function AdminPanel() {
                                           sectionIndex={sectionIndex}
                                           lessonIndex={lessonIndex}
                                           onEdit={async () => {
+                                            // #region agent log
+                                            if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+                                              fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:5970',message:'onEdit called',data:{lessonId:lesson.id,lessonTitle:lesson.title},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                                            }
+                                            // #endregion
                                             setEditingLesson({lessonId: lesson.id, sectionIndex, lessonIndex})
                                             
-                                            // Always load lesson from DB via API route to get latest data (especially qa_section)
-                                            // This ensures we always have the most up-to-date data, including Q&A added through lesson questions
-                                            try {
-                                              
-                                              // Show loading state
-                                              setEditingLessonData({
-                                                title: lesson.title || '',
-                                                description: lesson.description || '',
-                                                video_url: lesson.video_url || '',
-                                                duration_minutes: lesson.duration_minutes || 0,
-                                                transcript: lesson.transcript || '',
-                                                qa_section: [], // Start with empty array, will be updated from DB
-                                                key_points: lesson.key_points || []
-                                              })
-                                              
-                                              const response = await fetch(`/api/admin/lessons/${lesson.id}`)
-                                              
-                                              if (!response.ok) {
-                                                const errorText = await response.text()
-                                                console.error('❌ Failed to load lesson from API:', response.status, errorText)
-                                                throw new Error(`Failed to load lesson: ${response.status} ${response.statusText}`)
-                                              }
+                                            // Check if lesson ID is a valid UUID - if not, use local data (it's a new lesson that hasn't been saved yet)
+                                            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+                                            const isExistingLesson = lesson.id && typeof lesson.id === 'string' && uuidRegex.test(lesson.id)
+                                            
+                                            // Show loading state with local data
+                                            setEditingLessonData({
+                                              title: lesson.title || '',
+                                              description: lesson.description || '',
+                                              video_url: lesson.video_url || '',
+                                              duration_minutes: lesson.duration_minutes || 0,
+                                              transcript: lesson.transcript || '',
+                                              qa_section: Array.isArray(lesson.qa_section) ? lesson.qa_section : (lesson.qa_section ? [lesson.qa_section] : []),
+                                              key_points: lesson.key_points || []
+                                            })
+                                            
+                                            // Only try to load from API if it's an existing lesson (has a valid UUID)
+                                            if (isExistingLesson) {
+                                              try {
+                                                // #region agent log
+                                                if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+                                                  fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:5988',message:'Fetching lesson from API',data:{lessonId:lesson.id,apiUrl:`/api/admin/lessons/${lesson.id}`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                                                }
+                                                // #endregion
+                                                const response = await fetch(`/api/admin/lessons/${lesson.id}`)
+                                                
+                                                if (!response.ok) {
+                                                  const errorText = await response.text()
+                                                  console.error('❌ Failed to load lesson from API:', response.status, errorText)
+                                                  // #region agent log
+                                                  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+                                                    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/admin/page.tsx:5990',message:'API fetch failed',data:{lessonId:lesson.id,status:response.status,errorText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                                                  }
+                                                  // #endregion
+                                                  // Don't throw error - just use local data
+                                                  console.warn('⚠️ Using local lesson data instead of API data')
+                                                  return
+                                                }
                                               
                                               const result = await response.json()
                                               
@@ -6033,6 +6178,8 @@ export default function AdminPanel() {
                                                 key_points: Array.isArray(lesson.key_points) ? lesson.key_points : (lesson.key_points || [])
                                               })
                                             }
+                                            // If not existing lesson, we already set the data above, so nothing more to do
+                                          }
                                           }}
                                           onDelete={() => {
                                             const updated = [...courseSections]
@@ -7326,7 +7473,20 @@ export default function AdminPanel() {
                         })
                       : users;
                     
-                    return filteredUsers.map((user) => (
+                    // Pagination calculations
+                    const totalPages = Math.ceil(filteredUsers.length / usersPerPage)
+                    const startIndex = (usersCurrentPage - 1) * usersPerPage
+                    const endIndex = startIndex + usersPerPage
+                    const paginatedUsers = filteredUsers.slice(startIndex, endIndex)
+                    
+                    // Reset to page 1 if current page is out of bounds
+                    if (usersCurrentPage > totalPages && totalPages > 0) {
+                      setUsersCurrentPage(1)
+                    }
+                    
+                    return (
+                      <>
+                        {paginatedUsers.map((user) => (
                     <tr key={user.id} className="border-b border-gray-100">
                       <td className="py-3 px-4">
                         <input
@@ -7425,7 +7585,9 @@ export default function AdminPanel() {
                         </div>
                       </td>
                     </tr>
-                    ));
+                        ))}
+                      </>
+                    );
                   })()}
                   {activeTab === 'posts' && posts.map((post) => (
                     <tr key={post.id} className="border-b border-gray-100">
@@ -8984,6 +9146,87 @@ export default function AdminPanel() {
                   )}
                 </tbody>
               </table>
+              
+              {/* Pagination for users */}
+              {activeTab === 'users' && (() => {
+                const filteredUsers = usersSearchQuery.trim() 
+                  ? users.filter((user) => {
+                      const query = usersSearchQuery.toLowerCase().trim();
+                      const displayName = (user.display_name || '').toLowerCase();
+                      const nickname = (user.nickname || '').toLowerCase();
+                      const email = (user.email || '').toLowerCase();
+                      const firstName = (user.first_name || '').toLowerCase();
+                      const lastName = (user.last_name || '').toLowerCase();
+                      
+                      return displayName.includes(query) ||
+                             nickname.includes(query) ||
+                             email.includes(query) ||
+                             firstName.includes(query) ||
+                             lastName.includes(query) ||
+                             `${firstName} ${lastName}`.trim().includes(query);
+                    })
+                  : users;
+                
+                const totalPages = Math.ceil(filteredUsers.length / usersPerPage)
+                const startIndex = (usersCurrentPage - 1) * usersPerPage
+                const endIndex = Math.min(startIndex + usersPerPage, filteredUsers.length)
+                
+                if (totalPages <= 1) return null
+                
+                return (
+                  <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+                    <div className="text-sm text-gray-600">
+                      מציג {startIndex + 1}-{endIndex} מתוך {filteredUsers.length} משתמשים
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setUsersCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={usersCurrentPage === 1}
+                        className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                        קודם
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum: number;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (usersCurrentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (usersCurrentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = usersCurrentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setUsersCurrentPage(pageNum)}
+                              className={`px-3 py-2 rounded-lg transition-colors ${
+                                usersCurrentPage === pageNum
+                                  ? 'bg-[#F52F8E] text-white'
+                                  : 'border border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setUsersCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={usersCurrentPage === totalPages}
+                        className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      >
+                        הבא
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
             {activeTab === 'api-docs' && (
               <div className="mt-6">

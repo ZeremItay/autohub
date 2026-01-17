@@ -186,7 +186,7 @@ function ProfilePageContent() {
   }, [profile, activeTab, forumsTab])
 
   useEffect(() => {
-    if (profile && activeTab === 'points' && isOwnerOrAdmin()) {
+    if (profile && activeTab === 'points') {
       loadPointsHistory()
     }
   }, [profile, activeTab])
@@ -2080,7 +2080,7 @@ function ProfilePageContent() {
                       <Trophy className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                       <p className="text-lg">אין היסטוריית נקודות</p>
                       <p className="text-sm text-gray-400 mt-2">
-                        פעילויות שלך יופיעו כאן
+                        פעילויות יופיעו כאן
                       </p>
                     </div>
                   ) : (

@@ -28,7 +28,8 @@ export async function getVideoDuration(videoUrl: string): Promise<VideoDurationR
         duration_minutes: durationMinutes
       };
     } catch (error: any) {
-      console.error('Error fetching direct video duration:', error);
+      // Silently fail - don't log errors for video duration fetching
+      // The error message is returned in the result, so the caller can decide what to do
       return {
         duration_minutes: 0,
         error: error.message || 'Failed to load video metadata. Make sure the URL is accessible and has proper CORS headers.'
@@ -120,15 +121,43 @@ export async function getDirectVideoDuration(videoUrl: string): Promise<number> 
       clearTimeout(timeout);
       const duration = video.duration; // Duration in seconds
       video.remove();
+      if (isNaN(duration) || duration === 0) {
+        reject(new Error('Invalid video duration'));
+        return;
+      }
       resolve(duration / 60); // Convert to minutes
     });
     
     video.addEventListener('error', (e) => {
       clearTimeout(timeout);
       video.remove();
-      reject(new Error('Failed to load video: ' + (e.message || 'Unknown error')));
+      // Get more specific error information
+      const errorMessage = video.error 
+        ? `Code ${video.error.code}: ${getVideoErrorCode(video.error.code)}`
+        : (e.message || 'Unknown error');
+      // Don't log to console - let the caller handle it
+      reject(new Error('Failed to load video: ' + errorMessage));
     });
     
-    video.src = videoUrl;
+    try {
+      video.src = videoUrl;
+    } catch (error: any) {
+      clearTimeout(timeout);
+      video.remove();
+      reject(new Error('Invalid video URL: ' + (error.message || 'Unknown error')));
+    }
   });
+}
+
+/**
+ * Get human-readable error message from video error code
+ */
+function getVideoErrorCode(code: number): string {
+  const errorCodes: Record<number, string> = {
+    1: 'MEDIA_ERR_ABORTED - The user aborted the loading',
+    2: 'MEDIA_ERR_NETWORK - A network error occurred',
+    3: 'MEDIA_ERR_DECODE - The video could not be decoded',
+    4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - The video format is not supported',
+  };
+  return errorCodes[code] || 'Unknown error';
 }

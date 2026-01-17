@@ -855,6 +855,11 @@ export async function getLessonById(lessonId: string, supabaseClient?: any) {
 
 // Create lesson
 export async function createLesson(lesson: Omit<CourseLesson, 'id' | 'created_at' | 'updated_at'>) {
+  // #region agent log
+  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:857',message:'createLesson called',data:{lessonTitle:lesson.title,courseId:lesson.course_id,sectionId:lesson.section_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  }
+  // #endregion
   // Try to use client-side supabase first (for client components)
   // Fall back to server client if needed
   let supabaseClient;
@@ -872,11 +877,58 @@ export async function createLesson(lesson: Omit<CourseLesson, 'id' | 'created_at
   }
   
   
+  // Validate required fields
+  if (!lesson.course_id) {
+    return { data: null, error: { message: 'course_id is required' } as any };
+  }
+  if (!lesson.title || lesson.title.trim() === '') {
+    return { data: null, error: { message: 'title is required' } as any };
+  }
+  if (lesson.lesson_order === undefined || lesson.lesson_order === null) {
+    return { data: null, error: { message: 'lesson_order is required' } as any };
+  }
+  
+  // Clean and prepare lesson data
   const lessonData: any = {
-    ...lesson,
-    qa_section: lesson.qa_section || [],
-    key_points: lesson.key_points || []
+    course_id: lesson.course_id,
+    title: lesson.title.trim(),
+    lesson_order: lesson.lesson_order,
+    is_preview: lesson.is_preview ?? false,
+    qa_section: Array.isArray(lesson.qa_section) ? lesson.qa_section : [],
+    key_points: Array.isArray(lesson.key_points) ? lesson.key_points : []
   };
+  
+  // Add optional fields only if they have values
+  if (lesson.description && lesson.description.trim()) {
+    lessonData.description = lesson.description.trim();
+  }
+  if (lesson.video_url && lesson.video_url.trim()) {
+    lessonData.video_url = lesson.video_url.trim();
+  }
+  if (lesson.content && lesson.content.trim()) {
+    lessonData.content = lesson.content.trim();
+  }
+  if (lesson.transcript && lesson.transcript.trim()) {
+    lessonData.transcript = lesson.transcript.trim();
+  }
+  if (lesson.duration_minutes !== undefined && lesson.duration_minutes !== null && lesson.duration_minutes >= 0) {
+    lessonData.duration_minutes = lesson.duration_minutes;
+  }
+  if (lesson.section_id) {
+    // Validate section_id is a valid UUID before adding
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(lesson.section_id)) {
+      lessonData.section_id = lesson.section_id;
+    } else {
+      console.warn('Invalid section_id format, skipping:', lesson.section_id);
+    }
+  }
+  
+  // #region agent log
+  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:881',message:'Inserting lesson to DB',data:{lessonData,originalLesson:lesson},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  }
+  // #endregion
   
   const { data, error } = await supabaseClient
     .from('course_lessons')
@@ -885,24 +937,54 @@ export async function createLesson(lesson: Omit<CourseLesson, 'id' | 'created_at
     .single();
   
   if (error) {
-    console.error('Error creating lesson:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: (error as any)?.code,
-      details: (error as any)?.details,
-      hint: (error as any)?.hint,
-      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
-    });
-    console.error('Lesson data:', lessonData);
-    return { data: null, error };
+    // Better error logging - extract all possible error information
+    const errorInfo: any = {
+      message: error?.message || (error as any)?.message || 'Unknown error',
+      code: (error as any)?.code || null,
+      details: (error as any)?.details || null,
+      hint: (error as any)?.hint || null,
+    };
+    
+    // Try to get error from Supabase response
+    if ((error as any)?.response) {
+      errorInfo.response = (error as any).response;
+    }
+    
+    // Log the actual error object structure
+    try {
+      errorInfo.fullError = JSON.stringify(error, Object.getOwnPropertyNames(error));
+    } catch (e) {
+      errorInfo.fullError = String(error);
+    }
+    
+    console.error('Error creating lesson:', errorInfo);
+    console.error('Lesson data sent:', JSON.stringify(lessonData, null, 2));
+    
+    // #region agent log
+    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:913',message:'createLesson failed',data:{errorInfo,lessonData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    }
+    // #endregion
+    
+    return { data: null, error: errorInfo };
   }
   
+  // #region agent log
+  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:901',message:'createLesson succeeded',data:{createdLessonId:data?.id,sectionId:data?.section_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  }
+  // #endregion
   
   return { data, error: null };
 }
 
 // Update lesson
 export async function updateLesson(lessonId: string, updates: Partial<CourseLesson>) {
+  // #region agent log
+  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:905',message:'updateLesson called',data:{lessonId,updates},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  }
+  // #endregion
   // Try to use client-side supabase first (for client components)
   // Fall back to server client if needed
   let supabaseClient;
@@ -938,6 +1020,12 @@ export async function updateLesson(lessonId: string, updates: Partial<CourseLess
   delete updateData.course_id;
   delete updateData.created_at;
   
+  // #region agent log
+  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:941',message:'Updating lesson in DB',data:{lessonId,updateData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  }
+  // #endregion
+  
   const { data, error } = await supabaseClient
     .from('course_lessons')
     .update(updateData)
@@ -948,9 +1036,19 @@ export async function updateLesson(lessonId: string, updates: Partial<CourseLess
   if (error) {
     console.error('Error updating lesson:', error);
     console.error('Update data:', updateData);
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:948',message:'updateLesson failed',data:{lessonId,error:error.message,code:(error as any)?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    }
+    // #endregion
     return { data: null, error };
   }
   
+  // #region agent log
+  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/9376a829-ac6f-42e0-8775-b382510aa0ed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/queries/courses.ts:955',message:'updateLesson succeeded',data:{lessonId,updatedLessonId:data?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  }
+  // #endregion
   
   return { data, error: null };
 }
