@@ -1024,13 +1024,6 @@ export default function CourseDetailPage() {
                                           )}
                                         </div>
                                         <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
-                                        {lesson.description && (
-                                          <div 
-                                            className="text-xs sm:text-sm text-gray-600 line-clamp-2 overflow-hidden"
-                                            dangerouslySetInnerHTML={{ __html: lesson.description }}
-                                            dir="rtl"
-                                          />
-                                        )}
                                         {lesson.duration_minutes && (
                                           <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
                                             <Clock className="w-3 h-3" />
@@ -1110,13 +1103,6 @@ export default function CourseDetailPage() {
                                     )}
                                   </div>
                                   <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{lesson.title}</h3>
-                                  {lesson.description && (
-                                    <div 
-                                      className="text-xs sm:text-sm text-gray-600 line-clamp-2 overflow-hidden"
-                                      dangerouslySetInnerHTML={{ __html: lesson.description }}
-                                      dir="rtl"
-                                    />
-                                  )}
                                   {lesson.duration_minutes && (
                                     <div className="flex items-center gap-1 text-xs text-gray-500 mt-1.5 sm:mt-2">
                                       <Clock className="w-3 h-3" />
