@@ -74,8 +74,6 @@ export default function Home() {
   const [showPostForm, setShowPostForm] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
   const [newPostImageUrl, setNewPostImageUrl] = useState('');
-  const [testMode, setTestMode] = useState(false);
-  const [testUserId, setTestUserId] = useState('');
   const [postComments, setPostComments] = useState<Record<string, PostComment[]>>({});
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<Record<string, string | null>>({});
@@ -829,42 +827,37 @@ export default function Home() {
       const { data, error } = await createPost(postData);
       
       if (!error && data) {
-        // Send email notification (always for announcements from admin)
+        // Send email notification to all users (async, don't block UI)
         try {
           // Get author name
           const authorName = currentUser?.display_name || currentUser?.first_name || currentUser?.nickname || 'המנהל';
           
-          const response = await fetch('/api/announcements/send-email', {
+          // Send emails in background (don't wait for response)
+          fetch('/api/announcements/send-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               postId: data.id,
               postContent: newPostContent,
-              postAuthorName: authorName,
-              testUserId: testMode && testUserId.trim() ? testUserId.trim() : undefined
+              postAuthorName: authorName
             })
-          });
-          
-          const result = await response.json();
-          if (response.ok && result.success) {
-            if (testMode && testUserId.trim()) {
-              alert(`✅ הודעה נשלחה בהצלחה ליוזר אחד (טסט)!\nנשלח ל: ${result.results?.[0]?.email || 'לא ידוע'}`);
+          }).then(async (response) => {
+            const result = await response.json();
+            if (response.ok && result.success) {
+              console.log(`✅ הודעה נשלחה בהצלחה ל-${result.sent || 0} משתמשים!`);
             } else {
-              alert(`✅ הודעה נשלחה בהצלחה ל-${result.sent || 0} משתמשים!`);
+              console.error('Error sending announcement emails:', result.error);
             }
-          } else {
-            alert(`⚠️ ההודעה נוצרה, אבל הייתה שגיאה בשליחת המייל: ${result.error || 'שגיאה לא ידועה'}`);
-          }
+          }).catch((emailError) => {
+            console.error('Error sending announcement emails:', emailError);
+          });
         } catch (emailError: any) {
-          console.error('Error sending announcement emails:', emailError);
-          alert(`⚠️ ההודעה נוצרה, אבל הייתה שגיאה בשליחת המייל: ${emailError.message || 'שגיאה לא ידועה'}`);
+          console.error('Error initiating announcement emails:', emailError);
         }
         
         setNewPostContent('');
         setNewPostImageUrl('');
         setShowPostForm(false);
-        setTestMode(false);
-        setTestUserId('');
         await loadData();
       } else {
         const errorMessage = (error as any)?.message || (error as any)?.details || 'שגיאה לא ידועה';
@@ -1562,40 +1555,12 @@ export default function Home() {
                     placeholder="קישור לתמונה (אופציונלי)"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
                   />
-                  {/* Test Mode Option */}
-                  <div className="space-y-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={testMode}
-                        onChange={(e) => {
-                          setTestMode(e.target.checked);
-                          if (!e.target.checked) {
-                            setTestUserId('');
-                          }
-                        }}
-                        className="w-4 h-4 text-[#F52F8E] border-gray-300 rounded focus:ring-[#F52F8E]"
-                      />
-                      <span className="text-sm font-medium text-yellow-800">מצב טסט - שלח רק ליוזר אחד</span>
-                    </label>
-                    {testMode && (
-                      <input
-                        type="text"
-                        value={testUserId}
-                        onChange={(e) => setTestUserId(e.target.value)}
-                        placeholder="הזן User ID לטסט (user_id מהטבלת profiles)"
-                        className="w-full px-3 py-2 text-sm border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white"
-                      />
-                    )}
-                  </div>
                   <div className="flex items-center justify-end gap-2">
                     <button
                       onClick={() => {
                         setShowPostForm(false);
                         setNewPostContent('');
                         setNewPostImageUrl('');
-                        setTestMode(false);
-                        setTestUserId('');
                       }}
                       className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                     >
