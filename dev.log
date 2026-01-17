@@ -1,0 +1,14 @@
+
+> autohub@0.1.0 dev
+> next dev
+
+⚠ Port 3000 is in use by process 24976, using available port 3002 instead.
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3002
+- Network:       http://10.100.102.9:3002
+- Environments: .env.local
+
+✓ Starting...
+⨯ Unable to acquire lock at C:\Users\zerem\Desktop\autohub\.next\dev\lock, is another instance of next dev running?
+  Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
+[?25h

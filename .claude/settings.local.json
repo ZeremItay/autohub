@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(node -e:*)",
+      "Bash(for:*)",
+      "Bash(do sed -i '/# *region agent log/,/# *endregion/d' \"$file\")",
+      "Bash(done)",
+      "Bash(do sed -i '/console\\\\.log/d' \"$file\")",
+      "Bash(find:*)",
+      "Bash(npm run build:*)",
+      "Bash(do grep -n \"emailId:\" \"$file\")",
+      "Bash(if exist .next rmdir /s /q .next)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)",
+      "Bash(test:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "Bash(xargs:*)",
+      "Bash(npm install:*)",
+      "Bash(echo:*)"
+    ]
+  }
+}

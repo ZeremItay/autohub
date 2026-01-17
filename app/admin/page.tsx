@@ -989,6 +989,15 @@ export default function AdminPanel() {
   const [editingQuestion, setEditingQuestion] = useState<string | null>(null)
   const [questionAnswer, setQuestionAnswer] = useState<string>('')
   const [addToQA, setAddToQA] = useState<boolean>(false)
+  const [showPointsBadgesModal, setShowPointsBadgesModal] = useState(false)
+  const [selectedUserForPoints, setSelectedUserForPoints] = useState<any>(null)
+  const [pointsHistory, setPointsHistory] = useState<any[]>([])
+  const [userBadges, setUserBadges] = useState<any[]>([])
+  const [availableBadges, setAvailableBadges] = useState<any[]>([])
+  const [pointsBadgesTab, setPointsBadgesTab] = useState<'points' | 'history' | 'badges'>('points')
+  const [pointsEditValue, setPointsEditValue] = useState<number>(0)
+  const [loadingPointsHistory, setLoadingPointsHistory] = useState(false)
+  const [loadingUserBadges, setLoadingUserBadges] = useState(false)
   
   // Calculate selected date for events DatePicker
   const eventSelectedDate = useMemo(() => {
@@ -1742,6 +1751,112 @@ export default function AdminPanel() {
   function closeCourseAssignmentModal() {
     setSelectedUserForCourses(null)
     setUserEnrollments([])
+  }
+
+  async function loadUserPointsData(userId: string) {
+    setLoadingPointsHistory(true)
+    setLoadingUserBadges(true)
+    
+    try {
+      // Load points history
+      const historyResponse = await fetch(`/api/admin/users/${userId}/points-history`)
+      if (historyResponse.ok) {
+        const { data } = await historyResponse.json()
+        setPointsHistory(data || [])
+      }
+      
+      // Load user badges
+      const badgesResponse = await fetch(`/api/admin/users/${userId}/badges`)
+      if (badgesResponse.ok) {
+        const { data } = await badgesResponse.json()
+        setUserBadges(data || [])
+      }
+      
+      // Load available badges
+      const { getAllBadges } = await import('@/lib/queries/badges')
+      const { data: allBadges } = await getAllBadges()
+      setAvailableBadges(allBadges || [])
+    } catch (error) {
+      console.error('Error loading points data:', error)
+    } finally {
+      setLoadingPointsHistory(false)
+      setLoadingUserBadges(false)
+    }
+  }
+
+  async function handleUpdatePoints() {
+    if (!selectedUserForPoints) return
+    
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedUserForPoints.id,
+          points: parseInt(pointsEditValue.toString()) || 0
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (response.ok && !result.error) {
+        alert('הנקודות עודכנו בהצלחה!')
+        await loadData()
+        await loadUserPointsData(selectedUserForPoints.user_id || selectedUserForPoints.id)
+        setPointsEditValue(result.data?.points || 0)
+      } else {
+        alert(`שגיאה בעדכון הנקודות: ${result.error || 'שגיאה לא ידועה'}`)
+      }
+    } catch (error: any) {
+      console.error('Error updating points:', error)
+      alert(`שגיאה בעדכון הנקודות: ${error.message || 'שגיאה לא ידועה'}`)
+    }
+  }
+
+  async function handleAwardBadge(badgeId: string) {
+    if (!selectedUserForPoints) return
+    
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUserForPoints.user_id || selectedUserForPoints.id}/badges`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ badge_id: badgeId })
+      })
+      
+      const result = await response.json()
+      
+      if (response.ok && !result.error) {
+        alert('התג הוענק בהצלחה!')
+        await loadUserPointsData(selectedUserForPoints.user_id || selectedUserForPoints.id)
+      } else {
+        alert(`שגיאה בהענקת התג: ${result.error || 'שגיאה לא ידועה'}`)
+      }
+    } catch (error: any) {
+      console.error('Error awarding badge:', error)
+      alert(`שגיאה בהענקת התג: ${error.message || 'שגיאה לא ידועה'}`)
+    }
+  }
+
+  async function handleRemoveBadge(badgeId: string) {
+    if (!selectedUserForPoints || !confirm('האם אתה בטוח שברצונך להסיר את התג הזה?')) return
+    
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUserForPoints.user_id || selectedUserForPoints.id}/badges?badge_id=${badgeId}`, {
+        method: 'DELETE'
+      })
+      
+      const result = await response.json()
+      
+      if (response.ok && !result.error) {
+        alert('התג הוסר בהצלחה!')
+        await loadUserPointsData(selectedUserForPoints.user_id || selectedUserForPoints.id)
+      } else {
+        alert(`שגיאה בהסרת התג: ${result.error || 'שגיאה לא ידועה'}`)
+      }
+    } catch (error: any) {
+      console.error('Error removing badge:', error)
+      alert(`שגיאה בהסרת התג: ${error.message || 'שגיאה לא ידועה'}`)
+    }
   }
 
   async function handleCreate() {
@@ -7275,6 +7390,20 @@ export default function AdminPanel() {
                             <BookOpen className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={async () => {
+                              setSelectedUserForPoints(user)
+                              setPointsEditValue(user.points || 0)
+                              setPointsBadgesTab('points')
+                              setShowPointsBadgesModal(true)
+                              // Load points history and badges
+                              await loadUserPointsData(user.user_id || user.id)
+                            }}
+                            className="p-2 text-purple-600 hover:bg-purple-50 rounded"
+                            title="נקודות ותגים"
+                          >
+                            <Trophy className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => {
                               setEditing(user.id)
                               // Make sure role_id is set correctly
@@ -9615,6 +9744,248 @@ export default function AdminPanel() {
           }}
           isAdmin={isAuthorized}
         />
+      )}
+
+      {/* Points and Badges Management Modal */}
+      {showPointsBadgesModal && selectedUserForPoints && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-[#F52F8E]">
+                  ניהול נקודות ותגים - {selectedUserForPoints.display_name || selectedUserForPoints.nickname || 'משתמש'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowPointsBadgesModal(false)
+                    setSelectedUserForPoints(null)
+                    setPointsHistory([])
+                    setUserBadges([])
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200">
+              <button
+                onClick={() => setPointsBadgesTab('points')}
+                className={`flex-1 px-6 py-3 font-medium transition-colors ${
+                  pointsBadgesTab === 'points'
+                    ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
+                    : 'text-gray-600 hover:text-[#F52F8E]'
+                }`}
+              >
+                עריכת נקודות
+              </button>
+              <button
+                onClick={() => setPointsBadgesTab('history')}
+                className={`flex-1 px-6 py-3 font-medium transition-colors ${
+                  pointsBadgesTab === 'history'
+                    ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
+                    : 'text-gray-600 hover:text-[#F52F8E]'
+                }`}
+              >
+                היסטוריית נקודות
+              </button>
+              <button
+                onClick={() => setPointsBadgesTab('badges')}
+                className={`flex-1 px-6 py-3 font-medium transition-colors ${
+                  pointsBadgesTab === 'badges'
+                    ? 'text-[#F52F8E] border-b-2 border-[#F52F8E]'
+                    : 'text-gray-600 hover:text-[#F52F8E]'
+                }`}
+              >
+                ניהול תגים
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {pointsBadgesTab === 'points' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      מספר נקודות נוכחי
+                    </label>
+                    <div className="text-2xl font-bold text-[#F52F8E] mb-4">
+                      {selectedUserForPoints.points || 0} נקודות
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      עדכן נקודות
+                    </label>
+                    <input
+                      type="number"
+                      value={pointsEditValue}
+                      onChange={(e) => setPointsEditValue(parseInt(e.target.value) || 0)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
+                      min="0"
+                    />
+                    <p className="text-sm text-gray-500 mt-2">
+                      שינוי: {pointsEditValue - (selectedUserForPoints.points || 0) >= 0 ? '+' : ''}
+                      {pointsEditValue - (selectedUserForPoints.points || 0)} נקודות
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleUpdatePoints}
+                    className="w-full px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                  >
+                    עדכן נקודות
+                  </button>
+                </div>
+              )}
+
+              {pointsBadgesTab === 'history' && (
+                <div className="space-y-4">
+                  {loadingPointsHistory ? (
+                    <div className="text-center py-8">טוען...</div>
+                  ) : pointsHistory.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">אין היסטוריית נקודות</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-right py-3 px-4">פעולה</th>
+                            <th className="text-right py-3 px-4">נקודות</th>
+                            <th className="text-right py-3 px-4">תאריך</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pointsHistory.map((entry: any) => (
+                            <tr key={entry.id} className="border-b border-gray-100">
+                              <td className="py-3 px-4">
+                                {entry.action_name || entry.action || '-'}
+                              </td>
+                              <td className={`py-3 px-4 font-semibold ${
+                                entry.points >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {entry.points >= 0 ? '+' : ''}{entry.points}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-gray-600">
+                                {new Date(entry.created_at).toLocaleString('he-IL')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {pointsBadgesTab === 'badges' && (
+                <div className="space-y-6">
+                  {/* User's Current Badges */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">תגים קיימים</h3>
+                    {loadingUserBadges ? (
+                      <div className="text-center py-4">טוען...</div>
+                    ) : userBadges.length === 0 ? (
+                      <div className="text-center py-4 text-gray-500">אין תגים</div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {userBadges.map((userBadge: any) => {
+                          const badge = userBadge.badge || userBadge
+                          return (
+                            <div
+                              key={userBadge.id}
+                              className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span
+                                  style={{ color: badge.icon_color || '#FFD700' }}
+                                  className="text-3xl"
+                                >
+                                  {badge.icon || '⭐'}
+                                </span>
+                                <div>
+                                  <div className="font-medium">{badge.name || '-'}</div>
+                                  <div className="text-sm text-gray-600">
+                                    {badge.description || '-'}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    הוענק: {new Date(userBadge.earned_at).toLocaleDateString('he-IL')}
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleRemoveBadge(badge.id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded"
+                                title="הסר תג"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Available Badges to Award */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">תגים זמינים להענקה</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {availableBadges
+                        .filter((badge: any) => 
+                          badge.is_active && 
+                          !userBadges.some((ub: any) => 
+                            (ub.badge?.id || ub.badge_id) === badge.id
+                          )
+                        )
+                        .map((badge: any) => (
+                          <div
+                            key={badge.id}
+                            className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:border-[#F52F8E] transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span
+                                style={{ color: badge.icon_color || '#FFD700' }}
+                                className="text-3xl"
+                              >
+                                {badge.icon || '⭐'}
+                              </span>
+                              <div>
+                                <div className="font-medium">{badge.name || '-'}</div>
+                                <div className="text-sm text-gray-600">
+                                  {badge.description || '-'}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  סף נקודות: {badge.points_threshold || 0}
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleAwardBadge(badge.id)}
+                              className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-[#E01E7A] transition-colors"
+                            >
+                              הענק תג
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                    {availableBadges.filter((badge: any) => 
+                      badge.is_active && 
+                      !userBadges.some((ub: any) => 
+                        (ub.badge?.id || ub.badge_id) === badge.id
+                      )
+                    ).length === 0 && (
+                      <div className="text-center py-4 text-gray-500">
+                        כל התגים הזמינים כבר הוענקו למשתמש
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
