@@ -193,21 +193,25 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    // Send emails in batches to avoid rate limiting and timeout
+    // Send emails sequentially to avoid rate limiting
+    // Resend has rate limits, so we send one at a time with delays
     const results: Array<{ user_id: string; email: string; status: string; error?: any }> = [];
     let successCount = 0;
     let failCount = 0;
 
-    // Send emails in batches to avoid rate limiting
-    const batchSize = 20; // Increased batch size for faster sending
-    console.log(`📧 [send-email] Starting to send ${usersToNotify.length} emails in batches of ${batchSize}`);
+    console.log(`📧 [send-email] Starting to send ${usersToNotify.length} emails sequentially`);
     
-    for (let i = 0; i < usersToNotify.length; i += batchSize) {
-      const batch = usersToNotify.slice(i, i + batchSize);
-      console.log(`📧 [send-email] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(usersToNotify.length / batchSize)} (${batch.length} emails)`);
+    for (let i = 0; i < usersToNotify.length; i++) {
+      const user = usersToNotify[i];
       
-      // Send emails in parallel within each batch
-      const batchPromises = batch.map(async (user) => {
+      if (i > 0 && i % 10 === 0) {
+        console.log(`📧 [send-email] Progress: ${i}/${usersToNotify.length} (${successCount} sent, ${failCount} failed)`);
+      }
+      
+      let retries = 3;
+      let success = false;
+      
+      while (retries > 0 && !success) {
         try {
           const resendResponse = await fetch('https://api.resend.com/emails', {
             method: 'POST',
@@ -224,12 +228,29 @@ export async function POST(request: NextRequest) {
             }),
           });
 
-          const emailData = await resendResponse.json();
+          let emailData: any = {};
+          try {
+            emailData = await resendResponse.json();
+          } catch (jsonError) {
+            // If response is not JSON, try to get text
+            const text = await resendResponse.text().catch(() => '');
+            emailData = { message: text || `HTTP ${resendResponse.status}`, status: resendResponse.status };
+          }
 
           if (resendResponse.ok) {
             successCount++;
             results.push({ user_id: user.user_id, email: user.email, status: 'success' });
+            success = true;
           } else {
+            // Check if it's a rate limit error (429) - retry after delay
+            if (resendResponse.status === 429 && retries > 1) {
+              const retryDelay = 5000; // 5 seconds for rate limit
+              console.warn(`Rate limit hit for ${user.email}, retrying in ${retryDelay/1000} seconds... (${retries-1} retries left)`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+              retries--;
+              continue;
+            }
+            
             failCount++;
             results.push({ 
               user_id: user.user_id, 
@@ -237,25 +258,34 @@ export async function POST(request: NextRequest) {
               status: 'failed', 
               error: emailData 
             });
-            console.error(`Failed to send email to ${user.email}:`, emailData);
+            console.error(`Failed to send email to ${user.email}:`, {
+              status: resendResponse.status,
+              error: emailData
+            });
+            success = true; // Don't retry on non-rate-limit errors
           }
         } catch (error: any) {
-          failCount++;
-          results.push({ 
-            user_id: user.user_id, 
-            email: user.email, 
-            status: 'error', 
-            error: error.message 
-          });
-          console.error(`Error sending email to ${user.email}:`, error);
+          retries--;
+          if (retries === 0) {
+            failCount++;
+            results.push({ 
+              user_id: user.user_id, 
+              email: user.email, 
+              status: 'error', 
+              error: error.message 
+            });
+            console.error(`Error sending email to ${user.email} after retries:`, error);
+          } else {
+            // Retry after delay
+            const retryDelay = 2000; // 2 seconds for network errors
+            console.warn(`Retrying ${user.email} in ${retryDelay/1000} seconds... (${retries} retries left)`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+          }
         }
-      });
-
-      // Wait for batch to complete before moving to next batch
-      await Promise.all(batchPromises);
+      }
       
-      // Small delay between batches to avoid rate limiting
-      if (i + batchSize < usersToNotify.length) {
+      // Small delay between emails to avoid rate limiting (200ms between emails)
+      if (i < usersToNotify.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
