@@ -49,7 +49,7 @@ export async function getProfile(userId: string) {
 
   try {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('public_profiles')
       .select(`
         *,
         roles:role_id (
@@ -86,7 +86,7 @@ export async function getProfile(userId: string) {
 // Get profile by id (primary key) with role
 export async function getProfileById(profileId: string) {
   const { data, error } = await supabase
-    .from('profiles')
+    .from('public_profiles')
     .select(`
       *,
       roles:role_id (
@@ -216,7 +216,7 @@ export async function getAllProfiles() {
 
   const result = await withQueryTimeout(
     supabase
-      .from('profiles')
+      .from('public_profiles')
       .select(`
         id,
         user_id,
@@ -271,7 +271,7 @@ export async function getProfilesByIds(userIds: string[]) {
 
   // Use single query for single user, batch for multiple
   const query = supabase
-    .from('profiles')
+    .from('public_profiles')
     .select(`
       id,
       user_id,
@@ -314,7 +314,7 @@ export async function getCurrentUserProfile() {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       const { data: profile, error } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select(`
           id,
           user_id,
