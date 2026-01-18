@@ -114,12 +114,27 @@ export async function getProfileWithRole(userId: string) {
   return getProfile(userId)
 }
 
+// Fields that should never be updated by regular users
+const PROTECTED_FIELDS = ['role_id', 'role', 'id', 'user_id', 'created_at'] as const
+
+// Helper function to remove protected fields from updates
+function sanitizeProfileUpdates<T extends Record<string, unknown>>(updates: T): Omit<T, typeof PROTECTED_FIELDS[number]> {
+  const sanitized = { ...updates }
+  for (const field of PROTECTED_FIELDS) {
+    delete sanitized[field as keyof typeof sanitized]
+  }
+  return sanitized
+}
+
 // Update profile by user_id
 export async function updateProfile(userId: string, updates: Partial<Profile>) {
+  // Remove protected fields to prevent privilege escalation
+  const safeUpdates = sanitizeProfileUpdates(updates)
+
   const { data, error } = await supabase
     .from('profiles')
     .update({
-      ...updates,
+      ...safeUpdates,
       updated_at: new Date().toISOString()
     })
     .eq('user_id', userId)
@@ -144,10 +159,13 @@ export async function updateProfile(userId: string, updates: Partial<Profile>) {
 
 // Update profile by id (primary key)
 export async function updateProfileById(profileId: string, updates: Partial<Profile>) {
+  // Remove protected fields to prevent privilege escalation
+  const safeUpdates = sanitizeProfileUpdates(updates)
+
   const { data, error } = await supabase
     .from('profiles')
     .update({
-      ...updates,
+      ...safeUpdates,
       updated_at: new Date().toISOString()
     })
     .eq('id', profileId)
