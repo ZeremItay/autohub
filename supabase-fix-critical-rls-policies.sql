@@ -15,6 +15,11 @@
 DROP POLICY IF EXISTS "Allow users to read own progress" ON course_progress;
 DROP POLICY IF EXISTS "Allow users to insert own progress" ON course_progress;
 DROP POLICY IF EXISTS "Allow users to update own progress" ON course_progress;
+-- Drop possibly existing correct policies to ensure clean state
+DROP POLICY IF EXISTS "Users can view own progress" ON course_progress;
+DROP POLICY IF EXISTS "Users can insert own progress" ON course_progress;
+DROP POLICY IF EXISTS "Users can update own progress" ON course_progress;
+DROP POLICY IF EXISTS "Only admins can delete course progress" ON course_progress;
 
 -- Fixed policy: Users can only read their own progress (or admins can read all)
 CREATE POLICY "Users can view own progress" ON course_progress
@@ -60,6 +65,10 @@ CREATE POLICY "Users can update own progress" ON course_progress
 -- Drop broken policies
 DROP POLICY IF EXISTS "Allow authenticated users to insert courses" ON courses;
 DROP POLICY IF EXISTS "Allow authenticated users to update courses" ON courses;
+-- Drop possibly existing correct policies
+DROP POLICY IF EXISTS "Only admins can insert courses" ON courses;
+DROP POLICY IF EXISTS "Only admins can update courses" ON courses;
+DROP POLICY IF EXISTS "Only admins can delete courses" ON courses;
 
 -- Fixed policy: Only admins can insert courses
 CREATE POLICY "Only admins can insert courses" ON courses
@@ -96,6 +105,10 @@ CREATE POLICY "Only admins can update courses" ON courses
 
 -- Drop the overly permissive public policy
 DROP POLICY IF EXISTS "Anyone can view profiles" ON profiles;
+-- Drop possibly existing correct policies
+DROP POLICY IF EXISTS "Authenticated users can view public profile fields" ON profiles;
+DROP POLICY IF EXISTS "Users can view their own complete profile" ON profiles;
+DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
 
 -- Create separate policies for authenticated vs public access
 
@@ -131,6 +144,11 @@ DROP POLICY IF EXISTS "Allow public read access to recordings" ON recordings;
 DROP POLICY IF EXISTS "Allow authenticated users to insert recordings" ON recordings;
 DROP POLICY IF EXISTS "Allow authenticated users to update recordings" ON recordings;
 DROP POLICY IF EXISTS "Allow authenticated users to delete recordings" ON recordings;
+-- Drop possibly existing correct policies
+DROP POLICY IF EXISTS "Premium members can view recordings" ON recordings;
+DROP POLICY IF EXISTS "Only admins can insert recordings" ON recordings;
+DROP POLICY IF EXISTS "Only admins can update recordings" ON recordings;
+DROP POLICY IF EXISTS "Only admins can delete recordings" ON recordings;
 
 -- Fixed policy: Only premium members and admins can view recordings
 -- This enforces the paywall at the database level
