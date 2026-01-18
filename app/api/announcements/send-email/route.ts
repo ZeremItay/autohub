@@ -9,9 +9,9 @@ export async function POST(request: NextRequest) {
   console.log('📧 [send-email] API called');
   try {
     const body = await request.json();
-    const { postId, postContent, postAuthorName, testUserId } = body;
+    const { postId, postContent, postAuthorName, testUserId, excludeSent } = body;
     
-    console.log('📧 [send-email] Request body:', { postId, postContentLength: postContent?.length, postAuthorName, testUserId });
+    console.log('📧 [send-email] Request body:', { postId, postContentLength: postContent?.length, postAuthorName, testUserId, excludeSent });
 
     if (!postId || !postContent) {
       console.error('📧 [send-email] Missing required fields');
@@ -120,9 +120,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // If excludeSent is true, filter out users who already received this email
+    let excludedCount = 0;
+    if (excludeSent && postId) {
+      const { data: sentEmails, error: sentEmailsError } = await supabaseAdmin
+        .from('announcement_email_sent')
+        .select('user_id')
+        .eq('post_id', postId);
+
+      if (sentEmailsError) {
+        console.warn('📧 [send-email] Error checking sent emails:', sentEmailsError);
+      } else if (sentEmails && sentEmails.length > 0) {
+        const sentUserIds = new Set(sentEmails.map(e => e.user_id));
+        excludedCount = usersToNotify.filter(u => sentUserIds.has(u.user_id)).length;
+        usersToNotify = usersToNotify.filter(u => !sentUserIds.has(u.user_id));
+        console.log(`📧 [send-email] Excluded ${excludedCount} users who already received this email. ${usersToNotify.length} users remaining.`);
+      }
+    }
+
     if (usersToNotify.length === 0) {
       return NextResponse.json(
-        { error: 'No users found to notify' },
+        { 
+          error: 'No users found to notify',
+          excluded: excludedCount,
+          message: excludedCount > 0 
+            ? `All users have already received this email (${excludedCount} users excluded)`
+            : 'No users found to notify'
+        },
         { status: 404 }
       );
     }
@@ -193,16 +217,18 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    // Send emails in batches - Resend supports up to 50 recipients per request
-    // This is much faster than sending one by one and prevents timeout
+    // Send emails using Resend Batch API
+    // Batch API allows sending up to 100 emails per request, and each recipient
+    // receives a separate email (they cannot see each other's addresses)
+    // This is much faster than one-by-one and scales to 1000+ users
     const results: Array<{ user_id: string; email: string; status: string; error?: any }> = [];
     let successCount = 0;
     let failCount = 0;
 
-    const batchSize = 50; // Resend allows up to 50 recipients per request
+    const batchSize = 100; // Resend Batch API allows up to 100 emails per request
     const totalBatches = Math.ceil(usersToNotify.length / batchSize);
     
-    console.log(`📧 [send-email] Starting to send ${usersToNotify.length} emails in ${totalBatches} batches of ${batchSize}`);
+    console.log(`📧 [send-email] Starting to send ${usersToNotify.length} emails in ${totalBatches} batches of ${batchSize} (using Batch API for privacy)`);
     
     for (let i = 0; i < usersToNotify.length; i += batchSize) {
       const batch = usersToNotify.slice(i, i + batchSize);
@@ -215,22 +241,24 @@ export async function POST(request: NextRequest) {
       
       while (retries > 0 && !batchSuccess) {
         try {
-          // Send to all recipients in batch at once
-          const recipientEmails = batch.map(u => u.email);
+          // Prepare batch emails - each recipient gets their own email object
+          // This ensures privacy - each recipient only sees their own email
+          // Resend Batch API: send array of email objects to /emails endpoint
+          const batchEmails = batch.map(user => ({
+            from: 'מועדון האוטומטורים <noreply@autohub.co.il>',
+            to: user.email, // Single recipient per email object - ensures privacy
+            subject: `📢 הודעה חדשה ממועדון האוטומטורים`,
+            html: emailHtml,
+            text: plainTextContent,
+          }));
           
-          const resendResponse = await fetch('https://api.resend.com/emails', {
+          const resendResponse = await fetch('https://api.resend.com/emails/batch', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${RESEND_API_KEY}`,
             },
-            body: JSON.stringify({
-              from: 'מועדון האוטומטורים <noreply@autohub.co.il>',
-              to: recipientEmails, // Send to all recipients in batch
-              subject: `📢 הודעה חדשה ממועדון האוטומטורים`,
-              html: emailHtml,
-              text: plainTextContent,
-            }),
+            body: JSON.stringify(batchEmails),
           });
 
           let emailData: any = {};
@@ -248,12 +276,29 @@ export async function POST(request: NextRequest) {
           }
 
           if (resendResponse.ok) {
-            // All emails in batch were sent successfully
-            batch.forEach(user => {
-              successCount++;
-              results.push({ user_id: user.user_id, email: user.email, status: 'success' });
+            // Batch API returns an array of results, one per email
+            const batchResults = Array.isArray(emailData) ? emailData : [emailData];
+            
+            // Process results for each recipient
+            batch.forEach((user, index) => {
+              const result = batchResults[index];
+              if (result && result.id) {
+                // Email was accepted for sending
+                successCount++;
+                results.push({ user_id: user.user_id, email: user.email, status: 'success' });
+              } else {
+                // Email failed
+                failCount++;
+                results.push({ 
+                  user_id: user.user_id, 
+                  email: user.email, 
+                  status: 'failed', 
+                  error: result || { message: 'Unknown error in batch response' }
+                });
+              }
             });
-            console.log(`📧 [send-email] Batch ${batchNumber} sent successfully: ${batch.length} emails`);
+            
+            console.log(`📧 [send-email] Batch ${batchNumber} processed: ${batch.length} emails`);
             batchSuccess = true;
           } else {
             // Log detailed error information
@@ -343,6 +388,25 @@ export async function POST(request: NextRequest) {
 
     console.log(`📧 [send-email] Completed: ${successCount} sent, ${failCount} failed out of ${usersToNotify.length} total`);
     
+    // Insert tracking records for successfully sent emails
+    if (successCount > 0 && postId) {
+      const successfulUsers = results
+        .filter(r => r.status === 'success')
+        .map(r => ({ post_id: postId, user_id: r.user_id }));
+      
+      if (successfulUsers.length > 0) {
+        const { error: insertError } = await supabaseAdmin
+          .from('announcement_email_sent')
+          .insert(successfulUsers);
+        
+        if (insertError) {
+          console.error('📧 [send-email] Error inserting tracking records:', insertError);
+        } else {
+          console.log(`📧 [send-email] Inserted ${successfulUsers.length} tracking records`);
+        }
+      }
+    }
+    
     // Log summary of failures
     if (failCount > 0) {
       const failedResults = results.filter(r => r.status !== 'success');
@@ -369,6 +433,7 @@ export async function POST(request: NextRequest) {
       sent: successCount,
       failed: failCount,
       total: usersToNotify.length,
+      excluded: excludeSent ? excludedCount : 0,
       results: results.slice(0, 20), // Return first 20 results to see more errors
       testMode: !!testUserId
     });

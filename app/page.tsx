@@ -23,6 +23,7 @@ import {
   Megaphone,
   FileText,
   GraduationCap,
+  Mail,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getPosts, createPost, deletePost, updatePost, toggleLike, checkUserLikedPost, checkUserLikedPosts, getPostLikes, type PostWithProfile } from '@/lib/queries/posts';
@@ -89,6 +90,13 @@ export default function Home() {
   const [selectedPostForLikes, setSelectedPostForLikes] = useState<string | null>(null);
   const [postLikes, setPostLikes] = useState<Record<string, Array<{user_id: string, display_name: string, avatar_url: string | null, created_at: string}>>>({});
   const [loadingLikes, setLoadingLikes] = useState<Record<string, boolean>>({});
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailModalPostId, setEmailModalPostId] = useState<string | null>(null);
+  const [emailSendingStatus, setEmailSendingStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [emailSentCount, setEmailSentCount] = useState<number>(0);
+  const [emailExcludedCount, setEmailExcludedCount] = useState<number>(0);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailStatusCount, setEmailStatusCount] = useState<number | null>(null);
 
   // Ref to prevent parallel calls to loadData
   const isLoadingDataRef = useRef(false);
@@ -1311,6 +1319,134 @@ export default function Home() {
     }
   }
 
+  // Helper function to check email status for a post
+  async function checkEmailStatus(postId: string): Promise<number> {
+    try {
+      const { data, error } = await supabase
+        .from('announcement_email_sent')
+        .select('id', { count: 'exact' })
+        .eq('post_id', postId);
+
+      if (error) {
+        console.error('Error checking email status:', error);
+        return 0;
+      }
+
+      return data?.length || 0;
+    } catch (error) {
+      console.error('Error checking email status:', error);
+      return 0;
+    }
+  }
+
+  // Open email sending modal
+  async function handleSendEmail(postId: string) {
+    setEmailModalPostId(postId);
+    setShowEmailModal(true);
+    setEmailSendingStatus('idle');
+    setEmailSentCount(0);
+    setEmailExcludedCount(0);
+    setEmailError(null);
+    
+    // Check how many users already received this email
+    const count = await checkEmailStatus(postId);
+    setEmailStatusCount(count);
+  }
+
+  // Send email to all users
+  async function handleSendEmailToAll() {
+    if (!emailModalPostId) return;
+    
+    const post = announcements.find(p => p.id === emailModalPostId);
+    if (!post) {
+      alert('הודעה לא נמצאה');
+      return;
+    }
+
+    setEmailSendingStatus('sending');
+    setEmailError(null);
+
+    try {
+      const response = await fetch('/api/announcements/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          postId: emailModalPostId,
+          postContent: post.content,
+          postAuthorName: post.profile?.display_name || 'המנהל',
+          excludeSent: false,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'שגיאה בשליחת המיילים');
+      }
+
+      setEmailSendingStatus('success');
+      setEmailSentCount(result.sent || 0);
+      setEmailExcludedCount(result.excluded || 0);
+      
+      // Refresh email status count
+      const count = await checkEmailStatus(emailModalPostId);
+      setEmailStatusCount(count);
+    } catch (error: any) {
+      console.error('Error sending emails:', error);
+      setEmailSendingStatus('error');
+      setEmailError(error.message || 'שגיאה בשליחת המיילים');
+    }
+  }
+
+  // Send email only to users who haven't received it
+  async function handleSendEmailToUnsent() {
+    if (!emailModalPostId) return;
+    
+    const post = announcements.find(p => p.id === emailModalPostId);
+    if (!post) {
+      alert('הודעה לא נמצאה');
+      return;
+    }
+
+    setEmailSendingStatus('sending');
+    setEmailError(null);
+
+    try {
+      const response = await fetch('/api/announcements/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          postId: emailModalPostId,
+          postContent: post.content,
+          postAuthorName: post.profile?.display_name || 'המנהל',
+          excludeSent: true,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.message || 'שגיאה בשליחת המיילים');
+      }
+
+      setEmailSendingStatus('success');
+      setEmailSentCount(result.sent || 0);
+      setEmailExcludedCount(result.excluded || 0);
+      
+      // Refresh email status count
+      const count = await checkEmailStatus(emailModalPostId);
+      setEmailStatusCount(count);
+    } catch (error: any) {
+      console.error('Error sending emails:', error);
+      setEmailSendingStatus('error');
+      setEmailError(error.message || 'שגיאה בשליחת המיילים');
+    }
+  }
+
   // Filter friends based on active tab
   // For "active" tab, show all friends (is_online is not reliable in real-time)
   // Only show online indicator for the current logged-in user
@@ -1687,13 +1823,22 @@ export default function Home() {
                         </div>
                         <div className="flex items-center gap-2">
                           {userIsAdmin && (
-                            <button
-                              onClick={() => handleEditPost(post)}
-                              className="text-blue-500 hover:text-blue-700 transition-colors p-1 rounded-lg hover:bg-blue-50"
-                              title="ערוך פוסט"
-                            >
-                              <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleSendEmail(post.id)}
+                                className="text-green-600 hover:text-green-700 transition-colors p-1 rounded-lg hover:bg-green-50"
+                                title="שלח מייל"
+                              >
+                                <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
+                              </button>
+                              <button
+                                onClick={() => handleEditPost(post)}
+                                className="text-blue-500 hover:text-blue-700 transition-colors p-1 rounded-lg hover:bg-blue-50"
+                                title="ערוך פוסט"
+                              >
+                                <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+                              </button>
+                            </>
                           )}
                           {currentUser && (currentUser.id === post.user_id || currentUser.user_id === post.user_id) && (
                             <button
@@ -2228,6 +2373,147 @@ export default function Home() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email Sending Modal */}
+      {showEmailModal && emailModalPostId && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && emailSendingStatus !== 'sending') {
+              setShowEmailModal(false);
+              setEmailModalPostId(null);
+              setEmailSendingStatus('idle');
+              setEmailSentCount(0);
+              setEmailExcludedCount(0);
+              setEmailError(null);
+              setEmailStatusCount(null);
+            }
+          }}
+        >
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" dir="rtl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">שלח מייל להודעה</h2>
+              {emailSendingStatus !== 'sending' && (
+                <button
+                  onClick={() => {
+                    setShowEmailModal(false);
+                    setEmailModalPostId(null);
+                    setEmailSendingStatus('idle');
+                    setEmailSentCount(0);
+                    setEmailExcludedCount(0);
+                    setEmailError(null);
+                    setEmailStatusCount(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            {(() => {
+              const post = announcements.find(p => p.id === emailModalPostId);
+              if (!post) return null;
+
+              const postPreview = stripHtml(post.content).substring(0, 100);
+              
+              return (
+                <div className="space-y-4">
+                  {/* Post Preview */}
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p className="text-sm text-gray-600 mb-2">תצוגה מקדימה של ההודעה:</p>
+                    <p className="text-sm text-gray-800 line-clamp-3">
+                      {postPreview}{postPreview.length >= 100 ? '...' : ''}
+                    </p>
+                  </div>
+
+                  {/* Email Status Info */}
+                  {emailStatusCount !== null && (
+                    emailStatusCount > 0 ? (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-sm text-blue-800">
+                          {emailStatusCount} משתמשים כבר קיבלו את המייל הזה
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p className="text-sm text-yellow-800">
+                          ⚠️ אין מעקב על מיילים שנשלחו בעבר. אם נשלחו מיילים לפני הוספת הפיצ'ר הזה, הם לא נרשמו במערכת.
+                        </p>
+                      </div>
+                    )
+                  )}
+
+                  {/* Loading State */}
+                  {emailSendingStatus === 'sending' && (
+                    <div className="text-center py-4">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#F52F8E]"></div>
+                      <p className="mt-2 text-sm text-gray-600">שולח מיילים...</p>
+                    </div>
+                  )}
+
+                  {/* Success State */}
+                  {emailSendingStatus === 'success' && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <p className="text-green-800 font-semibold mb-2">✅ המיילים נשלחו בהצלחה!</p>
+                      <p className="text-sm text-green-700">
+                        נשלחו {emailSentCount} מיילים
+                        {emailExcludedCount > 0 && ` (${emailExcludedCount} משתמשים כבר קיבלו את המייל והוחרגו)`}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Error State */}
+                  {emailSendingStatus === 'error' && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-red-800 font-semibold mb-2">❌ שגיאה בשליחת המיילים</p>
+                      <p className="text-sm text-red-700">{emailError || 'אירעה שגיאה לא ידועה'}</p>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  {emailSendingStatus === 'idle' && (
+                    <div className="space-y-3">
+                      <button
+                        onClick={handleSendEmailToAll}
+                        className="w-full px-4 py-3 bg-gradient-to-r from-[#F52F8E] to-pink-500 text-white rounded-lg hover:from-[#E01E7A] hover:to-pink-600 transition-all font-semibold flex items-center justify-center gap-2"
+                      >
+                        <Mail className="w-5 h-5" />
+                        שלח לכולם
+                      </button>
+                      <button
+                        onClick={handleSendEmailToUnsent}
+                        className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all font-semibold flex items-center justify-center gap-2"
+                      >
+                        <Mail className="w-5 h-5" />
+                        שלח רק למי שלא קיבל
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Close Button (after success/error) */}
+                  {(emailSendingStatus === 'success' || emailSendingStatus === 'error') && (
+                    <button
+                      onClick={() => {
+                        setShowEmailModal(false);
+                        setEmailModalPostId(null);
+                        setEmailSendingStatus('idle');
+                        setEmailSentCount(0);
+                        setEmailExcludedCount(0);
+                        setEmailError(null);
+                        setEmailStatusCount(null);
+                      }}
+                      className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                    >
+                      סגור
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
