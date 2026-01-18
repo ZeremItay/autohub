@@ -193,26 +193,31 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    // Send emails sequentially to avoid rate limiting
-    // Resend has rate limits, so we send one at a time with delays
+    // Send emails in batches - Resend supports up to 50 recipients per request
+    // This is much faster than sending one by one and prevents timeout
     const results: Array<{ user_id: string; email: string; status: string; error?: any }> = [];
     let successCount = 0;
     let failCount = 0;
 
-    console.log(`📧 [send-email] Starting to send ${usersToNotify.length} emails sequentially`);
+    const batchSize = 50; // Resend allows up to 50 recipients per request
+    const totalBatches = Math.ceil(usersToNotify.length / batchSize);
     
-    for (let i = 0; i < usersToNotify.length; i++) {
-      const user = usersToNotify[i];
+    console.log(`📧 [send-email] Starting to send ${usersToNotify.length} emails in ${totalBatches} batches of ${batchSize}`);
+    
+    for (let i = 0; i < usersToNotify.length; i += batchSize) {
+      const batch = usersToNotify.slice(i, i + batchSize);
+      const batchNumber = Math.floor(i / batchSize) + 1;
       
-      if (i > 0 && i % 10 === 0) {
-        console.log(`📧 [send-email] Progress: ${i}/${usersToNotify.length} (${successCount} sent, ${failCount} failed)`);
-      }
+      console.log(`📧 [send-email] Processing batch ${batchNumber}/${totalBatches} (${batch.length} recipients)`);
       
       let retries = 3;
-      let success = false;
+      let batchSuccess = false;
       
-      while (retries > 0 && !success) {
+      while (retries > 0 && !batchSuccess) {
         try {
+          // Send to all recipients in batch at once
+          const recipientEmails = batch.map(u => u.email);
+          
           const resendResponse = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
@@ -221,7 +226,7 @@ export async function POST(request: NextRequest) {
             },
             body: JSON.stringify({
               from: 'מועדון האוטומטורים <noreply@autohub.co.il>',
-              to: [user.email],
+              to: recipientEmails, // Send to all recipients in batch
               subject: `📢 הודעה חדשה ממועדון האוטומטורים`,
               html: emailHtml,
               text: plainTextContent,
@@ -235,7 +240,7 @@ export async function POST(request: NextRequest) {
             // If response is not JSON, try to get text
             const text = await resendResponse.text().catch(() => '');
             emailData = { message: text || `HTTP ${resendResponse.status}`, status: resendResponse.status };
-            console.warn(`📧 [send-email] Non-JSON response for ${user.email}:`, {
+            console.warn(`📧 [send-email] Non-JSON response for batch ${batchNumber}:`, {
               status: resendResponse.status,
               statusText: resendResponse.statusText,
               text: text.substring(0, 200)
@@ -243,26 +248,28 @@ export async function POST(request: NextRequest) {
           }
 
           if (resendResponse.ok) {
-            successCount++;
-            results.push({ user_id: user.user_id, email: user.email, status: 'success' });
-            success = true;
-            if (i % 10 === 0) {
-              console.log(`📧 [send-email] Successfully sent to ${user.email} (${successCount}/${usersToNotify.length})`);
-            }
+            // All emails in batch were sent successfully
+            batch.forEach(user => {
+              successCount++;
+              results.push({ user_id: user.user_id, email: user.email, status: 'success' });
+            });
+            console.log(`📧 [send-email] Batch ${batchNumber} sent successfully: ${batch.length} emails`);
+            batchSuccess = true;
           } else {
             // Log detailed error information
-            console.error(`📧 [send-email] Failed to send to ${user.email}:`, {
+            console.error(`📧 [send-email] Failed to send batch ${batchNumber}:`, {
               status: resendResponse.status,
               statusText: resendResponse.statusText,
               error: emailData,
               errorMessage: emailData?.message || emailData?.error?.message || 'Unknown error',
-              errorType: emailData?.type || 'unknown'
+              errorType: emailData?.type || 'unknown',
+              recipients: batch.length
             });
             
             // Check if it's a rate limit error (429) - retry after delay
             if (resendResponse.status === 429 && retries > 1) {
               const retryDelay = 5000; // 5 seconds for rate limit
-              console.warn(`📧 [send-email] Rate limit hit for ${user.email}, retrying in ${retryDelay/1000} seconds... (${retries-1} retries left)`);
+              console.warn(`📧 [send-email] Rate limit hit for batch ${batchNumber}, retrying in ${retryDelay/1000} seconds... (${retries-1} retries left)`);
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               retries--;
               continue;
@@ -271,28 +278,31 @@ export async function POST(request: NextRequest) {
             // Check for other retryable errors (5xx server errors)
             if (resendResponse.status >= 500 && resendResponse.status < 600 && retries > 1) {
               const retryDelay = 3000; // 3 seconds for server errors
-              console.warn(`📧 [send-email] Server error (${resendResponse.status}) for ${user.email}, retrying in ${retryDelay/1000} seconds... (${retries-1} retries left)`);
+              console.warn(`📧 [send-email] Server error (${resendResponse.status}) for batch ${batchNumber}, retrying in ${retryDelay/1000} seconds... (${retries-1} retries left)`);
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               retries--;
               continue;
             }
             
-            failCount++;
-            results.push({ 
-              user_id: user.user_id, 
-              email: user.email, 
-              status: 'failed', 
-              error: {
-                status: resendResponse.status,
-                message: emailData?.message || emailData?.error?.message || 'Unknown error',
-                type: emailData?.type || 'unknown',
-                fullError: emailData
-              }
+            // Batch failed - mark all recipients as failed
+            batch.forEach(user => {
+              failCount++;
+              results.push({ 
+                user_id: user.user_id, 
+                email: user.email, 
+                status: 'failed', 
+                error: {
+                  status: resendResponse.status,
+                  message: emailData?.message || emailData?.error?.message || 'Unknown error',
+                  type: emailData?.type || 'unknown',
+                  fullError: emailData
+                }
+              });
             });
-            success = true; // Don't retry on non-retryable errors
+            batchSuccess = true; // Don't retry on non-retryable errors
           }
         } catch (error: any) {
-          console.error(`📧 [send-email] Exception sending to ${user.email}:`, {
+          console.error(`📧 [send-email] Exception sending batch ${batchNumber}:`, {
             message: error.message,
             stack: error.stack,
             name: error.name,
@@ -301,30 +311,33 @@ export async function POST(request: NextRequest) {
           
           retries--;
           if (retries === 0) {
-            failCount++;
-            results.push({ 
-              user_id: user.user_id, 
-              email: user.email, 
-              status: 'error', 
-              error: {
-                message: error.message,
-                type: error.name || 'NetworkError',
-                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-              }
+            // All retries failed - mark all recipients as error
+            batch.forEach(user => {
+              failCount++;
+              results.push({ 
+                user_id: user.user_id, 
+                email: user.email, 
+                status: 'error', 
+                error: {
+                  message: error.message,
+                  type: error.name || 'NetworkError',
+                  stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+                }
+              });
             });
-            console.error(`📧 [send-email] Failed to send to ${user.email} after all retries:`, error.message);
+            console.error(`📧 [send-email] Failed to send batch ${batchNumber} after all retries:`, error.message);
           } else {
             // Retry after delay
             const retryDelay = 2000; // 2 seconds for network errors
-            console.warn(`📧 [send-email] Retrying ${user.email} in ${retryDelay/1000} seconds... (${retries} retries left)`);
+            console.warn(`📧 [send-email] Retrying batch ${batchNumber} in ${retryDelay/1000} seconds... (${retries} retries left)`);
             await new Promise(resolve => setTimeout(resolve, retryDelay));
           }
         }
       }
       
-      // Small delay between emails to avoid rate limiting (200ms between emails)
-      if (i < usersToNotify.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+      // Small delay between batches to avoid rate limiting (500ms between batches)
+      if (i + batchSize < usersToNotify.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
 
