@@ -142,7 +142,11 @@ export default function RecordingsPage() {
 
   function handleRecordingClick(recordingId: string) {
     if (!userHasRecordingAccess) {
-      alert('גישה להקלטות זמינה למנויי פרימיום בלבד. אנא שדרג את המנוי שלך כדי לצפות בהקלטות.');
+      // Don't navigate, just return - the ProtectedAction logic will handle the modal/tooltip if we wrap the card
+      // OR if we want to show a custom alert here:
+      if (confirm('גישה להקלטות זמינה למנויי פרימיום בלבד. האם ברצונך לשדרג את המנוי?')) {
+        router.push('/pricing');
+      }
       return;
     }
     router.push(`/recordings/${recordingId}`);
@@ -197,11 +201,19 @@ export default function RecordingsPage() {
             >
               {/* Show lock overlay only when user loading is complete, user is logged in, and user is not premium */}
               {!userLoading && currentUser && !userHasRecordingAccess ? (
-                <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center rounded-xl">
-                  <div className="text-center text-white p-4">
-                    <Lock className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm font-semibold">מנוי פרימיום נדרש</p>
-                  </div>
+                <div className="absolute inset-0 bg-black/60 z-10 flex flex-col items-center justify-center rounded-xl p-4 text-center">
+                  <Lock className="w-8 h-8 text-white mb-2" />
+                  <p className="text-white font-bold mb-1">מנוי פרימיום נדרש</p>
+                  <p className="text-gray-300 text-xs mb-3">שדרג את המנוי כדי לצפות בהקלטה זו</p>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push('/pricing');
+                    }}
+                    className="bg-[#F52F8E] text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-[#E01E7A] transition-colors"
+                  >
+                    שדרג לפרימיום
+                  </button>
                 </div>
               ) : userLoading ? (
                 <div className="absolute inset-0 bg-black/20 z-10 flex items-center justify-center rounded-xl">
