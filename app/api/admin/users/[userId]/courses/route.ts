@@ -47,8 +47,11 @@ export async function GET(
           .single()
           
         if (!profileError && adminProfile) {
-          const role = adminProfile.roles || (adminProfile as any).role
-          const roleName = typeof role === 'object' ? role?.name : role
+          const roles = adminProfile.roles || (adminProfile as any).role
+          const rolesAny = roles as any
+          const roleName = Array.isArray(rolesAny) 
+            ? rolesAny[0]?.name 
+            : (typeof rolesAny === 'object' ? rolesAny?.name : rolesAny)
           
           if (roleName === 'admin') {
             isAuthorized = true
@@ -151,8 +154,11 @@ export async function POST(
           .single()
           
         if (adminProfile) {
-          const role = adminProfile.roles || (adminProfile as any).role
-          const roleName = typeof role === 'object' ? role?.name : role
+          const roles = adminProfile.roles || (adminProfile as any).role
+          const rolesAny = roles as any
+          const roleName = Array.isArray(rolesAny) 
+            ? rolesAny[0]?.name 
+            : (typeof rolesAny === 'object' ? rolesAny?.name : rolesAny)
           
           if (roleName === 'admin') {
             isAuthorized = true
@@ -320,8 +326,11 @@ export async function DELETE(
           .single()
           
         if (adminProfile) {
-          const role = adminProfile.roles || (adminProfile as any).role
-          const roleName = typeof role === 'object' ? role?.name : role
+          const roles = adminProfile.roles || (adminProfile as any).role
+          const rolesAny = roles as any
+          const roleName = Array.isArray(rolesAny) 
+            ? rolesAny[0]?.name 
+            : (typeof rolesAny === 'object' ? rolesAny?.name : rolesAny)
           
           if (roleName === 'admin') {
             isAuthorized = true
