@@ -1,18 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 import { extendSubscription } from '@/lib/queries/subscriptions';
+import crypto from 'crypto';
 
 // Webhook endpoint for external payment systems to update payments
 // This endpoint can be called by external APIs to notify about payment status
+// SECURITY: Requires valid webhook signature to prevent unauthorized access
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { 
-      subscription_id, 
-      payment_status, 
-      amount, 
+    // SECURITY CHECK: Verify webhook signature
+    const signature = request.headers.get('x-webhook-signature') || request.headers.get('x-signature');
+    const timestamp = request.headers.get('x-webhook-timestamp') || request.headers.get('x-timestamp');
+    const webhookSecret = process.env.WEBHOOK_SECRET;
+
+    if (!webhookSecret) {
+      console.error('WEBHOOK_SECRET not configured');
+      return NextResponse.json({
+        error: 'Webhook not properly configured'
+      }, { status: 500 });
+    }
+
+    if (!signature || !timestamp) {
+      console.error('Missing webhook signature or timestamp');
+      return NextResponse.json({
+        error: 'Unauthorized: Missing signature'
+      }, { status: 401 });
+    }
+
+    // Get raw body for signature verification
+    const rawBody = await request.text();
+    const body = JSON.parse(rawBody);
+
+    // Verify timestamp is recent (within 5 minutes) to prevent replay attacks
+    const requestTime = parseInt(timestamp);
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (Math.abs(currentTime - requestTime) > 300) {
+      console.error('Webhook timestamp too old or invalid');
+      return NextResponse.json({
+        error: 'Unauthorized: Invalid timestamp'
+      }, { status: 401 });
+    }
+
+    // Calculate expected signature: HMAC-SHA256(timestamp + raw_body, secret)
+    const payload = timestamp + rawBody;
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(payload)
+      .digest('hex');
+
+    // Compare signatures using timing-safe comparison
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+      console.error('Invalid webhook signature');
+      return NextResponse.json({
+        error: 'Unauthorized: Invalid signature'
+      }, { status: 401 });
+    }
+
+    // Signature verified - proceed with payment processing
+    const {
+      subscription_id,
+      payment_status,
+      amount,
       currency,
-      payment_date, 
+      payment_date,
       payment_method,
       transaction_id,
       invoice_url,
@@ -21,8 +71,8 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!subscription_id || !payment_status || !amount) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: subscription_id, payment_status, amount' 
+      return NextResponse.json({
+        error: 'Missing required fields: subscription_id, payment_status, amount'
       }, { status: 400 });
     }
 

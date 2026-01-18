@@ -19,7 +19,8 @@
       "Bash(curl:*)",
       "Bash(xargs:*)",
       "Bash(npm install:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(npm audit:*)"
     ]
   }
 }

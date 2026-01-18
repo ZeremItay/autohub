@@ -108,13 +108,11 @@ function ForumDetailPageContent() {
     
     isLoadingPostsRef.current = true;
     isCancelledRef.current = false; // Reset cancellation flag
-    setLoading(true);
     
     // Add timeout to prevent hanging (Chrome-specific issue)
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
       console.warn('loadPosts taking too long, stopping loading state');
       isCancelledRef.current = true; // Mark as cancelled
-      setLoading(false);
       isLoadingPostsRef.current = false; // CRITICAL: Reset ref on timeout
     }, 20000); // 20 seconds timeout
     
@@ -145,18 +143,15 @@ function ForumDetailPageContent() {
       }
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
-      // Only update loading state if not cancelled
-      if (!isCancelledRef.current) {
-        setLoading(false);
-      }
       isLoadingPostsRef.current = false;
     }
-  }, [forumId]);
+  }, [forumId, currentUser]);
 
   useEffect(() => {
     if (!forumId) return;
     
     let cancelled = false;
+    setLoading(true); // Set loading at the start
     
     // Helper function to add timeout to promises
     const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, name: string): Promise<T> => {
@@ -180,9 +175,15 @@ function ForumDetailPageContent() {
       withTimeout(loadAllForums(), 8000, 'loadAllForums').catch(err => {
         if (!cancelled) console.error('loadAllForums failed:', err);
       })
-    ]).catch(error => {
+    ]).then(() => {
+      // Only set loading to false after ALL operations complete
+      if (!cancelled) {
+        setLoading(false);
+      }
+    }).catch(error => {
       if (!cancelled) {
         console.error('Error loading forum data:', error);
+        setLoading(false);
       }
     });
     

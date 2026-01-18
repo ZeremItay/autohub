@@ -532,3 +532,62 @@ img.ProseMirror-separator {
   border: none;
 }
 
+/* WCAG 2.1.1: Keyboard Navigation - Focus Indicators */
+/* Ensure all interactive elements have visible focus indicators */
+*:focus-visible {
+  outline: 2px solid #F52F8E;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Enhanced focus for buttons */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #F52F8E;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(245, 47, 142, 0.2);
+}
+
+/* Enhanced focus for form inputs */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #F52F8E;
+  outline-offset: 2px;
+  border-color: #F52F8E;
+  box-shadow: 0 0 0 3px rgba(245, 47, 142, 0.1);
+}
+
+/* Remove default outline for mouse users, keep for keyboard users */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Screen reader only class for skip links and hidden labels */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.sr-only:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Ensure main content has an ID for skip link */
+#main-content {
+  scroll-margin-top: 2rem;
+}

@@ -2310,7 +2310,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main Content */}
-      <main className={`transition-all duration-300 ease-in-out overflow-x-hidden ${
+      <main id="main-content" className={`transition-all duration-300 ease-in-out overflow-x-hidden ${
         pathname === '/live-room'
           ? 'lg:mr-0 mr-0' // No sidebar margin for live room to allow full screen
           : sidebarOpen 

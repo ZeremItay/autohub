@@ -3,26 +3,56 @@ import { createServerClient } from '@/lib/supabase-server';
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createServerClient();
+
+    // SECURITY: Require authentication
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
+      return NextResponse.json(
+        { data: null, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Get user's role to filter results based on access level
+    const { data: userProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role_id, roles:role_id(name)')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    if (profileError || !userProfile) {
+      return NextResponse.json(
+        { data: null, error: 'Failed to verify user access' },
+        { status: 403 }
+      );
+    }
+
+    // Determine user's role
+    const userRole = (userProfile?.roles as any)?.name || 'free';
+    const isPremium = userRole === 'premium' || userRole === 'admin';
+    const isAdmin = userRole === 'admin';
+
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
 
     if (!query || query.trim().length < 2) {
-      return NextResponse.json({ 
-      data: {
-        recordings: [],
-        forums: [],
-        forumPosts: [],
-        forumReplies: [],
-        posts: [],
-        projects: [],
-        courses: []
-      },
-        error: null 
+      return NextResponse.json({
+        data: {
+          recordings: [],
+          forums: [],
+          forumPosts: [],
+          forumReplies: [],
+          posts: [],
+          projects: [],
+          courses: []
+        },
+        error: null
       });
     }
 
     const searchTerm = `%${query.trim()}%`;
-    const supabase = createServerClient();
 
     // Search in all tables in parallel
     const [
@@ -142,7 +172,35 @@ export async function GET(request: NextRequest) {
         recordingsMap.set(r.id, r);
       }
     });
-    const allRecordings = Array.from(recordingsMap.values());
+    let allRecordings = Array.from(recordingsMap.values());
+
+    // SECURITY: Filter courses based on user's access level
+    let filteredCourses = coursesResult.data || [];
+    if (!isPremium) {
+      // Non-premium users can only see:
+      // 1. Courses that are NOT premium-only
+      // 2. Free courses
+      // Need to fetch full course data to check is_premium_only flag
+      if (filteredCourses.length > 0) {
+        const courseIds = filteredCourses.map((c: any) => c.id);
+        const { data: fullCourses } = await supabase
+          .from('courses')
+          .select('id, title, description, category, created_at, is_premium_only, is_free')
+          .in('id', courseIds);
+
+        if (fullCourses) {
+          filteredCourses = fullCourses.filter((course: any) =>
+            !course.is_premium_only || course.is_free
+          );
+        }
+      }
+    }
+
+    // SECURITY: Filter recordings based on user's access level
+    // Note: Recordings don't have a direct is_premium flag in the audit report
+    // If recordings should be premium-only, add that field to the table
+    // For now, we'll allow all authenticated users to see recording search results
+    // but the actual video URLs should be gated at the recording detail level
 
     return NextResponse.json({
       data: {
@@ -152,7 +210,7 @@ export async function GET(request: NextRequest) {
         forumReplies: forumRepliesResult.data || [],
         posts: postsResult.data || [],
         projects: projectsResult.data || [],
-        courses: coursesResult.data || []
+        courses: filteredCourses
       },
       error: null
     });

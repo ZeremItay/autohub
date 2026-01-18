@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@/lib/supabase-server'
 import { cookies } from 'next/headers'
+import { sanitizeProfileForAdmin } from '@/lib/utils/sanitize-profile'
 
 // GET - Get user by ID or email
 export async function GET(
@@ -91,20 +92,39 @@ export async function GET(
 
     let profile = null
 
+    // SECURITY: Use explicit columns instead of SELECT * to control data exposure
+    // Email is included as this is an admin-only endpoint
+    const profileSelect = `
+      id,
+      user_id,
+      display_name,
+      email,
+      avatar_url,
+      headline,
+      bio,
+      social_links,
+      first_name,
+      last_name,
+      nickname,
+      points,
+      level,
+      role_id,
+      created_at,
+      updated_at,
+      roles:role_id (
+        id,
+        name,
+        display_name,
+        description
+      )
+    `
+
     // Search by different criteria
     if (searchBy === 'email') {
       // Search by email
       const { data, error } = await supabaseAdmin
         .from('profiles')
-        .select(`
-          *,
-          roles:role_id (
-            id,
-            name,
-            display_name,
-            description
-          )
-        `)
+        .select(profileSelect)
         .eq('email', userId)
         .maybeSingle()
 
@@ -120,15 +140,7 @@ export async function GET(
       // Search by user_id (auth user ID)
       const { data, error } = await supabaseAdmin
         .from('profiles')
-        .select(`
-          *,
-          roles:role_id (
-            id,
-            name,
-            display_name,
-            description
-          )
-        `)
+        .select(profileSelect)
         .eq('user_id', userId)
         .maybeSingle()
 
@@ -144,15 +156,7 @@ export async function GET(
       // Search by profile ID (default)
       const { data, error } = await supabaseAdmin
         .from('profiles')
-        .select(`
-          *,
-          roles:role_id (
-            id,
-            name,
-            display_name,
-            description
-          )
-        `)
+        .select(profileSelect)
         .eq('id', userId)
         .maybeSingle()
 
@@ -196,13 +200,16 @@ export async function GET(
       .order('enrolled_at', { ascending: false })
       .limit(10)
 
+    // SECURITY: Sanitize profile data before returning
+    const sanitizedProfile = profile ? sanitizeProfileForAdmin(profile) : null
+
     return NextResponse.json({
       success: true,
-      data: {
-        ...profile,
+      data: sanitizedProfile ? {
+        ...sanitizedProfile,
         enrollments_count: enrollmentsCount || 0,
         recent_enrollments: enrollments || []
-      }
+      } : null
     })
 
   } catch (error: any) {

@@ -1672,14 +1672,22 @@ export async function isLessonCompleted(lessonId: string, userId: string): Promi
 
 // Check if user can access a lesson (for sequential courses)
 export async function canAccessLesson(lessonId: string, courseId: string, userId: string): Promise<boolean> {
+  // SECURITY: First check if user is enrolled in the course
+  const { data: enrollment, error: enrollmentError } = await checkEnrollment(courseId, userId);
+
+  if (enrollmentError || !enrollment) {
+    // User is not enrolled - deny access
+    return false;
+  }
+
   // Get course to check if it's sequential
   const { data: course, error: courseError } = await getCourseById(courseId);
-  
+
   if (courseError || !course) {
     return false;
   }
-  
-  // If course is not sequential, all lessons are accessible
+
+  // If course is not sequential, all lessons are accessible (but only if enrolled)
   if (!course.is_sequential) {
     return true;
   }

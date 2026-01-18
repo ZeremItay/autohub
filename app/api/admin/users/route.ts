@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase-server'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { sanitizeProfileForAdmin } from '@/lib/utils/sanitize-profile'
 
 export async function GET(request: NextRequest) {
   try {
@@ -79,10 +80,27 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // SECURITY: Use explicit columns instead of SELECT * to control data exposure
+    // Email is included as this is an admin-only endpoint
     let query = supabaseAdmin
       .from('profiles')
       .select(`
-        *,
+        id,
+        user_id,
+        display_name,
+        email,
+        avatar_url,
+        headline,
+        bio,
+        social_links,
+        first_name,
+        last_name,
+        nickname,
+        points,
+        level,
+        role_id,
+        created_at,
+        updated_at,
         roles:role_id (
           id,
           name,
@@ -113,10 +131,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
+    // SECURITY: Sanitize profile data before returning (admin endpoint - includes email)
+    const sanitizedData = (data || []).map(sanitizeProfileForAdmin).filter(p => p !== null)
+
     return NextResponse.json({ 
       success: true,
-      data: data || [],
-      count: data?.length || 0
+      data: sanitizedData,
+      count: sanitizedData.length
     })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -305,12 +326,28 @@ export async function PUT(request: NextRequest) {
       }
 
       // Update all users in the array
+      // SECURITY: Use explicit columns instead of SELECT *
       const { data, error } = await supabaseAdmin
         .from('profiles')
         .update(updates)
         .in('id', ids)
         .select(`
-          *,
+          id,
+          user_id,
+          display_name,
+          email,
+          avatar_url,
+          headline,
+          bio,
+          social_links,
+          first_name,
+          last_name,
+          nickname,
+          points,
+          level,
+          role_id,
+          created_at,
+          updated_at,
           roles:role_id (
             id,
             name,
@@ -358,10 +395,13 @@ export async function PUT(request: NextRequest) {
         }
       }
 
+      // SECURITY: Sanitize profile data before returning
+      const sanitizedData = (data || []).map(sanitizeProfileForAdmin).filter(p => p !== null)
+
       return NextResponse.json({ 
         success: true,
-        data: data || [],
-        count: data?.length || 0
+        data: sanitizedData,
+        count: sanitizedData.length
       })
     } else {
       // Single user update (existing behavior)
@@ -387,12 +427,28 @@ export async function PUT(request: NextRequest) {
         }
       }
       
+      // SECURITY: Use explicit columns instead of SELECT *
       const { data, error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', id)
         .select(`
-          *,
+          id,
+          user_id,
+          display_name,
+          email,
+          avatar_url,
+          headline,
+          bio,
+          social_links,
+          first_name,
+          last_name,
+          nickname,
+          points,
+          level,
+          role_id,
+          created_at,
+          updated_at,
           roles:role_id (
             id,
             name,
@@ -452,7 +508,10 @@ export async function PUT(request: NextRequest) {
         }
       }
       
-      return NextResponse.json({ data })
+      // SECURITY: Sanitize profile data before returning
+      const sanitizedData = data ? sanitizeProfileForAdmin(data) : null
+      
+      return NextResponse.json({ data: sanitizedData })
     }
   } catch (error: any) {
     console.error('Exception updating user:', error)

@@ -112,6 +112,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${customHebrewFont.variable} antialiased`}
         suppressHydrationWarning
       >
+        {/* WCAG 2.4.1: Skip to main content link for keyboard navigation */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:right-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#F52F8E] focus:text-white focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] focus:ring-offset-2"
+        >
+          דלג לתוכן הראשי
+        </a>
         <Layout>{children}</Layout>
         <SpeedInsights />
       </body>

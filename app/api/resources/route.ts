@@ -3,6 +3,7 @@ import { getResourcesWithDetails, createResource } from '@/lib/queries/resources
 import { createServerClient } from '@/lib/supabase-server';
 import { cookies } from 'next/headers';
 import { assignTagsToContent } from '@/lib/queries/tags';
+import { hasPremiumAccess } from '@/lib/utils/verify-premium-access';
 
 // GET - Get all resources with optional filters
 export async function GET(request: NextRequest) {
@@ -49,6 +50,18 @@ export async function GET(request: NextRequest) {
 
     if (!resources) {
       resources = [];
+    }
+
+    // SECURITY: Filter premium resources based on user's subscription status
+    if (userId) {
+      const isPremium = await hasPremiumAccess(userId);
+      if (!isPremium) {
+        // Non-premium users cannot see premium resources
+        resources = resources.filter((r: any) => !r.is_premium);
+      }
+    } else {
+      // Unauthenticated users cannot see premium resources
+      resources = resources.filter((r: any) => !r.is_premium);
     }
 
     // Apply filters
