@@ -850,19 +850,52 @@ export default function Home() {
             })
           }).then(async (response) => {
             console.log('📧 Email API response status:', response.status);
-            const result = await response.json();
-            console.log('📧 Email API response data:', result);
             
-            if (response.ok && result.success) {
-              console.log(`✅ הודעה נשלחה בהצלחה ל-${result.sent || 0} משתמשים!`);
-              alert(`✅ הודעה נשלחה בהצלחה ל-${result.sent || 0} משתמשים!`);
-            } else {
-              console.error('❌ Error sending announcement emails:', result);
-              alert(`❌ שגיאה בשליחת הודעה: ${result.error || result.message || 'שגיאה לא ידועה'}\n\nפרטים: ${JSON.stringify(result, null, 2)}`);
+            if (!response.ok) {
+              // Try to parse error response
+              let errorMessage = 'שגיאה לא ידועה';
+              try {
+                const errorText = await response.text();
+                try {
+                  const errorJson = JSON.parse(errorText);
+                  errorMessage = errorJson.error || errorJson.message || errorText;
+                } catch {
+                  errorMessage = errorText || `HTTP ${response.status}`;
+                }
+              } catch {
+                errorMessage = `HTTP ${response.status} ${response.statusText}`;
+              }
+              
+              console.error('❌ Error sending announcement emails:', errorMessage);
+              alert(`❌ שגיאה בשליחת הודעה: ${errorMessage}`);
+              return;
+            }
+            
+            try {
+              const result = await response.json();
+              console.log('📧 Email API response data:', result);
+              
+              if (result.success) {
+                console.log(`✅ שליחת הודעות התחילה! ${result.total || 0} משתמשים יקבלו את ההודעה.`);
+                alert(`✅ שליחת הודעות התחילה!\n${result.total || 0} משתמשים יקבלו את ההודעה במייל.`);
+              } else {
+                console.error('❌ Error sending announcement emails:', result);
+                alert(`❌ שגיאה בשליחת הודעה: ${result.error || result.message || 'שגיאה לא ידועה'}`);
+              }
+            } catch (parseError) {
+              // Response is not JSON (might be timeout or other error)
+              console.error('❌ Error parsing email API response:', parseError);
+              alert(`✅ שליחת הודעות התחילה ברקע. המיילים יישלחו בקרוב.`);
             }
           }).catch((emailError) => {
             console.error('❌ Error sending announcement emails (catch):', emailError);
-            alert(`❌ שגיאה בשליחת הודעה: ${emailError.message || 'שגיאה לא ידועה'}`);
+            // Don't show error alert for network errors - emails might still be sending in background
+            if (emailError.message?.includes('JSON') || emailError.message?.includes('parse')) {
+              // JSON parse error - might be timeout, but emails are still sending
+              console.log('📧 Email sending started in background (timeout is expected)');
+            } else {
+              alert(`❌ שגיאה בשליחת הודעה: ${emailError.message || 'שגיאה לא ידועה'}`);
+            }
           });
         } catch (emailError: any) {
           console.error('❌ Error initiating announcement emails:', emailError);

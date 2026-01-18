@@ -3,6 +3,8 @@ import { createServerClient } from '@/lib/supabase-server';
 import { createClient } from '@supabase/supabase-js';
 import { stripHtml } from '@/lib/utils/stripHtml';
 
+export const maxDuration = 300; // 5 minutes for Vercel Pro, 10s for Hobby
+
 export async function POST(request: NextRequest) {
   console.log('📧 [send-email] API called');
   try {
@@ -191,61 +193,86 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    // Send emails to all users
-    const results = [];
-    let successCount = 0;
-    let failCount = 0;
+    // Return response immediately and send emails in background
+    // This prevents timeout issues when sending to many users
+    const sendEmailsInBackground = async () => {
+      const results = [];
+      let successCount = 0;
+      let failCount = 0;
 
-    for (const user of usersToNotify) {
-      try {
-        const resendResponse = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${RESEND_API_KEY}`,
-          },
-          body: JSON.stringify({
-            from: 'מועדון האוטומטורים <noreply@autohub.co.il>',
-            to: [user.email],
-            subject: `📢 הודעה חדשה ממועדון האוטומטורים`,
-            html: emailHtml,
-            text: plainTextContent,
-          }),
+      // Send emails in batches to avoid rate limiting
+      const batchSize = 10;
+      for (let i = 0; i < usersToNotify.length; i += batchSize) {
+        const batch = usersToNotify.slice(i, i + batchSize);
+        
+        // Send emails in parallel within each batch
+        const batchPromises = batch.map(async (user) => {
+          try {
+            const resendResponse = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${RESEND_API_KEY}`,
+              },
+              body: JSON.stringify({
+                from: 'מועדון האוטומטורים <noreply@autohub.co.il>',
+                to: [user.email],
+                subject: `📢 הודעה חדשה ממועדון האוטומטורים`,
+                html: emailHtml,
+                text: plainTextContent,
+              }),
+            });
+
+            const emailData = await resendResponse.json();
+
+            if (resendResponse.ok) {
+              successCount++;
+              results.push({ user_id: user.user_id, email: user.email, status: 'success' });
+            } else {
+              failCount++;
+              results.push({ 
+                user_id: user.user_id, 
+                email: user.email, 
+                status: 'failed', 
+                error: emailData 
+              });
+              console.error(`Failed to send email to ${user.email}:`, emailData);
+            }
+          } catch (error: any) {
+            failCount++;
+            results.push({ 
+              user_id: user.user_id, 
+              email: user.email, 
+              status: 'error', 
+              error: error.message 
+            });
+            console.error(`Error sending email to ${user.email}:`, error);
+          }
         });
 
-        const emailData = await resendResponse.json();
-
-        if (resendResponse.ok) {
-          successCount++;
-          results.push({ user_id: user.user_id, email: user.email, status: 'success' });
-        } else {
-          failCount++;
-          results.push({ 
-            user_id: user.user_id, 
-            email: user.email, 
-            status: 'failed', 
-            error: emailData 
-          });
-          console.error(`Failed to send email to ${user.email}:`, emailData);
+        // Wait for batch to complete before moving to next batch
+        await Promise.all(batchPromises);
+        
+        // Small delay between batches to avoid rate limiting
+        if (i + batchSize < usersToNotify.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
-      } catch (error: any) {
-        failCount++;
-        results.push({ 
-          user_id: user.user_id, 
-          email: user.email, 
-          status: 'error', 
-          error: error.message 
-        });
-        console.error(`Error sending email to ${user.email}:`, error);
       }
-    }
 
+      console.log(`📧 [send-email] Background job completed: ${successCount} sent, ${failCount} failed out of ${usersToNotify.length} total`);
+      return { successCount, failCount, results };
+    };
+
+    // Start sending emails in background (don't await)
+    sendEmailsInBackground().catch(error => {
+      console.error('📧 [send-email] Background email sending failed:', error);
+    });
+
+    // Return immediately to prevent timeout
     return NextResponse.json({ 
       success: true,
-      sent: successCount,
-      failed: failCount,
+      message: 'Email sending started in background',
       total: usersToNotify.length,
-      results: results,
       testMode: !!testUserId
     });
   } catch (error: any) {
