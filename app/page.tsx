@@ -828,9 +828,16 @@ export default function Home() {
       
       if (!error && data) {
         // Send email notification to all users (async, don't block UI)
+        console.log('📧 Starting to send announcement emails...', { postId: data.id });
         try {
           // Get author name
           const authorName = currentUser?.display_name || currentUser?.first_name || currentUser?.nickname || 'המנהל';
+          
+          console.log('📧 Calling /api/announcements/send-email with:', {
+            postId: data.id,
+            postContent: newPostContent.substring(0, 50) + '...',
+            postAuthorName: authorName
+          });
           
           // Send emails in background (don't wait for response)
           fetch('/api/announcements/send-email', {
@@ -842,17 +849,24 @@ export default function Home() {
               postAuthorName: authorName
             })
           }).then(async (response) => {
+            console.log('📧 Email API response status:', response.status);
             const result = await response.json();
+            console.log('📧 Email API response data:', result);
+            
             if (response.ok && result.success) {
               console.log(`✅ הודעה נשלחה בהצלחה ל-${result.sent || 0} משתמשים!`);
+              alert(`✅ הודעה נשלחה בהצלחה ל-${result.sent || 0} משתמשים!`);
             } else {
-              console.error('Error sending announcement emails:', result.error);
+              console.error('❌ Error sending announcement emails:', result);
+              alert(`❌ שגיאה בשליחת הודעה: ${result.error || result.message || 'שגיאה לא ידועה'}\n\nפרטים: ${JSON.stringify(result, null, 2)}`);
             }
           }).catch((emailError) => {
-            console.error('Error sending announcement emails:', emailError);
+            console.error('❌ Error sending announcement emails (catch):', emailError);
+            alert(`❌ שגיאה בשליחת הודעה: ${emailError.message || 'שגיאה לא ידועה'}`);
           });
         } catch (emailError: any) {
-          console.error('Error initiating announcement emails:', emailError);
+          console.error('❌ Error initiating announcement emails:', emailError);
+          alert(`❌ שגיאה בהתחלת שליחת הודעה: ${emailError.message || 'שגיאה לא ידועה'}`);
         }
         
         setNewPostContent('');

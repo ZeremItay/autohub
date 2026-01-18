@@ -4,11 +4,15 @@ import { createClient } from '@supabase/supabase-js';
 import { stripHtml } from '@/lib/utils/stripHtml';
 
 export async function POST(request: NextRequest) {
+  console.log('📧 [send-email] API called');
   try {
     const body = await request.json();
     const { postId, postContent, postAuthorName, testUserId } = body;
+    
+    console.log('📧 [send-email] Request body:', { postId, postContentLength: postContent?.length, postAuthorName, testUserId });
 
     if (!postId || !postContent) {
+      console.error('📧 [send-email] Missing required fields');
       return NextResponse.json(
         { error: 'Missing required fields: postId, postContent' },
         { status: 400 }
@@ -19,10 +23,15 @@ export async function POST(request: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    console.log('📧 [send-email] Checking configuration...', {
+      hasSupabaseUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceKey
+    });
+
     if (!supabaseServiceKey) {
-      console.error('SUPABASE_SERVICE_ROLE_KEY not configured');
+      console.error('📧 [send-email] SUPABASE_SERVICE_ROLE_KEY not configured');
       return NextResponse.json(
-        { error: 'Server configuration error' },
+        { error: 'Server configuration error: SUPABASE_SERVICE_ROLE_KEY missing' },
         { status: 500 }
       );
     }
@@ -62,7 +71,8 @@ export async function POST(request: NextRequest) {
       }];
     } else {
       // Production mode - get all users
-      const { data: profiles, error: profilesError } = await supabase
+      // Use admin client to bypass RLS policies
+      const { data: profiles, error: profilesError } = await supabaseAdmin
         .from('profiles')
         .select('user_id, display_name, first_name, nickname')
         .not('user_id', 'is', null);
@@ -74,6 +84,16 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
+      
+      if (!profiles || profiles.length === 0) {
+        console.warn('No profiles found in database');
+        return NextResponse.json(
+          { error: 'No users found in database', details: 'No profiles returned from query' },
+          { status: 404 }
+        );
+      }
+      
+      console.log(`Found ${profiles.length} profiles to notify`);
 
       // Get emails from auth for all users
       const userIds = (profiles || []).map(p => p.user_id).filter(Boolean);
