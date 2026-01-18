@@ -35,6 +35,7 @@ export interface Recording {
 }
 
 // Get all recordings
+// Uses safe_recordings view to hide video_url from non-premium users
 export async function getAllRecordings() {
   const cacheKey = 'recordings:all';
   const cached = getCached<Recording[]>(cacheKey);
@@ -46,29 +47,29 @@ export async function getAllRecordings() {
     // Select only necessary fields for listing page (exclude qa_section and key_points for faster loading)
     // Note: qa_section and key_points are only needed in detail page, not in listing
     const { data, error } = await supabase
-      .from('recordings')
+      .from('safe_recordings')
       .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at, instructor_name, instructor_title, instructor_avatar_url, instructor_user_id')
       .order('created_at', { ascending: false })
       .limit(100) // Limit to improve performance
-    
+
     if (error) {
       logError(error, 'getAllRecordings');
       // If specific columns fail, try with * as fallback
       const { data: fallbackData, error: fallbackError } = await supabase
-        .from('recordings')
+        .from('safe_recordings')
         .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at, instructor_name, instructor_title, instructor_avatar_url, instructor_user_id')
         .order('created_at', { ascending: false })
         .limit(100)
-      
+
       if (fallbackError) {
         logError(fallbackError, 'getAllRecordings:fallback');
         return { data: null, error: fallbackError }
       }
-      
+
       setCached(cacheKey, fallbackData, CACHE_TTL.MEDIUM);
       return { data: Array.isArray(fallbackData) ? fallbackData : [], error: null }
     }
-    
+
     setCached(cacheKey, data, CACHE_TTL.MEDIUM);
     return { data: Array.isArray(data) ? data : [], error: null }
   } catch (err: any) {
@@ -78,15 +79,16 @@ export async function getAllRecordings() {
 }
 
 // Get recordings with pagination
+// Uses safe_recordings view to hide video_url from non-premium users
 export async function getRecordingsPaginated(page: number = 1, limit: number = 6, sortBy: string = 'recently-active') {
   const funcStartTime = Date.now();
   const cacheKey = `recordings:paginated:${page}:${limit}:${sortBy}`;
-  
+
   const cached = getCached<{ data: Recording[], totalCount: number }>(cacheKey);
   if (cached) {
     return { data: cached.data, totalCount: cached.totalCount, error: null };
   }
-  
+
 
   try {
     // Calculate range for pagination
@@ -96,7 +98,7 @@ export async function getRecordingsPaginated(page: number = 1, limit: number = 6
     // Build query - use 'planned' count for better performance (much faster than 'exact')
     // 'planned' uses table statistics and is good enough for pagination
     let query = supabase
-      .from('recordings')
+      .from('safe_recordings')
       .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at, instructor_name, instructor_title, instructor_avatar_url, instructor_user_id', { count: 'planned' });
 
     // Apply sorting
@@ -135,6 +137,7 @@ export async function getRecordingsPaginated(page: number = 1, limit: number = 6
 }
 
 // Get recording basic info (for fast initial load)
+// Uses safe_recordings view to hide video_url from non-premium users
 export async function getRecordingBasicById(id: string) {
   const cacheKey = `recording:basic:${id}`;
   const cached = getCached<Recording>(cacheKey);
@@ -143,7 +146,7 @@ export async function getRecordingBasicById(id: string) {
   }
 
   const { data, error } = await supabase
-    .from('recordings')
+    .from('safe_recordings')
     .select('id, title, video_url, thumbnail_url, category, duration, views, created_at')
     .eq('id', id)
     .maybeSingle()
@@ -162,6 +165,7 @@ export async function getRecordingBasicById(id: string) {
 }
 
 // Get recording by ID (full data)
+// Uses safe_recordings view to hide video_url from non-premium users
 export async function getRecordingById(id: string) {
   const cacheKey = `recording:${id}`;
   const cached = getCached<Recording>(cacheKey);
@@ -170,7 +174,7 @@ export async function getRecordingById(id: string) {
   }
 
   const { data, error } = await supabase
-    .from('recordings')
+    .from('safe_recordings')
     .select('id, title, description, video_url, thumbnail_url, category, duration, views, qa_section, key_points, created_at, updated_at')
     .eq('id', id)
     .maybeSingle()
@@ -189,6 +193,7 @@ export async function getRecordingById(id: string) {
 }
 
 // Get recordings by category
+// Uses safe_recordings view to hide video_url from non-premium users
 export async function getRecordingsByCategory(category: string) {
   const cacheKey = `recordings:category:${category}`;
   const cached = getCached<Recording[]>(cacheKey);
@@ -197,7 +202,7 @@ export async function getRecordingsByCategory(category: string) {
   }
 
   const { data, error } = await supabase
-    .from('recordings')
+    .from('safe_recordings')
     .select('id, title, description, video_url, thumbnail_url, category, duration, views, created_at, updated_at')
     .contains('category', [category]) // Use contains for array search
     .order('created_at', { ascending: false })
