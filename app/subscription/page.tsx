@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Crown, Calendar, CheckCircle, X, Download, CreditCard, XCircle, Edit, Save, Settings, Users } from 'lucide-react';
+import { Crown, Calendar, CheckCircle, X, Download, CreditCard, XCircle, Edit, Save, Settings, Users, RefreshCw } from 'lucide-react';
 import { getAllProfiles } from '@/lib/queries/profiles';
 import { getAllRoles, type Role } from '@/lib/queries/roles';
 import { supabase } from '@/lib/supabase';
@@ -66,34 +66,73 @@ export default function SubscriptionPage() {
     }
   }
 
-  async function loadUserPayments(userId: string) {
+  async function loadUserPayments(userId: string, retryCount = 0) {
     try {
-      const response = await fetch('/api/user/payments');
+      console.log('[subscription/page] Loading payments for user:', userId, 'retry:', retryCount);
+      const response = await fetch('/api/user/payments', {
+        cache: 'no-store', // Prevent caching
+        credentials: 'include' // Include cookies
+      });
+      console.log('[subscription/page] Payments API response status:', response.status);
+      
       if (response.ok) {
-        const { data } = await response.json();
+        const result = await response.json();
+        console.log('[subscription/page] Payments API response data:', result);
+        const { data } = result;
+        console.log('[subscription/page] Raw payments data:', data);
+        console.log('[subscription/page] Number of payments:', data?.length || 0);
+        
         // Transform payments to match the expected format
-        const transformedPayments = (data || []).map((payment: any) => ({
-          date: payment.payment_date || payment.created_at,
-          status: payment.status === 'completed' ? 'success' : payment.status === 'failed' ? 'failed' : 'pending',
-          amount: payment.amount,
-          method: payment.payment_method || 'לא צוין',
-          invoice_url: payment.invoice_url,
-          invoice_number: payment.invoice_number,
-          transaction_id: payment.transaction_id
-        }));
+        const transformedPayments = (data || []).map((payment: any) => {
+          const transformed = {
+            date: payment.payment_date || payment.created_at,
+            status: payment.status === 'completed' ? 'success' : payment.status === 'failed' ? 'failed' : 'pending',
+            amount: payment.amount,
+            method: payment.payment_method || 'לא צוין',
+            invoice_url: payment.invoice_url,
+            invoice_number: payment.invoice_number,
+            transaction_id: payment.transaction_id
+          };
+          console.log('[subscription/page] Transformed payment:', transformed);
+          return transformed;
+        });
+        
+        console.log('[subscription/page] Setting payment history with', transformedPayments.length, 'payments');
         setPaymentHistory(transformedPayments);
+      } else if (response.status === 401 && retryCount < 2) {
+        // Retry on 401 (unauthorized) - might be session not ready yet
+        console.warn('[subscription/page] Got 401, retrying in 500ms...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return loadUserPayments(userId, retryCount + 1);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[subscription/page] Payments API error:', response.status, errorData);
+        if (response.status === 401) {
+          console.error('[subscription/page] Authentication failed - session might not be ready');
+        }
       }
     } catch (error) {
-      console.error('Error loading user payments:', error);
+      console.error('[subscription/page] Error loading user payments:', error);
+      // Retry on network errors
+      if (retryCount < 2) {
+        console.warn('[subscription/page] Network error, retrying in 500ms...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return loadUserPayments(userId, retryCount + 1);
+      }
     }
   }
 
   async function loadUserSubscription(userId: string) {
     try {
-      const response = await fetch('/api/user/subscription');
+      const response = await fetch('/api/user/subscription', {
+        cache: 'no-store', // Prevent caching
+        credentials: 'include' // Include cookies
+      });
       if (response.ok) {
         const { data } = await response.json();
         setUserSubscription(data);
+      } else {
+        console.error('[subscription/page] Subscription API error:', response.status);
       }
     } catch (error) {
       console.error('Error loading user subscription:', error);
@@ -161,6 +200,13 @@ export default function SubscriptionPage() {
   }
 
   function isPremiumUser(): boolean {
+    // Check active subscription first
+    if (userSubscription && userSubscription.status === 'active' && !isExpired(userSubscription.end_date)) {
+      const subRole = userSubscription.roles;
+      const subRoleName = typeof subRole === 'object' ? subRole?.name : subRole;
+      if (subRoleName === 'premium' || subRoleName === 'admin') return true;
+    }
+
     if (!currentUser) return false;
     const role = currentUser.roles || currentUser.role;
     const roleName = typeof role === 'object' ? role?.name : role;
@@ -168,6 +214,13 @@ export default function SubscriptionPage() {
   }
 
   function isBasicUser(): boolean {
+    // Check active subscription first
+    if (userSubscription && userSubscription.status === 'active' && !isExpired(userSubscription.end_date)) {
+      const subRole = userSubscription.roles;
+      const subRoleName = typeof subRole === 'object' ? subRole?.name : subRole;
+      if (subRoleName === 'basic') return true;
+    }
+
     if (!currentUser) return false;
     const role = currentUser.roles || currentUser.role;
     const roleName = typeof role === 'object' ? role?.name : role;
@@ -176,6 +229,13 @@ export default function SubscriptionPage() {
 
   // Get user role name
   function getUserRoleName(): string {
+    // Check active subscription first
+    if (userSubscription && userSubscription.status === 'active' && !isExpired(userSubscription.end_date)) {
+      const subRole = userSubscription.roles;
+      const subRoleName = typeof subRole === 'object' ? subRole?.name : subRole;
+      if (subRoleName) return subRoleName;
+    }
+
     if (!currentUser) return 'free';
     const role = currentUser.roles || currentUser.role;
     if (typeof role === 'object') {
@@ -614,9 +674,24 @@ export default function SubscriptionPage() {
         {/* Payment History - Only for premium users */}
         {isPremium && (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8">
-            <div className="text-right mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">היסטוריית תשלומים</h2>
-              <p className="text-gray-600 text-sm sm:text-base">כל התשלומים והחשבוניות שלך</p>
+            <div className="text-right mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">היסטוריית תשלומים</h2>
+                <p className="text-gray-600 text-sm sm:text-base">כל התשלומים והחשבוניות שלך</p>
+              </div>
+              <button
+                onClick={() => {
+                  if (sessionUser?.id) {
+                    loadUserPayments(sessionUser.id);
+                  } else if (currentUser?.user_id) {
+                    loadUserPayments(currentUser.user_id);
+                  }
+                }}
+                className="p-2 text-gray-500 hover:text-[#F52F8E] transition-colors rounded-lg hover:bg-gray-50"
+                title="רענן תשלומים"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Payment List */}
