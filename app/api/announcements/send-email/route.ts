@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
     // Return response immediately and send emails in background
     // This prevents timeout issues when sending to many users
     const sendEmailsInBackground = async () => {
-      const results = [];
+      const results: Array<{ user_id: string; email: string; status: string; error?: any }> = [];
       let successCount = 0;
       let failCount = 0;
 
