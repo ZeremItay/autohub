@@ -38,6 +38,7 @@ export interface ProfileWithRole extends Profile {
 }
 
 // Get profile by user_id with role
+// Uses safe_profiles view to hide email from non-owners
 export async function getProfile(userId: string) {
   // Check cache first
   const cacheKey = `profile:${userId}`;
@@ -49,7 +50,7 @@ export async function getProfile(userId: string) {
 
   try {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('safe_profiles')
       .select(`
         *,
         roles:role_id (
@@ -84,9 +85,10 @@ export async function getProfile(userId: string) {
 }
 
 // Get profile by id (primary key) with role
+// Uses safe_profiles view to hide email from non-owners
 export async function getProfileById(profileId: string) {
   const { data, error } = await supabase
-    .from('profiles')
+    .from('safe_profiles')
     .select(`
       *,
       roles:role_id (
@@ -207,6 +209,7 @@ async function withQueryTimeout<T>(
   return Promise.race([queryPromise, timeoutPromise]);
 }
 
+// Uses safe_profiles view to hide email from non-owners
 export async function getAllProfiles() {
   const cacheKey = 'profiles:all';
   const cached = getCached(cacheKey);
@@ -216,7 +219,7 @@ export async function getAllProfiles() {
 
   const result = await withQueryTimeout(
     supabase
-      .from('profiles')
+      .from('safe_profiles')
       .select(`
         id,
         user_id,
@@ -229,7 +232,6 @@ export async function getAllProfiles() {
         points,
         rank,
         is_online,
-        email,
         role_id,
         created_at,
         updated_at,
@@ -264,6 +266,7 @@ export async function getAllProfiles() {
 }
 
 // Get profiles by user IDs (batch loading)
+// Uses safe_profiles view to hide email from non-owners
 export async function getProfilesByIds(userIds: string[]) {
   if (!userIds || userIds.length === 0) {
     return { data: [], error: null };
@@ -271,7 +274,7 @@ export async function getProfilesByIds(userIds: string[]) {
 
   // Use single query for single user, batch for multiple
   const query = supabase
-    .from('profiles')
+    .from('safe_profiles')
     .select(`
       id,
       user_id,
@@ -283,7 +286,6 @@ export async function getProfilesByIds(userIds: string[]) {
       points,
       rank,
       is_online,
-      email,
       role_id,
       created_at,
       updated_at,

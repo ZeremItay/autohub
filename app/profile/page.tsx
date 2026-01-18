@@ -1879,10 +1879,12 @@ function ProfilePageContent() {
                         <span className="text-sm text-gray-500">ביוגרפיה:</span>
                         <p className="text-gray-800 font-medium mt-1">{formData.bio || '-'}</p>
                       </div>
-                      <div>
-                        <span className="text-sm text-gray-500">אימייל:</span>
-                        <p className="text-gray-800 font-medium mt-1">{profile.email || '-'}</p>
-                      </div>
+                      {isOwnerOrAdmin() && (
+                        <div>
+                          <span className="text-sm text-gray-500">אימייל:</span>
+                          <p className="text-gray-800 font-medium mt-1">{profile.email || '-'}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

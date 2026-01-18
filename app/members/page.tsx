@@ -150,14 +150,13 @@ function MembersPageContent() {
     }
   }
 
-  // Filter members based on search
+  // Filter members based on search (excluding email for privacy)
   const filteredMembers = members.filter(member => {
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
     return (
       member.display_name?.toLowerCase().includes(query) ||
-      member.nickname?.toLowerCase().includes(query) ||
-      member.email?.toLowerCase().includes(query)
+      member.nickname?.toLowerCase().includes(query)
     )
   })
 
