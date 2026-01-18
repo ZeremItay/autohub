@@ -1,24 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { cookies } from 'next/headers';
 import { toggleForumReplyLike } from '@/lib/queries/forums';
+
+// Helper function to get authenticated user
+async function getAuthenticatedUser() {
+  try {
+    const cookieStore = await cookies()
+    const supabase = createServerClient(cookieStore)
+    const { data: { session }, error } = await supabase.auth.getSession()
+    if (error || !session) {
+      return null
+    }
+    return session.user
+  } catch (error) {
+    return null
+  }
+}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ replyId: string }> }
 ) {
   try {
-    const { replyId } = await params;
-    const body = await request.json();
-    const { user_id } = body;
-
-    if (!user_id) {
-      return NextResponse.json(
-        { error: 'Missing user_id' },
-        { status: 400 }
-      );
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data, error } = await toggleForumReplyLike(replyId, user_id);
+    const { replyId } = await params;
+
+    // Use authenticated user's ID, not from request body
+    const { data, error } = await toggleForumReplyLike(replyId, user.id);
 
     if (error) {
       return NextResponse.json(

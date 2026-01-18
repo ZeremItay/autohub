@@ -1,26 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { cookies } from 'next/headers';
 import { awardPoints } from '@/lib/queries/gamification';
 import { checkAndNotifyMentions } from '@/lib/utils/notifications';
 
+// Helper function to get authenticated user
+async function getAuthenticatedUser() {
+  try {
+    const cookieStore = await cookies()
+    const supabase = createServerClient(cookieStore)
+    const { data: { session }, error } = await supabase.auth.getSession()
+    if (error || !session) {
+      return null
+    }
+    return session.user
+  } catch (error) {
+    return null
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { forum_id, user_id, title, content, media_url, media_type } = body;
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    if (!forum_id || !user_id || !title || !content) {
+    const body = await request.json();
+    const { forum_id, title, content, media_url, media_type } = body;
+
+    // Use authenticated user's ID, not from request body
+    const user_id = user.id;
+
+    if (!forum_id || !title || !content) {
       console.error('Missing required fields:', {
         forum_id: !!forum_id,
-        user_id: !!user_id,
         title: !!title,
         content: !!content
       });
       return NextResponse.json(
-        { 
+        {
           error: 'Missing required fields',
           missing: {
             forum_id: !forum_id,
-            user_id: !user_id,
             title: !title,
             content: !content
           }

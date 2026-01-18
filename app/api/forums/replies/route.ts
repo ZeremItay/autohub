@@ -1,14 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { cookies } from 'next/headers';
 import { createForumPostReply } from '@/lib/queries/forums';
 import { notifyForumPostReply, checkAndNotifyMentions } from '@/lib/utils/notifications';
 
+// Helper function to get authenticated user
+async function getAuthenticatedUser() {
+  try {
+    const cookieStore = await cookies()
+    const supabase = createServerClient(cookieStore)
+    const { data: { session }, error } = await supabase.auth.getSession()
+    if (error || !session) {
+      return null
+    }
+    return session.user
+  } catch (error) {
+    return null
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { post_id, user_id, content, parent_id } = body;
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    if (!post_id || !user_id || !content) {
+    const body = await request.json();
+    const { post_id, content, parent_id } = body;
+
+    // Use authenticated user's ID, not from request body
+    const user_id = user.id;
+
+    if (!post_id || !content) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }

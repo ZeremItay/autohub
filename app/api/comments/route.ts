@@ -1,20 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase-server';
+import { cookies } from 'next/headers';
 import { createComment } from '@/lib/queries/comments';
 import { getRecordingById } from '@/lib/queries/recordings';
 import { getAllProfiles } from '@/lib/queries/profiles';
 import { notifyRecordingComment, notifyCommentReply, checkAndNotifyMentions } from '@/lib/utils/notifications';
 
+// Helper function to get authenticated user
+async function getAuthenticatedUser() {
+  try {
+    const cookieStore = await cookies()
+    const supabase = createServerClient(cookieStore)
+    const { data: { session }, error } = await supabase.auth.getSession()
+    if (error || !session) {
+      return null
+    }
+    return session.user
+  } catch (error) {
+    return null
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { recording_id, user_id, content, parent_id } = body;
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    if (!recording_id || !user_id || !content) {
+    const body = await request.json();
+    const { recording_id, content, parent_id } = body;
+
+    if (!recording_id || !content) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
+
+    // Use authenticated user's ID, not from request body
+    const user_id = user.id;
 
     // Create the comment
     const { data: comment, error } = await createComment(

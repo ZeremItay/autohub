@@ -1,19 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
+import { cookies } from 'next/headers';
 import { getUserNotifications, getUnreadNotificationsCount, markAllNotificationsAsRead } from '@/lib/queries/notifications';
+
+// Helper function to get authenticated user
+async function getAuthenticatedUser() {
+  try {
+    const cookieStore = await cookies()
+    const supabase = createServerClient(cookieStore)
+    const { data: { session }, error } = await supabase.auth.getSession()
+    if (error || !session) {
+      return null
+    }
+    return session.user
+  } catch (error) {
+    return null
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('user_id');
     const countOnly = searchParams.get('count_only') === 'true';
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'user_id is required' },
-        { status: 400 }
-      );
-    }
+    // Use authenticated user's ID, not from query params
+    const userId = user.id;
 
     if (countOnly) {
       const { count, error } = await getUnreadNotificationsCount(userId);
@@ -73,18 +89,19 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { user_id, mark_all_read } = body;
-
-    if (!user_id) {
-      return NextResponse.json(
-        { error: 'user_id is required' },
-        { status: 400 }
-      );
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const body = await request.json();
+    const { mark_all_read } = body;
+
+    // Use authenticated user's ID, not from request body
+    const userId = user.id;
+
     if (mark_all_read) {
-      const { error } = await markAllNotificationsAsRead(user_id);
+      const { error } = await markAllNotificationsAsRead(userId);
       if (error) {
         return NextResponse.json({ error: 'Failed to mark all as read' }, { status: 500 });
       }
