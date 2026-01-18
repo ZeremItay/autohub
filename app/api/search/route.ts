@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       if (session?.user?.id) {
         hasSession = true;
         const { data: userProfile } = await authSupabase
-          .from('public_profiles')
+          .from('profiles')
           .select('role_id, roles:role_id(name)')
           .eq('user_id', session.user.id)
           .maybeSingle();
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
       // Search posts (announcements)
       dataSupabase
         .from('posts')
-        .select('id, content, created_at, profiles:user_id!inner(display_name)')
+        .select('id, content, created_at, profiles:user_id(display_name)')
         .ilike('content', searchTerm)
         .limit(10),
 

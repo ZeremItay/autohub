@@ -23,7 +23,7 @@ export async function verifyPremiumAccess(userId: string): Promise<PremiumAccess
 
     // Get user profile with role
     const { data: profile, error: profileError } = await supabase
-      .from('public_profiles')
+      .from('profiles')
       .select(`
         user_id,
         role_id,

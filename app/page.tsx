@@ -477,9 +477,8 @@ export default function Home() {
       // Fetch all profiles at once
       let profilesMap = new Map<string, any>();
       if (userIds.size > 0) {
-        // SECURITY: Use public_profiles view instead of profiles table to avoid exposing sensitive data
         const { data: profilesData } = await supabase
-          .from('public_profiles')
+          .from('profiles')
           .select('user_id, display_name, first_name, nickname')
           .in('user_id', Array.from(userIds));
         if (profilesData) {
