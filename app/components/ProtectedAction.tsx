@@ -264,7 +264,7 @@ export default function ProtectedAction({
                 <p className="font-medium mb-1.5 break-words text-xs leading-relaxed">{message}</p>
                 <div className="flex flex-col gap-1.5">
                   <Link
-                    href="/pricing"
+                    href="/subscription"
                     className="inline-flex items-center gap-1 text-yellow-400 hover:underline font-medium text-xs"
                     onClick={(e) => e.stopPropagation()}
                   >
