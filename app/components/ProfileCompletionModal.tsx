@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, CheckCircle, Circle, User, Image as ImageIcon, Link as LinkIcon, ArrowLeft, Sparkles } from 'lucide-react';
+import { X, CheckCircle, Circle, User, Image as ImageIcon, Link as LinkIcon, ArrowLeft, Sparkles, Clock, AlertCircle } from 'lucide-react';
 import { getProfileWithRole } from '@/lib/queries/profiles';
 import { supabase } from '@/lib/supabase';
 
@@ -15,10 +15,9 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   
-
   // Check completion status for each task
   const hasHeadline = profile?.headline && profile.headline.trim().length > 0;
   
@@ -61,7 +60,18 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
 
         setProfile(profileData);
         
-        // If user has already seen completion message and all tasks are complete, don't show modal
+        // Check snooze
+        const snoozeTime = localStorage.getItem('profile_completion_snooze');
+        const isSnoozed = snoozeTime && new Date().getTime() < parseInt(snoozeTime);
+
+        // If user has already seen completion message, NEVER show again (even if tasks are undone later)
+        if (profileData?.has_seen_completion_message) {
+          setIsOpen(false);
+          setLoading(false);
+          return;
+        }
+
+        // Check if all tasks complete
         const headlineComplete = !!(profileData?.headline && profileData.headline.trim().length > 0);
         const avatarComplete = !!(profileData?.avatar_url && 
           profileData.avatar_url.trim().length > 0 &&
@@ -75,9 +85,12 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
           !!(profileData?.facebook_url && profileData.facebook_url.trim().length > 0);
         const allComplete = headlineComplete && avatarComplete && socialLinksComplete;
         
-        if (allComplete && profileData?.has_seen_completion_message) {
-          setIsOpen(false);
-          if (onClose) onClose();
+        // Show if not complete and not snoozed
+        if (!allComplete && !isSnoozed) {
+          setIsOpen(true);
+        } else if (allComplete && !profileData?.has_seen_completion_message) {
+          // If complete but hasn't seen message, show it (even if snoozed)
+          setIsOpen(true);
         }
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -206,22 +219,27 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
   useEffect(() => {
     if (allTasksComplete && !showCompletion && profile && !profile.has_seen_completion_message) {
       setShowCompletion(true);
-      // Mark as seen in database immediately
+      // Award points and mark as seen via API
       (async () => {
         try {
-          const { error } = await supabase
-            .from('profiles')
-            .update({ has_seen_completion_message: true })
-            .eq('user_id', userId);
+          const response = await fetch('/api/user/complete-profile', { method: 'POST' });
+          const result = await response.json();
           
-          if (error) {
-            console.error('Error marking completion message as seen:', error);
+          if (!response.ok) {
+            console.error('Error completing profile:', result.error);
           } else {
             // Update local state
-            setProfile({ ...profile, has_seen_completion_message: true });
+            setProfile((prev: any) => ({ 
+              ...prev, 
+              has_seen_completion_message: true,
+              points: (prev?.points || 0) + (result.pointsAdded || 0)
+            }));
+            
+            // Clear snooze so it doesn't interfere with future logic (though shouldn't matter)
+            localStorage.removeItem('profile_completion_snooze');
           }
         } catch (err) {
-          console.error('Error updating has_seen_completion_message:', err);
+          console.error('Error calling complete-profile API:', err);
         }
       })();
       
@@ -235,7 +253,7 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
 
   // Don't show modal if user has already seen the completion message
   useEffect(() => {
-    if (!loading && profile && allTasksComplete && profile.has_seen_completion_message) {
+    if (!loading && profile && profile.has_seen_completion_message) {
       setIsOpen(false);
       if (onClose) onClose();
     }
@@ -244,6 +262,13 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
   const handleClose = () => {
     setIsOpen(false);
     if (onClose) onClose();
+  };
+
+  const handleSnooze = () => {
+    // Snooze for 24 hours
+    const snoozeUntil = new Date().getTime() + 24 * 60 * 60 * 1000;
+    localStorage.setItem('profile_completion_snooze', snoozeUntil.toString());
+    handleClose();
   };
 
   const handleNavigateToProfile = () => {
@@ -271,7 +296,8 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
               <Sparkles className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">כל הכבוד! 🎉</h2>
-            <p className="text-gray-600 mb-6">השלמת את כל המשימות בהצלחה!</p>
+            <p className="text-gray-600 mb-2">השלמת את כל המשימות בהצלחה!</p>
+            <p className="text-lg font-bold text-[#F52F8E] mb-6">+10 נקודות נוספו לחשבונך!</p>
             <p className="text-sm text-gray-500">הפרופיל שלך כעת מלא ומעודכן</p>
           </div>
         </div>
@@ -280,7 +306,7 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
   }
   
   // Don't show anything if user has already seen the completion message
-  if (allTasksComplete && profile?.has_seen_completion_message) {
+  if (profile?.has_seen_completion_message) {
     return null;
   }
 
@@ -289,7 +315,10 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 animate-fade-in overflow-x-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">השלמת פרטים</h2>
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">השלמת פרטים</h2>
+            <p className="text-sm text-[#F52F8E] font-medium mt-1">השלם וקבל 10 נקודות מתנה! 🎁</p>
+          </div>
           <button
             onClick={handleClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -409,10 +438,17 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 rounded-b-2xl border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
-            תוכל לסגור את החלון הזה, אבל הוא יופיע שוב עד שתשלים את כל המשימות
+        <div className="px-6 py-4 bg-gray-50 rounded-b-2xl border-t border-gray-200 flex items-center justify-between gap-4">
+          <p className="text-xs text-gray-500">
+            השלם את המשימות כדי לקבל נקודות ולקדם את הפרופיל שלך
           </p>
+          <button
+            onClick={handleSnooze}
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Clock className="w-4 h-4" />
+            הזכר לי אח"כ
+          </button>
         </div>
       </div>
     </div>
