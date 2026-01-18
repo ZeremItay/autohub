@@ -235,17 +235,43 @@ export async function POST(request: NextRequest) {
             // If response is not JSON, try to get text
             const text = await resendResponse.text().catch(() => '');
             emailData = { message: text || `HTTP ${resendResponse.status}`, status: resendResponse.status };
+            console.warn(`📧 [send-email] Non-JSON response for ${user.email}:`, {
+              status: resendResponse.status,
+              statusText: resendResponse.statusText,
+              text: text.substring(0, 200)
+            });
           }
 
           if (resendResponse.ok) {
             successCount++;
             results.push({ user_id: user.user_id, email: user.email, status: 'success' });
             success = true;
+            if (i % 10 === 0) {
+              console.log(`📧 [send-email] Successfully sent to ${user.email} (${successCount}/${usersToNotify.length})`);
+            }
           } else {
+            // Log detailed error information
+            console.error(`📧 [send-email] Failed to send to ${user.email}:`, {
+              status: resendResponse.status,
+              statusText: resendResponse.statusText,
+              error: emailData,
+              errorMessage: emailData?.message || emailData?.error?.message || 'Unknown error',
+              errorType: emailData?.type || 'unknown'
+            });
+            
             // Check if it's a rate limit error (429) - retry after delay
             if (resendResponse.status === 429 && retries > 1) {
               const retryDelay = 5000; // 5 seconds for rate limit
-              console.warn(`Rate limit hit for ${user.email}, retrying in ${retryDelay/1000} seconds... (${retries-1} retries left)`);
+              console.warn(`📧 [send-email] Rate limit hit for ${user.email}, retrying in ${retryDelay/1000} seconds... (${retries-1} retries left)`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+              retries--;
+              continue;
+            }
+            
+            // Check for other retryable errors (5xx server errors)
+            if (resendResponse.status >= 500 && resendResponse.status < 600 && retries > 1) {
+              const retryDelay = 3000; // 3 seconds for server errors
+              console.warn(`📧 [send-email] Server error (${resendResponse.status}) for ${user.email}, retrying in ${retryDelay/1000} seconds... (${retries-1} retries left)`);
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               retries--;
               continue;
@@ -256,15 +282,23 @@ export async function POST(request: NextRequest) {
               user_id: user.user_id, 
               email: user.email, 
               status: 'failed', 
-              error: emailData 
+              error: {
+                status: resendResponse.status,
+                message: emailData?.message || emailData?.error?.message || 'Unknown error',
+                type: emailData?.type || 'unknown',
+                fullError: emailData
+              }
             });
-            console.error(`Failed to send email to ${user.email}:`, {
-              status: resendResponse.status,
-              error: emailData
-            });
-            success = true; // Don't retry on non-rate-limit errors
+            success = true; // Don't retry on non-retryable errors
           }
         } catch (error: any) {
+          console.error(`📧 [send-email] Exception sending to ${user.email}:`, {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+            retriesLeft: retries - 1
+          });
+          
           retries--;
           if (retries === 0) {
             failCount++;
@@ -272,13 +306,17 @@ export async function POST(request: NextRequest) {
               user_id: user.user_id, 
               email: user.email, 
               status: 'error', 
-              error: error.message 
+              error: {
+                message: error.message,
+                type: error.name || 'NetworkError',
+                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+              }
             });
-            console.error(`Error sending email to ${user.email} after retries:`, error);
+            console.error(`📧 [send-email] Failed to send to ${user.email} after all retries:`, error.message);
           } else {
             // Retry after delay
             const retryDelay = 2000; // 2 seconds for network errors
-            console.warn(`Retrying ${user.email} in ${retryDelay/1000} seconds... (${retries} retries left)`);
+            console.warn(`📧 [send-email] Retrying ${user.email} in ${retryDelay/1000} seconds... (${retries} retries left)`);
             await new Promise(resolve => setTimeout(resolve, retryDelay));
           }
         }
@@ -291,13 +329,34 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`📧 [send-email] Completed: ${successCount} sent, ${failCount} failed out of ${usersToNotify.length} total`);
+    
+    // Log summary of failures
+    if (failCount > 0) {
+      const failedResults = results.filter(r => r.status !== 'success');
+      const errorTypes = new Map<string, number>();
+      failedResults.forEach(r => {
+        const errorMsg = typeof r.error === 'object' 
+          ? (r.error?.message || r.error?.type || 'Unknown')
+          : String(r.error || 'Unknown');
+        errorTypes.set(errorMsg, (errorTypes.get(errorMsg) || 0) + 1);
+      });
+      
+      console.error(`📧 [send-email] Failure summary:`, {
+        totalFailed: failCount,
+        errorTypes: Array.from(errorTypes.entries()).map(([type, count]) => `${type}: ${count}`),
+        sampleErrors: failedResults.slice(0, 5).map(r => ({
+          email: r.email,
+          error: typeof r.error === 'object' ? r.error : { message: r.error }
+        }))
+      });
+    }
 
     return NextResponse.json({ 
       success: true,
       sent: successCount,
       failed: failCount,
       total: usersToNotify.length,
-      results: results.slice(0, 10), // Only return first 10 results to avoid large response
+      results: results.slice(0, 20), // Return first 20 results to see more errors
       testMode: !!testUserId
     });
   } catch (error: any) {
