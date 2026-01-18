@@ -275,6 +275,11 @@ export async function PUT(request: NextRequest) {
       // Bulk update multiple users
       const { ids, ...updates } = body
       
+      // Remove 'level' from updates if present (legacy field)
+      if ('level' in updates) {
+        delete updates.level;
+      }
+      
       if (!ids || ids.length === 0) {
         return NextResponse.json({ error: 'No user IDs provided' }, { status: 400 })
       }
@@ -406,6 +411,10 @@ export async function PUT(request: NextRequest) {
       const supabase = createServerClient()
       const { id, ...updates } = body
       
+      // Remove 'level' from updates if present (legacy field)
+      if ('level' in updates) {
+        delete updates.level;
+      }
       
       // If points are being updated, get current points first to calculate difference
       let pointsDifference = 0;
