@@ -14,12 +14,39 @@ DROP POLICY IF EXISTS "Users can view their own profile" ON profiles;
 DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
 DROP POLICY IF EXISTS "Anyone can view public profile fields" ON profiles;
 DROP POLICY IF EXISTS "Authenticated users can view public profile fields" ON profiles;
+DROP POLICY IF EXISTS "Users can view their own complete profile" ON profiles;
 
 -- Restore the old policy (allows public access)
 DROP POLICY IF EXISTS "Anyone can view profiles" ON profiles;
 CREATE POLICY "Anyone can view profiles" ON profiles
   FOR SELECT
   USING (true);
+
+-- ============================================
+-- COURSE PROGRESS - Restore old policies
+-- ============================================
+
+DROP POLICY IF EXISTS "Users can view own progress" ON course_progress;
+DROP POLICY IF EXISTS "Users can insert own progress" ON course_progress;
+DROP POLICY IF EXISTS "Users can update own progress" ON course_progress;
+DROP POLICY IF EXISTS "Only admins can delete course progress" ON course_progress;
+
+-- Restore more permissive policies (if they were working before)
+CREATE POLICY "Allow users to read own progress" ON course_progress FOR SELECT USING (true);
+CREATE POLICY "Allow users to insert own progress" ON course_progress FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow users to update own progress" ON course_progress FOR UPDATE USING (true);
+
+-- ============================================
+-- COURSES - Restore old policies
+-- ============================================
+
+DROP POLICY IF EXISTS "Only admins can insert courses" ON courses;
+DROP POLICY IF EXISTS "Only admins can update courses" ON courses;
+DROP POLICY IF EXISTS "Only admins can delete courses" ON courses;
+
+-- Restore more permissive policies
+CREATE POLICY "Allow authenticated users to insert courses" ON courses FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow authenticated users to update courses" ON courses FOR UPDATE USING (true);
 
 -- ============================================
 -- COURSE_LESSONS - Restore public access
