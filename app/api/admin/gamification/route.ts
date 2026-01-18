@@ -1,9 +1,51 @@
 import { createServerClient } from '@/lib/supabase-server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 
-export async function GET() {
+// Helper function to check admin authorization
+async function checkAdminAuth(request: NextRequest): Promise<boolean> {
+  const apiKey = request.headers.get('X-API-Key') || request.headers.get('Authorization')?.replace('Bearer ', '')
+  const validApiKey = process.env.ADMIN_API_KEY || process.env.API_KEY
+
+  if (apiKey && validApiKey && apiKey === validApiKey) {
+    return true
+  }
+
   try {
-    const supabase = createServerClient()
+    const cookieStore = await cookies()
+    const supabase = createServerClient(cookieStore)
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+    if (!sessionError && session) {
+      const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('*, roles:role_id (id, name)')
+        .eq('user_id', session.user.id)
+        .single()
+
+      const role = adminProfile?.roles || adminProfile?.role
+      const roleName = typeof role === 'object' ? role?.name : role
+
+      if (roleName === 'admin') {
+        return true
+      }
+    }
+  } catch (error) {
+    // Session check failed
+  }
+
+  return false
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const isAuthorized = await checkAdminAuth(request)
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const cookieStore = await cookies()
+    const supabase = createServerClient(cookieStore)
     
     const { data, error } = await supabase
       .from('gamification_rules')
@@ -20,9 +62,15 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const isAuthorized = await checkAdminAuth(request)
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const cookieStore = await cookies()
+    const supabase = createServerClient(cookieStore)
     const body = await request.json()
     
     const { data, error } = await supabase
@@ -41,9 +89,15 @@ export async function POST(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const isAuthorized = await checkAdminAuth(request)
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const cookieStore = await cookies()
+    const supabase = createServerClient(cookieStore)
     const { id, ...updates } = await request.json()
     
     const { data, error } = await supabase
@@ -63,9 +117,15 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const isAuthorized = await checkAdminAuth(request)
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const cookieStore = await cookies()
+    const supabase = createServerClient(cookieStore)
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     
