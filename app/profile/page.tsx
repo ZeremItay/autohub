@@ -1372,6 +1372,18 @@ function ProfilePageContent() {
                   )}
                 </>
               )}
+
+              {/* Add social links hint button */}
+              {isOwnerOrAdmin() && (!profile?.social_links || profile.social_links.length === 0) && !formData.instagram_url && !formData.facebook_url && (
+                <button
+                  onClick={() => setEditingDetails(true)}
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs rounded-full transition-colors border border-gray-200"
+                >
+                  <LinkIcon className="w-3 h-3" />
+                  <span>פה מוסיפים רשתות חברתיות</span>
+                </button>
+              )}
+
               <div className="relative group">
                 {currentLoggedInUserId && profile && (currentLoggedInUserId === (profile.user_id || profile.id)) ? (
                   // Own profile - allow editing
@@ -1397,13 +1409,14 @@ function ProfilePageContent() {
                     onClick={() => setShowAvatarLightbox(true)}
                     className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#F52F8E] to-pink-400 flex items-center justify-center text-white text-xl sm:text-2xl font-bold flex-shrink-0 overflow-hidden hover:opacity-90 transition-opacity cursor-pointer relative"
                   >
-                    {formData.avatar_url || profile?.avatar_url ? (
+                    {profile?.avatar_url ? (
                       <Image 
-                        src={`${formData.avatar_url || profile.avatar_url}?t=${Date.now()}`} 
+                        src={`${profile.avatar_url}?t=${Date.now()}`} 
                         alt={fullName} 
                         fill
                         className="rounded-full object-cover"
-                        key={`profile-avatar-${formData.avatar_url || profile?.avatar_url}`}
+                        key={`profile-avatar-other-${profile.user_id || profile.id}-${profile.avatar_url}`}
+                        unoptimized
                       />
                     ) : (
                       <span>{fullName.charAt(0)}</span>
@@ -1837,16 +1850,6 @@ function ProfilePageContent() {
                           value={formData.bio}
                           onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                           rows={4}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">URL תמונת פרופיל</label>
-                        <input
-                          type="text"
-                          value={formData.avatar_url}
-                          onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                          placeholder="https://..."
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
                         />
                       </div>
@@ -2660,7 +2663,7 @@ function ProfilePageContent() {
       </div>
 
       {/* Avatar Lightbox for viewing other users' avatars */}
-      {showAvatarLightbox && (formData.avatar_url || profile?.avatar_url) && (
+      {showAvatarLightbox && profile?.avatar_url && (
         <div 
           className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
           onClick={() => setShowAvatarLightbox(false)}
@@ -2673,7 +2676,7 @@ function ProfilePageContent() {
               <X className="w-6 h-6" />
             </button>
             <img 
-              src={`${formData.avatar_url || profile.avatar_url}?t=${Date.now()}`} 
+              src={`${profile.avatar_url}?t=${Date.now()}`} 
               alt={fullName} 
               className="w-full h-auto rounded-lg shadow-2xl max-h-[90vh] object-contain"
             />

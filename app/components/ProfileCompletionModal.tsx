@@ -335,6 +335,8 @@ export default function ProfileCompletionModal({ userId, onClose }: ProfileCompl
               </div>
               <p className="text-sm text-gray-600 mb-3">
                 שתף עם הקהילה מה אתה עושה או מה התחביבים שלך
+                <br />
+                <span className="text-xs text-gray-500">(נמצא מתחת לשם שלכם בחלק העליון)</span>
               </p>
               {!hasHeadline && (
                 <button
