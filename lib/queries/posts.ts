@@ -2,6 +2,18 @@ import { supabase } from '../supabase'
 import { getCached, setCached, CACHE_TTL, invalidateCache } from '../cache'
 import { logError, isNotFoundError } from '../utils/errorHandler'
 
+// Fields that should never be updated by regular users (computed or system fields)
+const PROTECTED_POST_FIELDS = ['id', 'user_id', 'created_at', 'likes_count', 'comments_count'] as const
+
+// Helper function to remove protected fields from post updates
+function sanitizePostUpdates<T extends Record<string, unknown>>(updates: T): Omit<T, typeof PROTECTED_POST_FIELDS[number]> {
+  const sanitized = { ...updates }
+  for (const field of PROTECTED_POST_FIELDS) {
+    delete sanitized[field as keyof typeof sanitized]
+  }
+  return sanitized
+}
+
 export interface Post {
   id: string
   user_id: string
@@ -398,9 +410,12 @@ export async function createPost(post: {
 
 // Update post
 export async function updatePost(id: string, updates: Partial<Post>) {
+  // Remove protected fields to prevent manipulation of likes_count, comments_count, etc.
+  const safeUpdates = sanitizePostUpdates(updates)
+
   const { data, error } = await supabase
     .from('posts')
-    .update(updates)
+    .update(safeUpdates)
     .eq('id', id)
     .select('id, user_id, content, media_url, media_type, is_announcement, likes_count, comments_count, created_at, updated_at')
     .single()

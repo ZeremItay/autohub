@@ -1,6 +1,18 @@
 import { createServerClient, getSupabaseClient } from '@/lib/supabase-server';
 import { supabase } from '@/lib/supabase';
 
+// Fields that should never be updated directly (system or computed fields)
+const PROTECTED_COURSE_FIELDS = ['id', 'created_at', 'lessons_count'] as const
+
+// Helper function to remove protected fields from course updates
+function sanitizeCourseUpdates<T extends Record<string, unknown>>(updates: T): Omit<T, typeof PROTECTED_COURSE_FIELDS[number]> {
+  const sanitized = { ...updates }
+  for (const field of PROTECTED_COURSE_FIELDS) {
+    delete sanitized[field as keyof typeof sanitized]
+  }
+  return sanitized
+}
+
 export interface Course {
   id: string;
   title: string;
@@ -483,36 +495,35 @@ export async function createCourse(course: Omit<Course, 'id' | 'created_at' | 'u
 
 // Update course
 export async function updateCourse(id: string, updates: Partial<Course>) {
+  // Sanitize updates to remove protected fields (id, created_at, lessons_count)
+  const safeUpdates = sanitizeCourseUpdates(updates)
+
   // Use client-side supabase for admin operations
   // Handle difficulty value - try English first, fallback to Hebrew if needed
-  let difficulty = updates.difficulty || 'beginner';
-  
+  let difficulty = safeUpdates.difficulty || 'beginner';
+
   // If difficulty is provided, validate it
-  if (updates.difficulty) {
+  if (safeUpdates.difficulty) {
     // Check if it's a valid Hebrew value
-    if (updates.difficulty === 'מתחילים' || updates.difficulty === 'בינוני' || updates.difficulty === 'מתקדמים') {
-      difficulty = updates.difficulty;
+    if (safeUpdates.difficulty === 'מתחילים' || safeUpdates.difficulty === 'בינוני' || safeUpdates.difficulty === 'מתקדמים') {
+      difficulty = safeUpdates.difficulty;
     }
     // Check if it's a valid English value
-    else if (updates.difficulty === 'beginner' || updates.difficulty === 'intermediate' || updates.difficulty === 'advanced') {
-      difficulty = updates.difficulty;
+    else if (safeUpdates.difficulty === 'beginner' || safeUpdates.difficulty === 'intermediate' || safeUpdates.difficulty === 'advanced') {
+      difficulty = safeUpdates.difficulty;
     }
   }
-  
+
   const updateData: any = {
-    ...updates,
+    ...safeUpdates,
     difficulty: difficulty,
     updated_at: new Date().toISOString()
   };
-  
+
   // Ensure is_sequential is boolean
-  if (updates.is_sequential !== undefined) {
-    updateData.is_sequential = Boolean(updates.is_sequential);
+  if (safeUpdates.is_sequential !== undefined) {
+    updateData.is_sequential = Boolean(safeUpdates.is_sequential);
   }
-  
-  // Remove fields that shouldn't be updated
-  delete updateData.id;
-  delete updateData.created_at;
   
   
   const { data, error } = await supabase
