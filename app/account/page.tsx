@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Bell, Lock, Download, Save, Upload, X, Camera } from 'lucide-react';
+import { Settings, Bell, Lock, Download, Save, Upload, X, Camera, Eye, EyeOff } from 'lucide-react';
 import { getProfileWithRole, updateProfile } from '@/lib/queries/profiles';
 import { supabase } from '@/lib/supabase';
 
@@ -21,6 +21,8 @@ export default function AccountSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [emailPreferences, setEmailPreferences] = useState({
     forum_reply: true,
@@ -371,48 +373,84 @@ export default function AccountSettingsPage() {
                     <p className="text-xs text-gray-500 mt-1">לא ניתן לשנות את כתובת האימייל</p>
                   </div>
 
-                  {/* Password Toggle */}
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="keepPasswordEmpty"
-                      checked={formData.keepPasswordEmpty}
-                      onChange={(e) => setFormData({ ...formData, keepPasswordEmpty: e.target.checked, password: '', confirmPassword: '' })}
-                      className="w-5 h-5 text-[#F52F8E] rounded focus:ring-[#F52F8E]"
-                    />
-                    <label htmlFor="keepPasswordEmpty" className="text-sm text-gray-700">
-                      השאר את שדות הסיסמה ריקים אם אינך רוצה לשנות
-                    </label>
+                  {/* Password Change Section */}
+                  <div className="pt-4 border-t border-gray-100">
+                    {!formData.keepPasswordEmpty ? (
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <h3 className="font-semibold text-gray-800">החלפת סיסמה</h3>
+                          <button
+                            onClick={() => setFormData({ ...formData, keepPasswordEmpty: true, password: '', confirmPassword: '' })}
+                            className="text-sm text-red-500 hover:text-red-700"
+                          >
+                            ביטול
+                          </button>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            סיסמה חדשה
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showPassword ? "text" : "password"}
+                              value={formData.password}
+                              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] pl-10"
+                              placeholder="לפחות 6 תווים"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            >
+                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            אימות סיסמה חדשה
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showConfirmPassword ? "text" : "password"}
+                              value={formData.confirmPassword}
+                              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E] pl-10"
+                              placeholder="חזור על הסיסמה"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            >
+                              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-end pt-2">
+                          <button
+                            onClick={handleSave}
+                            disabled={saving || !formData.password || formData.password !== formData.confirmPassword}
+                            className="px-4 py-2 bg-[#F52F8E] text-white rounded-lg hover:bg-pink-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                          >
+                            {saving ? 'שומר...' : 'שמור סיסמה חדשה'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setFormData({ ...formData, keepPasswordEmpty: false })}
+                        className="flex items-center gap-2 text-[#F52F8E] font-medium hover:text-pink-700 transition-colors"
+                      >
+                        <Lock className="w-4 h-4" />
+                        <span>לחץ כאן להחלפת סיסמה</span>
+                      </button>
+                    )}
                   </div>
-
-                  {/* New Password */}
-                  {!formData.keepPasswordEmpty && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          הזן סיסמה חדשה
-                        </label>
-                        <input
-                          type="password"
-                          value={formData.password}
-                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          חזור על הסיסמה החדשה
-                        </label>
-                        <input
-                          type="password"
-                          value={formData.confirmPassword}
-                          onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F52F8E]"
-                        />
-                      </div>
-                    </>
-                  )}
 
                   {/* Display Name */}
                   <div>

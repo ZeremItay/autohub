@@ -1667,7 +1667,7 @@ export default function ProjectsPage() {
 
               {/* Project Description */}
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-700 leading-relaxed">{selectedProject.description}</p>
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedProject.description}</p>
               </div>
 
               {/* Offer Message */}
